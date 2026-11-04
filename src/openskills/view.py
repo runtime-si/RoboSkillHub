@@ -49,7 +49,7 @@ def make_view(
     out = Path(out).resolve()
     if out.exists():
         if not (out / VIEW_FILE).is_file():
-            raise FileExistsError(f"{out} exists and is not a motif view; refusing to replace it")
+            raise FileExistsError(f"{out} exists and is not a openskills view; refusing to replace it")
         shutil.rmtree(out)
     for folder in KIND_DIRS:
         (out / folder).mkdir(parents=True)

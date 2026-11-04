@@ -1,17 +1,18 @@
-# Contributing to Motif
+# Contributing to OpenSkills
 
 Five things can be contributed: a **tool** (a model or algorithm skills call),
-a **skill** (a capability a graph builds a subgraph from), a **policy** (a
-trained checkpoint), a **recipe** (a task-level template), and a **paper
-card**. Each starts from a template:
+a **skill** (a reusable step of a task, with exits a policy branches on), a
+**policy** (a trained checkpoint), a **recipe** (a task-level template), and a
+**paper card**. Each starts from a template:
 
 ```bash
 uv sync --extra gap
+# Graph-as-Policy's validator, so `openskills check` runs it too:
 uv pip install --no-deps "graph-as-policy @ git+https://github.com/graph-robots/graph-as-policy@09e45f8de27bc1a29629382ed7c2b9b4b384b3d6"
-uv run --no-sync motif sync
-uv run --no-sync motif new skill grasping-by-the-rim     # or tool, policy, recipe, paper
+uv run --no-sync openskills sync
+uv run --no-sync openskills new skill grasping-by-the-rim     # or tool, policy, recipe, paper
 # edit skills/grasping-by-the-rim/
-uv run --no-sync motif check                             # 0 errors before you open the PR
+uv run --no-sync openskills check                             # 0 errors before you open the PR
 uv run --no-sync pytest -q
 ```
 
@@ -26,7 +27,7 @@ uv run --no-sync pytest -q
   `exit_conditions` are its contract: name observable end states (`grasped`,
   `not_found`), not internal errors.
 - **It is a trained network that closes the loop itself?** A policy. The
-  weights go to the Hugging Face Hub (`motif weights push`), and the bundle
+  weights go to the Hugging Face Hub (`openskills weights push`), and the bundle
   pins them. It names the robot it was trained on and declares `io`: action
   space and rate, state, cameras. A checkpoint runs only on the layout it
   learned, so `embodiments: [any]` is never honest for one.
@@ -70,8 +71,8 @@ trace or video). See [evals/README.md](evals/README.md).
 ## Federated sources
 
 Bundles from another registry are not copied here. To add or bump one:
-change its pin in `sources.yaml`, run `motif sync`, update its overlay in
-`overlays/` until `motif check` is clean, and open the PR with the upstream
+change its pin in `sources.yaml`, run `openskills sync`, update its overlay in
+`overlays/` until `openskills check` is clean, and open the PR with the upstream
 changelog. A pin bump is its own PR.
 
 ## Commit messages

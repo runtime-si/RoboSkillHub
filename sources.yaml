@@ -2,7 +2,7 @@
 #
 # Bundles in this repository (tools/, skills/, policies/) always shadow an
 # upstream bundle of the same name. Upstream bundles are not copied here: they
-# are cloned at the pinned commit by `motif sync`, and the hub metadata we add
+# are cloned at the pinned commit by `openskills sync`, and the hub metadata we add
 # to them lives in their overlay file.
 #
 # Bump a pin in its own PR; CI re-checks every bundle against the new commit.

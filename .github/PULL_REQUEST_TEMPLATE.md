@@ -4,14 +4,14 @@
 
 ## Checklist
 
-- [ ] `motif check` reports 0 errors
+- [ ] `openskills check` reports 0 errors
 - [ ] `pytest -q` passes
 - [ ] The description says what it does and "Use when ..."
 - [ ] Every exit names an observable end state
 - [ ] Constants say what they were measured on (`tuned_on`) and how
 - [ ] No `sim.*` tool, or the reason a camera-only version is not possible
 - [ ] `metadata.hub.version` bumped (MAJOR if an input, output or exit changed)
-- [ ] Weights, if any, are pinned (`motif weights push`) and their license is stated
+- [ ] Weights, if any, are pinned (`openskills weights push`) and their license is stated
 
 ## Evidence
 
