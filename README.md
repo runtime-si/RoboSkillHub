@@ -82,7 +82,7 @@ the robot.
 - **Graph-as-Policy** loads every bundle as it is.
   [docs/how-gap-runs.md](docs/how-gap-runs.md) walks through what it does
   with them at each step, down to the subprocesses it starts.
-- **Code as Policies and agent tool lists.** Tools are typed Python functions,
+- **[Code as Policies](https://code-as-policies.github.io/) and agent tool lists.** Tools are typed Python functions,
   each with a JSON schema, so a generated program or an agent can call them
   directly. A dedicated adapter is on the roadmap.
 - **Any simulator.** A skill reaches the world only through `robot.*` tools,
