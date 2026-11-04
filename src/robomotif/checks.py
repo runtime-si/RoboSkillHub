@@ -23,6 +23,9 @@ from .catalog import Catalog, Issue
 from .model import (
     CONNECTOR_PREFIXES,
     HUB_KEYS,
+    IO_ACTION_KEYS,
+    IO_KEYS,
+    IO_STATE_KEYS,
     KIND_DIRS,
     NAME_RE,
     PROVENANCE_KEYS,
@@ -120,6 +123,43 @@ def _str_list(value: Any) -> bool:
     return isinstance(value, list) and all(isinstance(v, str) and v for v in value)
 
 
+def _positive_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 1
+
+
+def _io_problems(io: Any) -> list[str]:
+    if not isinstance(io, dict):
+        return ["io must be a mapping of action, cameras and optionally state"]
+    problems = []
+    if set(io) - IO_KEYS:
+        problems.append(f"unknown io keys {sorted(set(io) - IO_KEYS)} (known: {sorted(IO_KEYS)})")
+    action = io.get("action") if isinstance(io.get("action"), dict) else {}
+    if set(action) - IO_ACTION_KEYS:
+        problems.append(f"unknown io.action keys {sorted(set(action) - IO_ACTION_KEYS)}")
+    hz = action.get("hz")
+    if not (
+        isinstance(action.get("space"), str)
+        and action["space"]
+        and _positive_int(action.get("dim"))
+        and isinstance(hz, int | float)
+        and not isinstance(hz, bool)
+        and hz > 0
+    ):
+        problems.append("io.action needs space (a name), dim (a positive integer) and hz (a positive number)")
+    state = io.get("state")
+    if state is not None:
+        if not isinstance(state, dict) or not _positive_int(state.get("dim")):
+            problems.append("io.state needs dim, a positive integer")
+        elif set(state) - IO_STATE_KEYS:
+            problems.append(f"unknown io.state keys {sorted(set(state) - IO_STATE_KEYS)}")
+        elif "order" in state and not _str_list(state["order"]):
+            problems.append("io.state.order must be a list of strings")
+    cameras = io.get("cameras")
+    if not (_str_list(cameras) and cameras):
+        problems.append("io.cameras must list the cameras the checkpoint reads, by name")
+    return problems
+
+
 def _run_signature_ok(script: str) -> bool:
     """A canonical script defines ``run(ctx, ...)``."""
     try:
@@ -164,8 +204,19 @@ def check_hub_metadata(
             error(f"hub metadata needs a stage, one of {list(STAGES)}")
     elif stage not in STAGES:
         error(f"stage {stage!r} is not one of {list(STAGES)}")
-    if not _str_list(hub.get("embodiments")):
+    embodiments = hub.get("embodiments")
+    if not _str_list(embodiments):
         error("hub metadata needs embodiments: a list of robot ids (rss.robot() names) or [any]")
+    elif kind == "policy" and "any" in embodiments:
+        error("a checkpoint is trained on particular robots: embodiments names them, never [any]")
+    io = hub.get("io")
+    if kind == "policy" and io is None:
+        error("a policy declares io: the action space and rate, state and cameras it was trained with")
+    elif io is not None and kind != "policy":
+        error("io describes a checkpoint's observations and actions; only a policy declares it")
+    elif io is not None:
+        for problem in _io_problems(io):
+            error(problem)
     for key in ("tuned_on", "tasks"):
         if key in hub and not _str_list(hub[key]):
             error(f"{key} must be a list of strings")

@@ -39,7 +39,7 @@ def test_templates_scaffold_bundles_that_check_clean(kind, tmp_path, monkeypatch
     assert mine == []
 
 
-def test_a_scaffolded_policy_is_rejected_until_its_weights_are_pinned(tmp_path):
+def test_a_scaffolded_policy_is_rejected_until_its_weights_and_io_are_filled_in(tmp_path):
     root = tmp_path / "hub"
     shutil.copytree(REPO / "templates", root / "templates")
     dest = new(root, "policy", "my-policy")
@@ -53,3 +53,4 @@ def test_a_scaffolded_policy_is_rejected_until_its_weights_are_pinned(tmp_path):
     ]
     assert any("must pin a full 40-character commit" in m for m in found)
     assert any("sha256 of their file manifest" in m for m in found)
+    assert any("io.action needs space" in m for m in found)

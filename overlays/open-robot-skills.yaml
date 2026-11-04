@@ -48,12 +48,20 @@ molmoact-libero:
   embodiments: [panda]
   tuned_on: [panda]
   tasks: [libero]
+  io:
+    action: {space: osc_pose_delta, dim: 7, hz: 20}
+    state: {dim: 8, order: [eef_pos, eef_axis_angle, gripper_qpos]}
+    cameras: [agentview, wrist]
   notes: LIBERO observation and OSC_POSE action conventions; drives the arm through sim.apply_policy_action.
 pi05-libero:
   stage: execute
   embodiments: [panda]
   tuned_on: [panda]
   tasks: [libero]
+  io:
+    action: {space: osc_pose_delta, dim: 7, hz: 20}
+    state: {dim: 8, order: [eef_pos, eef_axis_angle, gripper_qpos]}
+    cameras: [agentview, wrist]
   notes: LIBERO observation and OSC_POSE action conventions; drives the arm through sim.apply_policy_action.
 
 # --- skills -----------------------------------------------------------------

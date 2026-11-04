@@ -50,7 +50,7 @@ def bundle_record(bundle: Bundle, catalog: Catalog) -> dict[str, Any]:
         "connector_tools": connector_tools,
         "content_sha256": bundle.content_sha256(),
     }
-    for key in ("version", "provenance", "notes"):
+    for key in ("version", "provenance", "io", "notes"):
         if hub.get(key):
             record[key] = hub[key]
     if bundle.weights:

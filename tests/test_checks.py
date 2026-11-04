@@ -74,6 +74,50 @@ def test_heavy_imports_at_module_level_are_flagged(hub):
     assert any("load models on first call" in e for e in errors(hub))
 
 
+POLICY = """
+    ---
+    name: picking-cubes
+    description: A checkpoint that picks a cube. Use when the gripper hovers over a cube.
+    license: Apache-2.0
+    metadata:
+      hub:
+        stage: execute
+        version: 0.1.0
+        embodiments: [any]
+    gap:
+      serving: {command: [python, server.py], protocol: websocket}
+      exit_conditions: {completed: done, failed: errored}
+    ---
+    """
+IO = """embodiments: [yam_i2rt]
+        io:
+          action: {space: joint_position, dim: 7, hz: 30}
+          state: {dim: 7}
+          cameras: [wrist, front]"""
+
+
+def test_a_policy_names_its_robot_and_the_io_it_was_trained_with(hub):
+    path = write(hub / "policies/picking-cubes/SKILL.md", POLICY)
+    found = errors(hub)
+    assert any("never [any]" in e for e in found)
+    assert any("a policy declares io" in e for e in found)
+
+    write(path, POLICY.replace("embodiments: [any]", IO))
+    assert [e for e in errors(hub) if "picking-cubes" in e] == []
+
+    write(path, POLICY.replace("embodiments: [any]", IO.replace("dim: 7, hz: 30", "dim: 0, hz: 30")))
+    assert any("io.action needs space" in e for e in errors(hub))
+    write(path, POLICY.replace("embodiments: [any]", IO.replace("[wrist, front]", "[]")))
+    assert any("io.cameras must list" in e for e in errors(hub))
+
+
+def test_only_a_policy_declares_io(hub):
+    path = hub / "tools/judge/SKILL.md"
+    io = "io: {action: {space: x, dim: 1, hz: 1}, cameras: [c]}"
+    path.write_text(path.read_text().replace("embodiments: [any],", f"embodiments: [any], {io},"))
+    assert any("only a policy declares it" in e for e in errors(hub))
+
+
 def test_recipe_must_route_every_exit_and_reach_success(hub):
     path = hub / "recipes/peek-and-grab/RECIPE.md"
     path.write_text(

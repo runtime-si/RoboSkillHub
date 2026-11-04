@@ -18,8 +18,10 @@ weights it was tested with.
 - **Checked by the engine.** `motif check` runs gap's own SKILL.md parser and
   validator, then the hub's rules on top.
 - **Robot-aware.** Every bundle says which robots it is declared for and
-  whether it reads simulator ground truth. A search for a real YAM arm never
-  offers a skill that can only run in simulation.
+  whether it reads simulator ground truth; a policy also names the action
+  space, state and cameras its checkpoint was trained with (`io`). A search
+  for a real YAM arm never offers a skill that can only run in simulation, or
+  a checkpoint trained on another robot.
 - **Pinned.** Weights live on the Hugging Face Hub at an immutable commit with a
   content digest. `skills.lock` records every bundle a graph uses, by commit
   and digest. `motif fetch` rebuilds exactly that on the robot, or refuses.
@@ -100,6 +102,10 @@ This uploads the folder as one commit and writes
 `hf://<owner>/yam-pick-cube@<commit>` and the snapshot's sha256 into the
 bundle. The policy server downloads exactly that snapshot and refuses any
 other. Git holds the two strings; the Hub holds the gigabytes.
+
+`motif check` rejects the new policy until it also says what it was trained
+on: `embodiments` names the robot (never `any`) and `io` gives the action
+space and rate, the state and the cameras.
 
 ## Layout
 
