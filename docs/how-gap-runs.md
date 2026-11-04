@@ -1,4 +1,4 @@
-# How gap runs a graph, and where the hub plugs in
+# How Graph-as-Policy runs a graph, and where OpenSkills plugs in
 
 Read against graph-as-policy at the commit `sources.yaml` pins
 (`09e45f8`), which is also the commit RoboSimStudio pins. Paths are in that
@@ -16,7 +16,7 @@ import gap
 
 graph = gap.agent.generate_sync(
     "put the red block into the bowl",
-    skills=["views/task"],  # what `motif view` wrote; omitted -> resolved, see 3.
+    skills=["views/task"],  # what `openskills view` wrote; omitted -> resolved, see 3.
     provider=None,
     model=None,  # None: the pipeline config's provider and its default model
     out_dir="graphs/put_block",
@@ -127,15 +127,15 @@ bundle name.
 
 | Step | Hub command | What gap sees |
 | --- | --- | --- |
-| before generation | `motif view "<task>" --embodiment yam_i2rt --out views/task` | `skills=["views/task"]` (or `GAP_SKILLS_PATH`): only bundles this robot can run, and the tools they call. `RECIPES.md` is appended to the instruction. |
-| simulation | `motif sync` | `skills=[hub, .motif/sources/open-robot-skills]`: the real directories |
-| after it passes | `motif lock <graph> --deploy` | nothing; `skills.lock` sits beside `workflow.json` |
-| on the robot | `motif fetch skills.lock --dest ...` | `GAP_SKILLS_PATH` it prints: the same bundles, verified by digest |
+| before generation | `openskills view "<task>" --embodiment yam_i2rt --out views/task` | `skills=["views/task"]` (or `GAP_SKILLS_PATH`): only bundles this robot can run, and the tools they call. `RECIPES.md` is appended to the instruction. |
+| simulation | `openskills sync` | `skills=[hub, .openskills/sources/open-robot-skills]`: the real directories |
+| after it passes | `openskills lock <graph> --deploy` | nothing; `skills.lock` sits beside `workflow.json` |
+| on the robot | `openskills fetch skills.lock --dest ...` | `GAP_SKILLS_PATH` it prints: the same bundles, verified by digest |
 
 Why generation and execution use different registry paths: gap starts an RPC
 bundle with `uv run --project <bundle dir>` and does not resolve symlinks. An
 upstream bundle's `pyproject.toml` finds the engine at
 `../../../graph-as-policy`, a path that only holds from where the bundle
-really lives. `motif sync` and `motif fetch` both lay sources out side by side
+really lives. `openskills sync` and `openskills fetch` both lay sources out side by side
 under `sources/` so that relative path holds. A view is symlinks, so it serves
 the coordinator, which only reads.

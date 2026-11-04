@@ -2,7 +2,7 @@
 
 A ``workflow.json`` names skills and tools, not versions. The lock adds the rest:
 the engine commit, the hub and source commits, a content digest per bundle, the
-pinned weights, and the connector tools the robot must provide. ``motif fetch``
+pinned weights, and the connector tools the robot must provide. ``openskills fetch``
 turns a lock back into the same registries on another machine -- the robot --
 and refuses if any bundle's content is not what the lock recorded.
 """

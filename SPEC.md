@@ -1,17 +1,19 @@
-# Motif formats, version 1
+# OpenSkills formats, version 1
 
-Every file format the hub reads or writes. `motif check` enforces all of it.
+Every file format the library reads or writes. `openskills check` enforces all
+of it.
 
 ## Bundles
 
-A bundle is a [gap](https://github.com/graph-robots/graph-as-policy) bundle,
-byte for byte: a directory under `tools/`, `skills/` or `policies/` holding a
-`SKILL.md` whose frontmatter follows the Agent Skills spec, with gap's
-extensions under `gap:`. gap's own parser and validator run on every bundle;
-nothing here changes what gap reads.
+A bundle is a directory under `tools/`, `skills/` or `policies/` holding a
+`SKILL.md` whose frontmatter follows the Agent Skills spec. Runtime details
+(exits, tools it may call, how it is served) sit under `gap:`, the block
+[Graph-as-Policy](https://github.com/graph-robots/graph-as-policy) reads, so
+every bundle also loads there unchanged; when gap is installed,
+`openskills check` runs its parser and validator as well.
 
-The hub adds one mapping, `metadata.hub`. gap reads only `metadata.category`
-and `metadata.tags`, so the addition is invisible to it.
+OpenSkills adds one mapping, `metadata.hub`. gap reads only
+`metadata.category` and `metadata.tags`, so the addition is invisible to it.
 
 ```yaml
 metadata:
@@ -124,7 +126,7 @@ recipe:
 - An input no node produces and the recipe does not take is a warning.
 - The recipe's tier is derived from its skills.
 
-`motif view` renders matched recipes into `RECIPES.md`, text a coordinator can
+`openskills view` renders matched recipes into `RECIPES.md`, text a coordinator can
 follow when it is appended to the instruction.
 
 ## Papers
@@ -154,13 +156,13 @@ record, `sim-verified`; otherwise `community`.
 `hf://[datasets/]<owner>/<repo>@<commit>`. The digest is SHA-256 over the
 lines `"<relative path>\0<sha256 of file>\n"`, sorted by path, for every file
 in the snapshot except `.gitattributes` and anything under `.cache/` or
-`.git/`. `motif weights push` uploads a folder as one commit that mirrors it
+`.git/`. `openskills weights push` uploads a folder as one commit that mirrors it
 exactly, so the digest computed before upload is the digest of what anyone
 pulls at that commit.
 
 ## `skills.lock`
 
-Written by `motif lock <graph>` next to `workflow.json`:
+Written by `openskills lock <graph>` next to `workflow.json`:
 
 ```json
 {
@@ -187,13 +189,13 @@ Written by `motif lock <graph>` next to `workflow.json`:
 - `connector_tools` is what the robot's connector must provide.
 - `deployable` means no `sim.*` tool anywhere and every bundle `camera_only`.
   `--deploy` fails otherwise.
-- `motif fetch` checks out each source at its commit, verifies every bundle's
+- `openskills fetch` checks out each source at its commit, verifies every bundle's
   `content_sha256`, pulls and verifies the weights, and prints the
   `GAP_SKILLS_PATH` to run with.
 
 ## `index.json`
 
-`motif index` writes the whole catalog as one deterministic JSON file: per
+`openskills index` writes the whole catalog as one deterministic JSON file: per
 bundle every declared and derived field above, then recipes, papers, and
 which bundles shadow which. A site, a search API, or a pipeline that does not
 want to parse YAML reads this.

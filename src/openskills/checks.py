@@ -1,4 +1,4 @@
-"""``motif check``: is everything in the catalog something the hub can serve?
+"""``openskills check``: is everything in the catalog something the hub can serve?
 
 Two layers. The engine's own SKILL.md parser and format validator run first when
 gap is importable, so a bundle that passes here is a bundle gap loads. The hub's
@@ -246,7 +246,10 @@ def check_hub_metadata(
                 except ValueError as exc:
                     error(str(exc))
                 if not SHA256_RE.match(str(weights.get("sha256") or "")):
-                    error("hf weights need the sha256 of their file manifest (motif weights push prints it)")
+                    error(
+                        "hf weights need the sha256 of their file manifest "
+                        "(openskills weights push prints it)"
+                    )
     tier = hub.get("tier")
     if tier is not None:
         if tier not in TIERS:
@@ -550,7 +553,7 @@ def check_all(catalog: Catalog, api: GapApi | None = None, *, require_gap: bool 
         level = "error" if require_gap else "warning"
         out.append(Issue(level, "engine", f"gap is not importable, engine validation skipped ({api.error})"))
     for name in catalog.missing_sources:
-        out.append(Issue("error", name, "source is not synced; run `motif sync`"))
+        out.append(Issue("error", name, "source is not synced; run `openskills sync`"))
     for bundle in sorted(catalog.bundles.values(), key=lambda b: (b.source != "hub", b.name)):
         out.extend(check_bundle(bundle, catalog, api))
     out.extend(check_overlays(catalog))

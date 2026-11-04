@@ -19,7 +19,7 @@ def write(path: Path, text: str) -> Path:
 def hub(tmp_path: Path, monkeypatch) -> Path:
     """A small hub: one native tool, two upstream skills, an overlay, a recipe, a paper."""
     root = tmp_path / "hub"
-    monkeypatch.setenv("MOTIF_CACHE", str(root / ".motif"))
+    monkeypatch.setenv("OPENSKILLS_CACHE", str(root / ".openskills"))
     write(
         root / "sources.yaml",
         f"""
@@ -49,7 +49,7 @@ def hub(tmp_path: Path, monkeypatch) -> Path:
         """,
     )
     write(root / "tools/judge/tools.py", "import numpy as np\n")
-    up = root / ".motif/sources/upstream"
+    up = root / ".openskills/sources/upstream"
     write(
         up / "skills/grabbing-things/SKILL.md",
         """

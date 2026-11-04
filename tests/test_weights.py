@@ -6,7 +6,7 @@ import uuid
 import pytest
 from conftest import REPO
 
-from robomotif import weights
+from openskills import weights
 
 SHA = "a" * 40
 
@@ -44,7 +44,7 @@ def test_push_result_is_written_into_the_policy_template(tmp_path):
     assert f"sha256: {'b' * 64}" in text and "OWNER/REPO" not in text
 
 
-def test_server_template_digest_matches_motif(tmp_path, monkeypatch):
+def test_server_template_digest_matches_openskills(tmp_path, monkeypatch):
     """The policy server re-derives the digest in its own venv; it must agree."""
     import importlib.util
     import sys
@@ -72,7 +72,7 @@ def test_round_trip_through_the_hub(tmp_path):
     from huggingface_hub import HfApi
 
     api = HfApi()
-    repo = f"{api.whoami()['name']}/motif-roundtrip-{uuid.uuid4().hex[:8]}"
+    repo = f"{api.whoami()['name']}/openskills-roundtrip-{uuid.uuid4().hex[:8]}"
     (tmp_path / "ckpt").mkdir()
     (tmp_path / "ckpt" / "weights.bin").write_bytes(os.urandom(4096))
     (tmp_path / "ckpt" / "config.json").write_text('{"hidden": 8}')

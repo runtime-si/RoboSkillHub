@@ -1,0 +1,259 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 436" width="1600" height="436" font-family="Inter, -apple-system, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif">
+  <defs>
+    <style>
+      .h { font-weight: 700; fill: #1F2933; }
+      .s { fill: #52606D; }
+      .q { fill: #7B8794; }
+      .m { font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace; }
+      .card { fill: #FFFFFF; stroke: #E4E7EB; }
+      .art { fill: #F4F7FA; }
+      .chip { fill: #F3F5F7; }
+      .flow { fill: none; stroke: #52606D; stroke-width: 1.6; }
+      .owner { font-size: 12px; font-weight: 600; text-anchor: middle; }
+    </style>
+    <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#52606D"/>
+    </marker>
+    <marker id="ahr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,1 L9,5 L0,9 z" fill="#B83232"/>
+    </marker>
+    <symbol id="arm" viewBox="0 0 120 110">
+      <rect x="18" y="96" width="54" height="10" rx="3" fill="#7B8794"/>
+      <line x1="45" y1="92" x2="58" y2="46" stroke="#52606D" stroke-width="10" stroke-linecap="round"/>
+      <line x1="58" y1="46" x2="96" y2="56" stroke="#52606D" stroke-width="8" stroke-linecap="round"/>
+      <circle cx="45" cy="92" r="8" fill="#3E4C59"/>
+      <circle cx="58" cy="46" r="7" fill="#3E4C59"/>
+      <line x1="96" y1="56" x2="96" y2="68" stroke="#52606D" stroke-width="5" stroke-linecap="round"/>
+      <path d="M88,68 H104 M89,68 V80 M103,68 V80" stroke="#52606D" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+      <rect x="91" y="92" width="10" height="10" rx="1.5" fill="#D64545"/>
+    </symbol>
+    <g id="ok">
+      <circle r="6.5" fill="#2E8B57"/>
+      <path d="M-3,0.2 L-0.8,2.5 L3.2,-2.3" fill="none" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g id="no">
+      <circle r="6.5" fill="#B83232"/>
+      <path d="M-2.4,-2.4 L2.4,2.4 M2.4,-2.4 L-2.4,2.4" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round"/>
+    </g>
+  </defs>
+
+  <rect width="1600" height="436" fill="#FFFFFF"/>
+
+  <!-- fails: compose again -->
+  <path d="M1184,68 C1184,16 928,16 928,66" fill="none" stroke="#B83232" stroke-width="1.5" marker-end="url(#ahr)"/>
+  <text x="1056" y="58" text-anchor="middle" font-size="12" font-style="italic" fill="#B83232">fails: compose again</text>
+
+  <!-- 1 photo -->
+  <g transform="translate(50,70)">
+    <rect width="220" height="284" rx="14" class="card"/>
+    <circle cx="26" cy="28" r="13" fill="#1F2933"/>
+    <text x="26" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">1</text>
+    <text x="48" y="34" font-size="17" class="h">Photo</text>
+    <rect x="16" y="50" width="188" height="124" rx="10" class="art"/>
+    <g transform="rotate(-3 110 112)">
+      <rect x="38" y="62" width="144" height="100" rx="4" fill="#FFFFFF" stroke="#CBD2D9"/>
+      <rect x="46" y="70" width="128" height="76" fill="#DDE5EE"/>
+      <rect x="46" y="116" width="128" height="30" fill="#CDB79A"/>
+      <rect x="78" y="99" width="18" height="18" rx="2" fill="#D64545"/>
+      <path d="M118,112 A18,11 0 0 0 154,112 Z" fill="#7F93A8"/>
+      <ellipse cx="136" cy="112" rx="18" ry="4.5" fill="#5F7389"/>
+    </g>
+    <circle cx="178" cy="66" r="12" fill="#1F2933"/>
+    <rect x="171" y="62" width="14" height="9.5" rx="2" fill="#FFFFFF"/>
+    <rect x="174.5" y="60" width="5" height="2.5" rx="1" fill="#FFFFFF"/>
+    <circle cx="178" cy="66.8" r="2.6" fill="#1F2933"/>
+    <text x="16" y="200" font-size="13" class="s">A photo or short clip</text>
+    <text x="16" y="219" font-size="13" class="s">of the real cell.</text>
+    <rect x="16" y="238" width="158" height="24" rx="6" class="chip"/>
+    <text x="26" y="254" font-size="11.5" class="m" fill="#1F2933">photo.jpg &#183; clip.mp4</text>
+  </g>
+  <line x1="274" y1="212" x2="301" y2="212" class="flow" marker-end="url(#ah)"/>
+
+  <!-- 2 rebuild -->
+  <g transform="translate(306,70)">
+    <rect width="220" height="284" rx="14" class="card"/>
+    <circle cx="26" cy="28" r="13" fill="#1F2933"/>
+    <text x="26" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">2</text>
+    <text x="48" y="34" font-size="17" class="h">Rebuild</text>
+    <rect x="16" y="50" width="188" height="124" rx="10" class="art"/>
+    <polygon points="40,120 110,148 110,156 40,128" fill="#BCCCDC"/>
+    <polygon points="110,148 180,120 180,128 110,156" fill="#A9BCD0"/>
+    <polygon points="40,120 110,92 180,120 110,148" fill="#E8EFF6" stroke="#9FB3C8"/>
+    <path d="M63.3,129.3 L133.3,101.3 M86.7,138.7 L156.7,110.7 M63.3,110.7 L133.3,138.7 M86.7,101.3 L156.7,129.3" stroke="#C9D6E3" stroke-width="0.9"/>
+    <polygon points="80,112 92,106 104,112 92,118" fill="#F08A8A"/>
+    <polygon points="80,112 92,118 92,130 80,124" fill="#D64545"/>
+    <polygon points="92,118 104,112 104,124 92,130" fill="#B83232"/>
+    <path d="M116,116 A16,11 0 0 0 148,116 Z" fill="#8FA3B8"/>
+    <ellipse cx="132" cy="116" rx="16" ry="6" fill="#5F7389"/>
+    <path d="M30,62 L52,62 M30,62 L30,78" stroke="#9FB3C8" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+    <path d="M190,162 L168,162 M190,162 L190,146" stroke="#9FB3C8" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+    <text x="16" y="200" font-size="13" class="s">RoboSimStudio rebuilds it</text>
+    <text x="16" y="219" font-size="13" class="s">as a simulated scene.</text>
+    <rect x="16" y="238" width="75" height="24" rx="6" class="chip"/>
+    <text x="26" y="254" font-size="11.5" class="m" fill="#1F2933">scene.py</text>
+  </g>
+  <line x1="530" y1="212" x2="557" y2="212" class="flow" marker-end="url(#ah)"/>
+
+  <!-- 3 select -->
+  <g transform="translate(562,70)">
+    <rect width="220" height="284" rx="14" class="card"/>
+    <circle cx="26" cy="28" r="13" fill="#1F2933"/>
+    <text x="26" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">3</text>
+    <text x="48" y="34" font-size="17" class="h">Select</text>
+    <rect x="16" y="50" width="188" height="124" rx="10" class="art"/>
+    <g font-size="10" class="m">
+      <rect x="28" y="64" width="164" height="24" rx="6" class="card"/>
+      <circle cx="40" cy="76" r="4" fill="#2E8B57"/>
+      <text x="50" y="79.5" fill="#1F2933">perceiving-objects</text>
+      <use href="#ok" x="179" y="76"/>
+      <rect x="28" y="96" width="164" height="24" rx="6" class="card"/>
+      <circle cx="40" cy="108" r="4" fill="#2E8B57"/>
+      <text x="50" y="111.5" fill="#1F2933">grasping-short-axis</text>
+      <use href="#ok" x="179" y="108"/>
+      <rect x="28" y="128" width="164" height="24" rx="6" class="card"/>
+      <circle cx="40" cy="140" r="4" fill="#C2621B" opacity="0.5"/>
+      <text x="50" y="143.5" class="q" text-decoration="line-through">pi05-libero</text>
+      <circle cx="179" cy="140" r="6.5" fill="#CBD2D9"/>
+      <path d="M176.6,137.6 L181.4,142.4 M181.4,137.6 L176.6,142.4" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round"/>
+    </g>
+    <text x="16" y="200" font-size="13" class="s">Keep only the skills this</text>
+    <text x="16" y="219" font-size="13" class="s">task and robot can use.</text>
+    <rect x="16" y="238" width="124" height="24" rx="6" class="chip"/>
+    <text x="26" y="254" font-size="11.5" class="m" fill="#1F2933">openskills view</text>
+  </g>
+  <line x1="786" y1="212" x2="813" y2="212" class="flow" marker-end="url(#ah)"/>
+
+  <!-- 4 compose -->
+  <g transform="translate(818,70)">
+    <rect width="220" height="284" rx="14" class="card"/>
+    <circle cx="26" cy="28" r="13" fill="#1F2933"/>
+    <text x="26" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">4</text>
+    <text x="48" y="34" font-size="17" class="h">Compose</text>
+    <rect x="16" y="50" width="188" height="124" rx="10" class="art"/>
+    <g font-size="10.5" font-weight="600" text-anchor="middle" fill="#217346">
+      <rect x="34" y="62" width="40" height="20" rx="10" fill="#E8F5EE" stroke="#2E8B57"/><text x="54" y="75.5">find</text>
+      <rect x="90" y="62" width="44" height="20" rx="10" fill="#E8F5EE" stroke="#2E8B57"/><text x="112" y="75.5">grasp</text>
+      <rect x="150" y="62" width="40" height="20" rx="10" fill="#E8F5EE" stroke="#2E8B57"/><text x="170" y="75.5">carry</text>
+    </g>
+    <line x1="75" y1="72" x2="88" y2="72" stroke="#52606D" stroke-width="1.3" marker-end="url(#ah)"/>
+    <line x1="135" y1="72" x2="148" y2="72" stroke="#52606D" stroke-width="1.3" marker-end="url(#ah)"/>
+    <path d="M110,83 C104,98 60,98 56,85" fill="none" stroke="#B83232" stroke-width="1.2" marker-end="url(#ahr)"/>
+    <line x1="34" y1="106" x2="98" y2="106" stroke="#D9DEE3"/>
+    <text x="112" y="109.5" text-anchor="middle" font-size="10.5" font-style="italic" class="q">or</text>
+    <line x1="126" y1="106" x2="190" y2="106" stroke="#D9DEE3"/>
+    <rect x="30" y="116" width="160" height="50" rx="7" fill="#1F2933"/>
+    <g font-size="9.5" class="m" fill="#E4E7EB">
+      <text x="40" y="131">obj = <tspan fill="#7FD1AE">find</tspan>(<tspan fill="#F5B971">"block"</tspan>)</text>
+      <text x="40" y="144"><tspan fill="#8AB4F8">if</tspan> <tspan fill="#7FD1AE">grasp</tspan>(obj):</text>
+      <text x="51.4" y="157"><tspan fill="#7FD1AE">carry</tspan>(obj, <tspan fill="#F5B971">"bowl"</tspan>)</text>
+    </g>
+    <text x="16" y="200" font-size="13" class="s">Any planner wires them</text>
+    <text x="16" y="219" font-size="13" class="s">into a policy.</text>
+    <rect x="16" y="238" width="103" height="24" rx="6" class="chip"/>
+    <text x="26" y="254" font-size="11.5" class="m" fill="#1F2933">graph &#183; code</text>
+  </g>
+  <line x1="1042" y1="212" x2="1069" y2="212" class="flow" marker-end="url(#ah)"/>
+
+  <!-- 5 simulate -->
+  <g transform="translate(1074,70)">
+    <rect width="220" height="284" rx="14" class="card"/>
+    <circle cx="26" cy="28" r="13" fill="#1F2933"/>
+    <text x="26" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">5</text>
+    <text x="48" y="34" font-size="17" class="h">Simulate</text>
+    <rect x="16" y="50" width="188" height="124" rx="10" class="art"/>
+
+    <g transform="translate(26,58)">
+      <rect width="52" height="50" rx="5" fill="#E3ECF5"/>
+      <line x1="4" y1="34" x2="48" y2="34" stroke="#B8C4D0"/>
+      <rect x="8" y="26" width="8" height="8" rx="1" fill="#D64545"/>
+      <path d="M29,30 A7,5 0 0 0 43,30 Z" fill="#8FA3B8"/><ellipse cx="36" cy="30" rx="7" ry="2" fill="#5F7389"/>
+      <use href="#ok" x="44" y="9"/>
+    </g>
+    <g transform="translate(84,58)">
+      <rect width="52" height="50" rx="5" fill="#ECEFE4"/>
+      <line x1="4" y1="34" x2="48" y2="34" stroke="#B8C4D0"/>
+      <rect x="30" y="26" width="8" height="8" rx="1" fill="#D64545"/>
+      <path d="M5,30 A7,5 0 0 0 19,30 Z" fill="#8FA3B8"/><ellipse cx="12" cy="30" rx="7" ry="2" fill="#5F7389"/>
+      <use href="#ok" x="44" y="9"/>
+    </g>
+    <g transform="translate(142,58)">
+      <rect width="52" height="50" rx="5" fill="#F3EAE3"/>
+      <line x1="4" y1="34" x2="48" y2="34" stroke="#B8C4D0"/>
+      <rect x="18" y="26" width="8" height="8" rx="1" fill="#D64545"/>
+      <path d="M33,30 A7,5 0 0 0 47,30 Z" fill="#8FA3B8"/><ellipse cx="40" cy="30" rx="7" ry="2" fill="#5F7389"/>
+      <use href="#ok" x="44" y="9"/>
+    </g>
+    <g transform="translate(26,114)">
+      <rect width="52" height="50" rx="5" fill="#E8E5F3"/>
+      <line x1="4" y1="34" x2="48" y2="34" stroke="#B8C4D0"/>
+      <rect x="36" y="26" width="8" height="8" rx="1" fill="#D64545"/>
+      <path d="M7,30 A7,5 0 0 0 21,30 Z" fill="#8FA3B8"/><ellipse cx="14" cy="30" rx="7" ry="2" fill="#5F7389"/>
+      <use href="#ok" x="44" y="9"/>
+    </g>
+    <g transform="translate(84,114)">
+      <rect width="52" height="50" rx="5" fill="#E2F1EF"/>
+      <line x1="4" y1="34" x2="48" y2="34" stroke="#B8C4D0"/>
+      <rect x="10" y="26" width="8" height="8" rx="1" fill="#D64545"/>
+      <path d="M25,30 A7,5 0 0 0 39,30 Z" fill="#8FA3B8"/><ellipse cx="32" cy="30" rx="7" ry="2" fill="#5F7389"/>
+      <use href="#no" x="44" y="9"/>
+    </g>
+    <g transform="translate(142,114)">
+      <rect width="52" height="50" rx="5" fill="#F1EEE2"/>
+      <line x1="4" y1="34" x2="48" y2="34" stroke="#B8C4D0"/>
+      <rect x="26" y="26" width="8" height="8" rx="1" fill="#D64545"/>
+      <path d="M5,30 A7,5 0 0 0 19,30 Z" fill="#8FA3B8"/><ellipse cx="12" cy="30" rx="7" ry="2" fill="#5F7389"/>
+      <use href="#ok" x="44" y="9"/>
+    </g>
+    <text x="16" y="200" font-size="13" class="s">Run it across many</text>
+    <text x="16" y="219" font-size="13" class="s">randomized worlds.</text>
+    <rect x="16" y="238" width="138" height="24" rx="6" class="chip"/>
+    <text x="26" y="254" font-size="11.5" class="m" fill="#1F2933">randomized worlds</text>
+  </g>
+  <line x1="1298" y1="212" x2="1325" y2="212" class="flow" marker-end="url(#ah)"/>
+  <text x="1312" y="204" text-anchor="middle" font-size="10.5" font-style="italic" fill="#217346">passes</text>
+
+  <!-- 6 deploy -->
+  <g transform="translate(1330,70)">
+    <rect width="220" height="284" rx="14" class="card"/>
+    <circle cx="26" cy="28" r="13" fill="#1F2933"/>
+    <text x="26" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">6</text>
+    <text x="48" y="34" font-size="17" class="h">Deploy</text>
+    <rect x="16" y="50" width="188" height="124" rx="10" class="art"/>
+    <path d="M28,66 H64 L76,78 V128 H28 Z" fill="#FFFFFF" stroke="#9AA5B1"/>
+    <path d="M64,66 V78 H76" fill="none" stroke="#9AA5B1"/>
+    <path d="M45,97 V91 A7,7 0 0 1 59,91 V97" fill="none" stroke="#2E8B57" stroke-width="3"/>
+    <rect x="40" y="96" width="24" height="18" rx="3" fill="#2E8B57"/>
+    <circle cx="52" cy="104" r="2.2" fill="#FFFFFF"/>
+    <text x="52" y="148" text-anchor="middle" font-size="9.5" class="m s">skills.lock</text>
+    <line x1="82" y1="98" x2="104" y2="98" class="flow" marker-end="url(#ah)"/>
+    <use href="#arm" x="106" y="58" width="92" height="84"/>
+    <text x="152" y="160" text-anchor="middle" font-size="10.5" class="s">the real arm</text>
+    <text x="16" y="200" font-size="13" class="s">Lock it, then run the same</text>
+    <text x="16" y="219" font-size="13" class="s">bundles on the real arm.</text>
+    <rect x="16" y="238" width="179" height="24" rx="6" class="chip"/>
+    <text x="26" y="254" font-size="11.5" class="m" fill="#1F2933">openskills lock &#183; fetch</text>
+  </g>
+
+  <!-- who does each step -->
+  <g stroke="#E4E7EB">
+    <line x1="160" y1="354" x2="160" y2="370"/>
+    <line x1="416" y1="354" x2="416" y2="370"/>
+    <line x1="672" y1="354" x2="672" y2="370"/>
+    <line x1="928" y1="354" x2="928" y2="370"/>
+    <line x1="1184" y1="354" x2="1184" y2="370"/>
+    <line x1="1440" y1="354" x2="1440" y2="370"/>
+  </g>
+  <rect x="136" y="370" width="48" height="22" rx="11" fill="#EEF1F4"/>
+  <text x="160" y="385.5" class="owner" fill="#52606D">you</text>
+  <rect x="360" y="370" width="112" height="22" rx="11" fill="#EAF2FB"/>
+  <text x="416" y="385.5" class="owner" fill="#24598F">RoboSimStudio</text>
+  <rect x="626" y="370" width="92" height="22" rx="11" fill="#E8F5EE"/>
+  <text x="672" y="385.5" class="owner" fill="#217346">OpenSkills</text>
+  <rect x="880" y="370" width="96" height="22" rx="11" fill="#F2ECF9"/>
+  <text x="928" y="385.5" class="owner" fill="#643C99">any planner</text>
+  <text x="928" y="412" text-anchor="middle" font-size="11" class="q">Graph-as-Policy &#183; Code as Policies</text>
+  <rect x="1128" y="370" width="112" height="22" rx="11" fill="#EAF2FB"/>
+  <text x="1184" y="385.5" class="owner" fill="#24598F">RoboSimStudio</text>
+  <rect x="1394" y="370" width="92" height="22" rx="11" fill="#E8F5EE"/>
+  <text x="1440" y="385.5" class="owner" fill="#217346">OpenSkills</text>
+</svg>

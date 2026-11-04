@@ -1,4 +1,4 @@
-"""``motif new``: start a bundle, recipe or paper card from its template."""
+"""``openskills new``: start a bundle, recipe or paper card from its template."""
 
 from __future__ import annotations
 

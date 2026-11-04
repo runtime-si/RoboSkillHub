@@ -1,7 +1,7 @@
 [project]
-name = "robomotif"
+name = "openskills"
 version = "0.1.0"
-description = "Motif: an open, federated library of robot skills for graph-as-policy, with checkpoints on the Hugging Face Hub."
+description = "OpenSkills: an open library of robot skills, tools and checkpoints that any robot policy can build on."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
@@ -12,14 +12,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# The engine's own SKILL.md parser and type vocabulary. `motif check` uses them
-# when importable, so a bundle that passes here is a bundle gap loads. The
+# Graph-as-Policy's SKILL.md parser and type vocabulary. `openskills check` uses
+# them when importable, so a bundle that passes here also loads in gap. The
 # runtime distribution (`graph-as-policy`) is installed separately with
 # --no-deps: only its pure-Python skill loader is needed, not cuRobo or LIBERO.
 gap = ["graph-as-policy-core"]
 
 [project.scripts]
-motif = "robomotif.cli:main"
+openskills = "openskills.cli:main"
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.6"]
@@ -29,7 +29,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/robomotif"]
+packages = ["src/openskills"]
 
 [tool.uv.sources]
 graph-as-policy-core = { git = "https://github.com/graph-robots/graph-as-policy.git", rev = "09e45f8de27bc1a29629382ed7c2b9b4b384b3d6", subdirectory = "gap-core" }
