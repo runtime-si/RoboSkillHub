@@ -29,5 +29,5 @@ subprocess gap talks to over msgpack. Load models on the first call, never at
 import: gap imports `tools.py` to read the catalog.
 
 If the tools need weights, upload them with
-`openskills weights push <dir> --repo <owner>/<name> --bundle tools/{{name}}` and
+`roboskillhub weights push <dir> --repo <owner>/<name> --bundle tools/{{name}}` and
 load them from the pinned `hf://` URI it writes under `metadata.hub.weights`.

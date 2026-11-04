@@ -4,8 +4,8 @@ import json
 
 from conftest import write
 
-from openskills.catalog import load_catalog
-from openskills.checks import GapApi, check_all
+from roboskillhub.catalog import load_catalog
+from roboskillhub.checks import GapApi, check_all
 
 
 def errors(root):
@@ -23,7 +23,7 @@ def test_the_fixture_hub_is_clean(hub):
 
 def test_native_bundle_shadows_upstream(hub):
     write(
-        hub / ".openskills/sources/upstream/tools/judge/SKILL.md",
+        hub / ".roboskillhub/sources/upstream/tools/judge/SKILL.md",
         "---\nname: judge\ndescription: Upstream judge. Use when.\ngap: {requires: {}}\n---\n",
     )
     catalog = load_catalog(hub)
@@ -33,7 +33,7 @@ def test_native_bundle_shadows_upstream(hub):
 
 def test_an_upstream_bundle_without_overlay_metadata_is_an_error(hub):
     write(
-        hub / ".openskills/sources/upstream/skills/new-skill/SKILL.md",
+        hub / ".roboskillhub/sources/upstream/skills/new-skill/SKILL.md",
         "---\nname: new-skill\ndescription: New. Use when needed.\ngap:\n  exit_conditions: {ok: ok}\n---\n",
     )
     found = errors(hub)
@@ -166,5 +166,5 @@ def test_eval_records_are_validated_and_set_maturity(hub):
 
 
 def test_unsynced_source_is_an_error(hub, monkeypatch, tmp_path):
-    monkeypatch.setenv("OPENSKILLS_CACHE", str(tmp_path / "empty-cache"))
+    monkeypatch.setenv("ROBOSKILLHUB_CACHE", str(tmp_path / "empty-cache"))
     assert any("source is not synced" in e for e in errors(hub))

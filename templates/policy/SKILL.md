@@ -48,7 +48,7 @@ gap:
 ## Publishing the checkpoint
 
 ```bash
-openskills weights push ./checkpoint --repo <owner>/{{name}} --bundle policies/{{name}}
+roboskillhub weights push ./checkpoint --repo <owner>/{{name}} --bundle policies/{{name}}
 ```
 
 uploads the folder to the Hugging Face Hub as one commit and writes that

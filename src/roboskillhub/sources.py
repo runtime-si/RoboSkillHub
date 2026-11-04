@@ -1,6 +1,6 @@
 """``sources.yaml``: the engine and the upstream registries, each pinned to a commit.
 
-``openskills sync`` clones them side by side under ``<cache>/sources/``, the layout
+``roboskillhub sync`` clones them side by side under ``<cache>/sources/``, the layout
 gap's own bundles assume (an open-robot-skills tool bundle resolves the engine
 as ``../../../graph-as-policy``), so a synced upstream bundle installs and runs
 exactly as it does beside a gap checkout.
@@ -47,20 +47,20 @@ class Manifest:
 
 
 def find_root(start: Path | None = None) -> Path:
-    """The hub checkout: ``$OPENSKILLS_ROOT``, else the nearest parent with ``sources.yaml``."""
-    env = os.environ.get("OPENSKILLS_ROOT")
+    """The hub checkout: ``$ROBOSKILLHUB_ROOT``, else the nearest parent with ``sources.yaml``."""
+    env = os.environ.get("ROBOSKILLHUB_ROOT")
     if env:
         return Path(env).expanduser().resolve()
     here = (start or Path.cwd()).resolve()
     for candidate in (here, *here.parents):
         if (candidate / MANIFEST).is_file():
             return candidate
-    raise ManifestError(f"no {MANIFEST} in {here} or any parent; run inside the hub or set OPENSKILLS_ROOT")
+    raise ManifestError(f"no {MANIFEST} in {here} or any parent; run inside the hub or set ROBOSKILLHUB_ROOT")
 
 
 def cache_dir(root: Path) -> Path:
-    env = os.environ.get("OPENSKILLS_CACHE")
-    return Path(env).expanduser().resolve() if env else root / ".openskills"
+    env = os.environ.get("ROBOSKILLHUB_CACHE")
+    return Path(env).expanduser().resolve() if env else root / ".roboskillhub"
 
 
 def source_dir(cache: Path, name: str) -> Path:

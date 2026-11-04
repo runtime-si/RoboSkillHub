@@ -1,4 +1,4 @@
-"""``openskills new``: start a bundle, recipe or paper card from its template."""
+"""``roboskillhub new``: start a bundle, recipe or paper card from its template."""
 
 from __future__ import annotations
 

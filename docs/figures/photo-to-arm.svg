@@ -118,8 +118,8 @@
     </g>
     <text x="16" y="200" font-size="13" class="s">Keep only the skills this</text>
     <text x="16" y="219" font-size="13" class="s">task and robot can use.</text>
-    <rect x="16" y="238" width="124" height="24" rx="6" class="chip"/>
-    <text x="26" y="254" font-size="11.5" class="m" fill="#1F2933">openskills view</text>
+    <rect x="16" y="238" width="138" height="24" rx="6" class="chip"/>
+    <text x="26" y="254" font-size="11.5" class="m" fill="#1F2933">roboskillhub view</text>
   </g>
   <line x1="786" y1="212" x2="813" y2="212" class="flow" marker-end="url(#ah)"/>
 
@@ -230,8 +230,8 @@
     <text x="152" y="160" text-anchor="middle" font-size="10.5" class="s">the real arm</text>
     <text x="16" y="200" font-size="13" class="s">Lock it, then run the same</text>
     <text x="16" y="219" font-size="13" class="s">bundles on the real arm.</text>
-    <rect x="16" y="238" width="179" height="24" rx="6" class="chip"/>
-    <text x="26" y="254" font-size="11.5" class="m" fill="#1F2933">openskills lock &#183; fetch</text>
+    <rect x="16" y="238" width="189" height="24" rx="6" class="chip"/>
+    <text x="24" y="254" font-size="11.5" class="m" fill="#1F2933">roboskillhub lock &#183; fetch</text>
   </g>
 
   <!-- who does each step -->
@@ -248,14 +248,14 @@
   <rect x="364" y="370" width="104" height="22" rx="11" fill="#EAF2FB"/>
   <text x="416" y="385.5" class="owner" fill="#24598F">any simulator</text>
   <text x="416" y="412" text-anchor="middle" font-size="11" class="q">Isaac Sim &#183; MuJoCo &#183; RoboSimStudio</text>
-  <rect x="626" y="370" width="92" height="22" rx="11" fill="#E8F5EE"/>
-  <text x="672" y="385.5" class="owner" fill="#217346">OpenSkills</text>
+  <rect x="618" y="370" width="108" height="22" rx="11" fill="#E8F5EE"/>
+  <text x="672" y="385.5" class="owner" fill="#217346">RoboSkillHub</text>
   <rect x="880" y="370" width="96" height="22" rx="11" fill="#F2ECF9"/>
   <text x="928" y="385.5" class="owner" fill="#643C99">any planner</text>
   <text x="928" y="412" text-anchor="middle" font-size="11" class="q">Graph-as-Policy &#183; Code as Policies</text>
   <rect x="1132" y="370" width="104" height="22" rx="11" fill="#EAF2FB"/>
   <text x="1184" y="385.5" class="owner" fill="#24598F">any simulator</text>
   <text x="1184" y="412" text-anchor="middle" font-size="11" class="q">Isaac Sim &#183; MuJoCo &#183; RoboSimStudio</text>
-  <rect x="1394" y="370" width="92" height="22" rx="11" fill="#E8F5EE"/>
-  <text x="1440" y="385.5" class="owner" fill="#217346">OpenSkills</text>
+  <rect x="1386" y="370" width="108" height="22" rx="11" fill="#E8F5EE"/>
+  <text x="1440" y="385.5" class="owner" fill="#217346">RoboSkillHub</text>
 </svg>

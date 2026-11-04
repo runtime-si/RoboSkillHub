@@ -6,7 +6,7 @@ body:
     id: weights
     attributes:
       label: Weights
-      description: The pinned URI from `openskills weights push` (hf://owner/repo@commit).
+      description: The pinned URI from `roboskillhub weights push` (hf://owner/repo@commit).
     validations:
       required: true
   - type: input

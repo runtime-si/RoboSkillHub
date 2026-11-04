@@ -1,4 +1,4 @@
-"""``openskills``: check, search, slice, lock and fetch the skill hub."""
+"""``roboskillhub``: check, search, slice, lock and fetch the skill hub."""
 
 from __future__ import annotations
 
@@ -132,7 +132,7 @@ def cmd_lock(args) -> int:
     if lock.get("unresolved_tools"):
         print(f"unresolved tools: {lock['unresolved_tools']}")
     if lock["hub"]["dirty"]:
-        print("warning: the hub checkout has uncommitted changes; openskills fetch will refuse hub bundles")
+        print("warning: the hub checkout has uncommitted changes; roboskillhub fetch will refuse hub bundles")
     if args.deploy and not lock["deployable"]:
         tiers = [n for n, b in lock["bundles"].items() if b["tier"] != "camera_only"]
         print(f"not deployable: privileged tools {lock['privileged_tools']}, simulator-only bundles {tiers}")
@@ -192,7 +192,7 @@ def _selection_args(p: argparse.ArgumentParser) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="openskills", description=__doc__)
+    parser = argparse.ArgumentParser(prog="roboskillhub", description=__doc__)
     parser.add_argument("--root", type=Path, help="hub checkout (default: nearest parent with sources.yaml)")
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -256,7 +256,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return args.fn(args)
     except (FileNotFoundError, FileExistsError, ValueError, RuntimeError, KeyError) as exc:
-        print(f"openskills: {exc}", file=sys.stderr)
+        print(f"roboskillhub: {exc}", file=sys.stderr)
         return 2
 
 

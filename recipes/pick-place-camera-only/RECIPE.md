@@ -46,7 +46,7 @@ recipe:
 The shape a coordinator should reach for when the task is "put X in Y" on a
 real cell: every skill here reads the scene through the cameras and the robot
 through its `describe_*` tools, so the generated graph can leave simulation
-(`openskills lock --deploy` passes).
+(`roboskillhub lock --deploy` passes).
 
 ## Why this order
 
