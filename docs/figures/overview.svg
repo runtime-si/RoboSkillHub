@@ -73,12 +73,12 @@
       <circle cx="27" cy="26" r="3.5"/>
     </g>
     <text x="66" y="51" font-size="23" font-weight="700" fill="#217346">Skills</text>
-    <text x="16" y="94" font-size="16" class="s">Reusable task steps</text>
-    <text x="16" y="116" font-size="16" class="s">with named exits.</text>
+    <text x="16" y="94" font-size="16" class="s">Every node of a policy,</text>
+    <text x="16" y="116" font-size="16" class="s">conditions included.</text>
     <g font-size="12.5" class="m" fill="#1F2933">
       <rect x="16" y="136" width="151" height="26" rx="6" class="chip"/><text x="24" y="153.5">perceiving-objects</text>
       <rect x="16" y="168" width="159" height="26" rx="6" class="chip"/><text x="24" y="185.5">grasping-short-axis</text>
-      <rect x="16" y="200" width="166" height="26" rx="6" class="chip"/><text x="24" y="217.5">transporting-objects</text>
+      <rect x="16" y="200" width="159" height="26" rx="6" class="chip"/><text x="24" y="217.5">verifying-threading</text>
     </g>
   </g>
 
@@ -221,18 +221,23 @@
     <circle cx="34" cy="36" r="17" fill="#1F2933"/>
     <text x="34" y="41.5" text-anchor="middle" font-size="16" font-weight="700" fill="#FFFFFF">3</text>
     <text x="62" y="44" font-size="23" class="h">Compose</text>
-    <text x="18" y="80" font-size="16" class="s">A planner wires the skills</text>
-    <text x="18" y="102" font-size="16" class="s">as a graph or as code.</text>
+    <text x="18" y="80" font-size="16" class="s">A planner wires the skills;</text>
+    <text x="18" y="102" font-size="16" class="s">checks are skills too.</text>
 
     <g font-size="13" font-weight="600" text-anchor="middle" fill="#217346">
-      <rect x="21" y="128" width="52" height="30" rx="15" fill="#E8F5EE" stroke="#2E8B57" stroke-width="1.2"/><text x="47" y="147.5">find</text>
-      <rect x="103" y="128" width="60" height="30" rx="15" fill="#E8F5EE" stroke="#2E8B57" stroke-width="1.2"/><text x="133" y="147.5">grasp</text>
-      <rect x="193" y="128" width="56" height="30" rx="15" fill="#E8F5EE" stroke="#2E8B57" stroke-width="1.2"/><text x="221" y="147.5">carry</text>
+      <rect x="18" y="128" width="54" height="30" rx="15" fill="#E8F5EE" stroke="#2E8B57" stroke-width="1.2"/><text x="45" y="147.5">grasp</text>
+      <rect x="88" y="128" width="52" height="30" rx="15" fill="#E8F5EE" stroke="#2E8B57" stroke-width="1.2"/><text x="114" y="147.5">carry</text>
+      <path d="M156,143 L188,121 L220,143 L188,165 Z" fill="#E8F5EE" stroke="#2E8B57" stroke-width="1.2"/>
+      <text x="188" y="147" font-size="11.5">placed?</text>
     </g>
-    <line x1="74" y1="143" x2="101" y2="143" class="flow" marker-end="url(#ah)"/>
-    <line x1="164" y1="143" x2="191" y2="143" class="flow" marker-end="url(#ah)"/>
-    <path d="M131,159 C124,190 54,190 48,161" fill="none" stroke="#B83232" stroke-width="1.5" marker-end="url(#ahr)"/>
-    <text x="90" y="204" text-anchor="middle" font-size="13" font-style="italic" fill="#B83232">failed</text>
+    <line x1="73" y1="143" x2="86" y2="143" class="flow" marker-end="url(#ah)"/>
+    <line x1="141" y1="143" x2="154" y2="143" class="flow" marker-end="url(#ah)"/>
+    <line x1="221" y1="143" x2="231" y2="143" class="flow" marker-end="url(#ah)"/>
+    <text x="227" y="133" text-anchor="middle" font-size="11" font-style="italic" fill="#217346">yes</text>
+    <circle cx="241" cy="143" r="8" fill="none" stroke="#1F2933" stroke-width="1.6"/>
+    <circle cx="241" cy="143" r="4.5" fill="#1F2933"/>
+    <path d="M186,166 C176,200 56,200 47,160" fill="none" stroke="#B83232" stroke-width="1.5" marker-end="url(#ahr)"/>
+    <text x="116" y="210" text-anchor="middle" font-size="13" font-style="italic" fill="#B83232">no</text>
 
     <line x1="18" y1="226" x2="118" y2="226" stroke="#D9DEE3"/>
     <text x="135" y="230.5" text-anchor="middle" font-size="13.5" font-style="italic" class="q">or</text>
@@ -240,10 +245,10 @@
 
     <rect x="18" y="244" width="234" height="126" rx="10" fill="#1F2933"/>
     <g font-size="13.5" class="m" fill="#E4E7EB">
-      <text x="34" y="276">obj = <tspan fill="#7FD1AE">find</tspan>(<tspan fill="#F5B971">"block"</tspan>)</text>
-      <text x="34" y="300"><tspan fill="#8AB4F8">if</tspan> <tspan fill="#7FD1AE">grasp</tspan>(obj):</text>
-      <text x="66.4" y="324"><tspan fill="#7FD1AE">carry</tspan>(obj, <tspan fill="#F5B971">"bowl"</tspan>)</text>
-      <text x="34" y="348"><tspan fill="#8AB4F8">else</tspan>: retry()</text>
+      <text x="34" y="276"><tspan fill="#7FD1AE">grasp</tspan>(<tspan fill="#F5B971">"block"</tspan>)</text>
+      <text x="34" y="300"><tspan fill="#7FD1AE">carry</tspan>(<tspan fill="#F5B971">"block"</tspan>, <tspan fill="#F5B971">"bowl"</tspan>)</text>
+      <text x="34" y="324"><tspan fill="#8AB4F8">if not</tspan> <tspan fill="#7FD1AE">placed</tspan>(<tspan fill="#F5B971">"block"</tspan>):</text>
+      <text x="66.4" y="348">retry()</text>
     </g>
   </g>
   <line x1="885" y1="577" x2="903" y2="577" class="flow" marker-end="url(#ah)"/>

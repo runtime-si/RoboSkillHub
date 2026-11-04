@@ -1,7 +1,9 @@
 # Contributing to RoboSkillHub
 
 Five things can be contributed: a **tool** (a model or algorithm skills call),
-a **skill** (a reusable step of a task, with exits a policy branches on), a
+a **skill** (any reusable node of a policy: a perception step, an action, or a
+condition such as "is the rope through the ring?", with exits a policy
+branches on), a
 **policy** (a trained checkpoint), a **recipe** (a task-level template), and a
 **paper card**. Each starts from a template:
 
