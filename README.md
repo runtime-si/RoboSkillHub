@@ -55,7 +55,7 @@ skill loader once:
 ## From a photo to a running arm
 
 <p align="center">
-  <img src="docs/figures/photo-to-arm.svg" alt="Photo of the cell, rebuilt as a simulated scene, the skills that fit selected, a policy composed as a graph or code, tested across many randomized worlds, then locked and run on the real arm" width="100%">
+  <img src="docs/figures/photo-to-arm.svg" alt="Photo of the cell, rebuilt as a scene in any simulator, the skills that fit selected, a policy composed as a graph or code, tested across many randomized worlds, then locked and run on the real arm" width="100%">
 </p>
 
 ```bash
@@ -74,9 +74,10 @@ openskills lock path/to/graph --deploy      # writes path/to/graph/skills.lock
 openskills fetch path/to/graph/skills.lock --dest ~/openskills-runtime
 ```
 
-## Runtimes
+## Runtimes and simulators
 
-OpenSkills holds the parts; a runtime runs the policy.
+OpenSkills holds the parts; a runtime runs the policy, in a simulator or on
+the robot.
 
 - **Graph-as-Policy** loads every bundle as it is.
   [docs/how-gap-runs.md](docs/how-gap-runs.md) walks through what it does
@@ -84,6 +85,11 @@ OpenSkills holds the parts; a runtime runs the policy.
 - **Code as Policies and agent tool lists.** Tools are typed Python functions,
   each with a JSON schema, so a generated program or an agent can call them
   directly. A dedicated adapter is on the roadmap.
+- **Any simulator.** A skill reaches the world only through `robot.*` tools,
+  and `sim.*` ground-truth tools in simulation. Any simulator that provides
+  them can run it, and the same skill then runs on the real arm, where only
+  `robot.*` exists. RoboSimStudio provides them today; Isaac Sim and MuJoCo
+  need a connector that does.
 
 ## What is in the library
 
@@ -141,9 +147,10 @@ paper; what review looks for; how an eval record is filed.
 ## Roadmap
 
 1. **Now:** library, checks, search, view, lock, fetch; weights on the Hub.
-2. **More runtimes:** tools and skills exposed as plain functions for
-   code-as-policies programs and agent tool lists, next to Graph-as-Policy.
-3. **Evaluation in the loop:** CI runs each bundle's suite in RoboSimStudio on
+2. **More runtimes and simulators:** tools and skills exposed as plain
+   functions for code-as-policies programs and agent tool lists, next to
+   Graph-as-Policy; connectors for Isaac Sim and MuJoCo, next to RoboSimStudio.
+3. **Evaluation in the loop:** CI runs each bundle's suite in simulation on
    GPU runners and files the eval records; badges on every bundle page.
 4. **YAM policies end to end:** an observation and action adapter in the
    policy loop, so a checkpoint fine-tuned on YAM runs as a policy.

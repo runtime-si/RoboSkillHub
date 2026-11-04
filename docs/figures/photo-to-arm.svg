@@ -87,10 +87,10 @@
     <ellipse cx="132" cy="116" rx="16" ry="6" fill="#5F7389"/>
     <path d="M30,62 L52,62 M30,62 L30,78" stroke="#9FB3C8" stroke-width="1.5" stroke-linecap="round" fill="none"/>
     <path d="M190,162 L168,162 M190,162 L190,146" stroke="#9FB3C8" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-    <text x="16" y="200" font-size="13" class="s">RoboSimStudio rebuilds it</text>
-    <text x="16" y="219" font-size="13" class="s">as a simulated scene.</text>
-    <rect x="16" y="238" width="75" height="24" rx="6" class="chip"/>
-    <text x="26" y="254" font-size="11.5" class="m" fill="#1F2933">scene.py</text>
+    <text x="16" y="200" font-size="13" class="s">Rebuild it as a scene</text>
+    <text x="16" y="219" font-size="13" class="s">in any simulator.</text>
+    <rect x="16" y="238" width="165" height="24" rx="6" class="chip"/>
+    <text x="26" y="254" font-size="11.5" class="m" fill="#1F2933">USD &#183; MJCF &#183; scene.py</text>
   </g>
   <line x1="530" y1="212" x2="557" y2="212" class="flow" marker-end="url(#ah)"/>
 
@@ -245,15 +245,17 @@
   </g>
   <rect x="136" y="370" width="48" height="22" rx="11" fill="#EEF1F4"/>
   <text x="160" y="385.5" class="owner" fill="#52606D">you</text>
-  <rect x="360" y="370" width="112" height="22" rx="11" fill="#EAF2FB"/>
-  <text x="416" y="385.5" class="owner" fill="#24598F">RoboSimStudio</text>
+  <rect x="364" y="370" width="104" height="22" rx="11" fill="#EAF2FB"/>
+  <text x="416" y="385.5" class="owner" fill="#24598F">any simulator</text>
+  <text x="416" y="412" text-anchor="middle" font-size="11" class="q">Isaac Sim &#183; MuJoCo &#183; RoboSimStudio</text>
   <rect x="626" y="370" width="92" height="22" rx="11" fill="#E8F5EE"/>
   <text x="672" y="385.5" class="owner" fill="#217346">OpenSkills</text>
   <rect x="880" y="370" width="96" height="22" rx="11" fill="#F2ECF9"/>
   <text x="928" y="385.5" class="owner" fill="#643C99">any planner</text>
   <text x="928" y="412" text-anchor="middle" font-size="11" class="q">Graph-as-Policy &#183; Code as Policies</text>
-  <rect x="1128" y="370" width="112" height="22" rx="11" fill="#EAF2FB"/>
-  <text x="1184" y="385.5" class="owner" fill="#24598F">RoboSimStudio</text>
+  <rect x="1132" y="370" width="104" height="22" rx="11" fill="#EAF2FB"/>
+  <text x="1184" y="385.5" class="owner" fill="#24598F">any simulator</text>
+  <text x="1184" y="412" text-anchor="middle" font-size="11" class="q">Isaac Sim &#183; MuJoCo &#183; RoboSimStudio</text>
   <rect x="1394" y="370" width="92" height="22" rx="11" fill="#E8F5EE"/>
   <text x="1440" y="385.5" class="owner" fill="#217346">OpenSkills</text>
 </svg>
