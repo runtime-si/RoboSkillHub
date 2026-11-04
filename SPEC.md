@@ -45,7 +45,7 @@ metadata:
 
 | Key | Rule |
 | --- | --- |
-| `stage` | one of `perceive`, `plan`, `propose`, `select`, `execute`, `verify`, `recover`, `judge` |
+| `stage` | one of `perceive`, `plan`, `propose`, `select`, `execute`, `verify`, `recover`, `judge`. A `verify` skill is a condition: its exits are the branch the policy takes. |
 | `embodiments` | the robots it is declared to work on. `any` means it reads the robot only through `describe_*` tools. A declaration, not a result. A policy names the robots its checkpoint was trained on; `any` is an error. |
 | `io` | policies only, and required for them: `action` (`space`, `dim`, `hz`), `cameras` (the names the checkpoint reads), optionally `state` (`dim`, `order`). A checkpoint runs only on the layout it learned; a skill reads the robot through `describe_*` instead. |
 | `version` | semver; bump MAJOR when an input, output or exit changes |
