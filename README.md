@@ -2,6 +2,10 @@
 
 **Open robot skills, composed into policy graphs.**
 
+<p align="center">
+  <img src="docs/figures/overview.svg" alt="What the library holds (tools, skills, policies, recipes, papers) and how to use it: describe the task and robot, select what runs on it, compose a graph, run it in simulation and then on the robot" width="100%">
+</p>
+
 A robot policy written as a [graph-as-policy](https://github.com/graph-robots/graph-as-policy)
 (gap) graph is a few subgraphs wired by their exits: perceive the object,
 grasp it, check the grasp, carry it. Each subgraph is built from a **skill**,
