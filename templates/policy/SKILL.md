@@ -12,6 +12,10 @@ metadata:
   hub:
     stage: execute
     embodiments: [yam_i2rt]
+    io:
+      action: {space: TBD, dim: TBD, hz: TBD}
+      state: {dim: TBD}
+      cameras: [TBD]
     version: 0.1.0
     tasks: []
     weights:
@@ -59,7 +63,8 @@ connect the server sends its metadata, then answers each observation dict with
 
 ## Observation and action conventions
 
-<Cameras and their resolution, proprioception, action space and units, control
+`metadata.hub.io` is the part a check reads; the details go here:
+<cameras and their resolution, proprioception, action space and units, control
 rate, chunk length. gap's shared policy loop encodes LIBERO observations
 today; a checkpoint trained on another layout needs its own encoding in
 `tools.py`.>

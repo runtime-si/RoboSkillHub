@@ -33,10 +33,26 @@ CONNECTOR_PREFIXES = ("robot", "sim", "motion", "cable")
 """Tool namespaces a connector owns rather than a bundle."""
 
 HUB_KEYS = frozenset(
-    {"stage", "embodiments", "tuned_on", "arms", "tasks", "version", "provenance", "weights", "tier", "notes"}
+    {
+        "stage",
+        "embodiments",
+        "tuned_on",
+        "arms",
+        "tasks",
+        "version",
+        "provenance",
+        "weights",
+        "io",
+        "tier",
+        "notes",
+    }
 )
 PROVENANCE_KEYS = frozenset({"authors", "paper", "code", "upstream_license", "data"})
 WEIGHTS_KEYS = frozenset({"uri", "sha256", "license"})
+IO_KEYS = frozenset({"action", "state", "cameras"})
+"""A policy's ``io``: the observation and action layout its checkpoint was trained with."""
+IO_ACTION_KEYS = frozenset({"space", "dim", "hz"})
+IO_STATE_KEYS = frozenset({"dim", "order"})
 
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")

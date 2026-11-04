@@ -23,6 +23,10 @@ metadata:
     version: 1.2.0               # required in this repository: semver
     tuned_on: [yam_i2rt]         # the robot its constants were measured on
     arms: 1                      # arms it needs; default 1
+    io:                          # required for policies: what the checkpoint was trained with
+      action: {space: osc_pose_delta, dim: 7, hz: 20}
+      state: {dim: 8, order: [eef_pos, eef_axis_angle, gripper_qpos]}
+      cameras: [agentview, wrist]
     tasks: [pick-place]          # task families, for search
     weights:                     # tool and policy bundles with a checkpoint
       uri: hf://<owner>/<repo>@<40-char commit>
@@ -40,7 +44,8 @@ metadata:
 | Key | Rule |
 | --- | --- |
 | `stage` | one of `perceive`, `plan`, `propose`, `select`, `execute`, `verify`, `recover`, `judge` |
-| `embodiments` | the robots it is declared to work on. `any` means it reads the robot only through `describe_*` tools. A declaration, not a result. |
+| `embodiments` | the robots it is declared to work on. `any` means it reads the robot only through `describe_*` tools. A declaration, not a result. A policy names the robots its checkpoint was trained on; `any` is an error. |
+| `io` | policies only, and required for them: `action` (`space`, `dim`, `hz`), `cameras` (the names the checkpoint reads), optionally `state` (`dim`, `order`). A checkpoint runs only on the layout it learned; a skill reads the robot through `describe_*` instead. |
 | `version` | semver; bump MAJOR when an input, output or exit changes |
 | `weights.uri` | `hf://` URIs must pin a full commit. Branches and tags move. |
 | `weights.sha256` | digest of the snapshot's file manifest (below) |

@@ -27,7 +27,9 @@ uv run --no-sync pytest -q
   `not_found`), not internal errors.
 - **It is a trained network that closes the loop itself?** A policy. The
   weights go to the Hugging Face Hub (`motif weights push`), and the bundle
-  pins them.
+  pins them. It names the robot it was trained on and declares `io`: action
+  space and rate, state, cameras. A checkpoint runs only on the layout it
+  learned, so `embodiments: [any]` is never honest for one.
 - **It is an order of skills that solves a kind of task?** A recipe.
 - **It is a method from a paper that a bundle implements?** A paper card,
   listing the bundles under `derived`.
