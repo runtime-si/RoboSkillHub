@@ -4,8 +4,8 @@ import json
 
 from conftest import write
 
-from openskills.catalog import load_catalog
-from openskills.lock import build_lock, graph_references, graph_sha256
+from roboskillhub.catalog import load_catalog
+from roboskillhub.lock import build_lock, graph_references, graph_sha256
 
 
 def workflow(*, extra_tool: str | None = None) -> dict:

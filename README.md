@@ -1,9 +1,9 @@
-# OpenSkills
+# RoboSkillHub
 
 **An open library of robot skills that any robot policy can build on.**
 
 <p align="center">
-  <img src="docs/figures/overview.svg" alt="What OpenSkills holds (tools, skills, policies, recipes, papers) and how to use it: describe the task and robot, select what runs on it, compose a policy as a graph or as code, run it in simulation and then on the robot" width="100%">
+  <img src="docs/figures/overview.svg" alt="What RoboSkillHub holds (tools, skills, policies, recipes, papers) and how to use it: describe the task and robot, select what runs on it, compose a policy as a graph or as code, run it in simulation and then on the robot" width="100%">
 </p>
 
 Every robot policy is built from the same parts: find the object, grasp it,
@@ -11,7 +11,7 @@ check the grasp, carry it. That holds whether the policy is a graph of
 subgraphs ([Graph-as-Policy](https://github.com/graph-robots/graph-as-policy)),
 a program a language model writes
 ([Code as Policies](https://code-as-policies.github.io/)), or an agent calling
-tools. OpenSkills is a shared library of those parts: perception and planning
+tools. RoboSkillHub is a shared library of those parts: perception and planning
 tools, reusable skills, trained checkpoints, task recipes, and the papers
 behind them. Anyone can contribute, every part says which robots it runs on,
 and everything is pinned, so a policy that passed in simulation runs on the
@@ -22,12 +22,13 @@ real arm with exactly the code and weights it was tested with.
   space, state and cameras its checkpoint was trained with (`io`). A search
   for a real YAM arm never offers a skill that can only run in simulation, or
   a checkpoint trained on another robot.
-- **Checked.** `openskills check` validates every bundle, overlay, recipe,
+- **Checked.** `roboskillhub check` validates every bundle, overlay, recipe,
   paper and eval record. With Graph-as-Policy installed it runs that engine's
   validator as well.
 - **Pinned.** Weights live on the Hugging Face Hub at an immutable commit with a
   content digest. `skills.lock` records every bundle a policy uses, by commit
-  and digest. `openskills fetch` rebuilds exactly that on the robot, or refuses.
+  and digest. `roboskillhub fetch` rebuilds exactly that on the robot, or
+  refuses.
 - **Federated.** Bundles from other registries are pinned by commit, not
   copied (`sources.yaml`). Today that is
   [open-robot-skills](https://github.com/graph-robots/open-robot-skills): 8
@@ -37,18 +38,17 @@ real arm with exactly the code and weights it was tested with.
 
 ```bash
 uv sync --extra gap
-uv run --no-sync openskills sync      # clone the pinned sources into .openskills/
-uv run --no-sync openskills check     # every bundle, overlay, recipe, paper: 0 errors
-uv run --no-sync openskills search "put the red block into the bowl" --embodiment yam_i2rt --arms 1
+uv run --no-sync roboskillhub sync      # clone the pinned sources into .roboskillhub/
+uv run --no-sync roboskillhub check     # every bundle, overlay, recipe, paper: 0 errors
+uv run --no-sync roboskillhub search "put the red block into the bowl" --embodiment yam_i2rt --arms 1
 ```
 
 The last command ranks the library for that task on a one-armed YAM. It drops
 what cannot run there (simulator-only and two-arm skills, LIBERO policies) and
 says why with `--why`, keeps the best skill per stage, adds the tools those
-skills call, and offers the `pick-place-camera-only` recipe. Chinese
-instructions work too: the task family is read from either language.
+skills call, and offers the `pick-place-camera-only` recipe.
 
-For `openskills check` to run Graph-as-Policy's validator too, install its
+For `roboskillhub check` to run Graph-as-Policy's validator too, install its
 skill loader once:
 `uv pip install --no-deps "graph-as-policy @ git+https://github.com/graph-robots/graph-as-policy@09e45f8de27bc1a29629382ed7c2b9b4b384b3d6"`.
 
@@ -60,7 +60,7 @@ skill loader once:
 
 ```bash
 # 1. Only what this task and robot can use: a directory of SKILL.md bundles, plus RECIPES.md.
-openskills view "put the red block into the bowl" --embodiment yam_i2rt --arms 1 --out views/task
+roboskillhub view "put the red block into the bowl" --embodiment yam_i2rt --arms 1 --out views/task
 
 # 2. Hand it to the planner. Graph-as-Policy reads it from GAP_SKILLS_PATH;
 #    a code-as-policies prompt can list the same SKILL.md files.
@@ -68,23 +68,24 @@ export GAP_SKILLS_PATH=$PWD/views/task
 
 # 3. After the policy passes in simulation: pin it, and refuse it if it cannot
 #    leave simulation. (lock reads a Graph-as-Policy graph directory today.)
-openskills lock path/to/graph --deploy      # writes path/to/graph/skills.lock
+roboskillhub lock path/to/graph --deploy      # writes path/to/graph/skills.lock
 
 # 4. On the robot: the same bundles, the same weights, or an error.
-openskills fetch path/to/graph/skills.lock --dest ~/openskills-runtime
+roboskillhub fetch path/to/graph/skills.lock --dest ~/roboskillhub-runtime
 ```
 
 ## Runtimes and simulators
 
-OpenSkills holds the parts; a runtime runs the policy, in a simulator or on
+RoboSkillHub holds the parts; a runtime runs the policy, in a simulator or on
 the robot.
 
 - **Graph-as-Policy** loads every bundle as it is.
   [docs/how-gap-runs.md](docs/how-gap-runs.md) walks through what it does
   with them at each step, down to the subprocesses it starts.
-- **[Code as Policies](https://code-as-policies.github.io/) and agent tool lists.** Tools are typed Python functions,
-  each with a JSON schema, so a generated program or an agent can call them
-  directly. A dedicated adapter is on the roadmap.
+- **[Code as Policies](https://code-as-policies.github.io/) and agent tool
+  lists.** Tools are typed Python functions, each with a JSON schema, so a
+  generated program or an agent can call them directly. A dedicated adapter
+  is on the roadmap.
 - **Any simulator.** A skill reaches the world only through `robot.*` tools,
   and `sim.*` ground-truth tools in simulation. Any simulator that provides
   them can run it, and the same skill then runs on the real arm, where only
@@ -101,7 +102,7 @@ the robot.
 | recipe | `recipes/<name>/` | a task-level template: which skills, how their exits route | `pick-place-camera-only` |
 | paper | `papers/<id>/` | a card linking a method to the bundles that implement it | `curobo-2023` |
 
-Bundles use the Agent Skills `SKILL.md` layout. What OpenSkills adds sits
+Bundles use the Agent Skills `SKILL.md` layout. What RoboSkillHub adds sits
 under `metadata.hub`, or in an overlay for bundles it federates:
 [SPEC.md](SPEC.md).
 
@@ -114,16 +115,16 @@ under `metadata.hub`, or in an overlay for bundles it federates:
 ## Checkpoints on the Hugging Face Hub
 
 ```bash
-openskills new policy yam-pick-cube
-openskills weights push ./checkpoint --repo <owner>/yam-pick-cube --bundle policies/yam-pick-cube
+roboskillhub new policy yam-pick-cube
+roboskillhub weights push ./checkpoint --repo <owner>/yam-pick-cube --bundle policies/yam-pick-cube
 ```
 
 This uploads the folder as one commit and writes
 `hf://<owner>/yam-pick-cube@<commit>` and the snapshot's sha256 into the
 bundle. The policy server downloads exactly that snapshot and refuses any
-other. Git holds the two strings; the Hub holds the gigabytes.
+other. Git stores only the URI and the digest; the weights stay on the Hub.
 
-`openskills check` rejects the new policy until it also says what it was
+`roboskillhub check` rejects the new policy until it also says what it was
 trained on: `embodiments` names the robot (never `any`) and `io` gives the
 action space and rate, the state and the cameras.
 
@@ -135,8 +136,8 @@ overlays/           hub metadata for federated bundles
 tools/ skills/ policies/   this repository's own bundles
 recipes/ papers/    task templates and paper cards
 evals/              eval records; they set maturity
-templates/          what `openskills new` copies
-src/openskills/     the `openskills` command
+templates/          what `roboskillhub new` copies
+src/roboskillhub/   the `roboskillhub` command
 ```
 
 ## Contributing

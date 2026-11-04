@@ -4,9 +4,9 @@ import json
 
 import pytest
 
-from openskills.catalog import load_catalog
-from openskills.search import infer_families, select, tokens
-from openskills.view import VIEW_FILE, make_view
+from roboskillhub.catalog import load_catalog
+from roboskillhub.search import infer_families, select, tokens
+from roboskillhub.view import VIEW_FILE, make_view
 
 
 def test_stems_agree_across_inflections():

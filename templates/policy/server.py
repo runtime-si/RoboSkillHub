@@ -33,7 +33,7 @@ def pinned_weights() -> tuple[str, str, str]:
 
 
 def snapshot_sha256(root: Path) -> str:
-    """The digest ``openskills weights push`` records: path and content of every file."""
+    """The digest ``roboskillhub weights push`` records: path and content of every file."""
     lines = []
     for path in sorted(p for p in root.rglob("*") if p.is_file()):
         rel = path.relative_to(root).as_posix()

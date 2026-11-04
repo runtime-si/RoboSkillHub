@@ -20,7 +20,7 @@ body:
     id: missing
     attributes:
       label: What is missing
-      description: The step no existing skill covers, and what `openskills search` offered instead.
+      description: The step no existing skill covers, and what `roboskillhub search` offered instead.
     validations:
       required: true
   - type: textarea

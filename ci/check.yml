@@ -17,18 +17,18 @@ jobs:
         run: uv sync --extra gap
       - name: Install the engine's skill loader, without its runtime dependencies
         run: |
-          engine=$(uv run --no-sync python -c "from pathlib import Path; from openskills.sources import load_manifest; print(load_manifest(Path('.')).engine.commit)")
+          engine=$(uv run --no-sync python -c "from pathlib import Path; from roboskillhub.sources import load_manifest; print(load_manifest(Path('.')).engine.commit)")
           uv pip install --no-deps "graph-as-policy @ git+https://github.com/graph-robots/graph-as-policy@${engine}"
       - name: Sync pinned sources
-        run: uv run --no-sync openskills sync
+        run: uv run --no-sync roboskillhub sync
       - name: Check every bundle, overlay, recipe, paper and eval record
-        run: uv run --no-sync openskills check --require-gap -v
+        run: uv run --no-sync roboskillhub check --require-gap -v
       - name: Lint
         run: uvx ruff@0.16.1 check . && uvx ruff@0.16.1 format . --check
       - name: Test
         run: uv run --no-sync pytest -q
       - name: Build the index
-        run: uv run --no-sync openskills index --out index.json
+        run: uv run --no-sync roboskillhub index --out index.json
       - uses: actions/upload-artifact@v4
         with:
           name: index
