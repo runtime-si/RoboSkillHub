@@ -1,0 +1,30 @@
+name: Skill request
+description: A capability a graph needs and the catalog does not have.
+labels: [skill-request]
+body:
+  - type: textarea
+    id: task
+    attributes:
+      label: The task
+      description: The instruction and the scene, ideally with a photo or clip.
+    validations:
+      required: true
+  - type: input
+    id: robot
+    attributes:
+      label: Robot
+      description: rss.robot() name, e.g. yam_i2rt.
+    validations:
+      required: true
+  - type: textarea
+    id: missing
+    attributes:
+      label: What is missing
+      description: The step no existing skill covers, and what `motif search` offered instead.
+    validations:
+      required: true
+  - type: textarea
+    id: prior-art
+    attributes:
+      label: Prior art
+      description: Papers or code that solve this step.

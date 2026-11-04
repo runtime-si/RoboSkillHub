@@ -1,0 +1,22 @@
+name: Paper to turn into a skill
+description: A method that should become a tool, skill or recipe.
+labels: [paper]
+body:
+  - type: input
+    id: link
+    attributes:
+      label: Paper
+      description: arXiv or venue link.
+    validations:
+      required: true
+  - type: input
+    id: code
+    attributes:
+      label: Code and its license
+  - type: textarea
+    id: use
+    attributes:
+      label: What a graph would use it for
+      description: The task step it solves, and which existing bundle it would replace or complement.
+    validations:
+      required: true

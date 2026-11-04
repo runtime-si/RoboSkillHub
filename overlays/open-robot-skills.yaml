@@ -1,0 +1,201 @@
+# Hub metadata for the open-robot-skills bundles, at the commit sources.yaml pins.
+#
+# Keys are the ones a native bundle writes under metadata.hub (SPEC.md). What
+# can be read off a bundle -- its exits, the tools it calls, whether it needs
+# simulator ground truth (its tier) -- is derived and never written here.
+#
+# embodiments: [any] means the bundle reads the robot through describe_* tools
+# instead of hard-coding one. It is a declaration, not a result: results are
+# eval records under evals/, and they set a bundle's maturity.
+# tuned_on names the robot its constants were measured on; on any other robot,
+# expect to re-measure them.
+
+# --- tools ------------------------------------------------------------------
+curobo:
+  stage: plan
+  embodiments: [any]
+  tuned_on: [panda]
+  tasks: [motion-planning]
+  notes: Plans for curobo's built-in franka.yml. It knows yam.yml is 6-DoF but does not ship that config; register its path in _PROJECT_ROBOT_CONFIGS before planning for yam.
+curve:
+  stage: perceive
+  embodiments: [any]
+  tasks: [cable-routing]
+gemini-er:
+  stage: perceive
+  embodiments: [any]
+geometry:
+  stage: perceive
+  embodiments: [any]
+  tuned_on: [panda]
+  notes: exclude_robot_points models the Franka Panda's links; on another arm its points are not masked.
+grounding-dino:
+  stage: perceive
+  embodiments: [any]
+molmo:
+  stage: perceive
+  embodiments: [any]
+sam3:
+  stage: perceive
+  embodiments: [any]
+vlm:
+  stage: perceive
+  embodiments: [any]
+
+# --- policies ---------------------------------------------------------------
+molmoact-libero:
+  stage: execute
+  embodiments: [panda]
+  tuned_on: [panda]
+  tasks: [libero]
+  notes: LIBERO observation and OSC_POSE action conventions; drives the arm through sim.apply_policy_action.
+pi05-libero:
+  stage: execute
+  embodiments: [panda]
+  tuned_on: [panda]
+  tasks: [libero]
+  notes: LIBERO observation and OSC_POSE action conventions; drives the arm through sim.apply_policy_action.
+
+# --- skills -----------------------------------------------------------------
+anchoring-a-free-end:
+  stage: execute
+  embodiments: [any]
+  arms: 2
+  tasks: [cable-routing]
+computing-feature-mating-poses:
+  stage: plan
+  embodiments: [any]
+  tasks: [insertion]
+executing-feature-mating:
+  stage: execute
+  embodiments: [any]
+  tasks: [insertion]
+executing-held-object-motion:
+  stage: execute
+  embodiments: [any]
+  tasks: [insertion]
+grasping-concave-contour:
+  stage: propose
+  embodiments: [any]
+  tasks: [pick-place]
+grasping-direct-ik:
+  stage: execute
+  embodiments: [any]
+  tuned_on: [panda]
+  tasks: [pick-place]
+grasping-linear-feature:
+  stage: execute
+  embodiments: [any]
+  tasks: [pick-place]
+grasping-short-axis:
+  stage: execute
+  embodiments: [any]
+  tuned_on: [panda]
+  tasks: [pick-place]
+grasping-with-planner:
+  stage: execute
+  embodiments: [any]
+  tuned_on: [panda]
+  tasks: [pick-place]
+perceiving-deformable-linear-objects:
+  stage: perceive
+  embodiments: [any]
+  tasks: [cable-routing]
+perceiving-functional-features:
+  stage: perceive
+  embodiments: [any]
+  tasks: [insertion]
+perceiving-next-item:
+  stage: perceive
+  embodiments: [any]
+  tuned_on: [panda]
+  tasks: [pick-place, sorting]
+perceiving-object-parts:
+  stage: perceive
+  embodiments: [any]
+  tasks: [pick-place]
+perceiving-objects:
+  stage: perceive
+  embodiments: [any]
+  tuned_on: [panda]
+  tasks: [pick-place]
+perceiving-objects-oneshot:
+  stage: perceive
+  embodiments: [any]
+  tuned_on: [panda]
+  tasks: [pick-place]
+perceiving-relational-correspondences:
+  stage: perceive
+  embodiments: [any]
+  tasks: [sorting]
+perceiving-routing-fixtures:
+  stage: perceive
+  embodiments: [any]
+  tasks: [cable-routing]
+perceiving-sorting-pairs:
+  stage: perceive
+  embodiments: [any]
+  tasks: [sorting]
+placing-held-feature:
+  stage: execute
+  embodiments: [any]
+  tasks: [insertion]
+planning-held-object-motion:
+  stage: plan
+  embodiments: [any]
+  tasks: [insertion]
+plugging-a-cable-end:
+  stage: execute
+  embodiments: [any]
+  arms: 2
+  tasks: [cable-routing]
+proposing-short-axis-grasps:
+  stage: propose
+  embodiments: [any]
+  tasks: [pick-place]
+proposing-side-grasps:
+  stage: propose
+  embodiments: [any]
+  tasks: [pick-place]
+reconstructing-collision-worlds:
+  stage: perceive
+  embodiments: [any]
+  tasks: [pick-place, insertion]
+registering-held-objects:
+  stage: perceive
+  embodiments: [any]
+  tasks: [insertion]
+seating-a-cable-crossing:
+  stage: execute
+  embodiments: [any]
+  tasks: [cable-routing]
+selecting-reachable-grasp:
+  stage: select
+  embodiments: [any]
+  tasks: [pick-place]
+tipping-over-a-surface-edge:
+  stage: execute
+  embodiments: [any]
+  tuned_on: [yam_i2rt]
+  arms: 2
+  tasks: [reorientation]
+tracking-objects:
+  stage: perceive
+  embodiments: [any]
+transporting-objects:
+  stage: execute
+  embodiments: [any]
+  tuned_on: [panda]
+  tasks: [pick-place]
+verifying-a-cable-route:
+  stage: verify
+  embodiments: [any]
+  tasks: [cable-routing]
+verifying-grasps:
+  stage: verify
+  embodiments: [any]
+  tasks: [pick-place]
+verifying-placement:
+  stage: verify
+  embodiments: [any]
+  tasks: [pick-place, insertion]

@@ -1,0 +1,5 @@
+# Pins, overlays and eval records decide what the hub trusts; maintainers review them.
+*                @NZ-Liam-Zhong
+/sources.yaml    @NZ-Liam-Zhong
+/overlays/       @NZ-Liam-Zhong
+/evals/          @NZ-Liam-Zhong

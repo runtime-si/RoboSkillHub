@@ -1,0 +1,36 @@
+name: Checkpoint submission
+description: A trained policy or model to publish as a bundle.
+labels: [checkpoint]
+body:
+  - type: input
+    id: weights
+    attributes:
+      label: Weights
+      description: The pinned URI from `motif weights push` (hf://owner/repo@commit).
+    validations:
+      required: true
+  - type: input
+    id: robot
+    attributes:
+      label: Robot and action space
+      description: e.g. yam_i2rt, joint positions at 30 Hz, chunk of 50.
+    validations:
+      required: true
+  - type: textarea
+    id: training
+    attributes:
+      label: Training
+      description: Base model, number of demonstrations and where they came from, cameras and resolution.
+    validations:
+      required: true
+  - type: textarea
+    id: results
+    attributes:
+      label: Results
+      description: Success rate, on which task, in sim or real, with a video or trace.
+  - type: input
+    id: license
+    attributes:
+      label: License of the weights
+    validations:
+      required: true

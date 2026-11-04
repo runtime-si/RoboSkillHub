@@ -1,0 +1,12 @@
+Motif
+Copyright 2026 Runtime.si
+
+This repository is licensed under the Apache License, Version 2.0.
+
+It federates, and does not redistribute, the bundles of:
+
+  open-robot-skills  https://github.com/graph-robots/open-robot-skills  (Apache-2.0)
+
+`motif sync` fetches them at the commit sources.yaml pins. Each bundle keeps
+the license its own SKILL.md declares. The hub metadata this repository adds to
+them lives in overlays/.
