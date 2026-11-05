@@ -78,7 +78,7 @@
     <g font-size="12.5" class="m" fill="#1F2933">
       <rect x="16" y="136" width="151" height="26" rx="6" class="chip"/><text x="24" y="153.5">perceiving-objects</text>
       <rect x="16" y="168" width="159" height="26" rx="6" class="chip"/><text x="24" y="185.5">grasping-short-axis</text>
-      <rect x="16" y="200" width="159" height="26" rx="6" class="chip"/><text x="24" y="217.5">verifying-threading</text>
+      <rect x="16" y="200" width="159" height="26" rx="6" class="chip"/><text x="24" y="217.5">verifying-placement</text>
     </g>
   </g>
 
