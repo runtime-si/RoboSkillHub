@@ -22,24 +22,22 @@ real arm with exactly the code and weights it was tested with.
   space, state and cameras its checkpoint was trained with (`io`). A search
   for a real YAM arm never offers a skill that can only run in simulation, or
   a checkpoint trained on another robot.
-- **Checked.** `roboskillhub check` validates every bundle, overlay, recipe,
-  paper and eval record. With Graph-as-Policy installed it runs that engine's
-  validator as well.
+- **Checked.** `roboskillhub check` validates every bundle, recipe, paper and
+  eval record. With Graph-as-Policy installed it runs that engine's validator
+  as well.
 - **Pinned.** Weights live on the Hugging Face Hub at an immutable commit with a
   content digest. `skills.lock` records every bundle a policy uses, by commit
   and digest. `roboskillhub fetch` rebuilds exactly that on the robot, or
   refuses.
-- **Federated.** Bundles from other registries are pinned by commit, not
-  copied (`sources.yaml`). Today that is
-  [open-robot-skills](https://github.com/graph-robots/open-robot-skills): 8
-  tools, 33 skills, 2 policies, plus this repository's own.
+- **Complete.** The 8 tools, 33 skills and 2 policies of
+  [open-robot-skills](https://github.com/graph-robots/open-robot-skills) live
+  here in this format, next to this repository's own.
 
 ## Quickstart
 
 ```bash
 uv sync --extra gap
-uv run --no-sync roboskillhub sync      # clone the pinned sources into .roboskillhub/
-uv run --no-sync roboskillhub check     # every bundle, overlay, recipe, paper: 0 errors
+uv run --no-sync roboskillhub check     # every bundle, recipe, paper: 0 errors
 uv run --no-sync roboskillhub search "put the red block into the bowl" --embodiment yam_i2rt --arms 1
 ```
 
@@ -109,9 +107,22 @@ such as `verifying-placement` answers one question, and its exits (`verified`,
 tested once instead of inside every graph. Conditions sit at the `verify`
 stage, and search offers them next to the actions they check.
 
-Bundles use the Agent Skills `SKILL.md` layout. What RoboSkillHub adds sits
-under `metadata.hub`, or in an overlay for bundles it federates:
-[SPEC.md](SPEC.md).
+Bundles use the Agent Skills `SKILL.md` layout, and the `gap:` block
+Graph-as-Policy reads is kept as it is. What RoboSkillHub adds sits under
+`metadata.hub`: [SPEC.md](SPEC.md).
+
+```yaml
+metadata:
+  hub:
+    stage: perceive              # perceive, propose, select, plan, execute, verify, ...
+    embodiments: [any]           # the robots it is declared for
+    tuned_on: [panda]            # where its constants were measured
+    tasks: [pick-place]
+    version: 0.1.0
+    provenance:
+      code: https://github.com/graph-robots/open-robot-skills/tree/752dfbd.../skills/perceiving-objects
+      upstream_license: MIT
+```
 
 **Tier** is derived, never declared: a bundle that calls any `sim.*` tool is
 `full` and stays in simulation; otherwise it is `camera_only`.
@@ -138,13 +149,12 @@ action space and rate, the state and the cameras.
 ## Layout
 
 ```
-sources.yaml        upstream registries and the validator, pinned by commit
-overlays/           hub metadata for federated bundles
-tools/ skills/ policies/   this repository's own bundles
+tools/ skills/ policies/   every bundle, one directory each
 recipes/ papers/    task templates and paper cards
 evals/              eval records; they set maturity
 templates/          what `roboskillhub new` copies
 src/roboskillhub/   the `roboskillhub` command
+sources.yaml        the validator's engine, and any federated registry, pinned by commit
 ```
 
 ## Contributing
@@ -168,5 +178,5 @@ paper; what review looks for; how an eval record is filed.
 
 ## License
 
-Apache-2.0. Federated bundles keep the licenses their SKILL.md files declare;
-see [NOTICE](NOTICE).
+Apache-2.0. Each bundle keeps the license its SKILL.md declares (Apache-2.0 or
+MIT); see [NOTICE](NOTICE).

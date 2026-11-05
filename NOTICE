@@ -3,10 +3,18 @@ Copyright 2026 Runtime.si
 
 This repository is licensed under the Apache License, Version 2.0.
 
-It federates, and does not redistribute, the bundles of:
+It includes the tool, skill and policy bundles of open-robot-skills
+(https://github.com/graph-robots/open-robot-skills), copyright the
+graph-as-policy authors, taken from commit
+752dfbd96968d4d08379f8111765efbf6457800b. Each bundle keeps the license its
+SKILL.md declares, Apache-2.0 or MIT, and its metadata.hub.provenance.code
+links the upstream directory it came from.
 
-  open-robot-skills  https://github.com/graph-robots/open-robot-skills  (Apache-2.0)
+This repository changed them: it added metadata.hub to every SKILL.md, a
+license line to the ten that relied on the upstream repository's Apache-2.0,
+and resolves the engine by pinned URL in each pyproject.toml instead of by a
+relative path. Later changes are in this repository's git history.
 
-`roboskillhub sync` fetches them at the commit sources.yaml pins. Each bundle keeps
-the license its own SKILL.md declares. The hub metadata this repository adds to
-them lives in overlays/.
+tools/curve/_trackdlo.py is vendored from TrackDLO
+(https://github.com/RMDLO/trackdlo, MIT); its license is
+tools/curve/LICENSE.trackdlo.

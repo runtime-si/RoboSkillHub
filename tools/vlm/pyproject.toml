@@ -1,0 +1,38 @@
+[project]
+name = "vlm-tool-bundle"
+version = "0.1.0.dev0"
+description = "Hosted VLM (OpenRouter / Vertex) query tools for gap. Runs out-of-process via gap_core.rpc.server."
+readme = "SKILL.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+dependencies = [
+  # Tool-server entry point + @tool decorator + types/errors.
+  "graph-as-policy-core",
+  # The openrouter provider speaks the OpenAI-compatible chat-completions
+  # protocol over httpx (no vendor SDK needed).
+  "httpx>=0.27",
+  # tools.py encodes images for the API payload.
+  "pillow>=10",
+  # Gemini-on-Vertex needs the google-genai client. Bundled unconditionally
+  # because (a) the bundle declares vertex as a first-class provider in
+  # SKILL.md, and (b) GAP_VLM_* now inherits from GAP_LLM_* — a shell
+  # already configured for vertex+gemini expects the bundle to "just
+  # work" without a second install step. Pin matches gap's [vertex] extra.
+  "google-genai>=1.0,<1.60",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+# The engine commit sources.yaml pins, by URL, so the bundle resolves the same
+# wherever its checkout sits (a dev clone, a robot's `roboskillhub fetch`).
+[tool.uv.sources]
+graph-as-policy-core = { git = "https://github.com/graph-robots/graph-as-policy.git", rev = "09e45f8de27bc1a29629382ed7c2b9b4b384b3d6", subdirectory = "gap-core" }

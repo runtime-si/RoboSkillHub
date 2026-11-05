@@ -1,9 +1,13 @@
 # What this hub federates, every entry pinned to a commit.
 #
 # Bundles in this repository (tools/, skills/, policies/) always shadow an
-# upstream bundle of the same name. Upstream bundles are not copied here: they
-# are cloned at the pinned commit by `roboskillhub sync`, and the hub metadata we add
-# to them lives in their overlay file.
+# upstream bundle of the same name. A federated registry is not copied here: it
+# is cloned at the pinned commit by `roboskillhub sync`, and the hub metadata we
+# add to its bundles lives in its overlay file under overlays/.
+#
+# The open-robot-skills bundles used to be federated this way. They now live in
+# this repository, converted to its format, from the commit each bundle's
+# metadata.hub.provenance.code names.
 #
 # Bump a pin in its own PR; CI re-checks every bundle against the new commit.
 
@@ -13,9 +17,4 @@ engine:
   # The commit RoboSimStudio pins, so a bundle that checks here runs there.
   commit: "09e45f8de27bc1a29629382ed7c2b9b4b384b3d6"
 
-sources:
-  - name: open-robot-skills
-    repo: https://github.com/graph-robots/open-robot-skills
-    commit: "752dfbd96968d4d08379f8111765efbf6457800b"
-    license: Apache-2.0
-    overlay: overlays/open-robot-skills.yaml
+sources: []

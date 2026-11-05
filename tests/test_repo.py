@@ -10,22 +10,14 @@ from conftest import REPO
 from roboskillhub.catalog import load_catalog
 from roboskillhub.checks import check_all, load_gap_api
 from roboskillhub.scaffold import new
-from roboskillhub.sources import cache_dir, source_dir
+from roboskillhub.sources import cache_dir
 
 
-def synced() -> bool:
-    return all(
-        source_dir(cache_dir(REPO), name).is_dir() for name in ("open-robot-skills", "graph-as-policy")
-    )
-
-
-@pytest.mark.skipif(not synced(), reason="run `roboskillhub sync` first")
 def test_the_hub_checks_clean():
     issues = check_all(load_catalog(REPO), load_gap_api())
     assert [str(i) for i in issues if i.level == "error"] == []
 
 
-@pytest.mark.skipif(not synced(), reason="run `roboskillhub sync` first")
 @pytest.mark.parametrize("kind", ["skill", "tool", "recipe", "paper"])
 def test_templates_scaffold_bundles_that_check_clean(kind, tmp_path, monkeypatch):
     root = tmp_path / "hub"
