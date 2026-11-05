@@ -10,7 +10,6 @@ condition such as "did the grasp hold?", with exits a policy branches on), a
 uv sync --extra gap
 # Graph-as-Policy's validator, so `roboskillhub check` runs it too:
 uv pip install --no-deps "graph-as-policy @ git+https://github.com/graph-robots/graph-as-policy@09e45f8de27bc1a29629382ed7c2b9b4b384b3d6"
-uv run --no-sync roboskillhub sync
 uv run --no-sync roboskillhub new skill grasping-by-the-rim     # or tool, policy, recipe, paper
 # edit skills/grasping-by-the-rim/
 uv run --no-sync roboskillhub check                             # 0 errors before you open the PR
@@ -69,12 +68,21 @@ in `evals/`. Only maintainers merge them; `CODEOWNERS` enforces it. To get a
 bundle verified, open an issue with the suite, the robot, and the evidence (a
 trace or video). See [evals/README.md](evals/README.md).
 
+## Bundles that came from open-robot-skills
+
+They are ordinary bundles of this repository: change them here, under the same
+review, and bump `metadata.hub.version`. Keep `metadata.hub.provenance.code`,
+which links the upstream directory a bundle came from, so a change can always
+be compared with where it started.
+
 ## Federated sources
 
-Bundles from another registry are not copied here. To add or bump one:
-change its pin in `sources.yaml`, run `roboskillhub sync`, update its overlay in
-`overlays/` until `roboskillhub check` is clean, and open the PR with the upstream
-changelog. A pin bump is its own PR.
+A registry can also be federated instead of copied: pinned by commit in
+`sources.yaml`, cloned by `roboskillhub sync`, with the hub metadata for its
+bundles in `overlays/<source>.yaml` ([SPEC.md](SPEC.md#overlays)). To add or
+bump one, change its pin, run `roboskillhub sync`, update its overlay until
+`roboskillhub check` is clean, and open the PR with the upstream changelog. A
+pin bump is its own PR.
 
 ## Commit messages
 

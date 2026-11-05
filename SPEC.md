@@ -170,11 +170,11 @@ Written by `roboskillhub lock <graph>` next to `workflow.json`:
   "graph": {"sha256": "...", "skills": ["perceiving-objects"], "generated_skills": ["generic"]},
   "engine": {"name": "graph-as-policy", "repo": "...", "commit": "..."},
   "hub": {"repo": "...", "commit": "...", "dirty": false},
-  "sources": {"open-robot-skills": {"repo": "...", "commit": "..."}},
+  "sources": {},
   "bundles": {
-    "perceiving-objects": {"kind": "skill", "source": "open-robot-skills", "path": "skills/perceiving-objects",
+    "perceiving-objects": {"kind": "skill", "source": "hub", "path": "skills/perceiving-objects",
                            "content_sha256": "...", "tier": "camera_only"},
-    "sam3": {"kind": "tool", "source": "open-robot-skills", "path": "tools/sam3",
+    "sam3": {"kind": "tool", "source": "hub", "path": "tools/sam3",
              "content_sha256": "...", "tier": "camera_only", "serving": "stdio-msgpack"}
   },
   "connector_tools": ["robot.get_observation"],

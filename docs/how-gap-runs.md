@@ -52,7 +52,7 @@ graph.code  # {"scripts/...py": source, "checkpoints/<subgraph>.py": source}
 result = gap.execute(
     "graphs/put_block",  # dir, workflow.json path, dict, or builder
     connector,  # robot.* tools, observations, optional ground truth
-    skills=registries,  # the synced sources, not the view; see 4.
+    skills=registries,  # the hub's real directories, not the view; see 5.
     inputs={"instruction": "..."},  # read in the graph as {"$ref": "in.instruction"}
     checkpoints="warn",  # "off" | "warn" | "raise"; needs connector.world_snapshot
 )
@@ -128,14 +128,14 @@ bundle name.
 | Step | Hub command | What gap sees |
 | --- | --- | --- |
 | before generation | `roboskillhub view "<task>" --embodiment yam_i2rt --out views/task` | `skills=["views/task"]` (or `GAP_SKILLS_PATH`): only bundles this robot can run, and the tools they call. `RECIPES.md` is appended to the instruction. |
-| simulation | `roboskillhub sync` | `skills=[hub, .roboskillhub/sources/open-robot-skills]`: the real directories |
+| simulation | none | `skills=[hub]`: the checkout's real directories |
 | after it passes | `roboskillhub lock <graph> --deploy` | nothing; `skills.lock` sits beside `workflow.json` |
 | on the robot | `roboskillhub fetch skills.lock --dest ...` | `GAP_SKILLS_PATH` it prints: the same bundles, verified by digest |
 
-Why generation and execution use different registry paths: gap starts an RPC
-bundle with `uv run --project <bundle dir>` and does not resolve symlinks. An
-upstream bundle's `pyproject.toml` finds the engine at
-`../../../graph-as-policy`, a path that only holds from where the bundle
-really lives. `roboskillhub sync` and `roboskillhub fetch` both lay sources out side by side
-under `sources/` so that relative path holds. A view is symlinks, so it serves
-the coordinator, which only reads.
+Why generation and execution use different registry paths: a view is
+symlinks, so it serves the coordinator, which only reads. gap starts an RPC
+bundle with `uv run --project <bundle dir>`, which builds that bundle's
+environment in its directory, so execution is given the real directories:
+the checkout in simulation, and what `roboskillhub fetch` lays out on the
+robot. Each bundle's `pyproject.toml` resolves the engine by pinned URL, so it
+installs the same from either place.
