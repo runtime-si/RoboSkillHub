@@ -97,17 +97,17 @@ the robot.
 | Kind | Lives in | What it is | Example |
 | --- | --- | --- | --- |
 | tool | `tools/<name>/` | typed Python functions, in-process or in their own environment over RPC | `predicates`, `sam3`, `curobo` |
-| skill | `skills/<name>/` | any node of a policy, conditions included: a SKILL.md a planner reads, the scripts it runs, and named exits to branch on | `grasping-short-axis`, `verifying-threading` |
+| skill | `skills/<name>/` | any node of a policy, conditions included: a SKILL.md a planner reads, the scripts it runs, and named exits to branch on | `grasping-short-axis`, `verifying-placement` |
 | policy | `policies/<name>/` | a learned checkpoint behind a websocket server, driven in closed loop | `pi05-libero` |
 | recipe | `recipes/<name>/` | a task-level template: which skills, how their exits route | `pick-place-camera-only` |
 | paper | `papers/<id>/` | a card linking a method to the bundles that implement it | `curobo-2023` |
 
-**Every node is a skill, conditions included.** Perceiving the rope, moving
-it, and asking "has the rope gone through the ring?" are all skills. A
-condition skill such as `verifying-threading` answers one question, and its
-exits (`threaded`, `not_threaded`) are the branch the policy takes, so the
-check is written and tested once instead of inside every graph. Conditions sit
-at the `verify` stage, and search offers them next to the actions they check.
+**Every node is a skill, conditions included.** Finding the block, putting it
+in the bowl, and asking "is it in the bowl?" are all skills. A condition skill
+such as `verifying-placement` answers one question, and its exits (`verified`,
+`not_placed`) are the branch the policy takes, so the check is written and
+tested once instead of inside every graph. Conditions sit at the `verify`
+stage, and search offers them next to the actions they check.
 
 Bundles use the Agent Skills `SKILL.md` layout. What RoboSkillHub adds sits
 under `metadata.hub`, or in an overlay for bundles it federates:

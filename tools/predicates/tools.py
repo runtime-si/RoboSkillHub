@@ -6,7 +6,7 @@ from typing import TypedDict
 
 import numpy as np
 from gap_core.tools import tool
-from gap_core.types import Centerline, FunctionalFeature, OrientedBoundingBox, Quaternion, Vec3
+from gap_core.types import OrientedBoundingBox, Quaternion, Vec3
 
 
 class PointInObbResult(TypedDict):
@@ -32,15 +32,6 @@ class UprightResult(TypedDict):
     upright: bool
     verdict: str
     tilt_deg: float
-
-
-class ThreadedResult(TypedDict):
-    threaded: bool
-    verdict: str
-    crossings: int
-    passes: int
-    through_m: float
-    clearance_m: float
 
 
 def _vec(v: Vec3) -> np.ndarray:
@@ -143,67 +134,3 @@ def upright(orientation: Quaternion, max_tilt_deg: float = 15.0, axis: str = "z"
     tilt = float(np.degrees(np.arccos(np.clip(up[2], -1.0, 1.0))))
     ok = tilt <= float(max_tilt_deg)
     return {"upright": ok, "verdict": "upright" if ok else "tipped", "tilt_deg": tilt}
-
-
-@tool(
-    name="predicates.threaded_through",
-    summary="Whether a rope's centreline goes through a loop's opening, net of any pass back.",
-    tags=("verification",),
-)
-def threaded_through(
-    rope: Centerline, loop: FunctionalFeature, min_through_m: float = 0.01
-) -> ThreadedResult:
-    """Counts the centreline's passes through the disk ``loop.radius_inner`` bounds.
-
-    A pass is a segment crossing the loop's plane inside the opening. It counts
-    +1 along ``loop.axis`` and -1 against it, so a rope that went through and
-    came back nets zero (``crossings``), while ``passes`` counts both.
-    ``through_m`` is the shorter of the two ends beyond the first and last
-    pass: how far the rope is from slipping back out. Threaded means a nonzero
-    net with ``through_m >= min_through_m``.
-
-    ``clearance_m`` is the room between the rope's surface (``rope.radius_m``)
-    and the rim at the tightest pass. With no pass it is minus the distance by
-    which the centreline misses the opening, measured at its nodes and at its
-    crossings of the loop's plane.
-    """
-    points = np.asarray(rope["points"], dtype=float).reshape(-1, 3)
-    if len(points) < 2:
-        raise ValueError("the rope's centreline needs at least two points")
-    radius = float(loop.get("radius_inner") or 0.0)
-    if radius <= 0.0:
-        raise ValueError("the loop needs a positive radius_inner")
-    axis = _vec(loop["axis"])
-    if not np.linalg.norm(axis) > 0.0:
-        raise ValueError("the loop's axis has zero length")
-    axis = axis / np.linalg.norm(axis)
-    center = _vec(loop["pose"]["position"])
-
-    height = (points - center) @ axis
-    steps = np.diff(points, axis=0)
-    lengths = np.linalg.norm(steps, axis=1)
-    along = np.concatenate([[0.0], np.cumsum(lengths)])
-    cross = np.flatnonzero((height[:-1] >= 0.0) != (height[1:] >= 0.0))
-    t = height[cross] / (height[cross] - height[cross + 1])
-    rho = np.linalg.norm(points[cross] + t[:, None] * steps[cross] - center, axis=1)
-    inside = rho < radius
-
-    signs = np.where(height[cross + 1] > height[cross], 1, -1)[inside]
-    crossings, passes = int(signs.sum()), int(inside.sum())
-    at = (along[cross] + t * lengths[cross])[inside]
-    through = float(min(at[0], along[-1] - at[-1])) if crossings else 0.0
-    if passes:
-        clearance = radius - float(rho[inside].max()) - float(rope.get("radius_m") or 0.0)
-    else:
-        radial = np.linalg.norm((points - center) - np.outer(height, axis), axis=1)
-        to_disk = np.where(radial <= radius, np.abs(height), np.hypot(height, radial - radius))
-        clearance = -float(min(to_disk.min(), (rho - radius).min(initial=np.inf)))
-    threaded = crossings != 0 and through >= float(min_through_m)
-    return {
-        "threaded": threaded,
-        "verdict": "threaded" if threaded else "not_threaded",
-        "crossings": crossings,
-        "passes": passes,
-        "through_m": through,
-        "clearance_m": clearance,
-    }
