@@ -94,9 +94,7 @@ def test_repo_passes_engine_format_validation():
     reports = validate_checkout(SKILLS_ROOT)
     assert len(reports) >= 17, "bundle discovery regressed"
 
-    failures = {
-        r.name: [str(i) for i in r.errors] for r in reports if r.errors
-    }
+    failures = {r.name: [str(i) for i in r.errors] for r in reports if r.errors}
     assert not failures, f"format validation errors: {failures}"
 
 

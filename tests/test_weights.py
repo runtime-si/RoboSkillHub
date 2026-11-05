@@ -56,7 +56,9 @@ def test_server_template_digest_matches_roboskillhub(tmp_path, monkeypatch):
             stub = types.ModuleType(name)
             stub.msgpack_numpy = types.ModuleType("msgpack_numpy")
             monkeypatch.setitem(sys.modules, name, stub)
-    spec = importlib.util.spec_from_file_location("policy_server", REPO / "templates/policy/server.py")
+    spec = importlib.util.spec_from_file_location(
+        "policy_server", REPO / "templates/policy/server.py"
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     (tmp_path / "sub").mkdir()
@@ -80,7 +82,9 @@ def test_round_trip_through_the_hub(tmp_path):
         pushed = weights.push(tmp_path / "ckpt", repo, private=True)
         assert len(pushed.ref.revision) == 40
         path = weights.pull(pushed.ref.uri, sha256=pushed.sha256, cache_dir=tmp_path / "cache")
-        assert (path / "weights.bin").read_bytes() == (tmp_path / "ckpt" / "weights.bin").read_bytes()
+        assert (path / "weights.bin").read_bytes() == (
+            tmp_path / "ckpt" / "weights.bin"
+        ).read_bytes()
         with pytest.raises(ValueError, match="does not match"):
             weights.pull(pushed.ref.uri, sha256="0" * 64, cache_dir=tmp_path / "cache")
     finally:

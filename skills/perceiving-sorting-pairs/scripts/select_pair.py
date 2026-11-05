@@ -95,7 +95,9 @@ def _load_attempts(attempted_json: str) -> list[dict[str, Any]]:
         loaded = json.loads(str(attempted_json or "[]"))
     except (TypeError, ValueError):
         return []
-    return [entry for entry in loaded if isinstance(entry, dict)] if isinstance(loaded, list) else []
+    return (
+        [entry for entry in loaded if isinstance(entry, dict)] if isinstance(loaded, list) else []
+    )
 
 
 def _matching_attempt(
@@ -121,8 +123,13 @@ def _matching_attempt(
     return None
 
 
-def _exhausted_clause(attempts: list[dict[str, Any]] | None, crop_x: float, crop_y: float,
-                      crop_w: float, crop_h: float) -> str:
+def _exhausted_clause(
+    attempts: list[dict[str, Any]] | None,
+    crop_x: float,
+    crop_y: float,
+    crop_w: float,
+    crop_h: float,
+) -> str:
     """Tell the model which spots are spent, in the frame it is being shown.
 
     Without this the loop cannot make progress: a deterministic model asked the
@@ -144,11 +151,15 @@ def _exhausted_clause(attempts: list[dict[str, Any]] | None, crop_x: float, crop
         (settled if entry.get("reason") == "settled" else tried).append(f"({x:.0f},{y:.0f})")
     parts = []
     if tried:
-        parts.append("Objects at these points have already been attempted and must not be "
-                     f"chosen again: {', '.join(tried)}.")
+        parts.append(
+            "Objects at these points have already been attempted and must not be "
+            f"chosen again: {', '.join(tried)}."
+        )
     if settled:
-        parts.append("Objects at these points are already in their destination and are not "
-                     f"unsorted: {', '.join(settled)}.")
+        parts.append(
+            "Objects at these points are already in their destination and are not "
+            f"unsorted: {', '.join(settled)}."
+        )
     return (" " + " ".join(parts)) if parts else ""
 
 
@@ -366,7 +377,9 @@ def run(
         raw_px, raw_py = match.groups()[6:8]
         px = float(raw_px) if raw_px is not None else (bx1 + bx2) / 2.0
         py = float(raw_py) if raw_py is not None else (by1 + by2) / 2.0
-        normalized = {_normalize(label): region for label, region in zip(labels, regions, strict=True)}
+        normalized = {
+            _normalize(label): region for label, region in zip(labels, regions, strict=True)
+        }
         key = _normalize(requested_label)
         if key not in normalized:
             raise ValueError(f"VLM chose {requested_label!r}, not one of {labels!r}")
@@ -378,7 +391,6 @@ def run(
                 f"VLM returned TARGET {target_name!r} for LABEL {requested_label!r}; "
                 f"expected {canonical_target!r}"
             )
-
 
         def _fits(box: tuple[float, float, float, float]) -> bool:
             """Whether this reading lands inside the crop with a usable box."""
@@ -468,21 +480,38 @@ def run(
                 # Already delivered: retire the spot outright rather than
                 # spending an attempt on it, and ask again.
                 if previous is None:
-                    attempts.append({"label": str(requested_label), "px": full_px, "py": full_py,
-                                     "rx": half_x, "ry": half_y,
-                                     "attempts": max(1, int(max_attempts_per_instance)),
-                                     "reason": "settled"})
+                    attempts.append(
+                        {
+                            "label": str(requested_label),
+                            "px": full_px,
+                            "py": full_py,
+                            "rx": half_x,
+                            "ry": half_y,
+                            "attempts": max(1, int(max_attempts_per_instance)),
+                            "reason": "settled",
+                        }
+                    )
                 else:
-                    previous.update({"attempts": max(1, int(max_attempts_per_instance)),
-                                     "reason": "settled"})
+                    previous.update(
+                        {"attempts": max(1, int(max_attempts_per_instance)), "reason": "settled"}
+                    )
                 continue
             if previous is not None and int(previous.get("attempts", 0)) >= max(
                 1, int(max_attempts_per_instance)
             ):
                 continue
             if previous is None:
-                attempts.append({"label": str(requested_label), "px": full_px, "py": full_py,
-                                 "rx": half_x, "ry": half_y, "attempts": 1, "reason": "tried"})
+                attempts.append(
+                    {
+                        "label": str(requested_label),
+                        "px": full_px,
+                        "py": full_py,
+                        "rx": half_x,
+                        "ry": half_y,
+                        "attempts": 1,
+                        "reason": "tried",
+                    }
+                )
             else:
                 previous["attempts"] = int(previous.get("attempts", 0)) + 1
                 previous.update({"px": full_px, "py": full_py, "rx": half_x, "ry": half_y})

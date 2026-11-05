@@ -55,16 +55,22 @@ def add_new_frame(model: Any, inference_state: dict, image_pil: Image.Image) -> 
     Returns the new frame index (= num_frames - 1 after the append).
     """
     img_mean_t = torch.tensor(
-        model.image_mean, dtype=torch.float16,
+        model.image_mean,
+        dtype=torch.float16,
     )[:, None, None]
     img_std_t = torch.tensor(
-        model.image_std, dtype=torch.float16,
+        model.image_std,
+        dtype=torch.float16,
     )[:, None, None]
     img_np = np.array(
         image_pil.convert("RGB").resize((model.image_size, model.image_size)),
     )
-    img_t = torch.from_numpy(img_np / 255.0).permute(2, 0, 1).to(
-        dtype=torch.float16,
+    img_t = (
+        torch.from_numpy(img_np / 255.0)
+        .permute(2, 0, 1)
+        .to(
+            dtype=torch.float16,
+        )
     )
     img_t -= img_mean_t
     img_t /= img_std_t

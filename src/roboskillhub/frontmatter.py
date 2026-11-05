@@ -31,7 +31,9 @@ def split(text: str, *, source: str = "<text>") -> tuple[dict[str, Any], str]:
     except yaml.YAMLError as exc:
         raise FrontmatterError(f"{source}: frontmatter is not valid YAML ({exc})") from exc
     if not isinstance(data, dict):
-        raise FrontmatterError(f"{source}: frontmatter must be a mapping, not {type(data).__name__}")
+        raise FrontmatterError(
+            f"{source}: frontmatter must be a mapping, not {type(data).__name__}"
+        )
     return data, "".join(lines[end + 1 :])
 
 

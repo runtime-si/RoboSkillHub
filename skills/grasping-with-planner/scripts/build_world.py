@@ -49,9 +49,7 @@ def run(
         kwargs["robot_joint_state"] = observation["arms"][0]["joint_state"]
 
     if target_mask is not None:
-        kwargs["object_masks"] = [
-            {"name": target_name, "mask": target_mask, "camera_index": 0}
-        ]
+        kwargs["object_masks"] = [{"name": target_name, "mask": target_mask, "camera_index": 0}]
     elif target_obb is not None:
         kwargs["target_obb"] = target_obb
         kwargs["target_obb_name"] = target_name

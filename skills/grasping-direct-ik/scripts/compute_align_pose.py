@@ -118,7 +118,9 @@ def _calibrated_grasp(
     finger = gripper.get("finger") or {}
     if finger.get("stated"):
         support_z = float(target_obb["center"]["z"]) - float(target_obb["extent"]["z"])
-        min_tcp_z = support_z + float(finger.get("reach_m", 0.0)) + float(finger.get("clearance_m", 0.0))
+        min_tcp_z = (
+            support_z + float(finger.get("reach_m", 0.0)) + float(finger.get("clearance_m", 0.0))
+        )
         grasp_pose["position"]["z"] = max(float(grasp_pose["position"]["z"]), min_tcp_z)
     return grasp_pose
 

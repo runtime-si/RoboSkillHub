@@ -96,9 +96,11 @@ def run(
                 plan = ctx.tool("curobo.plan_to_grasp_poses", **kwargs)
             except Exception as exc:  # noqa: BLE001
                 logger.warning(
-                    "[plan_grasp] candidate %d/%d attempt %d errored "
-                    "(%s); retrying/next",
-                    i, n_attempt, attempt, exc,
+                    "[plan_grasp] candidate %d/%d attempt %d errored (%s); retrying/next",
+                    i,
+                    n_attempt,
+                    attempt,
+                    exc,
                 )
                 continue
             if plan.get("success", False):
@@ -106,8 +108,12 @@ def run(
                     "[plan_grasp] candidate %d/%d planned successfully "
                     "(attempt %d; per-pose over %d candidates, "
                     "retries=%d, num_ik_seeds=%d)",
-                    i, n_attempt, attempt, n_attempt,
-                    retries, num_ik_seeds,
+                    i,
+                    n_attempt,
+                    attempt,
+                    n_attempt,
+                    retries,
+                    num_ik_seeds,
                 )
                 return {"trajectory": plan["trajectory"]}
 

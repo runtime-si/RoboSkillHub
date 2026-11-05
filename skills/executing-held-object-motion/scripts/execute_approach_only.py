@@ -37,12 +37,21 @@ class Output(TypedDict):
 
 def _errors(current: dict[str, Any], target: dict[str, Any]) -> tuple[float, float]:
     """Translation [m] and rotation [deg] between two poses."""
-    distance = math.sqrt(sum(
-        (float(current["position"][key]) - float(target["position"][key])) ** 2 for key in ("x", "y", "z")
-    ))
-    dot = min(1.0, abs(sum(
-        float(current["rotation"][key]) * float(target["rotation"][key]) for key in ("w", "x", "y", "z")
-    )))
+    distance = math.sqrt(
+        sum(
+            (float(current["position"][key]) - float(target["position"][key])) ** 2
+            for key in ("x", "y", "z")
+        )
+    )
+    dot = min(
+        1.0,
+        abs(
+            sum(
+                float(current["rotation"][key]) * float(target["rotation"][key])
+                for key in ("w", "x", "y", "z")
+            )
+        ),
+    )
     return distance, math.degrees(2.0 * math.acos(dot))
 
 
@@ -64,7 +73,9 @@ def run(
     on_arm: dict[str, Any] = {} if arm_id is None else {"arm_id": int(arm_id)}
     if registration_uncertainty_m is None:
         registration_uncertainty_m = (
-            float(attachment.get("translation_uncertainty_m", 0.0)) if isinstance(attachment, dict) else 0.0
+            float(attachment.get("translation_uncertainty_m", 0.0))
+            if isinstance(attachment, dict)
+            else 0.0
         )
     profile = execution_profile or {}
 
@@ -91,7 +102,9 @@ def run(
             "robot.execute_trajectory",
             trajectory=trajectory,
             tolerance=float(profile.get("trajectory_tolerance_m", _TRACK_TOLERANCE_M)),
-            max_steps_per_waypoint=int(profile.get("max_steps_per_waypoint", _MAX_STEPS_PER_WAYPOINT)),
+            max_steps_per_waypoint=int(
+                profile.get("max_steps_per_waypoint", _MAX_STEPS_PER_WAYPOINT)
+            ),
             **on_arm,
         )
 
@@ -102,41 +115,62 @@ def run(
         track(trajectory)
         return {
             "approach_pose": pose,
-            "waypoint_report": {"index": 0, "mode": "approach", "method": "planned",
-                                "attempts": _PLAN_ATTEMPTS, "registration_uncertainty_m": float(registration_uncertainty_m)},
+            "waypoint_report": {
+                "index": 0,
+                "mode": "approach",
+                "method": "planned",
+                "attempts": _PLAN_ATTEMPTS,
+                "registration_uncertainty_m": float(registration_uncertainty_m),
+            },
         }
 
     current = ctx.tool("robot.get_ee_pose", **on_arm)["pose"]
     distance, angle = _errors(current, pose)
     method, attempts = "cartesian", 1
-    if (distance <= float(profile.get("local_cartesian_max_distance_m", 0.050))
-            and angle <= float(profile.get("local_cartesian_max_rotation_deg", 25.0))):
+    if distance <= float(profile.get("local_cartesian_max_distance_m", 0.050)) and angle <= float(
+        profile.get("local_cartesian_max_rotation_deg", 25.0)
+    ):
         ctx.tool("robot.go_to_pose_cartesian", pose=pose, **on_arm)
     else:
         attempts = max(1, min(int(profile.get("planner_attempts", _PLAN_ATTEMPTS)), 3))
-        trajectory = plan(False, float(waypoint.get("contact_margin", profile.get("contact_margin_m", 0.005))), attempts)
+        trajectory = plan(
+            False,
+            float(waypoint.get("contact_margin", profile.get("contact_margin_m", 0.005))),
+            attempts,
+        )
         if trajectory is None:
             goal_attempts = max(0, min(int(profile.get("goal_contact_attempts", 2)), 3))
-            trajectory = plan(True, float(profile.get("goal_contact_margin_m", 0.002)), goal_attempts)
+            trajectory = plan(
+                True, float(profile.get("goal_contact_margin_m", 0.002)), goal_attempts
+            )
             attempts += goal_attempts
         if trajectory is not None:
             method = "planned"
             track(trajectory)
-        elif (distance <= float(profile.get("recovery_max_distance_m", 0.100))
-              and angle <= float(profile.get("recovery_max_rotation_deg", 35.0))):
+        elif distance <= float(profile.get("recovery_max_distance_m", 0.100)) and angle <= float(
+            profile.get("recovery_max_rotation_deg", 35.0)
+        ):
             method = "cartesian_recovery"
             ctx.tool("robot.go_to_pose_cartesian", pose=pose, **on_arm)
         else:
-            raise RuntimeError(f"planner refused approach ({distance * 1000:.1f} mm / {angle:.1f} deg)")
+            raise RuntimeError(
+                f"planner refused approach ({distance * 1000:.1f} mm / {angle:.1f} deg)"
+            )
     reached = ctx.tool("robot.get_ee_pose", **on_arm)["pose"]
     residual, rotation_error = _errors(reached, pose)
-    if method == "cartesian_recovery" and residual > float(profile.get("recovery_position_tolerance_m", 0.015)):
+    if method == "cartesian_recovery" and residual > float(
+        profile.get("recovery_position_tolerance_m", 0.015)
+    ):
         raise RuntimeError(f"Cartesian approach recovery left {residual * 1000:.1f} mm error")
     return {
         "approach_pose": pose,
         "waypoint_report": {
-            "index": 0, "mode": "approach", "method": method, "attempts": attempts,
-            "position_error_m": residual, "rotation_error_deg": rotation_error,
+            "index": 0,
+            "mode": "approach",
+            "method": method,
+            "attempts": attempts,
+            "position_error_m": residual,
+            "rotation_error_deg": rotation_error,
             "registration_uncertainty_m": float(registration_uncertainty_m),
         },
     }

@@ -44,7 +44,13 @@ OBJECT_SCORE_MIN = 0.12
 #: Feature segmentation floor used when a candidate row does not state one.
 DEFAULT_FEATURE_SCORE_MIN = 0.05
 
-_STRATEGIES = {"semantic_mask", "planar_cad_loop", "landmark_offsets", "distal_tip", "distal_planar_loop"}
+_STRATEGIES = {
+    "semantic_mask",
+    "planar_cad_loop",
+    "landmark_offsets",
+    "distal_tip",
+    "distal_planar_loop",
+}
 
 
 class Output(TypedDict):
@@ -150,7 +156,9 @@ def _best_mask(
     return min(localized, key=lambda item: item[:2])[2]
 
 
-def _feature_fit(ctx: NodeContext, camera: dict[str, Any], mask: Any, normal_hint=None) -> dict[str, Any]:
+def _feature_fit(
+    ctx: NodeContext, camera: dict[str, Any], mask: Any, normal_hint=None
+) -> dict[str, Any]:
     return ctx.tool(
         "geometry.fit_planar_feature",
         points=_backproject(ctx, camera, mask),
@@ -180,7 +188,12 @@ def _axis_pose(center: dict[str, float], axis) -> dict[str, Any]:
     quat = Rotation.from_matrix(np.column_stack((x_axis, y_axis, z_axis))).as_quat()
     return {
         "position": dict(center),
-        "rotation": {"w": float(quat[3]), "x": float(quat[0]), "y": float(quat[1]), "z": float(quat[2])},
+        "rotation": {
+            "w": float(quat[3]),
+            "x": float(quat[0]),
+            "y": float(quat[1]),
+            "z": float(quat[2]),
+        },
     }
 
 
@@ -194,7 +207,9 @@ def _planar_model(model_path: str) -> np.ndarray:
     return np.asarray(points[:, :2], dtype=np.float64)
 
 
-def _register_planar_model(points: np.ndarray, model_path: str) -> tuple[np.ndarray, np.ndarray, float]:
+def _register_planar_model(
+    points: np.ndarray, model_path: str
+) -> tuple[np.ndarray, np.ndarray, float]:
     """Register an observed silhouette to a declared flat-object CAD model.
 
     A semantic mask of an empty finger hole frequently covers only a coloured
@@ -215,7 +230,9 @@ def _register_planar_model(points: np.ndarray, model_path: str) -> tuple[np.ndar
     model_tree = cKDTree(model_xy)
     best = None
     for yaw in np.deg2rad(np.arange(0.0, 360.0, 4.0)):
-        rotation = np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]], dtype=np.float64)
+        rotation = np.array(
+            [[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]], dtype=np.float64
+        )
         translation = observed_center - rotation @ model_center
         distances, _ = model_tree.query((observed_xy - translation) @ rotation, k=1)
         score = float(np.sqrt(np.mean(np.square(np.minimum(distances, 0.015)))))
@@ -242,12 +259,17 @@ def _register_planar_model(points: np.ndarray, model_path: str) -> tuple[np.ndar
         delta = target_center - correction @ source_center
         rotation = correction @ rotation
         translation = correction @ translation + delta
-        if float(np.linalg.norm(delta)) < 2.0e-6 and abs(float(np.arctan2(correction[1, 0], correction[0, 0]))) < 2.0e-5:
+        if (
+            float(np.linalg.norm(delta)) < 2.0e-6
+            and abs(float(np.arctan2(correction[1, 0], correction[0, 0]))) < 2.0e-5
+        ):
             break
     return rotation, translation, float(np.sqrt(np.mean(np.square(distances[keep]))))
 
 
-def _best_distal_loop_mask(ctx: NodeContext, camera: dict[str, Any], obb: dict[str, Any], profile: dict[str, Any]) -> np.ndarray:
+def _best_distal_loop_mask(
+    ctx: NodeContext, camera: dict[str, Any], obb: dict[str, Any], profile: dict[str, Any]
+) -> np.ndarray:
     """Bind a semantic loop detection to the selected elongated parent.
 
     Another object's opening can score as the requested loop. A valid distal
@@ -264,11 +286,20 @@ def _best_distal_loop_mask(ctx: NodeContext, camera: dict[str, Any], obb: dict[s
     long_axis /= max(float(np.linalg.norm(long_axis)), 1.0e-12)
     center = np.array([obb["center"][k] for k in ("x", "y", "z")], dtype=float)
     length = float(extents[long_index])
-    min_axial = max(float(profile.get("minimum_axial", 0.035)), float(profile.get("minimum_axial_scale", 0.40)) * length)
-    max_lateral = max(float(profile.get("maximum_lateral", 0.025)), float(profile.get("maximum_lateral_scale", 0.35)) * length)
+    min_axial = max(
+        float(profile.get("minimum_axial", 0.035)),
+        float(profile.get("minimum_axial_scale", 0.40)) * length,
+    )
+    max_lateral = max(
+        float(profile.get("maximum_lateral", 0.025)),
+        float(profile.get("maximum_lateral_scale", 0.35)) * length,
+    )
     # An open jaw is often labelled as a ring, but its accidental circle fit is
     # much smaller than the closed end; the floor scales with the parent.
-    min_radius = max(float(profile.get("minimum_radius", 0.004)), float(profile.get("minimum_radius_scale", 0.060)) * length)
+    min_radius = max(
+        float(profile.get("minimum_radius", 0.004)),
+        float(profile.get("minimum_radius_scale", 0.060)) * length,
+    )
     candidates = []
     for query in profile.get("feature_queries") or [profile["feature_query"]]:
         result = ctx.tool("sam3.segment_text", image=camera["rgb"], query=query, max_results=6)
@@ -291,7 +322,9 @@ def _best_distal_loop_mask(ctx: NodeContext, camera: dict[str, Any], obb: dict[s
     return min(candidates, key=lambda item: item[:4])[4]
 
 
-def _shift_grasp_toward_feature(obb: dict[str, Any], feature_center: dict[str, float], profile: dict[str, Any]) -> None:
+def _shift_grasp_toward_feature(
+    obb: dict[str, Any], feature_center: dict[str, float], profile: dict[str, Any]
+) -> None:
     """Apply a caller-declared grasp displacement toward a perceived feature."""
     requested = max(0.0, float(profile.get("grasp_toward_feature_m", 0.0)))
     if requested <= 0.0:
@@ -347,12 +380,20 @@ def _parse_profiles(profiles: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for profile in profiles:
         row = dict(profile)
         row.setdefault("kind", str(profile.get("kind") or profile.get("object_query")))
-        row["object_description"] = str(profile.get("object_query") or profile.get("object_description") or "").strip()
+        row["object_description"] = str(
+            profile.get("object_query") or profile.get("object_description") or ""
+        ).strip()
         if not row["object_description"]:
             raise ValueError(f"feature profile needs an object_query: {profile!r}")
-        row["feature_description"] = str(profile.get("feature_query") or profile.get("feature_description") or "").strip()
+        row["feature_description"] = str(
+            profile.get("feature_query") or profile.get("feature_description") or ""
+        ).strip()
         row["feature_type"] = str(profile.get("feature_type") or "").strip()
-        row["feature_score_min"] = float(profile.get("feature_threshold", profile.get("feature_score_min", DEFAULT_FEATURE_SCORE_MIN)))
+        row["feature_score_min"] = float(
+            profile.get(
+                "feature_threshold", profile.get("feature_score_min", DEFAULT_FEATURE_SCORE_MIN)
+            )
+        )
         row["strategy"] = str(profile.get("strategy", "semantic_mask"))
         if row["strategy"] not in _STRATEGIES:
             raise ValueError(f"unsupported manipulation feature strategy {row['strategy']!r}")
@@ -405,11 +446,21 @@ def run(
         rows = mentioned
     if object_description is not None:
         if object_kind is None or feature_description is None:
-            raise ValueError("explicit object perception requires object_kind and feature_description")
-        base = next((dict(row) for row in rows if row["kind"] == object_kind), {"strategy": "semantic_mask",
-                                                                                "feature_score_min": DEFAULT_FEATURE_SCORE_MIN})
-        base.update({"kind": object_kind, "object_description": object_description,
-                     "feature_description": feature_description, "feature_type": base.get("feature_type", "")})
+            raise ValueError(
+                "explicit object perception requires object_kind and feature_description"
+            )
+        base = next(
+            (dict(row) for row in rows if row["kind"] == object_kind),
+            {"strategy": "semantic_mask", "feature_score_min": DEFAULT_FEATURE_SCORE_MIN},
+        )
+        base.update(
+            {
+                "kind": object_kind,
+                "object_description": object_description,
+                "feature_description": feature_description,
+                "feature_type": base.get("feature_type", ""),
+            }
+        )
         rows = [base]
     detections = []
     if selected_mask is not None and np.asarray(selected_mask).size > 1:
@@ -470,7 +521,16 @@ def run(
         parent_center = dict(obb["center"])
         try:
             feature_center = _mask_center_world(
-                ctx, camera, _best_mask(ctx, camera["rgb"], feature_query, row["feature_score_min"], camera, parent_center)
+                ctx,
+                camera,
+                _best_mask(
+                    ctx,
+                    camera["rgb"],
+                    feature_query,
+                    row["feature_score_min"],
+                    camera,
+                    parent_center,
+                ),
             )
             feature_center["z"] = float(obb["center"]["z"])
         except (ValueError, KeyError):
@@ -482,13 +542,19 @@ def run(
         # The parent's rigid planar frame from its silhouette; the segmenter
         # then only decides which of the symmetric bows the instruction means.
         tool_points = np.asarray(cloud["points"], dtype=np.float64).reshape(-1, 3)
-        planar_rotation, origin_xy, rmse = _register_planar_model(tool_points, str(row["model_path"]))
+        planar_rotation, origin_xy, rmse = _register_planar_model(
+            tool_points, str(row["model_path"])
+        )
         semantic_xy = np.array([feature_center["x"], feature_center["y"]], dtype=np.float64)
         bow_local = min(
             (np.asarray(landmark, dtype=np.float64) for landmark in row["feature_landmarks_xy"]),
-            key=lambda local: float(np.linalg.norm(planar_rotation @ local + origin_xy - semantic_xy)),
+            key=lambda local: float(
+                np.linalg.norm(planar_rotation @ local + origin_xy - semantic_xy)
+            ),
         )
-        feature_center["x"], feature_center["y"] = map(float, planar_rotation @ bow_local + origin_xy)
+        feature_center["x"], feature_center["y"] = map(
+            float, planar_rotation @ bow_local + origin_xy
+        )
         feature_center["z"] = float(np.mean(tool_points[:, 2]))
         print(f"[perceive_object_feature] planar CAD registration: rmse={1000.0 * rmse:.2f}mm")
         # The grasp is the surface-cloud centroid -- on the solid bridge, and
@@ -500,8 +566,15 @@ def run(
         rotation = np.eye(3)
         rotation[:2, :2] = planar_rotation
         quat = Rotation.from_matrix(rotation).as_quat()
-        feature_pose = {"position": dict(feature_center),
-                        "rotation": {"w": float(quat[3]), "x": float(quat[0]), "y": float(quat[1]), "z": float(quat[2])}}
+        feature_pose = {
+            "position": dict(feature_center),
+            "rotation": {
+                "w": float(quat[3]),
+                "x": float(quat[0]),
+                "y": float(quat[1]),
+                "z": float(quat[2]),
+            },
+        }
         feature_radius = float(row.get("radius_inner", 0.0))
         extra["local_center"] = [float(bow_local[0]), float(bow_local[1]), 0.0]
     elif strategy == "landmark_offsets":
@@ -517,13 +590,21 @@ def run(
         for axis, maximum in (row.get("grasp_extent_max") or {}).items():
             obb["extent"][axis] = min(float(obb["extent"][axis]), float(maximum))
     elif strategy == "distal_tip":
-        handle_mask = _best_mask(ctx, camera["rgb"], str(row["reference_query"]),
-                                 float(row.get("reference_threshold", 0.05)), camera, dict(obb["center"]))
+        handle_mask = _best_mask(
+            ctx,
+            camera["rgb"],
+            str(row["reference_query"]),
+            float(row.get("reference_threshold", 0.05)),
+            camera,
+            dict(obb["center"]),
+        )
         handle_center = _mask_center_world(ctx, camera, handle_mask)
         points = np.asarray(cloud["points"], dtype=np.float64).reshape(-1, 3)
         handle = np.array([handle_center[k] for k in ("x", "y", "z")], dtype=np.float64)
         distances = np.linalg.norm(points - handle, axis=1)
-        distal = points[distances >= np.percentile(distances, float(row.get("distal_percentile", 97.0)))]
+        distal = points[
+            distances >= np.percentile(distances, float(row.get("distal_percentile", 97.0)))
+        ]
         if len(distal) < 4:
             raise ValueError("parent cloud does not expose a distal endpoint")
         tip = np.median(distal, axis=0)
@@ -531,12 +612,16 @@ def run(
         obb["center"] = handle_center
         grasp_extent = row.get("grasp_extent", {"x": 0.025, "y": 0.012, "z": 0.012})
         obb["extent"] = {axis: float(grasp_extent[axis]) for axis in ("x", "y", "z")}
-        tool_axis = np.array([feature_center[k] - handle_center[k] for k in ("x", "y", "z")], dtype=np.float64)
+        tool_axis = np.array(
+            [feature_center[k] - handle_center[k] for k in ("x", "y", "z")], dtype=np.float64
+        )
         if float(np.linalg.norm(tool_axis)) < float(row.get("minimum_axis_length", 0.03)):
             raise ValueError("distal feature and reference part do not define a usable axis")
         feature_pose = _axis_pose(feature_center, tool_axis)
     else:  # distal_planar_loop
-        feature_mask = _best_distal_loop_mask(ctx, camera, obb, {**row, "feature_query": feature_query})
+        feature_mask = _best_distal_loop_mask(
+            ctx, camera, obb, {**row, "feature_query": feature_query}
+        )
         feature_center = _mask_center_world(ctx, camera, feature_mask)
         camera_position = camera["pose"]["position"]
         hint = {

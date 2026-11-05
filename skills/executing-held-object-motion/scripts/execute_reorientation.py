@@ -54,15 +54,28 @@ def _time_scale(trajectory: dict[str, Any], scale: float) -> dict[str, Any]:
     return {"waypoints": [{"positions": row.tolist()} for row in scaled]}
 
 
-def _pose_errors(ctx: NodeContext, pose: dict[str, Any], on_arm: dict[str, Any]) -> tuple[float, float]:
+def _pose_errors(
+    ctx: NodeContext, pose: dict[str, Any], on_arm: dict[str, Any]
+) -> tuple[float, float]:
     """Position [m] and rotation [deg] error between the live TCP and *pose*."""
     actual = ctx.tool("robot.get_ee_pose", **on_arm)["pose"]
-    position = float(np.linalg.norm([
-        float(actual["position"][key]) - float(pose["position"][key]) for key in ("x", "y", "z")
-    ]))
-    dot = min(1.0, abs(sum(
-        float(actual["rotation"][key]) * float(pose["rotation"][key]) for key in ("w", "x", "y", "z")
-    )))
+    position = float(
+        np.linalg.norm(
+            [
+                float(actual["position"][key]) - float(pose["position"][key])
+                for key in ("x", "y", "z")
+            ]
+        )
+    )
+    dot = min(
+        1.0,
+        abs(
+            sum(
+                float(actual["rotation"][key]) * float(pose["rotation"][key])
+                for key in ("w", "x", "y", "z")
+            )
+        ),
+    )
     return position, float(np.degrees(2.0 * np.arccos(dot)))
 
 
@@ -112,8 +125,16 @@ def run(
         if mode == "contact_transition":
             servo(final_pose, waypoint)
             position_error, rotation_error = errors(final_pose)
-            reports.append({"index": index, "mode": mode, "attempts": 1, "fallback": "none",
-                            "position_error_m": position_error, "rotation_error_deg": rotation_error})
+            reports.append(
+                {
+                    "index": index,
+                    "mode": mode,
+                    "attempts": 1,
+                    "fallback": "none",
+                    "position_error_m": position_error,
+                    "rotation_error_deg": rotation_error,
+                }
+            )
             continue
         if mode not in {"planned_joint", "planned_linear"}:
             raise ValueError(f"unsupported reorientation waypoint mode {mode!r}")
@@ -160,8 +181,16 @@ def run(
             )
             fallback = "none"
         position_error, rotation_error = errors(final_pose)
-        reports.append({"index": index, "mode": mode, "attempts": attempts, "fallback": fallback,
-                        "position_error_m": position_error, "rotation_error_deg": rotation_error})
+        reports.append(
+            {
+                "index": index,
+                "mode": mode,
+                "attempts": attempts,
+                "fallback": fallback,
+                "position_error_m": position_error,
+                "rotation_error_deg": rotation_error,
+            }
+        )
 
     assert final_pose is not None
     return {

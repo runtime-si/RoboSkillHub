@@ -58,11 +58,15 @@ def _parent_relative(
     kind = str(feature_type)
     confidence = float(options.get("confidence", 0.75))
     if method == "parent_landmark":
-        position = np.median(parent, axis=0) + np.asarray(options.get("offset", [0.0, 0.0, 0.0]), dtype=float)
+        position = np.median(parent, axis=0) + np.asarray(
+            options.get("offset", [0.0, 0.0, 0.0]), dtype=float
+        )
         feature = {
-            "kind": kind, "pose": _point_pose(position),
+            "kind": kind,
+            "pose": _point_pose(position),
             "axis": _axis(options.get("axis", [0.0, 0.0, 1.0])),
-            "confidence": confidence, "method": method,
+            "confidence": confidence,
+            "method": method,
             "uncertainty_m": float(options.get("uncertainty_m", 0.01)),
         }
         return {"feature": feature, "feature_mask": parent_mask, "feature_cloud": parent_cloud}
@@ -71,16 +75,25 @@ def _parent_relative(
         if "reference_position" in options:
             reference = np.asarray(options["reference_position"], dtype=float).reshape(3)
         distances = np.linalg.norm(parent - reference, axis=1)
-        distal = parent[distances >= np.percentile(distances, float(options.get("distal_percentile", 97.0)))]
+        distal = parent[
+            distances >= np.percentile(distances, float(options.get("distal_percentile", 97.0)))
+        ]
         if len(distal) < int(options.get("minimum_feature_points", 4)):
             raise ValueError("parent cloud does not expose a stable distal endpoint")
         position = np.median(distal, axis=0)
         feature = {
-            "kind": kind, "pose": _point_pose(position), "axis": _axis(position - reference),
-            "confidence": confidence, "method": method,
+            "kind": kind,
+            "pose": _point_pose(position),
+            "axis": _axis(position - reference),
+            "confidence": confidence,
+            "method": method,
             "uncertainty_m": float(np.median(np.linalg.norm(distal - position, axis=1))),
         }
-        return {"feature": feature, "feature_mask": parent_mask, "feature_cloud": {"points": distal.astype(np.float32)}}
+        return {
+            "feature": feature,
+            "feature_mask": parent_mask,
+            "feature_cloud": {"points": distal.astype(np.float32)},
+        }
     # parent_inferred_aperture
     axis_index = {"x": 0, "y": 1, "z": 2}[str(options.get("rim_axis", "z"))]
     lo, hi = options.get("rim_percentiles", [85.0, 90.0])
@@ -91,14 +104,20 @@ def _parent_relative(
     position = np.median(parent, axis=0)
     position[axis_index] = np.median(rim[:, axis_index])
     feature = {
-        "kind": kind, "pose": _point_pose(position),
+        "kind": kind,
+        "pose": _point_pose(position),
         "axis": _axis(options.get("axis", [0.0, 0.0, -1.0])),
-        "confidence": confidence, "method": method,
+        "confidence": confidence,
+        "method": method,
         "uncertainty_m": float(np.std(rim[:, axis_index])),
     }
     if "radius_inner" in options:
         feature["radius_inner"] = float(options["radius_inner"])
-    return {"feature": feature, "feature_mask": parent_mask, "feature_cloud": {"points": rim.astype(np.float32)}}
+    return {
+        "feature": feature,
+        "feature_mask": parent_mask,
+        "feature_cloud": {"points": rim.astype(np.float32)},
+    }
 
 
 def run(
@@ -112,7 +131,12 @@ def run(
     feature_options: dict[str, Any] | None = None,
 ) -> Output:
     options = feature_options or {}
-    if method not in {"semantic_fit", "parent_landmark", "parent_distal_endpoint", "parent_inferred_aperture"}:
+    if method not in {
+        "semantic_fit",
+        "parent_landmark",
+        "parent_distal_endpoint",
+        "parent_inferred_aperture",
+    }:
         raise ValueError(f"unsupported functional-feature method {method!r}")
     parent = np.asarray(parent_cloud["points"], dtype=float).reshape(-1, 3)
     if method != "semantic_fit":

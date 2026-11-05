@@ -47,8 +47,7 @@ def run(
 
     if target_obb is not None:
         approach_z = max(
-            target_obb["center"]["z"] + target_obb["extent"]["z"]
-            + _OBB_APPROACH_CLEARANCE,
+            target_obb["center"]["z"] + target_obb["extent"]["z"] + _OBB_APPROACH_CLEARANCE,
             approach_height,
         )
     else:
@@ -68,7 +67,9 @@ def run(
     # 2. Move above target XY, still with current rotation.
     pose = {
         "position": {
-            "x": target_position["x"], "y": target_position["y"], "z": approach_z,
+            "x": target_position["x"],
+            "y": target_position["y"],
+            "z": approach_z,
         },
         "rotation": current_rot,
     }
@@ -78,7 +79,9 @@ def run(
     target_rot = rotation if rotation is not None else down_rot
     target_pose: Se3Pose = {
         "position": {
-            "x": target_position["x"], "y": target_position["y"], "z": approach_z,
+            "x": target_position["x"],
+            "y": target_position["y"],
+            "z": approach_z,
         },
         "rotation": target_rot,
     }

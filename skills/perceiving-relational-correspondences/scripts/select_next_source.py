@@ -68,16 +68,26 @@ def _stable_id(kind: str, center: np.ndarray, quantization_m: float) -> str:
     return f"{kind}-{sha1(token.encode('utf-8')).hexdigest()[:10]}"
 
 
-def run(ctx: NodeContext, observation: dict[str, Any], instruction: str,
-        source_categories: list[dict[str, Any]], source_workspace: dict[str, Any],
-        correspondence_axis: str = "y", arm_partition: dict[str, Any] | None = None,
-        completed_source_ids: list[str] | None = None,
-        camera_name: str = "overhead") -> Output:
+def run(
+    ctx: NodeContext,
+    observation: dict[str, Any],
+    instruction: str,
+    source_categories: list[dict[str, Any]],
+    source_workspace: dict[str, Any],
+    correspondence_axis: str = "y",
+    arm_partition: dict[str, Any] | None = None,
+    completed_source_ids: list[str] | None = None,
+    camera_name: str = "overhead",
+) -> Output:
     category = _category(instruction, source_categories)
     kind, query = str(category["kind"]), str(category["query"])
     camera = _camera(observation, camera_name)
-    result = ctx.tool("sam3.segment_text", image=camera["rgb"], query=query,
-                      max_results=int(category.get("max_results", 6)))
+    result = ctx.tool(
+        "sam3.segment_text",
+        image=camera["rgb"],
+        query=query,
+        max_results=int(category.get("max_results", 6)),
+    )
     scores = list(result.get("scores") or [])
     minimum_score = float(category.get("minimum_score", 0.08))
     minimum_pixels = int(source_workspace.get("minimum_mask_pixels", 80))
@@ -90,8 +100,13 @@ def run(ctx: NodeContext, observation: dict[str, Any], instruction: str,
         mask = np.asarray(raw_mask, dtype=np.uint8)
         if score < minimum_score or int(np.count_nonzero(mask)) < minimum_pixels:
             continue
-        cloud = ctx.tool("geometry.mask_to_world_points", mask=mask, depth=camera["depth"],
-                         intrinsics=camera["intrinsics"], camera_pose=camera["pose"])["points"]
+        cloud = ctx.tool(
+            "geometry.mask_to_world_points",
+            mask=mask,
+            depth=camera["depth"],
+            intrinsics=camera["intrinsics"],
+            camera_pose=camera["pose"],
+        )["points"]
         points = np.asarray(cloud["points"], dtype=float).reshape(-1, 3)
         if len(points) < minimum_points:
             continue
@@ -102,17 +117,32 @@ def run(ctx: NodeContext, observation: dict[str, Any], instruction: str,
         if source_id not in completed:
             valid.append((score, source_id, mask, center))
     if not valid:
-        return {"status": "finished", "instruction": instruction, "source_id": "",
-                "target_kind": kind,
-                "target_mask": _empty(), "correspondence_anchor": 0.0, "arm_id": 0}
+        return {
+            "status": "finished",
+            "instruction": instruction,
+            "source_id": "",
+            "target_kind": kind,
+            "target_mask": _empty(),
+            "correspondence_anchor": 0.0,
+            "arm_id": 0,
+        }
     _, source_id, mask, center = max(valid, key=lambda item: item[0])
     axis_index = {"x": 0, "y": 1, "z": 2}
     if correspondence_axis not in axis_index:
         raise ValueError(f"unsupported correspondence_axis {correspondence_axis!r}")
     anchor = float(center[axis_index[correspondence_axis]])
     partition = arm_partition or {"split": 0.0, "positive_arm": 0, "negative_arm": 1}
-    arm_id = int(partition.get("positive_arm", 0) if anchor >= float(partition.get("split", 0.0))
-                 else partition.get("negative_arm", 1))
-    return {"status": "found", "instruction": instruction, "source_id": source_id,
-            "target_kind": kind, "target_mask": mask,
-            "correspondence_anchor": anchor, "arm_id": arm_id}
+    arm_id = int(
+        partition.get("positive_arm", 0)
+        if anchor >= float(partition.get("split", 0.0))
+        else partition.get("negative_arm", 1)
+    )
+    return {
+        "status": "found",
+        "instruction": instruction,
+        "source_id": source_id,
+        "target_kind": kind,
+        "target_mask": mask,
+        "correspondence_anchor": anchor,
+        "arm_id": arm_id,
+    }

@@ -78,6 +78,7 @@ try:
     from curobo.wrap.reacher.motion_gen import (
         PoseCostMetric as _V1PoseCostMetric,
     )
+
     _V1_AVAILABLE = True
     # Stash v0.7-specific callables so they are accessible from v0.7-only functions
     # even if the v0.8 block later rebinds the module-level names (e.g. get_robot_configs_path).
@@ -98,6 +99,7 @@ try:
     from curobo._src.types.pose import Pose as _V2Pose  # type: ignore
     from curobo._src.types.tool_pose import GoalToolPose  # type: ignore
     from curobo.motion_planner import MotionPlanner, MotionPlannerCfg  # type: ignore
+
     # PoseCostMetric only powers the optional use_grasp_approach /
     # relax_orientation knobs; NVlabs upstream removed the API after the
     # dev fork's 4ea7736 state. Gate it separately so the default planning
@@ -109,6 +111,7 @@ try:
     from curobo._src.cost.tool_pose_criteria import ToolPoseCriteria  # type: ignore
     from curobo._src.types.device_cfg import DeviceCfg  # type: ignore
     from curobo.content import get_robot_configs_path  # noqa: F811
+
     _V2_AVAILABLE = True
 except ImportError:
     pass  # v0.7 installed — plan_directed_linear will use the MotionGen path.
@@ -130,6 +133,7 @@ try:
     import types as _types
 
     import warp as _wp  # type: ignore
+
     if not hasattr(_wp, "torch"):
         _wp.torch = _types.SimpleNamespace(
             device_from_torch=getattr(_wp, "device_from_torch", None),
@@ -203,6 +207,7 @@ def _get_robot_dof(robot_file: str) -> int:
 # Avoids re-initializing CUDA tensors / graph state on every planning call.
 # ---------------------------------------------------------------------------
 
+
 class _MotionGenCache:
     """Cache MotionGen + RobotConfig to avoid expensive per-request recreation.
 
@@ -235,8 +240,12 @@ class _MotionGenCache:
                 "TODO: update to v0.8 MotionPlanner."
             )
         key = (
-            robot_file, robot_collision_sphere_buffer, use_cuda_graph,
-            position_threshold, rotation_threshold, num_ik_seeds,
+            robot_file,
+            robot_collision_sphere_buffer,
+            use_cuda_graph,
+            position_threshold,
+            rotation_threshold,
+            num_ik_seeds,
             collision_activation_distance,
         )
 
@@ -325,11 +334,12 @@ class _IKSolverCache:
         if solver is not None:
             return solver
         from curobo.wrap.reacher.ik_solver import IKSolver, IKSolverConfig
+
         robot_dict = _load_robot_dict(robot_file)
         robot_cfg = RobotConfig.from_dict(robot_dict, tensor_args)
         ik_cfg = IKSolverConfig.load_from_robot_config(
             robot_cfg,
-            None,                                  # no world model — pure geometric IK
+            None,  # no world model — pure geometric IK
             rotation_threshold=rotation_threshold,
             position_threshold=position_threshold,
             num_seeds=num_seeds,
@@ -431,9 +441,7 @@ def validate_joint_trajectory_robot_world(
             ok, status = motion_gen.check_start_state(js)
             if not ok:
                 reason = (
-                    getattr(status, "name", str(status))
-                    if status is not None
-                    else "infeasible"
+                    getattr(status, "name", str(status)) if status is not None else "infeasible"
                 )
                 meta = {
                     "motion_gen_status": str(status) if status is not None else None,
@@ -520,9 +528,7 @@ def validate_joint_trajectory_grasped_object(
             ok, status = motion_gen.check_start_state(js)
             if not ok:
                 reason = (
-                    getattr(status, "name", str(status))
-                    if status is not None
-                    else "infeasible"
+                    getattr(status, "name", str(status)) if status is not None else "infeasible"
                 )
                 meta = {
                     "motion_gen_status": str(status) if status is not None else None,
@@ -533,6 +539,8 @@ def validate_joint_trajectory_grasped_object(
         return True, "", None, {"num_waypoints": n, "object_name": object_name}
     finally:
         _motion_gen_cache.invalidate()
+
+
 # Read by the gRPC server for vlog debug logging.
 _last_planning_debug: dict[str, Any] | None = None
 
@@ -563,9 +571,12 @@ def _resolve_debug_dir(trace_dir: str | pathlib.Path | None = None) -> pathlib.P
     return out
 
 
-def _log_curobo_event(event_type: str, data: dict[str, Any], override_dir: str | pathlib.Path | None = None) -> None:
+def _log_curobo_event(
+    event_type: str, data: dict[str, Any], override_dir: str | pathlib.Path | None = None
+) -> None:
     """Append an event to the CuRobo debug log file in the trial trace directory."""
     import json as _json
+
     try:
         debug_dir = _resolve_debug_dir(override_dir)
         log_file = debug_dir / "events.jsonl"
@@ -583,11 +594,11 @@ def _wrap_to_pi(x: np.ndarray) -> np.ndarray:
 
 def _pick_nearest_solution(q_solutions: np.ndarray, q_ref: np.ndarray) -> np.ndarray:
     """Pick the IK solution closest to the reference joint configuration.
-    
+
     Args:
         q_solutions: (K, 7) array of IK solutions
         q_ref: (7,) reference joint configuration
-        
+
     Returns:
         (7,) array of the nearest solution
     """
@@ -677,7 +688,9 @@ def save_world_and_robot_spheres_debug(
                         continue
                     geometries.append(m)
                 except Exception as e:  # pragma: no cover - debug/log only
-                    print(f"[curobo_debug] Warning: failed to convert world obstacle to mesh for tag={tag}: {e}")
+                    print(
+                        f"[curobo_debug] Warning: failed to convert world obstacle to mesh for tag={tag}: {e}"
+                    )
         except Exception as e:  # pragma: no cover - debug/log only
             print(f"[curobo_debug] Warning: failed to iterate world objects for tag={tag}: {e}")
 
@@ -749,7 +762,7 @@ def save_world_and_robot_spheres_debug(
         print(f"[curobo_debug] Saved robot spheres to {spheres_path}")
 
         # Add robot spheres to combined geometry
-        for center, radius in zip(centers, radii):
+        for center, radius in zip(centers, radii, strict=True):
             if radius <= 0.0:
                 continue
             try:
@@ -1082,13 +1095,9 @@ def plan_to_grasp_poses(
     n = len(grasp_poses)
 
     if n > _GRASP_MAX_GOALSET:
-
         print(
-
             f"[plan_to_grasp_poses] trimming {n} candidates to the planner "
-
             f"goalset capacity ({_GRASP_MAX_GOALSET})."
-
         )
 
         grasp_poses = grasp_poses[:_GRASP_MAX_GOALSET]
@@ -1155,8 +1164,7 @@ def plan_to_grasp_poses(
             "without obstacle collision (self-collision still enforced)."
         )
     n_mesh_total = (
-        len(list(getattr(world_config, "mesh", None) or []))
-        if world_config is not None else 0
+        len(list(getattr(world_config, "mesh", None) or [])) if world_config is not None else 0
     )
 
     planner = _get_pose_planner(
@@ -1181,9 +1189,7 @@ def plan_to_grasp_poses(
 
     if has_world:
         try:
-            scene_cfg = _v2_scene_cfg_excluding(
-                world_config, device_cfg, ignore_obstacle_names
-            )
+            scene_cfg = _v2_scene_cfg_excluding(world_config, device_cfg, ignore_obstacle_names)
             if scene_cfg is not None:
                 planner.clear_scene_cache()
                 planner.update_world(scene_cfg)
@@ -1204,8 +1210,7 @@ def plan_to_grasp_poses(
                 )
         except Exception as e:
             raise RuntimeError(
-                f"plan_to_grasp_poses: failed to load collision world into "
-                f"v0.8 MotionPlanner: {e}"
+                f"plan_to_grasp_poses: failed to load collision world into v0.8 MotionPlanner: {e}"
             ) from e
 
     # ── Start JointState (v0.8) — shape [1, DOF], mirrors plan_to_pose ───────
@@ -1306,17 +1311,11 @@ def plan_to_grasp_poses(
     global _last_planning_debug
 
     def _result_status(result) -> str:
-        return (
-            getattr(result, "status", None)
-            or getattr(result, "failure_reason", None)
-            or "N/A"
-        )
+        return getattr(result, "status", None) or getattr(result, "failure_reason", None) or "N/A"
 
     def _result_success(result) -> bool:
         return bool(
-            result is not None
-            and result.success is not None
-            and torch.any(result.success).item()
+            result is not None and result.success is not None and torch.any(result.success).item()
         )
 
     def _traj_from_result(result) -> np.ndarray | None:
@@ -1357,9 +1356,7 @@ def plan_to_grasp_poses(
         goalset_quat = device_cfg.to_device(
             torch.tensor(np.stack(hand_quats, axis=0), dtype=torch.float32)
         )  # [N, 4]
-        goalset_v2pose = _V2Pose(
-            position=goalset_pos, quaternion=goalset_quat, name=tool_frame
-        )
+        goalset_v2pose = _V2Pose(position=goalset_pos, quaternion=goalset_quat, name=tool_frame)
         goalset_tool_poses = GoalToolPose.from_poses(
             {tool_frame: goalset_v2pose},
             ordered_tool_frames=[tool_frame],
@@ -1368,19 +1365,20 @@ def plan_to_grasp_poses(
 
         print(
             f"[plan_to_grasp_poses] v0.8 goalset plan_pose | tool={tool_frame} "
-            f"n_candidates={n} world={'on(%d mesh)' % n_mesh_total if has_world else 'off'} "
+            f"n_candidates={n} world={f'on({n_mesh_total} mesh)' if has_world else 'off'} "
             f"relax_orientation={relax_orientation} "
             f"use_grasp_approach={use_grasp_approach} max_attempts={max_attempts}"
         )
 
         _t0 = time.monotonic()
-        result = planner.plan_pose(
-            goalset_tool_poses, start_state, max_attempts=max_attempts
-        )
+        result = planner.plan_pose(goalset_tool_poses, start_state, max_attempts=max_attempts)
         _t_ms = (time.monotonic() - _t0) * 1000.0
         _log.info(
             "[TIMING] v0.8 plan_to_grasp_poses goalset n=%d world=%s plan_ms=%.1f t=%.3f",
-            n, has_world, _t_ms, time.time(),
+            n,
+            has_world,
+            _t_ms,
+            time.time(),
         )
 
         if _result_success(result):
@@ -1391,28 +1389,31 @@ def plan_to_grasp_poses(
             if traj is not None:
                 try:
                     _last_planning_debug = extract_planning_debug_trajectories(
-                        result, robot_file=robot_file, tensor_args=None,
+                        result,
+                        robot_file=robot_file,
+                        tensor_args=None,
                     )
                     _last_planning_debug["metadata"]["grasp_index"] = idx
-                    _last_planning_debug["metadata"]["planning_function"] = (
-                        "plan_to_grasp_poses"
-                    )
+                    _last_planning_debug["metadata"]["planning_function"] = "plan_to_grasp_poses"
                 except Exception as e:
                     print(
-                        f"[plan_to_grasp_poses] Warning: failed to extract "
-                        f"debug trajectories: {e}"
+                        f"[plan_to_grasp_poses] Warning: failed to extract debug trajectories: {e}"
                     )
                     _last_planning_debug = None
-                _log_curobo_event("grasp_plan_result", {
-                    "success": True,
-                    "status": str(_result_status(result)),
-                    "grasp_index": idx,
-                    "grasp_pos": hand_positions[idx].tolist(),
-                    "start_joint": q_start.tolist(),
-                    "use_world_collision": use_world_collision,
-                    "function": "plan_to_grasp_poses",
-                    "mode": "goalset",
-                }, override_dir=debug_out_dir)
+                _log_curobo_event(
+                    "grasp_plan_result",
+                    {
+                        "success": True,
+                        "status": str(_result_status(result)),
+                        "grasp_index": idx,
+                        "grasp_pos": hand_positions[idx].tolist(),
+                        "start_joint": q_start.tolist(),
+                        "use_world_collision": use_world_collision,
+                        "function": "plan_to_grasp_poses",
+                        "mode": "goalset",
+                    },
+                    override_dir=debug_out_dir,
+                )
                 print(
                     f"[plan_to_grasp_poses] v0.8 goalset SUCCESS: reached "
                     f"candidate idx={idx}, trajectory shape={traj.shape}."
@@ -1438,9 +1439,7 @@ def plan_to_grasp_poses(
         # max_attempts plan, ~10-15s), while the high-clearance variants are
         # the ones that succeed — trying them first cuts the ladder from
         # minutes to seconds without dropping any candidate.
-        fallback_order = sorted(
-            range(n), key=lambda i: float(hand_positions[i][2]), reverse=True
-        )
+        fallback_order = sorted(range(n), key=lambda i: float(hand_positions[i][2]), reverse=True)
         for idx in fallback_order:
             try:
                 g_pos = device_cfg.to_device(
@@ -1449,18 +1448,14 @@ def plan_to_grasp_poses(
                 g_quat = device_cfg.to_device(
                     torch.tensor(hand_quats[idx], dtype=torch.float32).unsqueeze(0)
                 )
-                g_v2pose = _V2Pose(
-                    position=g_pos, quaternion=g_quat, name=tool_frame
-                )
+                g_v2pose = _V2Pose(position=g_pos, quaternion=g_quat, name=tool_frame)
                 g_tool_poses = GoalToolPose.from_poses(
                     {tool_frame: g_v2pose},
                     ordered_tool_frames=[tool_frame],
                     num_goalset=1,
                 )
                 _ts = time.monotonic()
-                result = planner.plan_pose(
-                    g_tool_poses, start_state, max_attempts=max_attempts
-                )
+                result = planner.plan_pose(g_tool_poses, start_state, max_attempts=max_attempts)
                 _tms = (time.monotonic() - _ts) * 1000.0
                 ok = _result_success(result)
                 status_str = _result_status(result)
@@ -1471,29 +1466,32 @@ def plan_to_grasp_poses(
 
                 try:
                     _last_planning_debug = extract_planning_debug_trajectories(
-                        result, robot_file=robot_file, tensor_args=None,
+                        result,
+                        robot_file=robot_file,
+                        tensor_args=None,
                     )
                     _last_planning_debug["metadata"]["grasp_index"] = idx
-                    _last_planning_debug["metadata"]["planning_function"] = (
-                        "plan_to_grasp_poses"
-                    )
+                    _last_planning_debug["metadata"]["planning_function"] = "plan_to_grasp_poses"
                 except Exception as e:
                     print(
-                        f"[plan_to_grasp_poses] Warning: failed to extract "
-                        f"debug trajectories: {e}"
+                        f"[plan_to_grasp_poses] Warning: failed to extract debug trajectories: {e}"
                     )
                     _last_planning_debug = None
 
-                _log_curobo_event("grasp_plan_result", {
-                    "success": ok,
-                    "status": str(status_str),
-                    "grasp_index": idx,
-                    "grasp_pos": hand_positions[idx].tolist(),
-                    "start_joint": q_start.tolist(),
-                    "use_world_collision": use_world_collision,
-                    "function": "plan_to_grasp_poses",
-                    "mode": "per_candidate",
-                }, override_dir=debug_out_dir)
+                _log_curobo_event(
+                    "grasp_plan_result",
+                    {
+                        "success": ok,
+                        "status": str(status_str),
+                        "grasp_index": idx,
+                        "grasp_pos": hand_positions[idx].tolist(),
+                        "start_joint": q_start.tolist(),
+                        "use_world_collision": use_world_collision,
+                        "function": "plan_to_grasp_poses",
+                        "mode": "per_candidate",
+                    },
+                    override_dir=debug_out_dir,
+                )
 
                 if ok:
                     traj = _traj_from_result(result)
@@ -1517,10 +1515,7 @@ def plan_to_grasp_poses(
                 )
                 continue
 
-        print(
-            "[plan_to_grasp_poses] No grasp succeeded; returning "
-            "False, None, None."
-        )
+        print("[plan_to_grasp_poses] No grasp succeeded; returning False, None, None.")
         return False, None, None
     finally:
         # Always reset the pose cost metric so a cached planner starts clean
@@ -1528,10 +1523,7 @@ def plan_to_grasp_poses(
         try:
             _reset_metric()
         except Exception as e:  # pragma: no cover - cleanup only
-            print(
-                f"[plan_to_grasp_poses] Warning: failed to reset pose cost "
-                f"metric: {e}"
-            )
+            print(f"[plan_to_grasp_poses] Warning: failed to reset pose cost metric: {e}")
 
 
 def _v2_scene_cfg_excluding(
@@ -1557,10 +1549,7 @@ def _v2_scene_cfg_excluding(
     ignore = set(ignore_obstacle_names)
     meshes_in = list(getattr(world_config, "mesh", None) or [])
     kept = [m for m in meshes_in if getattr(m, "name", None) not in ignore]
-    dropped = [
-        getattr(m, "name", None) for m in meshes_in
-        if getattr(m, "name", None) in ignore
-    ]
+    dropped = [getattr(m, "name", None) for m in meshes_in if getattr(m, "name", None) in ignore]
     if dropped:
         print(
             f"[plan_to_grasp_poses] Excluding {len(dropped)} obstacle(s) from "
@@ -1578,9 +1567,16 @@ def _v2_scene_cfg_excluding(
 
 
 def _build_transport_debug_ply(
-    world_config, q_start, robot_file, tensor_args,
-    attached_obstacle, object_name, target_pos,
-    planning_debug, out_dir, tag,
+    world_config,
+    q_start,
+    robot_file,
+    tensor_args,
+    attached_obstacle,
+    object_name,
+    target_pos,
+    planning_debug,
+    out_dir,
+    tag,
     post_attach_spheres=None,
 ):
     """Build a combined PLY with world mesh, robot spheres, object at EE, and all trajectories.
@@ -1622,7 +1618,9 @@ def _build_transport_debug_ply(
                 seed = arr[i]
                 if seed.shape[-1] > 7:
                     seed = seed[:, :7]
-                ee = joint_trajectory_to_ee_positions(seed, robot_file=robot_file, tensor_args=tensor_args)
+                ee = joint_trajectory_to_ee_positions(
+                    seed, robot_file=robot_file, tensor_args=tensor_args
+                )
                 if ee.ndim == 1:
                     ee = ee.reshape(1, 3)
                 if ee.shape[0] > 1:
@@ -1645,9 +1643,12 @@ def _build_transport_debug_ply(
                 verts = np.array(m_copy.vertices)
                 colors = np.tile([180, 180, 180, 60], (len(verts), 1))
                 basket_mask = (
-                    (verts[:, 0] > 0.40) & (verts[:, 0] < 0.80) &
-                    (verts[:, 1] > 0.10) & (verts[:, 1] < 0.45) &
-                    (verts[:, 2] > 0.0) & (verts[:, 2] < 0.20)
+                    (verts[:, 0] > 0.40)
+                    & (verts[:, 0] < 0.80)
+                    & (verts[:, 1] > 0.10)
+                    & (verts[:, 1] < 0.45)
+                    & (verts[:, 2] > 0.0)
+                    & (verts[:, 2] < 0.20)
                 )
                 colors[basket_mask] = [255, 140, 0, 180]
                 m_copy.visual.vertex_colors = colors
@@ -1801,7 +1802,9 @@ def _build_transport_debug_ply(
         combined = trimesh.util.concatenate(scene_parts)
         ply_path = pathlib.Path(out_dir) / f"curobo_transport_debug_{tag}.ply"
         combined.export(str(ply_path))
-        print(f"[plan_with_grasped_object] PLY debug saved to {ply_path} ({ply_path.stat().st_size / 1024 / 1024:.1f} MB)")
+        print(
+            f"[plan_with_grasped_object] PLY debug saved to {ply_path} ({ply_path.stat().st_size / 1024 / 1024:.1f} MB)"
+        )
         return combined
     return None
 
@@ -1868,8 +1871,6 @@ def plan_with_grasped_object(
     """
     if tensor_args is None:
         tensor_args = TensorDeviceType()
-    device = tensor_args.device
-    dtype = tensor_args.dtype
 
     # Always provide world_config to MotionGen so attach_objects_to_robot can
     # look up object geometry.  When use_world_collision is False we still pass
@@ -1877,7 +1878,9 @@ def plan_with_grasped_object(
     # effectively bypassed via collision_activation_distance / sphere_buffer.
     world_model = world_config
     if not use_world_collision:
-        print("[plan_with_grasped_object] use_world_collision=False: world model still provided for object attachment, but collision avoidance is relaxed.")
+        print(
+            "[plan_with_grasped_object] use_world_collision=False: world model still provided for object attachment, but collision avoidance is relaxed."
+        )
 
     # For pose planning with z variance: use position_threshold for x, y and a large value for z
     # Set position_threshold_z to a large value to allow any z position
@@ -1885,7 +1888,9 @@ def plan_with_grasped_object(
         position_threshold_z = 10.0  # Allow any z by default
     effective_position_threshold = max(position_threshold, position_threshold_z)
     if effective_position_threshold > position_threshold:
-        print(f"[plan_with_grasped_object] Using position_threshold={effective_position_threshold:.3f} m (z allowance: position_threshold_z={position_threshold_z:.3f}).")
+        print(
+            f"[plan_with_grasped_object] Using position_threshold={effective_position_threshold:.3f} m (z allowance: position_threshold_z={position_threshold_z:.3f})."
+        )
 
     # plan_with_grasped_object uses attach_objects_to_robot which mutates
     # MotionGen state, so we always need a fresh MotionGen for this path.
@@ -1914,7 +1919,9 @@ def plan_with_grasped_object(
     attached_obstacle = world_config.get_obstacle(object_name) if world_config else None
 
     # Attach object to robot
-    print(f"[plan_with_grasped_object] Attaching object '{object_name}' to robot at link '{link_name}'...")
+    print(
+        f"[plan_with_grasped_object] Attaching object '{object_name}' to robot at link '{link_name}'..."
+    )
     try:
         attach_success = motion_gen.attach_objects_to_robot(
             start_state,
@@ -1928,23 +1935,39 @@ def plan_with_grasped_object(
         # CuRobo raises ValueError when the object is not found in the world
         msg = f"Object '{object_name}' not found in world: {e}"
         print(f"[plan_with_grasped_object] {msg}")
-        world_names = [getattr(m, "name", "?") for m in (getattr(world_config, "objects", []) or [])] if world_config else []
-        _log_curobo_event("attach_object_not_found", {
-            "object_name": object_name,
-            "world_objects": world_names,
-            "error": str(e),
-            "function": "plan_with_grasped_object",
-        }, override_dir=debug_out_dir)
+        world_names = (
+            [getattr(m, "name", "?") for m in (getattr(world_config, "objects", []) or [])]
+            if world_config
+            else []
+        )
+        _log_curobo_event(
+            "attach_object_not_found",
+            {
+                "object_name": object_name,
+                "world_objects": world_names,
+                "error": str(e),
+                "function": "plan_with_grasped_object",
+            },
+            override_dir=debug_out_dir,
+        )
         return False, None
     if not attach_success:
         msg = f"Failed to attach object '{object_name}'. Check that it exists in world_config."
         print(f"[plan_with_grasped_object] {msg}")
-        world_names = [getattr(m, "name", "?") for m in (getattr(world_config, "objects", []) or [])] if world_config else []
-        _log_curobo_event("attach_failed", {
-            "object_name": object_name,
-            "world_objects": world_names,
-            "function": "plan_with_grasped_object",
-        }, override_dir=debug_out_dir)
+        world_names = (
+            [getattr(m, "name", "?") for m in (getattr(world_config, "objects", []) or [])]
+            if world_config
+            else []
+        )
+        _log_curobo_event(
+            "attach_failed",
+            {
+                "object_name": object_name,
+                "world_objects": world_names,
+                "function": "plan_with_grasped_object",
+            },
+            override_dir=debug_out_dir,
+        )
         return False, None
     print(f"[plan_with_grasped_object] Successfully attached object '{object_name}' to robot.")
 
@@ -1960,8 +1983,6 @@ def plan_with_grasped_object(
         if _sph_batch:
             all_spheres = _sph_batch[0]
             _post_attach_spheres = []
-            n_robot = 0
-            n_attached = 0
             for s in all_spheres:
                 r = float(s.radius)
                 if r <= 0.0:
@@ -1970,7 +1991,9 @@ def plan_with_grasped_object(
                 # Spheres belonging to the attached_object link are at the EE
                 # and were added by attach_objects_to_robot
                 _post_attach_spheres.append((pos, r))
-            print(f"[plan_with_grasped_object] Post-attach collision spheres: {len(_post_attach_spheres)}")
+            print(
+                f"[plan_with_grasped_object] Post-attach collision spheres: {len(_post_attach_spheres)}"
+            )
     except Exception as e:
         print(f"[plan_with_grasped_object] Warning: failed to get post-attach spheres: {e}")
 
@@ -1997,18 +2020,26 @@ def plan_with_grasped_object(
         )
         # Also log world mesh names and counts
         if world_config is not None:
-            mesh_names = [getattr(m, "name", "?") for m in (getattr(world_config, "objects", []) or [])]
+            mesh_names = [
+                getattr(m, "name", "?") for m in (getattr(world_config, "objects", []) or [])
+            ]
             print(f"[plan_with_grasped_object] World meshes for collision: {mesh_names}")
             print(f"[plan_with_grasped_object] use_world_collision={use_world_collision}")
-        print(f"[plan_with_grasped_object] Debug saved to {_debug_out / f'world_and_robot_spheres_{_debug_tag}.obj'}")
+        print(
+            f"[plan_with_grasped_object] Debug saved to {_debug_out / f'world_and_robot_spheres_{_debug_tag}.obj'}"
+        )
     except Exception as e:
         print(f"[plan_with_grasped_object] Warning: failed to save pre-planning debug: {e}")
 
     # Convert target pose to CuRobo Pose
     pos = np.asarray(target_pose[0], dtype=np.float64)
     quat = np.asarray(target_pose[1], dtype=np.float64)
-    print(f"[plan_with_grasped_object] Target pose: position={pos.tolist()}, quat_wxyz={quat.tolist()}")
-    print(f"[plan_with_grasped_object] Allowing z variance (position_threshold_z={position_threshold_z:.3f} m), matching x, y, orientation")
+    print(
+        f"[plan_with_grasped_object] Target pose: position={pos.tolist()}, quat_wxyz={quat.tolist()}"
+    )
+    print(
+        f"[plan_with_grasped_object] Allowing z variance (position_threshold_z={position_threshold_z:.3f} m), matching x, y, orientation"
+    )
 
     goal_pose = Pose(
         position=tensor_args.to_device(torch.from_numpy(pos).unsqueeze(0).float()),
@@ -2023,27 +2054,37 @@ def plan_with_grasped_object(
         enable_graph_attempt=True,
     )
 
-    print(f"[plan_with_grasped_object] Planning to pose with z variance (position_threshold={effective_position_threshold:.3f} m)...")
+    print(
+        f"[plan_with_grasped_object] Planning to pose with z variance (position_threshold={effective_position_threshold:.3f} m)..."
+    )
     result = motion_gen.plan_single(start_state, goal_pose, plan_cfg)
 
     success = bool(result.success.item() if result.success is not None else False)
-    status_str = getattr(result.status, "name", str(result.status)) if hasattr(result, "status") and result.status is not None else "N/A"
+    status_str = (
+        getattr(result.status, "name", str(result.status))
+        if hasattr(result, "status") and result.status is not None
+        else "N/A"
+    )
     print(f"[plan_with_grasped_object] Planning result: success={success}, status={status_str}")
 
     # Log planning result
-    _log_curobo_event("transport_plan_result", {
-        "success": success,
-        "status": status_str,
-        "object_name": object_name,
-        "start_joint": q_start.tolist(),
-        "target_pos": pos.tolist(),
-        "use_world_collision": use_world_collision,
-        "surface_sphere_radius": surface_sphere_radius,
-        "collision_activation_distance": collision_activation_distance,
-        "robot_collision_sphere_buffer": robot_collision_sphere_buffer,
-        "n_post_attach_spheres": len(_post_attach_spheres) if _post_attach_spheres else 0,
-        "function": "plan_with_grasped_object",
-    }, override_dir=debug_out_dir)
+    _log_curobo_event(
+        "transport_plan_result",
+        {
+            "success": success,
+            "status": status_str,
+            "object_name": object_name,
+            "start_joint": q_start.tolist(),
+            "target_pos": pos.tolist(),
+            "use_world_collision": use_world_collision,
+            "surface_sphere_radius": surface_sphere_radius,
+            "collision_activation_distance": collision_activation_distance,
+            "robot_collision_sphere_buffer": robot_collision_sphere_buffer,
+            "n_post_attach_spheres": len(_post_attach_spheres) if _post_attach_spheres else 0,
+            "function": "plan_with_grasped_object",
+        },
+        override_dir=debug_out_dir,
+    )
 
     # Expose post-attach spheres for server-side PLY debug
     global _last_post_attach_spheres
@@ -2053,7 +2094,9 @@ def plan_with_grasped_object(
     global _last_planning_debug
     try:
         _last_planning_debug = extract_planning_debug_trajectories(
-            result, robot_file=robot_file, tensor_args=tensor_args,
+            result,
+            robot_file=robot_file,
+            tensor_args=tensor_args,
         )
         _last_planning_debug["metadata"]["planning_function"] = "plan_with_grasped_object"
         _last_planning_debug["metadata"]["object_name"] = object_name
@@ -2065,7 +2108,12 @@ def plan_with_grasped_object(
     try:
         traj_save = {}
         if _last_planning_debug is not None:
-            for stage in ["graph_plan", "trajopt_result", "finetune_trajopt_result", "final_trajectory"]:
+            for stage in [
+                "graph_plan",
+                "trajopt_result",
+                "finetune_trajopt_result",
+                "final_trajectory",
+            ]:
                 sd = _last_planning_debug.get(stage, {})
                 if sd.get("available"):
                     if sd.get("joint_traj") is not None:
@@ -2082,9 +2130,16 @@ def plan_with_grasped_object(
 
         # Build combined PLY: world mesh + robot spheres + all trajectories
         _build_transport_debug_ply(
-            world_config, q_start, robot_file, tensor_args,
-            attached_obstacle, object_name, pos,
-            _last_planning_debug, _debug_out, _debug_tag,
+            world_config,
+            q_start,
+            robot_file,
+            tensor_args,
+            attached_obstacle,
+            object_name,
+            pos,
+            _last_planning_debug,
+            _debug_out,
+            _debug_tag,
             post_attach_spheres=_post_attach_spheres,
         )
     except Exception as e:
@@ -2095,16 +2150,22 @@ def plan_with_grasped_object(
             traj_js = result.get_interpolated_plan()
             if traj_js is not None and traj_js.position is not None:
                 trajectory = np.squeeze(traj_js.position.detach().cpu().numpy())
-                print(f"[plan_with_grasped_object] Planning succeeded; trajectory shape: {trajectory.shape}")
+                print(
+                    f"[plan_with_grasped_object] Planning succeeded; trajectory shape: {trajectory.shape}"
+                )
                 return True, trajectory
         except Exception as e:
-            print(f"[plan_with_grasped_object] Warning: failed to extract trajectory despite success: {e}")
+            print(
+                f"[plan_with_grasped_object] Warning: failed to extract trajectory despite success: {e}"
+            )
 
     # Planning failed - save debug meshes if requested
     if debug_out_dir is not None:
         tag = f"plan_fail_{int(time.time())}"
-        print(f"[plan_with_grasped_object] Planning failed; saving debug meshes to {debug_out_dir}...")
-        
+        print(
+            f"[plan_with_grasped_object] Planning failed; saving debug meshes to {debug_out_dir}..."
+        )
+
         # Save start joint state (include attached object at EE pose)
         try:
             ee_pos, ee_quat = robot_joint_position_to_ee_pose(
@@ -2122,7 +2183,7 @@ def plan_with_grasped_object(
             )
         except Exception as e:
             print(f"[plan_with_grasped_object] Warning: failed to save start debug mesh: {e}")
-        
+
         # Try to compute IK for goal pose to save end joint state debug mesh
         try:
             ik_world = world_model
@@ -2138,7 +2199,7 @@ def plan_with_grasped_object(
             ik_solver = IKSolver(ik_cfg)
             retract_cfg = tensor_args.to_device(torch.from_numpy(q_start).unsqueeze(0).float())
             ik_result = ik_solver.solve_single(goal_pose, retract_config=retract_cfg)
-            
+
             if bool(ik_result.success.item() if ik_result.success is not None else False):
                 q_sols = ik_result.solution.detach().cpu().numpy()
                 q_sols = np.atleast_2d(q_sols)[:, :7]
@@ -2157,9 +2218,13 @@ def plan_with_grasped_object(
                     exclude_obstacle_names=[object_name],
                 )
             else:
-                print("[plan_with_grasped_object] IK failed for debug mesh; skipping end state debug mesh.")
+                print(
+                    "[plan_with_grasped_object] IK failed for debug mesh; skipping end state debug mesh."
+                )
         except Exception as e:
-            print(f"[plan_with_grasped_object] Warning: failed to compute IK and save end debug mesh: {e}")
+            print(
+                f"[plan_with_grasped_object] Warning: failed to compute IK and save end debug mesh: {e}"
+            )
 
     print("[plan_with_grasped_object] Planning failed; returning False, None.")
     return False, None
@@ -2326,7 +2391,11 @@ def _plan_directed_linear_v1(
     _t_plan_ms = (time.monotonic() - _t_plan_start) * 1000.0
     _log.info(
         "[TIMING] v1 plan_directed_linear axes=%s mode=%s orient=%s plan_ms=%.1f t=%.3f",
-        allowed_axes, mode, orientation_mode, _t_plan_ms, time.time(),
+        allowed_axes,
+        mode,
+        orientation_mode,
+        _t_plan_ms,
+        time.time(),
     )
     with open("/tmp/curobo_timing.log", "a") as _tf:
         _tf.write(
@@ -2334,7 +2403,9 @@ def _plan_directed_linear_v1(
             f"\tplan_ms={_t_plan_ms:.1f}\tt={time.time():.3f}\n"
         )
     success = bool(result.success.item() if result.success is not None else False)
-    status_str = getattr(result.status, "name", str(result.status)) if hasattr(result, "status") else "N/A"
+    status_str = (
+        getattr(result.status, "name", str(result.status)) if hasattr(result, "status") else "N/A"
+    )
     print(f"[plan_directed_linear] v1 success={success} status={status_str}")
 
     if not success:
@@ -2570,12 +2641,8 @@ def plan_directed_linear(
         )
 
     # ── Build GoalToolPose ────────────────────────────────────────────────────
-    goal_pos_t = device_cfg.to_device(
-        torch.tensor(goal_pos, dtype=torch.float32).unsqueeze(0)
-    )
-    goal_quat_t = device_cfg.to_device(
-        torch.tensor(goal_quat, dtype=torch.float32).unsqueeze(0)
-    )
+    goal_pos_t = device_cfg.to_device(torch.tensor(goal_pos, dtype=torch.float32).unsqueeze(0))
+    goal_quat_t = device_cfg.to_device(torch.tensor(goal_quat, dtype=torch.float32).unsqueeze(0))
     goal_v2pose = _V2Pose(position=goal_pos_t, quaternion=goal_quat_t, name=tool_frame)
     goal_tool_poses = GoalToolPose.from_poses({tool_frame: goal_v2pose})
 
@@ -2610,7 +2677,11 @@ def plan_directed_linear(
         _t_plan_ms = (time.monotonic() - _t_plan_start) * 1000.0
         _log.info(
             "[TIMING] v0.8 plan_directed_linear axes=%s mode=%s orient=%s plan_ms=%.1f t=%.3f",
-            allowed_axes, mode, orientation_mode, _t_plan_ms, time.time(),
+            allowed_axes,
+            mode,
+            orientation_mode,
+            _t_plan_ms,
+            time.time(),
         )
         with open("/tmp/curobo_timing.log", "a") as _tf:
             _tf.write(
@@ -2621,14 +2692,8 @@ def plan_directed_linear(
     if result is None:
         return False, None, "motion_planner_returned_none"
 
-    success = bool(
-        result.success is not None and torch.any(result.success).item()
-    )
-    status_str = (
-        getattr(result, "status", None) or
-        getattr(result, "failure_reason", None) or
-        "N/A"
-    )
+    success = bool(result.success is not None and torch.any(result.success).item())
+    status_str = getattr(result, "status", None) or getattr(result, "failure_reason", None) or "N/A"
     print(f"[plan_directed_linear] v0.8 success={success} status={status_str}")
 
     if not success:
@@ -2729,8 +2794,12 @@ def plan_grasp_motion(
 
     # Build GoalToolPose from the single grasp pose.
     g_pos, g_quat = grasp_pose  # (xyz), (wxyz)
-    g_pos_t = torch.tensor(np.array(g_pos, dtype=np.float32).reshape(1, 3), device=device_cfg.device)
-    g_quat_t = torch.tensor(np.array(g_quat, dtype=np.float32).reshape(1, 4), device=device_cfg.device)
+    g_pos_t = torch.tensor(
+        np.array(g_pos, dtype=np.float32).reshape(1, 3), device=device_cfg.device
+    )
+    g_quat_t = torch.tensor(
+        np.array(g_quat, dtype=np.float32).reshape(1, 4), device=device_cfg.device
+    )
     grasp_v2pose = _V2Pose(position=g_pos_t, quaternion=g_quat_t, name=tool_frame)
     grasp_tool_poses = GoalToolPose.from_poses({tool_frame: grasp_v2pose})
 
@@ -2744,7 +2813,7 @@ def plan_grasp_motion(
         grasp_poses=grasp_tool_poses,
         current_state=start_state,
         grasp_approach_axis=approach_axis,
-        grasp_approach_offset=approach_distance,   # positive = pre-grasp behind the grasp
+        grasp_approach_offset=approach_distance,  # positive = pre-grasp behind the grasp
         grasp_approach_in_tool_frame=approach_in_tool_frame,
         grasp_lift_axis=lift_axis,
         grasp_lift_offset=lift_distance,
@@ -2856,8 +2925,7 @@ def solve_ik(
     v0.7 symbols) into an honest, actionable signal.
     """
     raise RuntimeError(
-        "solve_ik is not supported on cuRobo v0.8; use PlanToGraspPoses / "
-        "PlanGraspMotion"
+        "solve_ik is not supported on cuRobo v0.8; use PlanToGraspPoses / PlanGraspMotion"
     )
 
 
@@ -2924,7 +2992,7 @@ def _get_pose_planner(
 
     print(
         f"[plan_to_pose] Creating MotionPlanner (v0.8, "
-        f"collision={'mesh:%d' % mesh_cache if with_collision else 'self-only'}) "
+        f"collision={f'mesh:{mesh_cache}' if with_collision else 'self-only'}) "
         f"for {robot_file}"
     )
     device_cfg = DeviceCfg()
@@ -3062,18 +3130,13 @@ def plan_to_pose(
     dof = _get_robot_dof(robot_file)
 
     # EE-link world target (cuRobo reaches the tool frame, not the TCP).
-    ee_position = _apply_tcp_offset_inverse(
-        target_position, target_quat_wxyz, tcp_offset
-    )
+    ee_position = _apply_tcp_offset_inverse(target_position, target_quat_wxyz, tcp_offset)
     ee_quat_wxyz = np.asarray(target_quat_wxyz, dtype=np.float32).reshape(4)
 
     has_world = (
-        world_config is not None
-        and len(list(getattr(world_config, "mesh", None) or [])) > 0
+        world_config is not None and len(list(getattr(world_config, "mesh", None) or [])) > 0
     )
-    n_mesh = (
-        len(list(getattr(world_config, "mesh", None) or [])) if has_world else 0
-    )
+    n_mesh = len(list(getattr(world_config, "mesh", None) or [])) if has_world else 0
 
     planner = _get_pose_planner(
         robot_file,
@@ -3099,16 +3162,12 @@ def plan_to_pose(
             if scene_cfg is not None:
                 planner.clear_scene_cache()
                 planner.update_world(scene_cfg)
-                print(
-                    f"[plan_to_pose] Loaded v0.8 collision scene "
-                    f"(meshes={n_mesh})."
-                )
+                print(f"[plan_to_pose] Loaded v0.8 collision scene (meshes={n_mesh}).")
         except Exception as e:
             # A scene-load failure must not silently downgrade to a
             # collision-free plan; surface it as an actionable error.
             raise RuntimeError(
-                f"plan_to_pose: failed to load collision world into v0.8 "
-                f"MotionPlanner: {e}"
+                f"plan_to_pose: failed to load collision world into v0.8 MotionPlanner: {e}"
             ) from e
 
     # ── Start JointState (v0.8) — shape [1, DOF], mirrors plan_directed_linear
@@ -3135,44 +3194,34 @@ def plan_to_pose(
             dtype=torch.float32,
         ).unsqueeze(0)
     )
-    goal_quat_t = device_cfg.to_device(
-        torch.tensor(ee_quat_wxyz, dtype=torch.float32).unsqueeze(0)
-    )
-    goal_v2pose = _V2Pose(
-        position=goal_pos_t, quaternion=goal_quat_t, name=tool_frame
-    )
+    goal_quat_t = device_cfg.to_device(torch.tensor(ee_quat_wxyz, dtype=torch.float32).unsqueeze(0))
+    goal_v2pose = _V2Pose(position=goal_pos_t, quaternion=goal_quat_t, name=tool_frame)
     goal_tool_poses = GoalToolPose.from_poses({tool_frame: goal_v2pose})
 
     print(
         f"[plan_to_pose] v0.8 | tool={tool_frame} "
         f"ee_pos={np.round(ee_position, 4).tolist()} "
         f"ee_quat_wxyz={np.round(ee_quat_wxyz, 4).tolist()} "
-        f"world={'on(%d mesh)' % n_mesh if has_world else 'off'} "
+        f"world={f'on({n_mesh} mesh)' if has_world else 'off'} "
         f"max_attempts={max_attempts}"
     )
 
     _t_plan_start = time.monotonic()
-    result = planner.plan_pose(
-        goal_tool_poses, start_state, max_attempts=max_attempts
-    )
+    result = planner.plan_pose(goal_tool_poses, start_state, max_attempts=max_attempts)
     _t_plan_ms = (time.monotonic() - _t_plan_start) * 1000.0
     _log.info(
         "[TIMING] v0.8 plan_to_pose world=%s plan_ms=%.1f t=%.3f",
-        has_world, _t_plan_ms, time.time(),
+        has_world,
+        _t_plan_ms,
+        time.time(),
     )
 
     if result is None:
         print("[plan_to_pose] v0.8 planner returned None.")
         return False, None
 
-    success = bool(
-        result.success is not None and torch.any(result.success).item()
-    )
-    status_str = (
-        getattr(result, "status", None)
-        or getattr(result, "failure_reason", None)
-        or "N/A"
-    )
+    success = bool(result.success is not None and torch.any(result.success).item())
+    status_str = getattr(result, "status", None) or getattr(result, "failure_reason", None) or "N/A"
     print(f"[plan_to_pose] v0.8 success={success} status={status_str}")
     if not success:
         return False, None

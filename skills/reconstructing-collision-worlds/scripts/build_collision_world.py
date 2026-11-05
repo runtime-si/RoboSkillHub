@@ -43,7 +43,9 @@ def _semantic_mask(
     ctx: NodeContext, camera: dict[str, Any], query: str, threshold: float, max_results: int = 2
 ) -> np.ndarray | None:
     """The best-scoring mask for *query* at or above *threshold*, or ``None``."""
-    result = ctx.tool("sam3.segment_text", image=camera["rgb"], query=query, max_results=max_results)
+    result = ctx.tool(
+        "sam3.segment_text", image=camera["rgb"], query=query, max_results=max_results
+    )
     candidates = [
         (float(score), np.asarray(mask) > 0)
         for mask, score in zip(result.get("masks") or [], result.get("scores") or [], strict=False)
@@ -216,15 +218,36 @@ def _keep_out_boxes(profile: dict[str, Any]) -> list[dict[str, Any]]:
     boxes = list((profile.get("fixture_keep_out") or {}).get("boxes") or [])
     if not boxes:
         return []
-    signs = np.array([
-        [-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1],
-        [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1],
-    ], dtype=np.float64)
-    faces = np.array([
-        [0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6],
-        [0, 4, 5], [0, 5, 1], [1, 5, 6], [1, 6, 2],
-        [2, 6, 7], [2, 7, 3], [3, 7, 4], [3, 4, 0],
-    ], dtype=np.int32)
+    signs = np.array(
+        [
+            [-1, -1, -1],
+            [1, -1, -1],
+            [1, 1, -1],
+            [-1, 1, -1],
+            [-1, -1, 1],
+            [1, -1, 1],
+            [1, 1, 1],
+            [-1, 1, 1],
+        ],
+        dtype=np.float64,
+    )
+    faces = np.array(
+        [
+            [0, 1, 2],
+            [0, 2, 3],
+            [4, 6, 5],
+            [4, 7, 6],
+            [0, 4, 5],
+            [0, 5, 1],
+            [1, 5, 6],
+            [1, 6, 2],
+            [2, 6, 7],
+            [2, 7, 3],
+            [3, 7, 4],
+            [3, 4, 0],
+        ],
+        dtype=np.int32,
+    )
     allowed = set(profile.get("allowed_contact_surfaces") or [])
     out = []
     for index, box in enumerate(boxes):
@@ -233,7 +256,13 @@ def _keep_out_boxes(profile: dict[str, Any]) -> list[dict[str, Any]]:
             continue
         center = np.array([float(box["center"][key]) for key in ("x", "y", "z")])
         half = 0.5 * np.array([float(box["size"][key]) for key in ("x", "y", "z")])
-        out.append({"name": name, "vertices": (center + signs * half).astype(np.float32), "faces": faces.copy()})
+        out.append(
+            {
+                "name": name,
+                "vertices": (center + signs * half).astype(np.float32),
+                "faces": faces.copy(),
+            }
+        )
     return out
 
 
@@ -261,7 +290,9 @@ def _vec(value: dict[str, float]) -> np.ndarray:
     return np.array([value[k] for k in ("x", "y", "z")], dtype=np.float64)
 
 
-def _select_profile(target_kind: str, collision_profiles: list[dict[str, Any]] | None) -> dict[str, Any]:
+def _select_profile(
+    target_kind: str, collision_profiles: list[dict[str, Any]] | None
+) -> dict[str, Any]:
     if not collision_profiles:
         return {}
     profiles = {str(item["source_kind"]): item for item in collision_profiles}
@@ -312,7 +343,12 @@ def run(
     profile = _select_profile(target_kind, collision_profiles)
     strategy = str(profile.get("strategy", "rgbd_mesh"))
     if strategy == "disabled":
-        return {"world_config": {"meshes": []}, "mesh_names": [], "removed_mesh_names": [], "strategy": strategy}
+        return {
+            "world_config": {"meshes": []},
+            "mesh_names": [],
+            "removed_mesh_names": [],
+            "strategy": strategy,
+        }
     if strategy != "rgbd_mesh":
         raise ValueError(f"unsupported collision-world strategy {strategy!r}")
     exclusions = profile.get("excluded_masks") or {}
@@ -337,15 +373,22 @@ def run(
     for index, camera in enumerate(cameras):
         if camera.get("name") == mask_camera_name:
             if exclusions.get("target", True):
-                object_masks.append({"name": "grasp_target", "mask": target_mask, "camera_index": index})
+                object_masks.append(
+                    {"name": "grasp_target", "mask": target_mask, "camera_index": index}
+                )
             # A fixture mask is excluded as before; a profile may also say the
             # fixture is an allowed contact surface, which means the same thing.
             if fixture_mask is not None and (not profile or "fixture_mask" in allowed_surfaces):
                 contact_mask = np.asarray(fixture_mask, dtype=np.uint8)
                 # Some geometric fixture detectors return a full-frame mask as
                 # a placeholder. Excluding that would erase the entire world.
-                if contact_mask.shape == camera["depth"].shape and float(np.mean(contact_mask > 0)) < 0.5:
-                    object_masks.append({"name": "contact_fixture", "mask": contact_mask, "camera_index": index})
+                if (
+                    contact_mask.shape == camera["depth"].shape
+                    and float(np.mean(contact_mask > 0)) < 0.5
+                ):
+                    object_masks.append(
+                        {"name": "contact_fixture", "mask": contact_mask, "camera_index": index}
+                    )
         elif target_description and exclusions.get("cross_view_target", True):
             # Reconstruction happens before grasping. If the target is
             # removed only from one view, its returns in the others become a
@@ -354,15 +397,24 @@ def run(
                 ctx, camera, target_description, float(exclusions.get("target_score_min", 0.08))
             )
             if target_view is not None:
-                object_masks.append({"name": f"grasp_target_view_{index}", "mask": target_view, "camera_index": index})
+                object_masks.append(
+                    {
+                        "name": f"grasp_target_view_{index}",
+                        "mask": target_view,
+                        "camera_index": index,
+                    }
+                )
         if exclusions.get("robot", True):
             robot_mask = _visible_robot_mask(
-                ctx, camera,
+                ctx,
+                camera,
                 list(exclusions.get("robot_queries") or ["robot arm", "robot gripper"]),
                 float(exclusions.get("robot_score_min", 0.10)),
             )
             if robot_mask is not None:
-                object_masks.append({"name": f"robot_view_{index}", "mask": robot_mask, "camera_index": index})
+                object_masks.append(
+                    {"name": f"robot_view_{index}", "mask": robot_mask, "camera_index": index}
+                )
     if robot_spheres is None:
         # Capture robot geometry with the same observation. Unlike a
         # segmentation mask, this includes occluded and visually ambiguous
@@ -405,16 +457,20 @@ def run(
         extent = np.ptp(vertices, axis=0) if len(vertices) else np.zeros(3)
         depth_edge_sliver = bool(
             0 < len(vertices) <= max_vertices
-            and ((float(extent.min()) < sheet_thickness and float(extent.max()) < sparse_span)
-                 or (compact_span > 0.0 and float(extent.max()) < compact_span))
+            and (
+                (float(extent.min()) < sheet_thickness and float(extent.max()) < sparse_span)
+                or (compact_span > 0.0 and float(extent.max()) < compact_span)
+            )
         )
         # Invalid/far depth from an oblique or wrist camera can back-project
         # into a giant sheet near z=0. It is not part of the workcell, but a
         # collision checker treats it as a real wall or floor.
         invalid_depth_sheet = bool(
             len(vertices)
-            and ((floor_z > 0.0 and float(vertices[:, 2].max()) < floor_z)
-                 or (scene_span > 0.0 and float(extent.max()) > scene_span))
+            and (
+                (floor_z > 0.0 and float(vertices[:, 2].max()) < floor_z)
+                or (scene_span > 0.0 and float(extent.max()) > scene_span)
+            )
         )
         if depth_edge_sliver or invalid_depth_sheet:
             removed.append(str(mesh.get("name", f"mesh_{index}")))
@@ -429,7 +485,9 @@ def run(
         outward = float(corridor.get("axis_sign", outward_sign)) * _vec(fixture_axis)
         outward /= max(float(np.linalg.norm(outward)), 1.0e-12)
         meshes = _carve_approach_tube(
-            meshes, _vec(fixture_tip), outward,
+            meshes,
+            _vec(fixture_tip),
+            outward,
             axial_min=float(corridor.get("axial_min_m", -0.012)),
             axial_max=float(corridor.get("axial_max_m", 0.25)),
             radius=float(corridor.get("radius_m", 0.055)),
@@ -450,4 +508,9 @@ def run(
     mesh_names = [str(mesh["name"]) for mesh in meshes if mesh.get("name")]
     if not mesh_names:
         mesh_names = list(response.get("mesh_names") or [])
-    return {"world_config": config, "mesh_names": mesh_names, "removed_mesh_names": removed, "strategy": strategy}
+    return {
+        "world_config": config,
+        "mesh_names": mesh_names,
+        "removed_mesh_names": removed,
+        "strategy": strategy,
+    }

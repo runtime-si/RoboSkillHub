@@ -102,10 +102,7 @@ def _resolve_vertex_project() -> str:
     """``GAP_VLM_PROJECT_ID`` > ``GOOGLE_CLOUD_PROJECT`` (the documented
     google-genai knob). Empty string when unset — the caller raises with
     the install hint."""
-    return (
-        _envstr("GAP_VLM_PROJECT_ID")
-        or _envstr("GOOGLE_CLOUD_PROJECT")
-    )
+    return _envstr("GAP_VLM_PROJECT_ID") or _envstr("GOOGLE_CLOUD_PROJECT")
 
 
 def _resolve_vertex_region() -> str:
@@ -117,6 +114,7 @@ def _resolve_vertex_region() -> str:
         or _envstr("GOOGLE_CLOUD_LOCATION")
         or "global"
     )
+
 
 _MAX_TOKENS = 1024  # ported from the source servicer
 _MAX_RETRIES = 3
@@ -145,8 +143,7 @@ def _validate_image(image: np.ndarray) -> np.ndarray:
     arr = np.asarray(image)
     if arr.dtype != np.uint8 or arr.ndim != 3 or arr.shape[2] != 3:
         raise ValueError(
-            f"vlm expects a uint8 [H, W, 3] RGB array, got dtype={arr.dtype} "
-            f"shape={arr.shape}"
+            f"vlm expects a uint8 [H, W, 3] RGB array, got dtype={arr.dtype} shape={arr.shape}"
         )
     return arr
 
@@ -160,9 +157,7 @@ def _png_b64(image: np.ndarray) -> str:
         return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
-def _gather_images(
-    image: np.ndarray | None, images: list | None
-) -> list[np.ndarray]:
+def _gather_images(image: np.ndarray | None, images: list | None) -> list[np.ndarray]:
     arrays: list[np.ndarray] = []
     if image is not None:
         arrays.append(image)
@@ -189,10 +184,12 @@ def _query_openrouter(prompt: str, images: list[np.ndarray], model: str | None) 
 
     content: list[dict] = [{"type": "text", "text": prompt}]
     for arr in images:
-        content.append({
-            "type": "image_url",
-            "image_url": {"url": f"data:image/png;base64,{_png_b64(arr)}"},
-        })
+        content.append(
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/png;base64,{_png_b64(arr)}"},
+            }
+        )
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": content}],
@@ -219,15 +216,17 @@ def _query_openrouter(prompt: str, images: list[np.ndarray], model: str | None) 
                 last_exc = exc
                 logger.warning(
                     "VLM request failed (attempt %d/%d, chat_url=%s): %s",
-                    attempt + 1, _MAX_RETRIES, chat_url, exc,
+                    attempt + 1,
+                    _MAX_RETRIES,
+                    chat_url,
+                    exc,
                 )
                 if attempt < _MAX_RETRIES - 1:
-                    time.sleep(_BACKOFF_S * (2 ** attempt))
+                    time.sleep(_BACKOFF_S * (2**attempt))
 
     raise ToolError(
         "vlm",
-        f"backend unavailable after {_MAX_RETRIES} attempts: "
-        f"chat_url={chat_url}, error={last_exc}",
+        f"backend unavailable after {_MAX_RETRIES} attempts: chat_url={chat_url}, error={last_exc}",
     )
 
 
@@ -268,27 +267,36 @@ def _query_vertex(prompt: str, images: list[np.ndarray], model: str | None) -> s
     client = genai.Client(vertexai=True, project=project_id, location=region)
     parts: list = [prompt]
     for arr in images:
-        parts.append(types.Part.from_bytes(
-            data=base64.b64decode(_png_b64(arr)), mime_type="image/png",
-        ))
+        parts.append(
+            types.Part.from_bytes(
+                data=base64.b64decode(_png_b64(arr)),
+                mime_type="image/png",
+            )
+        )
     config = types.GenerateContentConfig(
-        temperature=_TEMPERATURE, max_output_tokens=_MAX_TOKENS,
+        temperature=_TEMPERATURE,
+        max_output_tokens=_MAX_TOKENS,
     )
     last_exc: Exception | None = None
     for attempt in range(_MAX_RETRIES):
         try:
             response = client.models.generate_content(
-                model=model, contents=parts, config=config,
+                model=model,
+                contents=parts,
+                config=config,
             )
             return response.text or ""
         except Exception as exc:  # noqa: BLE001 — transient API errors
             last_exc = exc
             logger.warning(
                 "VLM vertex request failed (attempt %d/%d, model=%s): %s",
-                attempt + 1, _MAX_RETRIES, model, exc,
+                attempt + 1,
+                _MAX_RETRIES,
+                model,
+                exc,
             )
             if attempt < _MAX_RETRIES - 1:
-                time.sleep(_BACKOFF_S * (2 ** attempt))
+                time.sleep(_BACKOFF_S * (2**attempt))
     raise ToolError(
         "vlm",
         f"vertex backend unavailable after {_MAX_RETRIES} attempts: "
@@ -367,8 +375,7 @@ def query(
 #: such a false "No" rejects a correct exterior pick and forces a degraded
 #: single-view wrist fallback — the G1 cream-cheese failure mode.
 _YES_NO_INSTRUCTION = (
-    " Answer with the single word YES or NO first, then one short "
-    "sentence of justification."
+    " Answer with the single word YES or NO first, then one short sentence of justification."
 )
 
 _YES_NO_WORD = re.compile(r"\b(yes|no)\b")

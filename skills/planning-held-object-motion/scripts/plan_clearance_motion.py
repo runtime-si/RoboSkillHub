@@ -73,8 +73,9 @@ def _resolve_profile(
     return dict(profiles[target_kind])
 
 
-def _leg(pose: dict[str, Any], mode: str, profile: dict[str, Any], *, speed_key: str,
-         **fixed: Any) -> dict[str, Any]:
+def _leg(
+    pose: dict[str, Any], mode: str, profile: dict[str, Any], *, speed_key: str, **fixed: Any
+) -> dict[str, Any]:
     """One waypoint: the fixed keys always, the profile-driven keys only when named."""
     leg: dict[str, Any] = {"pose": pose, "mode": mode, "cartesian": mode == "contact_transition"}
     leg.update(fixed)
@@ -139,8 +140,11 @@ def run(
         escape_pose = _pose(current_position + escape * normal, current_rotation)
         if strategy == "direct":
             transit = {
-                "pose": approach_pose, "mode": "planned_joint", "cartesian": False,
-                "allow_start_contact": True, "max_attempts": 3,
+                "pose": approach_pose,
+                "mode": "planned_joint",
+                "cartesian": False,
+                "allow_start_contact": True,
+                "max_attempts": 3,
             }
             time_scale = float(profile.get("time_scale", 2.0))
         else:
@@ -152,7 +156,10 @@ def run(
             # conservative attachment fit are omitted for this monotone
             # free-space segment.
             transit = _leg(
-                approach_pose, "contact_transition", profile, speed_key="transit_speed_scale",
+                approach_pose,
+                "contact_transition",
+                profile,
+                speed_key="transit_speed_scale",
                 use_attachment=bool(profile.get("use_attachment", False)),
                 use_world=bool(profile.get("use_world", False)),
                 max_attempts=int(profile.get("max_attempts", 3)),
@@ -264,22 +271,51 @@ def run(
     # A profile may ask for the in-place rotation, or the transit, to be a
     # Cartesian transition instead of a planned leg when the local volume is
     # known to be clear; unasked, both are planned as they always were.
-    reorient_mode = "contact_transition" if bool(profile.get("cartesian_reorient", False)) else "planned_joint"
-    transit_mode = "contact_transition" if bool(profile.get("cartesian_transit", False)) else "planned_joint"
+    reorient_mode = (
+        "contact_transition" if bool(profile.get("cartesian_reorient", False)) else "planned_joint"
+    )
+    transit_mode = (
+        "contact_transition" if bool(profile.get("cartesian_transit", False)) else "planned_joint"
+    )
     return {
         "reorientation_plan": {
             **plan_head,
             "time_scale": float(profile.get("time_scale", 2.0)),
             "waypoints": [
-                _leg(_pose(escape_position, current_rotation), "contact_transition", profile,
-                     speed_key="lift_speed_scale"),
-                _leg(rotate_pose, reorient_mode, profile, speed_key="reorient_speed_scale",
-                     use_attachment=bool(profile.get("reorient_use_attachment", False)),
-                     **optional({"use_world": "reorient_use_world", "max_attempts": "max_attempts",
-                                 "cartesian_fallback": "cartesian_fallback"})),
-                _leg(transit_pose, transit_mode, profile, speed_key="transit_speed_scale",
-                     **optional({"use_attachment": "transit_use_attachment", "use_world": "transit_use_world",
-                                 "max_attempts": "max_attempts", "cartesian_fallback": "transit_cartesian_fallback"})),
+                _leg(
+                    _pose(escape_position, current_rotation),
+                    "contact_transition",
+                    profile,
+                    speed_key="lift_speed_scale",
+                ),
+                _leg(
+                    rotate_pose,
+                    reorient_mode,
+                    profile,
+                    speed_key="reorient_speed_scale",
+                    use_attachment=bool(profile.get("reorient_use_attachment", False)),
+                    **optional(
+                        {
+                            "use_world": "reorient_use_world",
+                            "max_attempts": "max_attempts",
+                            "cartesian_fallback": "cartesian_fallback",
+                        }
+                    ),
+                ),
+                _leg(
+                    transit_pose,
+                    transit_mode,
+                    profile,
+                    speed_key="transit_speed_scale",
+                    **optional(
+                        {
+                            "use_attachment": "transit_use_attachment",
+                            "use_world": "transit_use_world",
+                            "max_attempts": "max_attempts",
+                            "cartesian_fallback": "transit_cartesian_fallback",
+                        }
+                    ),
+                ),
             ],
             "world_config": world_config,
             "attached_object": attached_object,

@@ -104,7 +104,9 @@ def run(
     logger.info(
         "[select_short_axis] short_axis_xy=(%+.3f, %+.3f); reordered %d "
         "candidates by gripper-Y alignment; top-5 |cos(align)|=%s",
-        float(short_xy[0]), float(short_xy[1]), n_in,
+        float(short_xy[0]),
+        float(short_xy[1]),
+        n_in,
         ", ".join(f"{s:.3f}" for s in top_scores),
     )
     return {

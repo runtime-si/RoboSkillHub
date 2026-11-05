@@ -48,9 +48,17 @@ def image() -> np.ndarray:
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch: pytest.MonkeyPatch):
-    for var in ("GAP_VLM_PROVIDER", "GAP_VLM_MODEL", "GAP_VLM_BASE_URL",
-                "GAP_VLM_API_KEY", "GAP_VLM_PROJECT_ID", "GAP_VLM_REGION",
-                "GAP_LLM_PROVIDER", "GAP_LLM_MODEL", "OPENROUTER_API_KEY"):
+    for var in (
+        "GAP_VLM_PROVIDER",
+        "GAP_VLM_MODEL",
+        "GAP_VLM_BASE_URL",
+        "GAP_VLM_API_KEY",
+        "GAP_VLM_PROJECT_ID",
+        "GAP_VLM_REGION",
+        "GAP_LLM_PROVIDER",
+        "GAP_LLM_MODEL",
+        "OPENROUTER_API_KEY",
+    ):
         monkeypatch.delenv(var, raising=False)
 
 
@@ -63,7 +71,8 @@ def _mock_openrouter(vlm, monkeypatch, reply: str):
         captured["auth"] = request.headers.get("Authorization")
         captured["payload"] = json.loads(request.content)
         return httpx.Response(
-            200, json={"choices": [{"message": {"content": reply}}]},
+            200,
+            json={"choices": [{"message": {"content": reply}}]},
         )
 
     transport = httpx.MockTransport(handler)
@@ -97,7 +106,8 @@ def test_openrouter_is_default_with_data_url_image(vlm, image, monkeypatch):
     assert url.startswith("data:image/png;base64,")
     raw = base64.b64decode(url.split(",", 1)[1])
     np.testing.assert_array_equal(
-        np.asarray(Image.open(io.BytesIO(raw)).convert("RGB")), image,
+        np.asarray(Image.open(io.BytesIO(raw)).convert("RGB")),
+        image,
     )
 
 
@@ -192,7 +202,9 @@ def test_vertex_provider_routes_gemini_models_to_genai(vlm, image, monkeypatch):
     out = vlm.query(prompt="hi", image=image)
     assert out == {"text": "gemini says hi"}
     assert captured["client_kwargs"] == {
-        "vertexai": True, "project": "test-project", "location": "global",
+        "vertexai": True,
+        "project": "test-project",
+        "location": "global",
     }
     assert captured["model"] == "gemini-3-flash-preview"
     assert captured["contents"][0] == "hi"

@@ -94,7 +94,9 @@ def _tool_axis(pose: dict[str, Any]) -> tuple[float, float, float]:
     return (2.0 * (x * z + w * y), 2.0 * (y * z - w * x), 1.0 - 2.0 * (x * x + y * y))
 
 
-def _orientation_ok(current: dict[str, Any], target: dict[str, Any], honours_roll: bool, tolerance_deg: float) -> bool:
+def _orientation_ok(
+    current: dict[str, Any], target: dict[str, Any], honours_roll: bool, tolerance_deg: float
+) -> bool:
     if honours_roll:
         return _angle_deg(_pose_distance(current, target)[1]) <= tolerance_deg
     axes = zip(_tool_axis(current), _tool_axis(target), strict=True)
@@ -127,7 +129,11 @@ def run(
         arm_id = None if carried is None else int(carried)
     on_arm: dict[str, Any] = {} if arm_id is None else {"arm_id": int(arm_id)}
     if registration_uncertainty_m is None:
-        registration_uncertainty_m = float((attachment or {}).get("translation_uncertainty_m", 0.0)) if isinstance(attachment, dict) else 0.0
+        registration_uncertainty_m = (
+            float((attachment or {}).get("translation_uncertainty_m", 0.0))
+            if isinstance(attachment, dict)
+            else 0.0
+        )
     honours_roll = True
     if verify_cartesian:
         arm = ctx.tool("robot.describe_arm", **on_arm)
@@ -161,20 +167,31 @@ def run(
         final_pose, mode = waypoint["pose"], waypoint.get("mode")
         if mode is None:
             mode = "planned_linear" if waypoint.get("cartesian", False) else "planned_joint"
-        report: dict[str, Any] = {"index": index, "mode": mode, "attempts": 0, "fallback": "none",
-                                  "contact_status": "not_requested"}
+        report: dict[str, Any] = {
+            "index": index,
+            "mode": mode,
+            "attempts": 0,
+            "fallback": "none",
+            "contact_status": "not_requested",
+        }
         if measure_errors:
             distance, dot = _pose_distance(ee_pose(), final_pose)
-            report.update(position_error_before_m=distance, rotation_error_before_deg=_angle_deg(dot))
+            report.update(
+                position_error_before_m=distance, rotation_error_before_deg=_angle_deg(dot)
+            )
         if mode == "contact_seat":
             result = ctx.tool("robot.move_cartesian_until_contact", pose=final_pose, **on_arm)
-            report.update(attempts=1, contact_status=str((result or {}).get("status", "target_or_stall")))
+            report.update(
+                attempts=1, contact_status=str((result or {}).get("status", "target_or_stall"))
+            )
         elif mode == "cartesian_cross":
             # Crossing a fixture mouth must not stop at the first incidental
             # touch. The pose is a short local segment, typically recomputed
             # from the final wrist observation, for which Cartesian servoing
             # is smoother and more repeatable than a new sampled plan.
-            report["attempts"] = cartesian(final_pose, float(profile["cartesian_position_tolerance_m"]))
+            report["attempts"] = cartesian(
+                final_pose, float(profile["cartesian_position_tolerance_m"])
+            )
         elif mode in {"planned_joint", "planned_linear"}:
             # The preceding carry plan normally terminates at the first
             # engagement waypoint. Do not ask the planner to solve a
@@ -182,9 +199,8 @@ def run(
             # check can reject it even though no swept motion is requested.
             current_pose = ee_pose()
             distance, orientation_dot = _pose_distance(current_pose, final_pose)
-            if (
-                distance <= float(profile["skip_position_tolerance_m"])
-                and orientation_dot >= float(profile["skip_min_quaternion_dot"])
+            if distance <= float(profile["skip_position_tolerance_m"]) and orientation_dot >= float(
+                profile["skip_min_quaternion_dot"]
             ):
                 report["fallback"] = "already_reached"
             elif (
@@ -192,14 +208,20 @@ def run(
                 and distance <= float(profile["local_cartesian_max_distance_m"])
                 and orientation_dot >= float(profile["local_cartesian_min_quaternion_dot"])
             ):
-                report["attempts"] = cartesian(final_pose, float(profile["local_cartesian_position_tolerance_m"]))
+                report["attempts"] = cartesian(
+                    final_pose, float(profile["local_cartesian_position_tolerance_m"])
+                )
                 report["fallback"] = "local_cartesian"
                 fallback_count += 1
             else:
                 trajectory = None
-                attempts = max(1, min(int(waypoint.get("max_attempts", profile["planner_attempts"])), 3))
+                attempts = max(
+                    1, min(int(waypoint.get("max_attempts", profile["planner_attempts"])), 3)
+                )
                 for attempt in range(1, attempts + 1):
-                    tool = "motion.plan_linear" if mode == "planned_linear" else "motion.plan_to_pose"
+                    tool = (
+                        "motion.plan_linear" if mode == "planned_linear" else "motion.plan_to_pose"
+                    )
                     inputs = (
                         {"end": final_pose, "orientation": "lock"}
                         if mode == "planned_linear"
@@ -209,10 +231,14 @@ def run(
                         tool,
                         **inputs,
                         world_config=world,
-                        attached_object=attachment if waypoint.get("use_attachment", True) else None,
+                        attached_object=attachment
+                        if waypoint.get("use_attachment", True)
+                        else None,
                         allow_start_contact=bool(waypoint.get("allow_start_contact", False)),
                         allow_goal_contact=bool(waypoint.get("allow_goal_contact", False)),
-                        contact_margin=float(waypoint.get("contact_margin", profile["contact_margin_m"])),
+                        contact_margin=float(
+                            waypoint.get("contact_margin", profile["contact_margin_m"])
+                        ),
                         **on_arm,
                     )
                     trajectory = result.get("trajectory") if result.get("planned") else None

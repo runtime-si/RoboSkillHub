@@ -34,6 +34,7 @@ def _render_overlay(
     """Top-down view of the point cloud with feature axis and jaw direction overlaid."""
     try:
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
@@ -41,7 +42,11 @@ def _render_overlay(
         if len(points) > 0:
             ax.scatter(points[:, 1], points[:, 0], s=2, c="steelblue", alpha=0.4, linewidths=0)
 
-        half = max(0.05, float(np.linalg.norm((points.max(axis=0) - points.min(axis=0))[:2])) * 0.6) if len(points) else 0.1
+        half = (
+            max(0.05, float(np.linalg.norm((points.max(axis=0) - points.min(axis=0))[:2])) * 0.6)
+            if len(points)
+            else 0.1
+        )
         ax.annotate(
             "",
             xy=(center[1] + axis[1] * half, center[0] + axis[0] * half),
@@ -55,7 +60,9 @@ def _render_overlay(
         ax.plot(
             [center[1] - jaw_dir[1] * jaw_half, center[1] + jaw_dir[1] * jaw_half],
             [center[0] - jaw_dir[0] * jaw_half, center[0] + jaw_dir[0] * jaw_half],
-            color="red", lw=2.5, label="jaw close",
+            color="red",
+            lw=2.5,
+            label="jaw close",
         )
 
         ax.plot(center[1], center[0], "o", color="orange", ms=6, zorder=5)
@@ -82,8 +89,12 @@ def _render_overlay(
         plt.close(fig)
         return overlay
     except Exception:
-        import logging, traceback
-        logging.getLogger(__name__).warning("grasp_axis_overlay render failed:\n%s", traceback.format_exc())
+        import logging
+        import traceback
+
+        logging.getLogger(__name__).warning(
+            "grasp_axis_overlay render failed:\n%s", traceback.format_exc()
+        )
         return np.zeros((480, 480, 3), dtype=np.uint8)
 
 
@@ -135,19 +146,14 @@ def run(
         _obs = ctx.tool("robot.get_observation")
         _j7 = float(_obs["arms"][0]["joint_state"]["positions"][-1])
         _ee_r = ctx.tool("robot.get_ee_pose")["pose"]["rotation"]
-        _R_ee = Rotation.from_quat(
-            [_ee_r["x"], _ee_r["y"], _ee_r["z"], _ee_r["w"]]
-        ).as_matrix()
+        _R_ee = Rotation.from_quat([_ee_r["x"], _ee_r["y"], _ee_r["z"], _ee_r["w"]]).as_matrix()
         _R_j16 = _R_ee @ Rotation.from_euler("z", -_j7).as_matrix()
         _u = _R_j16.T @ tool_x
         _j7_prim = float(np.arctan2(_u[1], _u[0]))
         _j7_alt = float(((_j7_prim + np.pi) + np.pi) % (2 * np.pi) - np.pi)
         _prim_ok = abs(_j7_prim) <= _J7_LIM
         _alt_ok = abs(_j7_alt) <= _J7_LIM
-        _use_alt = _alt_ok and (
-            not _prim_ok
-            or abs(_j7_alt - _j7) < abs(_j7_prim - _j7)
-        )
+        _use_alt = _alt_ok and (not _prim_ok or abs(_j7_alt - _j7) < abs(_j7_prim - _j7))
         if _use_alt:
             tool_x = -tool_x
             tool_y = -tool_y
@@ -158,15 +164,22 @@ def run(
     q = Rotation.from_matrix(rotation).as_quat()  # xyzw
     quaternion = {"w": float(q[3]), "x": float(q[0]), "y": float(q[1]), "z": float(q[2])}
 
-    grasp_z = (float(bin_floor_z) + float(grasp_z_offset)) if bin_floor_z is not None \
+    grasp_z = (
+        (float(bin_floor_z) + float(grasp_z_offset))
+        if bin_floor_z is not None
         else float(center[2])
+    )
     grasp_position = np.array([center[0], center[1], grasp_z])
     pregrasp_position = grasp_position - approach * float(standoff)
 
     pts = np.empty((0, 3), dtype=np.float32)
     if target_cloud is not None:
         try:
-            raw = target_cloud.get("points", target_cloud) if isinstance(target_cloud, dict) else target_cloud
+            raw = (
+                target_cloud.get("points", target_cloud)
+                if isinstance(target_cloud, dict)
+                else target_cloud
+            )
             pts = np.asarray(raw, dtype=np.float32).reshape(-1, 3)
             pts = pts[np.isfinite(pts).all(axis=1)]
         except Exception:

@@ -11,7 +11,9 @@ pytest.importorskip("gap_core")
 
 @pytest.fixture(scope="module")
 def p():
-    spec = importlib.util.spec_from_file_location("predicates_tools", REPO / "tools/predicates/tools.py")
+    spec = importlib.util.spec_from_file_location(
+        "predicates_tools", REPO / "tools/predicates/tools.py"
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -46,7 +48,11 @@ def test_resting_on_reads_overlap_and_gap(p):
     table = box((0, 0, -0.01), (0.5, 0.5, 0.01))
     cup = box((0.1, 0, 0.05), (0.03, 0.03, 0.05))
     result = p.resting_on(cup, table)
-    assert result["on"] and result["xy_overlap"] == pytest.approx(1.0) and result["gap_m"] == pytest.approx(0)
+    assert (
+        result["on"]
+        and result["xy_overlap"] == pytest.approx(1.0)
+        and result["gap_m"] == pytest.approx(0)
+    )
     hovering = p.resting_on(box((0.1, 0, 0.2), (0.03, 0.03, 0.05)), table)
     assert hovering["verdict"] == "off" and hovering["gap_m"] == pytest.approx(0.15)
     half_off = p.resting_on(box((0.5, 0, 0.05), (0.03, 0.03, 0.05)), table)

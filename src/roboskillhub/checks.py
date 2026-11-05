@@ -145,7 +145,9 @@ def _io_problems(io: Any) -> list[str]:
         and not isinstance(hz, bool)
         and hz > 0
     ):
-        problems.append("io.action needs space (a name), dim (a positive integer) and hz (a positive number)")
+        problems.append(
+            "io.action needs space (a name), dim (a positive integer) and hz (a positive number)"
+        )
     state = io.get("state")
     if state is not None:
         if not isinstance(state, dict) or not _positive_int(state.get("dim")):
@@ -211,7 +213,9 @@ def check_hub_metadata(
         error("a checkpoint is trained on particular robots: embodiments names them, never [any]")
     io = hub.get("io")
     if kind == "policy" and io is None:
-        error("a policy declares io: the action space and rate, state and cameras it was trained with")
+        error(
+            "a policy declares io: the action space and rate, state and cameras it was trained with"
+        )
     elif io is not None and kind != "policy":
         error("io describes a checkpoint's observations and actions; only a policy declares it")
     elif io is not None:
@@ -286,7 +290,10 @@ def check_bundle(bundle: Bundle, catalog: Catalog, api: GapApi) -> list[Issue]:
                 "name must be lowercase letters and digits joined by single hyphens, at most 64 chars",
             )
         if str(bundle.frontmatter.get("name")) != bundle.name:
-            add("error", f"frontmatter name {bundle.frontmatter.get('name')!r} differs from its directory")
+            add(
+                "error",
+                f"frontmatter name {bundle.frontmatter.get('name')!r} differs from its directory",
+            )
         if not bundle.description or len(bundle.description) > 1024:
             add("error", "description must be present and at most 1024 characters")
 
@@ -302,7 +309,11 @@ def check_bundle(bundle: Bundle, catalog: Catalog, api: GapApi) -> list[Issue]:
 
     out.extend(
         check_hub_metadata(
-            bundle.hub, where=where, kind=bundle.kind, native=bundle.native, derived_tier=bundle.tier
+            bundle.hub,
+            where=where,
+            kind=bundle.kind,
+            native=bundle.native,
+            derived_tier=bundle.tier,
         )
     )
 
@@ -363,11 +374,19 @@ def check_overlays(catalog: Catalog) -> list[Issue]:
         upstream = {b.name for b in catalog.bundles.values() if b.source == pin.name}
         upstream |= {name for name, _, loser in catalog.shadowed if loser == pin.name}
         for name in sorted(set(overlay) - upstream):
-            out.append(Issue("error", pin.overlay, f"overlay names {name!r}, which {pin.name} does not ship"))
+            out.append(
+                Issue(
+                    "error", pin.overlay, f"overlay names {name!r}, which {pin.name} does not ship"
+                )
+            )
         for name in sorted(upstream - set(overlay)):
             if catalog.bundles.get(name) and catalog.bundles[name].source == pin.name:
                 out.append(
-                    Issue("error", pin.overlay, f"{pin.name} ships {name!r}; add its hub metadata here")
+                    Issue(
+                        "error",
+                        pin.overlay,
+                        f"{pin.name} ships {name!r}; add its hub metadata here",
+                    )
                 )
     return out
 
@@ -460,7 +479,11 @@ def check_recipe(recipe: Recipe, catalog: Catalog) -> list[Issue]:
         for key in bundle.required_inputs:
             if key not in available:
                 out.append(
-                    Issue("warning", where, f"node {node!r}: input {key!r} of {bundle.name} has no producer")
+                    Issue(
+                        "warning",
+                        where,
+                        f"node {node!r}: input {key!r} of {bundle.name} has no producer",
+                    )
                 )
 
     hub = recipe.hub
@@ -477,7 +500,19 @@ def check_recipe(recipe: Recipe, catalog: Catalog) -> list[Issue]:
 
 
 PAPER_KEYS = frozenset(
-    {"id", "title", "authors", "year", "venue", "arxiv", "url", "code", "license", "tasks", "derived"}
+    {
+        "id",
+        "title",
+        "authors",
+        "year",
+        "venue",
+        "arxiv",
+        "url",
+        "code",
+        "license",
+        "tasks",
+        "derived",
+    }
 )
 
 
@@ -537,21 +572,33 @@ def check_evals(catalog: Catalog) -> list[Issue]:
                 if not isinstance(record.get(key), kind):
                     out.append(Issue("error", where, f"{key} must be a {kind.__name__}"))
             if record.get("bundle") != bundle.name:
-                out.append(Issue("error", where, "bundle must match the directory it is filed under"))
+                out.append(
+                    Issue("error", where, "bundle must match the directory it is filed under")
+                )
             if record.get("setting") not in ("sim", "real"):
                 out.append(Issue("error", where, "setting is sim or real"))
             episodes, successes = record.get("episodes"), record.get("successes")
-            if isinstance(episodes, int) and isinstance(successes, int) and not 0 <= successes <= episodes:
+            if (
+                isinstance(episodes, int)
+                and isinstance(successes, int)
+                and not 0 <= successes <= episodes
+            ):
                 out.append(Issue("error", where, "successes must lie between 0 and episodes"))
     return out
 
 
-def check_all(catalog: Catalog, api: GapApi | None = None, *, require_gap: bool = False) -> list[Issue]:
+def check_all(
+    catalog: Catalog, api: GapApi | None = None, *, require_gap: bool = False
+) -> list[Issue]:
     api = api or load_gap_api()
     out = list(catalog.issues)
     if not api.available:
         level = "error" if require_gap else "warning"
-        out.append(Issue(level, "engine", f"gap is not importable, engine validation skipped ({api.error})"))
+        out.append(
+            Issue(
+                level, "engine", f"gap is not importable, engine validation skipped ({api.error})"
+            )
+        )
     for name in catalog.missing_sources:
         out.append(Issue("error", name, "source is not synced; run `roboskillhub sync`"))
     for bundle in sorted(catalog.bundles.values(), key=lambda b: (b.source != "hub", b.name)):

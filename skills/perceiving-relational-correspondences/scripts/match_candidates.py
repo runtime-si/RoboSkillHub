@@ -20,13 +20,23 @@ def _center(candidate: dict[str, Any]) -> np.ndarray:
 
 def _pair(source: dict[str, Any], destination: dict[str, Any], confidence: float) -> dict[str, Any]:
     sid, did = str(source["id"]), str(destination["id"])
-    return {"pair_id": f"pair:{sid}->{did}", "source_id": sid,
-            "destination_id": did, "source": source, "destination": destination,
-            "confidence": float(confidence)}
+    return {
+        "pair_id": f"pair:{sid}->{did}",
+        "source_id": sid,
+        "destination_id": did,
+        "source": source,
+        "destination": destination,
+        "confidence": float(confidence),
+    }
 
 
-def run(ctx, sources: list[dict[str, Any]], destinations: list[dict[str, Any]],
-        relation: dict[str, Any], confidence: float = 1.0) -> Output:
+def run(
+    ctx,
+    sources: list[dict[str, Any]],
+    destinations: list[dict[str, Any]],
+    relation: dict[str, Any],
+    confidence: float = 1.0,
+) -> Output:
     del ctx
     if not sources:
         return {"status": "finished", "pairs": []}
@@ -36,7 +46,10 @@ def run(ctx, sources: list[dict[str, Any]], destinations: list[dict[str, Any]],
     if op == "shared_destination":
         if len(destinations) != 1:
             return {"status": "cardinality_mismatch", "pairs": []}
-        return {"status": "paired", "pairs": [_pair(s, destinations[0], confidence) for s in sources]}
+        return {
+            "status": "paired",
+            "pairs": [_pair(s, destinations[0], confidence) for s in sources],
+        }
     if len(sources) != len(destinations):
         return {"status": "cardinality_mismatch", "pairs": []}
     if op == "corresponding_order":
@@ -48,21 +61,40 @@ def run(ctx, sources: list[dict[str, Any]], destinations: list[dict[str, Any]],
         direction = 1.0 if float(relation.get("direction", 1)) >= 0 else -1.0
         ss = sorted(sources, key=lambda x: direction * float(_center(x) @ axis))
         dd = sorted(destinations, key=lambda x: direction * float(_center(x) @ axis))
-        return {"status": "paired", "pairs": [_pair(s, d, confidence) for s, d in zip(ss, dd, strict=False)]}
+        return {
+            "status": "paired",
+            "pairs": [_pair(s, d, confidence) for s, d in zip(ss, dd, strict=False)],
+        }
     if op == "nearest":
-        best = min(permutations(destinations), key=lambda order: sum(
-            float(np.linalg.norm(_center(s) - _center(d))) for s, d in zip(sources, order, strict=False)))
-        return {"status": "paired", "pairs": [_pair(s, d, confidence) for s, d in zip(sources, best, strict=False)]}
+        best = min(
+            permutations(destinations),
+            key=lambda order: sum(
+                float(np.linalg.norm(_center(s) - _center(d)))
+                for s, d in zip(sources, order, strict=False)
+            ),
+        )
+        return {
+            "status": "paired",
+            "pairs": [_pair(s, d, confidence) for s, d in zip(sources, best, strict=False)],
+        }
     ids = relation.get("pairs") or []
     source_by_id = {str(x["id"]): x for x in sources}
     destination_by_id = {str(x["id"]): x for x in destinations}
     if len(ids) != len(sources):
         return {"status": "ambiguous", "pairs": []}
     try:
-        pairs = [_pair(source_by_id[str(x["source_id"])],
-                       destination_by_id[str(x["destination_id"])], confidence) for x in ids]
+        pairs = [
+            _pair(
+                source_by_id[str(x["source_id"])],
+                destination_by_id[str(x["destination_id"])],
+                confidence,
+            )
+            for x in ids
+        ]
     except KeyError:
         return {"status": "ambiguous", "pairs": []}
-    if len({x["source_id"] for x in pairs}) != len(pairs) or len({x["destination_id"] for x in pairs}) != len(pairs):
+    if len({x["source_id"] for x in pairs}) != len(pairs) or len(
+        {x["destination_id"] for x in pairs}
+    ) != len(pairs):
         return {"status": "ambiguous", "pairs": []}
     return {"status": "paired", "pairs": pairs}

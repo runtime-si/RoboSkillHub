@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from gap_core.errors import PerceptionFailed
 from gap.testing import make_test_observation
+from gap_core.errors import PerceptionFailed
 
 # A denser image than the (120, 160) default so back-projected point spacing
 # (~depth/fx ≈ 3 mm) stays below the DBSCAN eps (5 mm).
@@ -21,9 +21,7 @@ _CUBE_SIZE = (0.06, 0.06, 0.06)
 
 @pytest.fixture(scope="module")
 def scene():
-    obs, gt = make_test_observation(
-        [("cube", _CUBE_CENTER, _CUBE_SIZE)], image_hw=_IMAGE_HW
-    )
+    obs, gt = make_test_observation([("cube", _CUBE_CENTER, _CUBE_SIZE)], image_hw=_IMAGE_HW)
     return obs, gt
 
 
@@ -133,9 +131,7 @@ def test_fit_planar_feature_recovers_tilted_ring(tool_registry):
     x_axis /= np.linalg.norm(x_axis)
     y_axis = np.cross(normal, x_axis)
     radius = 0.027
-    points = center + radius * (
-        np.cos(angles)[:, None] * x_axis + np.sin(angles)[:, None] * y_axis
-    )
+    points = center + radius * (np.cos(angles)[:, None] * x_axis + np.sin(angles)[:, None] * y_axis)
     out = tool_registry.invoke(
         "geometry.fit_planar_feature",
         points={"points": points.astype(np.float32)},
@@ -209,9 +205,7 @@ def _gt_obb():
 
 
 def test_top_down_grasp_candidates_above_obb(tool_registry):
-    out = tool_registry.invoke(
-        "geometry.top_down_grasp_candidates", obb=_gt_obb(), z_offset=-0.01
-    )
+    out = tool_registry.invoke("geometry.top_down_grasp_candidates", obb=_gt_obb(), z_offset=-0.01)
     poses = out["candidates"]["poses"]
 
     # 6 cm cube: neither tall (>0.08) nor flat (<0.04) → 2 legacy + 23 fan.
@@ -263,9 +257,7 @@ def test_top_down_grasp_candidates_tall_obb_strictly_top_down(tool_registry):
     asymmetrically and slips during transport (the measured G1 grocery
     failure mode). All candidates stay straight top-down — matching the
     winning acceptance pipeline."""
-    out = tool_registry.invoke(
-        "geometry.top_down_grasp_candidates", obb=_obb_with_height(0.14)
-    )
+    out = tool_registry.invoke("geometry.top_down_grasp_candidates", obb=_obb_with_height(0.14))
     poses = out["candidates"]["poses"]
     assert len(poses) == 25  # 2 legacy + 23 yaw/depth fan, no pitch grasps
     for pose in poses:
@@ -277,9 +269,7 @@ def test_top_down_grasp_candidates_tall_obb_strictly_top_down(tool_registry):
 def test_top_down_grasp_candidates_flat_obb_keeps_pitch_grasps(tool_registry):
     """Flat boxes (perception often sees only the top face) keep the four
     +-30 degree pitched side-grasps appended after the top-down fan."""
-    out = tool_registry.invoke(
-        "geometry.top_down_grasp_candidates", obb=_obb_with_height(0.03)
-    )
+    out = tool_registry.invoke("geometry.top_down_grasp_candidates", obb=_obb_with_height(0.03))
     poses = out["candidates"]["poses"]
     assert len(poses) == 29  # 25 top-down + 4 pitched side-grasps
     pitched = [p for p in poses if not _is_straight_down(p["rotation"], tol_deg=5.0)]
@@ -287,9 +277,7 @@ def test_top_down_grasp_candidates_flat_obb_keeps_pitch_grasps(tool_registry):
 
 
 def test_top_down_grasp_from_obb_clamps_to_table(tool_registry):
-    out = tool_registry.invoke(
-        "geometry.top_down_grasp_from_obb", obb=_gt_obb(), z_offset=-1.0
-    )
+    out = tool_registry.invoke("geometry.top_down_grasp_from_obb", obb=_gt_obb(), z_offset=-1.0)
     assert out["pose"]["position"]["z"] == pytest.approx(-0.05)  # _TABLE_Z_MIN
 
 
@@ -299,21 +287,21 @@ def test_top_down_grasp_from_obb_clamps_to_table(tool_registry):
 
 
 def test_iou_units(tool_registry):
-    assert tool_registry.invoke(
-        "geometry.iou", box_a=[0, 0, 2, 2], box_b=[1, 1, 3, 3]
-    )["iou"] == pytest.approx(1.0 / 7.0)
-    assert tool_registry.invoke(
-        "geometry.iou", box_a=[0, 0, 1, 1], box_b=[2, 2, 3, 3]
-    )["iou"] == 0.0
-    assert tool_registry.invoke(
-        "geometry.iou", box_a=[0, 0, 1, 1], box_b=[0, 0, 1, 1]
-    )["iou"] == pytest.approx(1.0)
+    assert tool_registry.invoke("geometry.iou", box_a=[0, 0, 2, 2], box_b=[1, 1, 3, 3])[
+        "iou"
+    ] == pytest.approx(1.0 / 7.0)
+    assert (
+        tool_registry.invoke("geometry.iou", box_a=[0, 0, 1, 1], box_b=[2, 2, 3, 3])["iou"] == 0.0
+    )
+    assert tool_registry.invoke("geometry.iou", box_a=[0, 0, 1, 1], box_b=[0, 0, 1, 1])[
+        "iou"
+    ] == pytest.approx(1.0)
 
 
 def test_pose_distance_units(tool_registry):
-    assert tool_registry.invoke(
-        "geometry.pose_distance", a=[0, 0, 0], b=[3, 4, 12]
-    )["distance"] == pytest.approx(13.0)
+    assert tool_registry.invoke("geometry.pose_distance", a=[0, 0, 0], b=[3, 4, 12])[
+        "distance"
+    ] == pytest.approx(13.0)
     with pytest.raises(ValueError):
         tool_registry.invoke("geometry.pose_distance", a=[0, 0], b=[1, 1, 1])
 
@@ -331,19 +319,21 @@ def test_world_clustering_preserves_multiple_disconnected_surfaces():
     from gap_skills.tools.geometry import _impl
 
     rng = np.random.default_rng(4)
-    table = np.column_stack([
-        rng.uniform(-0.4, 0.4, 500),
-        rng.uniform(-0.3, 0.3, 500),
-        np.full(500, 0.73),
-    ])
-    board = np.column_stack([
-        np.full(300, 0.9),
-        rng.uniform(-0.3, 0.3, 300),
-        rng.uniform(0.75, 1.25, 300),
-    ])
-    clusters = _impl._significant_clusters(
-        np.concatenate([table, board]), eps=0.09, min_samples=4
+    table = np.column_stack(
+        [
+            rng.uniform(-0.4, 0.4, 500),
+            rng.uniform(-0.3, 0.3, 500),
+            np.full(500, 0.73),
+        ]
     )
+    board = np.column_stack(
+        [
+            np.full(300, 0.9),
+            rng.uniform(-0.3, 0.3, 300),
+            rng.uniform(0.75, 1.25, 300),
+        ]
+    )
+    clusters = _impl._significant_clusters(np.concatenate([table, board]), eps=0.09, min_samples=4)
     assert len(clusters) == 2
     assert sum(len(cluster) for cluster in clusters) == 800
 

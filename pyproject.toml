@@ -55,8 +55,21 @@ markers = [
 addopts = "-m 'not network and not gpu and not llm'"
 
 [tool.ruff]
-line-length = 110
+line-length = 100
 target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+# Line length is the formatter's call; what it leaves long is prose and prompts.
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# The warp compatibility shim must run before the curobo imports, and the
+# availability probes import modules only to learn whether they import.
+"tools/curobo/_curobo_impl.py" = ["E402", "F401"]
+# Vendored TrackDLO (MIT, see LICENSE.trackdlo), kept byte-close to its upstream
+# so it diffs cleanly; for the same reason it is never formatted.
+"tools/curve/_trackdlo.py" = ["B007", "E741", "F401", "F841", "I001", "UP032"]
+
+[tool.ruff.format]
+exclude = ["tools/curve/_trackdlo.py"]

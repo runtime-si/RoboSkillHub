@@ -138,9 +138,7 @@ def run(
             # backend that reports nothing is trusted, on the same rule as the
             # position gate: a missing diagnostic is not a failure.
             try:
-                turn = ctx.tool(
-                    "motion.plan_joint", pose=pose, arm_id=arm_id, orientation="lock"
-                )
+                turn = ctx.tool("motion.plan_joint", pose=pose, arm_id=arm_id, orientation="lock")
                 roll_off = _roll_error(turn)
                 if roll_off is not None and roll_off > _ROLL_TOLERANCE_RAD:
                     continue

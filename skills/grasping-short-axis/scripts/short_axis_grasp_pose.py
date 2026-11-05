@@ -126,8 +126,11 @@ def run(
             "%.4f (OBB centre_z=%.4f, OBB vertical full_extent=%.4f, "
             "z_offset=%.3f). Clamping to OBB centre so the grasp stays in "
             "the object, not the support surface.",
-            raw_z, floor_z, obb_center_z,
-            half_extent[vertical_idx] * 2.0, z_offset,
+            raw_z,
+            floor_z,
+            obb_center_z,
+            half_extent[vertical_idx] * 2.0,
+            z_offset,
         )
         raw_z = floor_z
 
@@ -136,17 +139,27 @@ def run(
         "grasp=(%.4f,%.4f,%.4f) vertical_idx=%d short_idx=%d "
         "short_half_ext=%.4f long_half_ext=%.4f "
         "quat_wxyz=(%.4f,%.4f,%.4f,%.4f)",
-        center[0], center[1], center[2],
-        center[0], center[1], raw_z,
-        vertical_idx, short_idx,
-        half_extent[short_idx], half_extent[long_idx],
-        grasp_quat_wxyz[0], grasp_quat_wxyz[1],
-        grasp_quat_wxyz[2], grasp_quat_wxyz[3],
+        center[0],
+        center[1],
+        center[2],
+        center[0],
+        center[1],
+        raw_z,
+        vertical_idx,
+        short_idx,
+        half_extent[short_idx],
+        half_extent[long_idx],
+        grasp_quat_wxyz[0],
+        grasp_quat_wxyz[1],
+        grasp_quat_wxyz[2],
+        grasp_quat_wxyz[3],
     )
 
     grasp_pose: Se3Pose = {
         "position": {
-            "x": float(center[0]), "y": float(center[1]), "z": float(raw_z),
+            "x": float(center[0]),
+            "y": float(center[1]),
+            "z": float(raw_z),
         },
         "rotation": {
             "w": grasp_quat_wxyz[0],

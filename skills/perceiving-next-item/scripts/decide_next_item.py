@@ -37,6 +37,7 @@ item beside the basket falls inside any reasonable radius and would be dropped.
 ``container_obb`` is accepted (the subgraph wires it) but used only for
 logging — the container-exclusion lives in the perception prompt.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -45,7 +46,6 @@ import os
 import tempfile
 
 import numpy as np
-
 from gap import NodeContext
 
 logger = logging.getLogger(__name__)
@@ -99,8 +99,9 @@ def _vlm_all_packed(ctx: NodeContext) -> bool | None:
             return None
         resp = ctx.tool("vlm.query_yes_no", prompt=_PACKED_PROMPT, image=rgb)
         ans = bool(resp.get("answer"))
-        logger.info("[decide_next_item] VLM all-packed? answer=%s text=%r",
-                    ans, str(resp.get("text"))[:200])
+        logger.info(
+            "[decide_next_item] VLM all-packed? answer=%s text=%r", ans, str(resp.get("text"))[:200]
+        )
         return ans
     except Exception as exc:  # noqa: BLE001  (auth/network/no-bundle -> fall through)
         logger.warning("[decide_next_item] VLM all-packed check failed: %s", exc)
@@ -122,13 +123,10 @@ def _progress_path(ctx: NodeContext | None) -> str:
         tag = hashlib.sha1(str(out_dir).encode()).hexdigest()[:12]
     else:  # no-trace run: fall back to the PID (single episode per process)
         tag = f"pid{os.getpid()}"
-    return os.path.join(
-        tempfile.gettempdir(), f".gap_next_item_progress_{tag}"
-    )
+    return os.path.join(tempfile.gettempdir(), f".gap_next_item_progress_{tag}")
 
 
-def _no_progress(target_xy: tuple[float, float] | None,
-                 ctx: NodeContext | None = None) -> bool:
+def _no_progress(target_xy: tuple[float, float] | None, ctx: NodeContext | None = None) -> bool:
     """UNPRIVILEGED stuck detector, keyed on the perceived target itself.
 
     A successful delivery removes the item, so the next pass perceives a
@@ -145,8 +143,7 @@ def _no_progress(target_xy: tuple[float, float] | None,
             px, py, consec, total = (float(x) for x in f.read().split())
     except Exception:
         pass
-    same = abs(target_xy[0] - px) < _SAME_TARGET_M and \
-        abs(target_xy[1] - py) < _SAME_TARGET_M
+    same = abs(target_xy[0] - px) < _SAME_TARGET_M and abs(target_xy[1] - py) < _SAME_TARGET_M
     consec = consec + 1 if same else 0
     total += 1
     try:
@@ -159,8 +156,11 @@ def _no_progress(target_xy: tuple[float, float] | None,
         return True
     if consec >= _STUCK_LIMIT:
         logger.info(
-            "[decide_next_item] same target (%.3f, %.3f) for %d consecutive "
-            "passes -> none", target_xy[0], target_xy[1], _STUCK_LIMIT)
+            "[decide_next_item] same target (%.3f, %.3f) for %d consecutive passes -> none",
+            target_xy[0],
+            target_xy[1],
+            _STUCK_LIMIT,
+        )
         return True
     return False
 
@@ -183,12 +183,15 @@ def run(
         logger.info(
             "[decide_next_item] completion_rate=%s task_completed=%s perceived_item=%s",
             f"{cr:.3f}" if isinstance(cr, (int, float)) else cr,
-            sc.get("task_completed"), bool(found),
+            sc.get("task_completed"),
+            bool(found),
         )
-        if os.environ.get("GAP_DECIDE_TRUST_ENV", "").lower() in ("1", "true", "yes") \
-                and sc.get("task_completed"):
-            logger.info("[decide_next_item] env task_completed (trusted via "
-                        "GAP_DECIDE_TRUST_ENV) -> none")
+        if os.environ.get("GAP_DECIDE_TRUST_ENV", "").lower() in ("1", "true", "yes") and sc.get(
+            "task_completed"
+        ):
+            logger.info(
+                "[decide_next_item] env task_completed (trusted via GAP_DECIDE_TRUST_ENV) -> none"
+            )
             return {"route": "none"}
     except Exception:
         pass  # non-sim connector (real robot) — telemetry only

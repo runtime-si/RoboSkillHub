@@ -37,8 +37,14 @@ _LABELS = ["A", "B", "C", "D", "E", "F", "G", "H"]
 # back — letters are the contract — but consistent colours help the VLM
 # anchor on each detection).
 _COLORS = [
-    (255, 64, 64), (64, 255, 64), (64, 128, 255), (255, 200, 0),
-    (0, 255, 255), (255, 0, 255), (255, 128, 0), (128, 0, 255),
+    (255, 64, 64),
+    (64, 255, 64),
+    (64, 128, 255),
+    (255, 200, 0),
+    (0, 255, 255),
+    (255, 0, 255),
+    (255, 128, 0),
+    (128, 0, 255),
 ]
 
 
@@ -55,7 +61,8 @@ def _box_xyxy(box: BoundingBox2D) -> tuple[int, int, int, int]:
 
 
 def _draw_set_of_marks(
-    rgb: np.ndarray, detections: list,
+    rgb: np.ndarray,
+    detections: list,
 ) -> np.ndarray:
     """Render letter-labeled boxes onto a copy of ``rgb``.
 
@@ -82,8 +89,14 @@ def _draw_set_of_marks(
         tx2, ty2 = x1 + tw + 8, max(0, y1)
         cv2.rectangle(out, (tx1, ty1), (tx2, ty2), color, -1)
         cv2.putText(
-            out, label, (tx1 + 4, ty2 - 4),
-            font, scale, (255, 255, 255), thick, cv2.LINE_AA,
+            out,
+            label,
+            (tx1 + 4, ty2 - 4),
+            font,
+            scale,
+            (255, 255, 255),
+            thick,
+            cv2.LINE_AA,
         )
     return out
 
@@ -143,8 +156,7 @@ def run(
     terminator signals for the workflow's ``not_found`` exit.
     """
     if not cameras:
-        return {"found": False, "cloud": _empty_cloud(),
-                "mask": _empty_mask(), "score": 0.0}
+        return {"found": False, "cloud": _empty_cloud(), "mask": _empty_mask(), "score": 0.0}
 
     # Pick the first exterior camera (skip wrist). All cameras have
     # ``name`` per the observation contract.
@@ -156,8 +168,10 @@ def run(
     try:
         gd = ctx.tool(
             "grounding-dino.detect",
-            image=cam["rgb"], query=dino_prompt,
-            box_threshold=box_threshold, text_threshold=text_threshold,
+            image=cam["rgb"],
+            query=dino_prompt,
+            box_threshold=box_threshold,
+            text_threshold=text_threshold,
         )
         detections = list(gd["detections"])
     except Exception as e:
@@ -166,8 +180,7 @@ def run(
 
     if not detections:
         logger.info("perceiving-objects-oneshot: no DINO detections -> not_found")
-        return {"found": False, "cloud": _empty_cloud(),
-                "mask": _empty_mask(), "score": 0.0}
+        return {"found": False, "cloud": _empty_cloud(), "mask": _empty_mask(), "score": 0.0}
 
     # All DINO detections are kept as candidates — GroundingDINO already
     # applies its own score/IoU NMS. No skill-level containment filter:
@@ -179,7 +192,8 @@ def run(
     rgb_np = cam["rgb"]
     overlay = _draw_set_of_marks(rgb_np, detections)
     prompt = load_prompt(
-        __package__, "vlm_one_shot",
+        __package__,
+        "vlm_one_shot",
         object_name=object_name,
         object_description=object_description,
     )
@@ -195,48 +209,50 @@ def run(
         logger.info(
             "perceiving-objects-oneshot: VLM picked 'none' (or unparseable) "
             "for '%s' from %d detections -> not_found",
-            object_name, len(detections),
+            object_name,
+            len(detections),
         )
-        return {"found": False, "cloud": _empty_cloud(),
-                "mask": _empty_mask(), "score": 0.0}
+        return {"found": False, "cloud": _empty_cloud(), "mask": _empty_mask(), "score": 0.0}
 
     selected = detections[pick]
     logger.info(
         "perceiving-objects-oneshot: VLM picked box %s for '%s'",
-        _LABELS[pick], object_name,
+        _LABELS[pick],
+        object_name,
     )
 
     try:
         seg = ctx.tool(
             "sam3.segment_box",
-            image=cam["rgb"], box=selected["box"],
+            image=cam["rgb"],
+            box=selected["box"],
         )
     except Exception as e:
         logger.warning("SAM3 segment_box failed: %s", e)
-        return {"found": False, "cloud": _empty_cloud(),
-                "mask": _empty_mask(), "score": 0.0}
+        return {"found": False, "cloud": _empty_cloud(), "mask": _empty_mask(), "score": 0.0}
 
     if not seg["masks"] or not seg["scores"]:
         logger.info("perceiving-objects-oneshot: SAM3 returned no mask -> not_found")
-        return {"found": False, "cloud": _empty_cloud(),
-                "mask": _empty_mask(), "score": 0.0}
+        return {"found": False, "cloud": _empty_cloud(), "mask": _empty_mask(), "score": 0.0}
 
     seg_mask = seg["masks"][0]
     seg_score = float(seg["scores"][0])
 
     cloud = ctx.tool(
         "geometry.mask_to_world_points",
-        mask=seg_mask, depth=cam["depth"],
-        intrinsics=cam["intrinsics"], camera_pose=cam["pose"],
+        mask=seg_mask,
+        depth=cam["depth"],
+        intrinsics=cam["intrinsics"],
+        camera_pose=cam["pose"],
     )["points"]
     num_points = len(cloud["points"])
     if num_points < min_points:
         logger.info(
             "perceiving-objects-oneshot: cloud too small (%d < %d) -> not_found",
-            num_points, min_points,
+            num_points,
+            min_points,
         )
-        return {"found": False, "cloud": _empty_cloud(),
-                "mask": _empty_mask(), "score": 0.0}
+        return {"found": False, "cloud": _empty_cloud(), "mask": _empty_mask(), "score": 0.0}
 
     return {
         "found": True,

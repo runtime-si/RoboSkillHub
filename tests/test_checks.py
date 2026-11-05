@@ -14,8 +14,15 @@ def errors(root):
 
 def test_the_fixture_hub_is_clean(hub):
     catalog = load_catalog(hub)
-    assert sorted(catalog.bundles) == ["grabbing-things", "judge", "peeking-at-sim", "routing-cables"]
-    assert catalog.bundles["judge"].native and catalog.bundles["grabbing-things"].source == "upstream"
+    assert sorted(catalog.bundles) == [
+        "grabbing-things",
+        "judge",
+        "peeking-at-sim",
+        "routing-cables",
+    ]
+    assert (
+        catalog.bundles["judge"].native and catalog.bundles["grabbing-things"].source == "upstream"
+    )
     assert catalog.bundles["peeking-at-sim"].tier == "full"
     assert catalog.bundles["grabbing-things"].tier == "camera_only"
     assert errors(hub) == []
@@ -105,7 +112,9 @@ def test_a_policy_names_its_robot_and_the_io_it_was_trained_with(hub):
     write(path, POLICY.replace("embodiments: [any]", IO))
     assert [e for e in errors(hub) if "picking-cubes" in e] == []
 
-    write(path, POLICY.replace("embodiments: [any]", IO.replace("dim: 7, hz: 30", "dim: 0, hz: 30")))
+    write(
+        path, POLICY.replace("embodiments: [any]", IO.replace("dim: 7, hz: 30", "dim: 0, hz: 30"))
+    )
     assert any("io.action needs space" in e for e in errors(hub))
     write(path, POLICY.replace("embodiments: [any]", IO.replace("[wrist, front]", "[]")))
     assert any("io.cameras must list" in e for e in errors(hub))
@@ -131,8 +140,12 @@ def test_recipe_must_route_every_exit_and_reach_success(hub):
 
 def test_recipe_tier_is_derived_from_its_skills(hub):
     path = hub / "recipes/peek-and-grab/RECIPE.md"
-    path.write_text(path.read_text().replace("embodiments: [any],", "embodiments: [any], tier: camera_only,"))
-    assert any("declares tier 'camera_only' but what it calls makes it 'full'" in e for e in errors(hub))
+    path.write_text(
+        path.read_text().replace("embodiments: [any],", "embodiments: [any], tier: camera_only,")
+    )
+    assert any(
+        "declares tier 'camera_only' but what it calls makes it 'full'" in e for e in errors(hub)
+    )
 
 
 def test_paper_derived_entries_must_exist(hub):
@@ -159,7 +172,10 @@ def test_eval_records_are_validated_and_set_maturity(hub):
     catalog = load_catalog(hub)
     assert catalog.bundles["grabbing-things"].maturity == "sim-verified"
     assert errors(hub) == []
-    write(hub / "evals/grabbing-things/bad.json", json.dumps({**record, "successes": 30, "setting": "lab"}))
+    write(
+        hub / "evals/grabbing-things/bad.json",
+        json.dumps({**record, "successes": 30, "setting": "lab"}),
+    )
     found = errors(hub)
     assert any("between 0 and episodes" in e for e in found)
     assert any("setting is sim or real" in e for e in found)

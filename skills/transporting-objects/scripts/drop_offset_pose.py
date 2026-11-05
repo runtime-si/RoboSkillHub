@@ -78,11 +78,14 @@ def run(
     # full-object centroid AT GRASP TIME. The Z component is intentionally
     # ignored — compute_drop_pose already corrects Z via held_obb extent.z
     # and ee_pose_at_grasp.
-    delta_world_grasp = np.array([
-        parent_obb["center"]["x"] - held_obb["center"]["x"],
-        parent_obb["center"]["y"] - held_obb["center"]["y"],
-        parent_obb["center"]["z"] - held_obb["center"]["z"],
-    ], dtype=np.float64)
+    delta_world_grasp = np.array(
+        [
+            parent_obb["center"]["x"] - held_obb["center"]["x"],
+            parent_obb["center"]["y"] - held_obb["center"]["y"],
+            parent_obb["center"]["z"] - held_obb["center"]["z"],
+        ],
+        dtype=np.float64,
+    )
 
     # The held object is rigid w.r.t. the gripper. In the gripper's local
     # frame the offset is constant; in the world frame it rotates with
@@ -101,7 +104,8 @@ def run(
 
     drop_position = _vec3(corrected_x, corrected_y, corrected_z)
     corrected_drop_pose: Se3Pose = {
-        "position": drop_position, "rotation": drop_pose["rotation"],
+        "position": drop_position,
+        "rotation": drop_pose["rotation"],
     }
     approach_pose: Se3Pose = {
         "position": _vec3(corrected_x, corrected_y, corrected_z + approach_height),

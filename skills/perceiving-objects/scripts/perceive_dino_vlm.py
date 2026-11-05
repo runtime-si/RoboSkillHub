@@ -85,6 +85,7 @@ def _maybe_warn_auth_once(exc: BaseException) -> None:
     _AUTH_HINT_FIRED = True
     logger.warning("VLM call failed (auth): %s\nhint: %s", exc, _AUTH_HINT)
 
+
 _LABELS = ["A", "B", "C", "D", "E", "F", "G", "H"]
 _INTERSECTION_DIST = 0.01
 _MIN_INTERSECTION = 1
@@ -115,10 +116,12 @@ _CACHE_ENABLED = os.environ.get("GAP_PERCEPTION_CACHE", "1") == "1"
 # Default to checkout-local .llm_cache/perceiving-objects/ so cache is
 # per-checkout and easy to wipe. Override with GAP_PERCEPTION_CACHE_DIR.
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-_CACHE_DIR = Path(os.environ.get(
-    "GAP_PERCEPTION_CACHE_DIR",
-    str(_REPO_ROOT / ".llm_cache" / "perceiving-objects"),
-))
+_CACHE_DIR = Path(
+    os.environ.get(
+        "GAP_PERCEPTION_CACHE_DIR",
+        str(_REPO_ROOT / ".llm_cache" / "perceiving-objects"),
+    )
+)
 
 
 def _hash_camera(cam: CameraFrame) -> bytes:
@@ -179,11 +182,9 @@ def _cache_load(key: str) -> Output | None:
     try:
         with p.open("rb") as f:
             d = pickle.load(f)
-        return {"found": d["found"], "cloud": d["cloud"],
-                "mask": d["mask"], "score": d["score"]}
+        return {"found": d["found"], "cloud": d["cloud"], "mask": d["mask"], "score": d["score"]}
     except Exception as exc:  # noqa: BLE001
-        logger.warning("perceiving-objects cache: load failed for %s: %s",
-                       key[:12], exc)
+        logger.warning("perceiving-objects cache: load failed for %s: %s", key[:12], exc)
         return None
 
 
@@ -194,20 +195,21 @@ def _cache_store(key: str, out: Output) -> None:
             {
                 "found": out["found"],
                 "cloud": out["cloud"],
-                "mask":  out["mask"],
+                "mask": out["mask"],
                 "score": out["score"],
             },
             protocol=pickle.HIGHEST_PROTOCOL,
         )
         with tempfile.NamedTemporaryFile(
-            dir=str(_CACHE_DIR), delete=False, suffix=".tmp",
+            dir=str(_CACHE_DIR),
+            delete=False,
+            suffix=".tmp",
         ) as tf:
             tf.write(blob)
             tmp = tf.name
         os.replace(tmp, _CACHE_DIR / f"{key}.pkl")
     except Exception as exc:  # noqa: BLE001
-        logger.warning("perceiving-objects cache: store failed for %s: %s",
-                       key[:12], exc)
+        logger.warning("perceiving-objects cache: store failed for %s: %s", key[:12], exc)
 
 
 def _empty_cloud() -> PointCloud:
@@ -219,8 +221,14 @@ def _empty_mask() -> Mask:
 
 
 _COLORS = [
-    (255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0),
-    (0, 255, 255), (255, 0, 255), (255, 128, 0), (128, 0, 255),
+    (255, 0, 0),
+    (0, 255, 0),
+    (0, 0, 255),
+    (255, 255, 0),
+    (0, 255, 255),
+    (255, 0, 255),
+    (255, 128, 0),
+    (128, 0, 255),
 ]
 
 
@@ -242,7 +250,8 @@ _NMS_FRAGMENT_PX = 80
 
 
 def _drop_contained_detections(
-    detections: list, containment_thresh: float = 0.7,
+    detections: list,
+    containment_thresh: float = 0.7,
     max_small_side: int = _NMS_FRAGMENT_PX,
 ) -> list:
     """Size-bounded containment / Intersection-over-Smaller NMS.
@@ -264,6 +273,7 @@ def _drop_contained_detections(
     the fragment case (a small nested box has low IoU with its big
     parent); IoS / containment is the appropriate metric.
     """
+
     def _area(b: BoundingBox2D) -> float:
         return max(0.0, b["x2"] - b["x1"]) * max(0.0, b["y2"] - b["y1"])
 
@@ -293,8 +303,7 @@ def _drop_contained_detections(
         # Size guard: only drop a *small* contained box (a true fragment).
         # A large legitimate box is kept even when it is contained.
         if contained_in_j >= 0:
-            longest = max(di["box"]["x2"] - di["box"]["x1"],
-                          di["box"]["y2"] - di["box"]["y1"])
+            longest = max(di["box"]["x2"] - di["box"]["x1"], di["box"]["y2"] - di["box"]["y1"])
             if longest >= max_small_side:
                 contained_in_j = -1
         if contained_in_j < 0:
@@ -304,7 +313,9 @@ def _drop_contained_detections(
     if dropped:
         logger.info(
             "containment-NMS dropped %d sub-region boxes (kept %d/%d): %s",
-            len(dropped), len(kept), len(detections),
+            len(dropped),
+            len(kept),
+            len(detections),
             ", ".join(f"{i}<<{j}" for i, j in dropped),
         )
     return kept
@@ -336,12 +347,11 @@ def _upscale_letterbox(crop: np.ndarray, size: int = 384) -> np.ndarray:
     r = cv2.resize(crop, (nw, nh), interpolation=interp)
     canvas = np.full((size, size, 3), 128, np.uint8)
     oy, ox = (size - nh) // 2, (size - nw) // 2
-    canvas[oy:oy + nh, ox:ox + nw] = r
+    canvas[oy : oy + nh, ox : ox + nw] = r
     return canvas
 
 
-def _make_pair_sheet(crop_a: np.ndarray, crop_b: np.ndarray,
-                     tile: int = 384) -> np.ndarray:
+def _make_pair_sheet(crop_a: np.ndarray, crop_b: np.ndarray, tile: int = 384) -> np.ndarray:
     """Two upscaled crops side by side with A / B colored headers."""
     import cv2
 
@@ -351,10 +361,11 @@ def _make_pair_sheet(crop_a: np.ndarray, crop_b: np.ndarray,
     for i, cr in enumerate((crop_a, crop_b)):
         t = _upscale_letterbox(cr, tile)
         cv2.rectangle(t, (0, 0), (tile - 1, 34), _COLORS[i], -1)
-        cv2.putText(t, _LABELS[i], (8, 27), cv2.FONT_HERSHEY_SIMPLEX,
-                    1.0, (255, 255, 255), 3, cv2.LINE_AA)
+        cv2.putText(
+            t, _LABELS[i], (8, 27), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 3, cv2.LINE_AA
+        )
         x = i * cell + pad
-        sheet[pad:pad + tile, x:x + tile] = t
+        sheet[pad : pad + tile, x : x + tile] = t
     return sheet
 
 
@@ -369,7 +380,7 @@ def _tournament(
     crops. Returns the winning index into `detections`, or -1."""
     crops: list[np.ndarray] = []
     keep: list[int] = []
-    for i, det in enumerate(detections[:len(_LABELS)]):
+    for i, det in enumerate(detections[: len(_LABELS)]):
         cr = _crop_region(rgb_np, det["box"])
         if cr is not None:
             crops.append(cr)
@@ -384,12 +395,13 @@ def _tournament(
         nxt: list[int] = []
         for j in range(0, len(bracket), 2):
             if j + 1 >= len(bracket):
-                nxt.append(bracket[j])           # bye
+                nxt.append(bracket[j])  # bye
                 continue
             a, b = bracket[j], bracket[j + 1]
             sheet = _make_pair_sheet(crops[a], crops[b])
             prompt = load_prompt(
-                __package__, "vlm_pairwise",
+                __package__,
+                "vlm_pairwise",
                 object_name=object_name,
                 object_description=object_description,
             )
@@ -420,7 +432,7 @@ class _CamResult:
     cloud: Any
     mask: Any
     score: float
-    box: Any = None          # selected GDINO box (None on segment_text path)
+    box: Any = None  # selected GDINO box (None on segment_text path)
 
 
 def _verify_pick(
@@ -452,14 +464,19 @@ def _verify_pick(
         # rejects correct picks whose upscaled low-res crop reads as a
         # generic object (e.g. the LIBERO cream-cheese box scored "a small
         # book" and the false NO forced the degraded wrist fallback).
-        q += (f" It should look like: {object_description}."
-              " Judge by the described shape and colors; printed text may"
-              " be illegible at this resolution.")
+        q += (
+            f" It should look like: {object_description}."
+            " Judge by the described shape and colors; printed text may"
+            " be illegible at this resolution."
+        )
     try:
         resp = ctx.tool("vlm.query_yes_no", prompt=q, image=img)
         logger.info(
             "verify_pick('%s'): answer=%s text=%r",
-            object_name, resp["answer"], str(resp["text"])[:200])
+            object_name,
+            resp["answer"],
+            str(resp["text"])[:200],
+        )
         return bool(resp["answer"])
     except Exception as first_exc:
         # query_yes_no may be unavailable in a non-canonical vlm bundle;
@@ -471,12 +488,13 @@ def _verify_pick(
         # the wrong object.
         logger.warning(
             "verify_pick: vlm.query_yes_no failed (perceiving-objects), "
-            "falling back to vlm.query: %s", first_exc)
-        resp = ctx.tool("vlm.query",
-                        prompt=q + " Answer YES or NO.", image=img)
+            "falling back to vlm.query: %s",
+            first_exc,
+        )
+        resp = ctx.tool("vlm.query", prompt=q + " Answer YES or NO.", image=img)
         logger.info(
-            "verify_pick('%s') [query fallback]: text=%r",
-            object_name, str(resp["text"])[:200])
+            "verify_pick('%s') [query fallback]: text=%r", object_name, str(resp["text"])[:200]
+        )
         return resp["text"].strip().upper().startswith("Y")
 
 
@@ -527,8 +545,10 @@ def _perceive_single_camera(
         try:
             gdino_resp = ctx.tool(
                 "grounding-dino.detect",
-                image=cam["rgb"], query=dino_prompt,
-                box_threshold=box_threshold, text_threshold=text_threshold,
+                image=cam["rgb"],
+                query=dino_prompt,
+                box_threshold=box_threshold,
+                text_threshold=text_threshold,
             )
             gdino_detections = list(gdino_resp["detections"])
         except Exception as e:
@@ -551,12 +571,16 @@ def _perceive_single_camera(
             # catch sam3.segment_box errors (they have a legitimate
             # fallback to segment_text below).
             selected_idx = _tournament(
-                ctx, rgb_np, gdino_detections,
-                object_name, object_description,
+                ctx,
+                rgb_np,
+                gdino_detections,
+                object_name,
+                object_description,
             )
             logger.info(
                 "VLM tournament selected box %d for '%s' from %d detections",
-                selected_idx, object_name,
+                selected_idx,
+                object_name,
                 min(len(gdino_detections), len(_LABELS)),
             )
 
@@ -566,7 +590,8 @@ def _perceive_single_camera(
                 try:
                     seg_resp = ctx.tool(
                         "sam3.segment_box",
-                        image=cam["rgb"], box=selected_det["box"],
+                        image=cam["rgb"],
+                        box=selected_det["box"],
                     )
                     if seg_resp["masks"] and seg_resp["scores"]:
                         seg_mask = seg_resp["masks"][0]
@@ -574,13 +599,16 @@ def _perceive_single_camera(
                 except Exception as e:
                     logger.warning(
                         "sam3.segment_box failed (perceiving-objects); "
-                        "falling back to segment_text: %s", e)
+                        "falling back to segment_text: %s",
+                        e,
+                    )
 
     if seg_mask is None or seg_score < min_score:
         for prompt in text_prompts:
             seg_resp = ctx.tool(
                 "sam3.segment_text",
-                image=cam["rgb"], query=prompt,
+                image=cam["rgb"],
+                query=prompt,
             )
             if seg_resp["masks"] and seg_resp["scores"] and seg_resp["scores"][0] >= min_score:
                 seg_mask = seg_resp["masks"][0]
@@ -588,14 +616,15 @@ def _perceive_single_camera(
                 break
 
     if seg_mask is None or seg_score < min_score:
-        logger.debug("No acceptable mask for '%s' in cam '%s'",
-                     object_name, cam["name"])
+        logger.debug("No acceptable mask for '%s' in cam '%s'", object_name, cam["name"])
         return None
 
     cloud = ctx.tool(
         "geometry.mask_to_world_points",
-        mask=seg_mask, depth=cam["depth"],
-        intrinsics=cam["intrinsics"], camera_pose=cam["pose"],
+        mask=seg_mask,
+        depth=cam["depth"],
+        intrinsics=cam["intrinsics"],
+        camera_pose=cam["pose"],
     )["points"]
 
     # Strip robot-body points: when the target sits against the robot base
@@ -609,13 +638,16 @@ def _perceive_single_camera(
         before = len(cloud["points"])
         cloud = ctx.tool(
             "geometry.exclude_robot_points",
-            points=cloud, joint_positions=joints,
+            points=cloud,
+            joint_positions=joints,
         )["points"]
         removed = before - len(cloud["points"])
         if removed:
             logger.info(
-                "perceive '%s' cam '%s': excluded %d robot-near points "
-                "(%d remain)", object_name, cam["name"], removed,
+                "perceive '%s' cam '%s': excluded %d robot-near points (%d remain)",
+                object_name,
+                cam["name"],
+                removed,
                 len(cloud["points"]),
             )
     except Exception as exc:
@@ -625,14 +657,16 @@ def _perceive_single_camera(
     if num_points < min_points:
         logger.debug(
             "Too few points (%d < %d) for '%s' in cam '%s'",
-            num_points, min_points, object_name, cam["name"],
+            num_points,
+            min_points,
+            object_name,
+            cam["name"],
         )
         return None
 
     cloud = _extend_cloud_to_support(ctx, cloud, seg_mask, cam)
 
-    return _CamResult(cloud=cloud, mask=seg_mask, score=seg_score,
-                      box=sel_box)
+    return _CamResult(cloud=cloud, mask=seg_mask, score=seg_score, box=sel_box)
 
 
 # ---------------------------------------------------------------------------
@@ -646,7 +680,14 @@ def _perceive_single_camera(
 # cloud points outside it (+ margin). Keyed per-process like the
 # decide_next_item progress guard (one episode == one PID).
 _CONTAINER_WORDS = (
-    "basket", "bin", "box", "container", "tote", "crate", "bowl", "tray",
+    "basket",
+    "bin",
+    "box",
+    "container",
+    "tote",
+    "crate",
+    "bowl",
+    "tray",
     "plate",
 )
 _CONTAINER_ENV_MARGIN_M = 0.015
@@ -672,9 +713,9 @@ def _static_container_anchor(object_name: str, out):
         except Exception:
             pass
         if cached is not None:
-            drift = float(np.linalg.norm(
-                centroid[:2] - np.asarray(cached, dtype=np.float64).mean(axis=0)[:2]
-            ))
+            drift = float(
+                np.linalg.norm(centroid[:2] - np.asarray(cached, dtype=np.float64).mean(axis=0)[:2])
+            )
             if drift < 0.06:
                 # Same (static) container: reuse the FIRST clean sighting's
                 # cloud verbatim. Contents placed in/on it bleed into later
@@ -692,13 +733,15 @@ def _static_container_anchor(object_name: str, out):
                 logger.info(
                     "static-container anchor '%s': reusing first-sighting "
                     "cloud (new sighting drifted %.0f mm)",
-                    object_name, drift * 1000,
+                    object_name,
+                    drift * 1000,
                 )
                 return anchored
             logger.info(
                 "static-container anchor '%s': %.0f mm drift exceeds the "
                 "moved-container gate; refreshing the cached cloud",
-                object_name, drift * 1000,
+                object_name,
+                drift * 1000,
             )
         try:
             np.savez_compressed(path, points=pts.astype(np.float32))
@@ -732,16 +775,17 @@ def _extend_cloud_to_support(ctx, cloud, seg_mask, cam):
         if len(pts) < 20:
             return cloud
         from scipy import ndimage
+
         m = np.asarray(seg_mask) > 0
         ring = ndimage.binary_dilation(m, iterations=_SUPPORT_RING_PX) & ~m
         ring_resp = ctx.tool(
             "geometry.mask_to_world_points",
-            mask=(ring.astype(np.uint8) * 255), depth=cam["depth"],
-            intrinsics=cam["intrinsics"], camera_pose=cam["pose"],
+            mask=(ring.astype(np.uint8) * 255),
+            depth=cam["depth"],
+            intrinsics=cam["intrinsics"],
+            camera_pose=cam["pose"],
         )["points"]
-        ring_pts = np.asarray(
-            ring_resp["points"], dtype=np.float64
-        ).reshape(-1, 3)
+        ring_pts = np.asarray(ring_resp["points"], dtype=np.float64).reshape(-1, 3)
         if len(ring_pts) < 50:
             return cloud
         z = pts[:, 2]
@@ -756,35 +800,29 @@ def _extend_cloud_to_support(ctx, cloud, seg_mask, cam):
         slab = pts[z > z_hi - slab_band]
         if len(slab) < 15:
             return cloud
-        centroid_bias = float(
-            np.linalg.norm(slab[:, :2].mean(axis=0) - pts[:, :2].mean(axis=0))
-        )
+        centroid_bias = float(np.linalg.norm(slab[:, :2].mean(axis=0) - pts[:, :2].mean(axis=0)))
         # Complete column + unbiased -> nothing to fix, skip the ring call.
         if centroid_bias < 0.004 and (z_hi - z_lo) > 0.03:
             return cloud
         from scipy import ndimage
+
         m = np.asarray(seg_mask) > 0
         ring = ndimage.binary_dilation(m, iterations=_SUPPORT_RING_PX) & ~m
         ring_resp = ctx.tool(
             "geometry.mask_to_world_points",
-            mask=(ring.astype(np.uint8) * 255), depth=cam["depth"],
-            intrinsics=cam["intrinsics"], camera_pose=cam["pose"],
+            mask=(ring.astype(np.uint8) * 255),
+            depth=cam["depth"],
+            intrinsics=cam["intrinsics"],
+            camera_pose=cam["pose"],
         )["points"]
-        ring_pts = np.asarray(
-            ring_resp["points"], dtype=np.float64
-        ).reshape(-1, 3)
-        support_z = (
-            float(np.percentile(ring_pts[:, 2], 20.0))
-            if len(ring_pts) >= 50 else z_lo
-        )
+        ring_pts = np.asarray(ring_resp["points"], dtype=np.float64).reshape(-1, 3)
+        support_z = float(np.percentile(ring_pts[:, 2], 20.0)) if len(ring_pts) >= 50 else z_lo
         floating = (float(np.median(z)) - support_z) >= _SUPPORT_GAP_MIN_M
         if centroid_bias < 0.004 and not floating:
             return cloud
         sel_idx = np.arange(len(slab))
         if len(sel_idx) > _SUPPORT_MAX_SYNTH:
-            sel_idx = np.linspace(
-                0, len(slab) - 1, _SUPPORT_MAX_SYNTH
-            ).astype(int)
+            sel_idx = np.linspace(0, len(slab) - 1, _SUPPORT_MAX_SYNTH).astype(int)
         base = slab[sel_idx]
         lo_lv = support_z + 0.002
         hi_lv = max(z_hi - 0.004, lo_lv + 0.001)
@@ -802,14 +840,17 @@ def _extend_cloud_to_support(ctx, cloud, seg_mask, cam):
         if out.get("colors") is not None and len(out["colors"]) == len(pts):
             colors = np.asarray(out["colors"], dtype=np.float32).reshape(-1, 3)
             out["colors"] = np.concatenate(
-                [colors] + [np.full((len(base), 3), colors.mean(axis=0),
-                                    dtype=np.float32)] * n_lv,
+                [colors] + [np.full((len(base), 3), colors.mean(axis=0), dtype=np.float32)] * n_lv,
                 axis=0,
             )
         logger.info(
             "amodal completion: slab-centroid bias %.1f mm, floating=%s -> "
             "extruded %d slab points across %d levels (support_z=%.3f)",
-            centroid_bias * 1000, floating, len(base), n_lv, support_z,
+            centroid_bias * 1000,
+            floating,
+            len(base),
+            n_lv,
+            support_z,
         )
         return out
     except Exception as exc:
@@ -839,24 +880,23 @@ def _merge_multiview(results: list[_CamResult]) -> PointCloud:
         dists, _ = tree.query(pts_b)
         intersection = int(np.sum(dists < _INTERSECTION_DIST))
         logger.info(
-            "Multiview intersection: %d points within %.0fmm "
-            "(views have %d and %d points)",
-            intersection, _INTERSECTION_DIST * 1000,
-            len(pts_a), len(pts_b),
+            "Multiview intersection: %d points within %.0fmm (views have %d and %d points)",
+            intersection,
+            _INTERSECTION_DIST * 1000,
+            len(pts_a),
+            len(pts_b),
         )
         do_merge = intersection >= _MIN_INTERSECTION
 
     if do_merge:
         all_points = np.concatenate(
-            [np.asarray(r.cloud["points"], dtype=np.float32).reshape(-1, 3)
-             for r in results],
+            [np.asarray(r.cloud["points"], dtype=np.float32).reshape(-1, 3) for r in results],
             axis=0,
         )
         merged: PointCloud = {"points": all_points}
         if all(r.cloud.get("colors") is not None for r in results):
             merged["colors"] = np.concatenate(
-                [np.asarray(r.cloud["colors"], dtype=np.float32).reshape(-1, 3)
-                 for r in results],
+                [np.asarray(r.cloud["colors"], dtype=np.float32).reshape(-1, 3) for r in results],
                 axis=0,
             )
         return merged
@@ -885,13 +925,13 @@ def _clouds_intersect(anchor_pts: np.ndarray, cloud: PointCloud) -> bool:
         return False
     dists, _ = cKDTree(anchor_pts).query(pts)
     n = int(np.sum(dists < _INTERSECTION_DIST))
-    logger.info("wrist-support intersection: %d points within %.0fmm",
-                n, _INTERSECTION_DIST * 1000)
+    logger.info("wrist-support intersection: %d points within %.0fmm", n, _INTERSECTION_DIST * 1000)
     return n >= _MIN_INTERSECTION
 
 
 def _filter_wrist_to_anchor(
-    anchor_pts: np.ndarray, cloud: PointCloud,
+    anchor_pts: np.ndarray,
+    cloud: PointCloud,
 ) -> np.ndarray:
     """Return only the wrist points within ``_INTERSECTION_DIST`` of the
     anchor — the corrected fusion semantics.
@@ -946,16 +986,21 @@ def _segment_wrist_by_projection(
         H, W = np.asarray(cam["depth"]).shape
         inb = (u >= 0) & (u < W) & (v >= 0) & (v < H)
         if int(inb.sum()) < 10:
-            logger.info("wrist-support: object not visible in '%s' "
-                        "(%d projected px in bounds)", cam["name"], inb.sum())
+            logger.info(
+                "wrist-support: object not visible in '%s' (%d projected px in bounds)",
+                cam["name"],
+                inb.sum(),
+            )
             return None
         u, v = u[inb], v[inb]
         x1, x2 = np.percentile(u, [2, 98])
         y1, y2 = np.percentile(v, [2, 98])
         pad = 0.15 * max(x2 - x1, y2 - y1)
         box: BoundingBox2D = {
-            "x1": float(max(0.0, x1 - pad)), "y1": float(max(0.0, y1 - pad)),
-            "x2": float(min(W - 1.0, x2 + pad)), "y2": float(min(H - 1.0, y2 + pad)),
+            "x1": float(max(0.0, x1 - pad)),
+            "y1": float(max(0.0, y1 - pad)),
+            "x2": float(min(W - 1.0, x2 + pad)),
+            "y2": float(min(H - 1.0, y2 + pad)),
         }
         seg = ctx.tool("sam3.segment_box", image=cam["rgb"], box=box)
         if not seg["masks"] or not seg["scores"] or seg["scores"][0] < min_score:
@@ -963,14 +1008,17 @@ def _segment_wrist_by_projection(
         mask, score = seg["masks"][0], seg["scores"][0]
         cloud = ctx.tool(
             "geometry.mask_to_world_points",
-            mask=mask, depth=cam["depth"],
-            intrinsics=cam["intrinsics"], camera_pose=cam["pose"],
+            mask=mask,
+            depth=cam["depth"],
+            intrinsics=cam["intrinsics"],
+            camera_pose=cam["pose"],
         )["points"]
         try:
             obs = ctx.tool("robot.get_observation")
             cloud = ctx.tool(
                 "geometry.exclude_robot_points",
-                points=cloud, joint_positions=obs["arms"][0]["joint_state"],
+                points=cloud,
+                joint_positions=obs["arms"][0]["joint_state"],
             )["points"]
         except Exception as exc:  # noqa: BLE001
             logger.warning("wrist-support robot-point exclusion skipped: %s", exc)
@@ -1051,27 +1099,42 @@ def run(
     object_description = ""
     cache_key: str | None = None
     if _CACHE_ENABLED:
-        cache_key = _make_cache_key(cameras, {
-            "object_name": object_name,
-            "text_prompts": sorted(text_prompts) if text_prompts else None,
-            "min_points": min_points,
-            "min_score": min_score,
-            "use_multiview": use_multiview,
-            "box_threshold": box_threshold,
-            "text_threshold": text_threshold,
-            "dino_prompt": dino_prompt,
-            "object_description": object_description,
-        })
+        cache_key = _make_cache_key(
+            cameras,
+            {
+                "object_name": object_name,
+                "text_prompts": sorted(text_prompts) if text_prompts else None,
+                "min_points": min_points,
+                "min_score": min_score,
+                "use_multiview": use_multiview,
+                "box_threshold": box_threshold,
+                "text_threshold": text_threshold,
+                "dino_prompt": dino_prompt,
+                "object_description": object_description,
+            },
+        )
         hit = _cache_load(cache_key)
         if hit is not None:
-            logger.info("perceiving-objects cache HIT key=%s found=%s score=%.3f",
-                        cache_key[:12], hit["found"], hit["score"])
+            logger.info(
+                "perceiving-objects cache HIT key=%s found=%s score=%.3f",
+                cache_key[:12],
+                hit["found"],
+                hit["score"],
+            )
             return _static_container_anchor(object_name, hit)
         logger.info("perceiving-objects cache MISS key=%s", cache_key[:12])
 
     out = _run_uncached(
-        ctx, cameras, object_name, text_prompts, min_points, min_score,
-        use_multiview, box_threshold, text_threshold, dino_prompt,
+        ctx,
+        cameras,
+        object_name,
+        text_prompts,
+        min_points,
+        min_score,
+        use_multiview,
+        box_threshold,
+        text_threshold,
+        dino_prompt,
         object_description,
     )
     if cache_key is not None and out["found"]:
@@ -1100,33 +1163,38 @@ def _run_uncached(
         out: list[tuple[Any, _CamResult]] = []
         for cam in cams:
             r = _perceive_single_camera(
-                ctx, cam, object_name, text_prompts, min_score, min_points,
-                box_threshold, text_threshold, dino_prompt,
-                object_description, run_identify=run_identify,
+                ctx,
+                cam,
+                object_name,
+                text_prompts,
+                min_score,
+                min_points,
+                box_threshold,
+                text_threshold,
+                dino_prompt,
+                object_description,
+                run_identify=run_identify,
             )
             if r is not None:
                 out.append((cam, r))
         return out
 
-    def _finish(results: list[_CamResult],
-                anchor: _CamResult | None = None) -> Output:
+    def _finish(results: list[_CamResult], anchor: _CamResult | None = None) -> Output:
         if not results:
-            return {"found": False, "cloud": _empty_cloud(),
-                    "mask": _empty_mask(), "score": 0.0}
-        cloud = (_merge_multiview(results)
-                 if use_multiview and len(results) > 1
-                 else results[0].cloud)
+            return {"found": False, "cloud": _empty_cloud(), "mask": _empty_mask(), "score": 0.0}
+        cloud = (
+            _merge_multiview(results) if use_multiview and len(results) > 1 else results[0].cloud
+        )
         # When an anchor result is given (the verified exterior pick), its
         # mask/score stay authoritative — wrist masks live in a moving
         # camera frame and must never reach downstream consumers that
         # project masks through the static exterior camera (build_world).
-        best = anchor if anchor is not None else max(results,
-                                                     key=lambda r: r.score)
-        return {"found": True, "cloud": cloud,
-                "mask": best.mask, "score": best.score}
+        best = anchor if anchor is not None else max(results, key=lambda r: r.score)
+        return {"found": True, "cloud": cloud, "mask": best.mask, "score": best.score}
 
     def _collect_wrist_support(
-        wrist_cams_, ext_results: list[_CamResult],
+        wrist_cams_,
+        ext_results: list[_CamResult],
     ) -> list[_CamResult]:
         """Dev-era multiview fusion, anchored on the verified exterior
         pick: gather wrist-view clouds of the SAME object so the fused
@@ -1137,9 +1205,14 @@ def _run_uncached(
         edge and slip). A wrist result is fused ONLY when its cloud
         intersects the exterior cloud (the dev multiview guard), so a
         mis-segmented wrist view can never displace the verified pick."""
-        anchor_pts = np.concatenate(
-            [_cloud_pts(r.cloud) for r in ext_results], axis=0,
-        ) if ext_results else np.zeros((0, 3))
+        anchor_pts = (
+            np.concatenate(
+                [_cloud_pts(r.cloud) for r in ext_results],
+                axis=0,
+            )
+            if ext_results
+            else np.zeros((0, 3))
+        )
         support: list[_CamResult] = []
         for wcam in wrist_cams_:
             try:
@@ -1147,19 +1220,26 @@ def _run_uncached(
                 r = None
                 try:
                     r = _perceive_single_camera(
-                        ctx, wcam, object_name, text_prompts, min_score,
-                        min_points, box_threshold, text_threshold,
-                        dino_prompt, object_description, run_identify=False,
+                        ctx,
+                        wcam,
+                        object_name,
+                        text_prompts,
+                        min_score,
+                        min_points,
+                        box_threshold,
+                        text_threshold,
+                        dino_prompt,
+                        object_description,
+                        run_identify=False,
                     )
                 except Exception as exc:  # noqa: BLE001
                     logger.warning(
-                        "wrist-support: segment_text path failed on '%s': %s",
-                        wcam.get("name"), exc)
+                        "wrist-support: segment_text path failed on '%s': %s", wcam.get("name"), exc
+                    )
                 if r is None or not _clouds_intersect(anchor_pts, r.cloud):
                     # Geometry-guided fallback: seed SAM with the exterior
                     # cloud's projection into the wrist camera.
-                    r = _segment_wrist_by_projection(
-                        ctx, wcam, anchor_pts, min_score, min_points)
+                    r = _segment_wrist_by_projection(ctx, wcam, anchor_pts, min_score, min_points)
                 if r is None:
                     continue
                 if _clouds_intersect(anchor_pts, r.cloud):
@@ -1170,8 +1250,7 @@ def _run_uncached(
                     # corrupt the OBB centroid (LIBERO milk-carton run
                     # 20260616_012843: cloud X span 20 cm vs 8 cm true,
                     # OBB offset → empty grasp).
-                    filtered_pts = _filter_wrist_to_anchor(
-                        anchor_pts, r.cloud)
+                    filtered_pts = _filter_wrist_to_anchor(anchor_pts, r.cloud)
                     if len(filtered_pts) < _MIN_INTERSECTION:
                         continue
                     fused_cloud: PointCloud = {
@@ -1180,16 +1259,21 @@ def _run_uncached(
                     logger.info(
                         "wrist-support: fusing wrist view '%s' "
                         "(%d/%d points after intersect filter, score=%.3f)",
-                        wcam["name"], len(filtered_pts),
-                        len(r.cloud["points"]), r.score)
-                    support.append(_CamResult(
-                        cloud=fused_cloud, mask=r.mask,
-                        score=r.score, box=r.box,
-                    ))
+                        wcam["name"],
+                        len(filtered_pts),
+                        len(r.cloud["points"]),
+                        r.score,
+                    )
+                    support.append(
+                        _CamResult(
+                            cloud=fused_cloud,
+                            mask=r.mask,
+                            score=r.score,
+                            box=r.box,
+                        )
+                    )
             except Exception as exc:  # noqa: BLE001 — support is best-effort
-                logger.warning(
-                    "wrist-support: skipping wrist view '%s': %s",
-                    wcam.get("name"), exc)
+                logger.warning("wrist-support: skipping wrist view '%s': %s", wcam.get("name"), exc)
         return support
 
     wrist_cams = [c for c in cameras if _is_wrist(c)]
@@ -1204,11 +1288,8 @@ def _run_uncached(
     ext = _collect(ext_cams, True)
     if ext:
         bc, br = max(ext, key=lambda cr: cr[1].score)
-        if _verify_pick(ctx, bc["rgb"], br.box,
-                        object_name, object_description, default=True):
-            logger.info(
-                "safe gate: exterior pick verified for '%s' -> exterior",
-                object_name)
+        if _verify_pick(ctx, bc["rgb"], br.box, object_name, object_description, default=True):
+            logger.info("safe gate: exterior pick verified for '%s' -> exterior", object_name)
             ext_results = [r for _, r in ext]
             support = _collect_wrist_support(wrist_cams, ext_results)
             return _finish(ext_results + support, anchor=br)
@@ -1222,12 +1303,13 @@ def _run_uncached(
     logger.warning(
         "safe gate: exterior pick rejected by close-up verify for '%s' "
         "(object_description=%r) -> trying wrist fallback",
-        object_name, object_description)
+        object_name,
+        object_description,
+    )
     wr = _collect(wrist_cams, True)
     if wr:
         wc, wrr = max(wr, key=lambda cr: cr[1].score)
-        if _verify_pick(ctx, wc["rgb"], wrr.box,
-                        object_name, object_description, default=False):
+        if _verify_pick(ctx, wc["rgb"], wrr.box, object_name, object_description, default=False):
             logger.info("safe gate: wrist pick verified -> wrist")
             return _finish([wrr])
 
@@ -1235,6 +1317,8 @@ def _run_uncached(
     # any, else fall back to the legacy exterior segment_text net (never
     # fuse an unverified wrist — that is the regressing behavior).
     fallback = [r for _, r in ext] or [r for _, r in _collect(ext_cams, None)]
-    logger.info("safe gate: no verified pick; using conservative exterior "
-                "fallback (%d result(s))", len(fallback))
+    logger.info(
+        "safe gate: no verified pick; using conservative exterior fallback (%d result(s))",
+        len(fallback),
+    )
     return _finish(fallback)

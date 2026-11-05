@@ -110,7 +110,7 @@ def _skeleton_geodesic(thin: np.ndarray) -> np.ndarray:
     rows: list[int] = []
     cols: list[int] = []
     weights: list[float] = []
-    for dv, du, cost in ((0, 1, 1.0), (1, -1, 2.0 ** 0.5), (1, 0, 1.0), (1, 1, 2.0 ** 0.5)):
+    for dv, du, cost in ((0, 1, 1.0), (1, -1, 2.0**0.5), (1, 0, 1.0), (1, 1, 2.0**0.5)):
         valid = (vv + dv < thin.shape[0]) & (uu + du >= 0) & (uu + du < thin.shape[1])
         src = np.nonzero(valid)[0]
         dst = ids[vv[src] + dv, uu[src] + du]
@@ -123,7 +123,9 @@ def _skeleton_geodesic(thin: np.ndarray) -> np.ndarray:
     ends = np.flatnonzero(np.diff(graph.indptr) == 1)
     if len(ends) < 2:
         return np.zeros((0, 2))
-    distances, predecessors = dijkstra(graph, directed=False, indices=ends, return_predecessors=True)
+    distances, predecessors = dijkstra(
+        graph, directed=False, indices=ends, return_predecessors=True
+    )
     distances = np.where(np.isfinite(distances), distances, -1.0)
     ei, target = np.unravel_index(int(np.argmax(distances)), distances.shape)
     source = int(ends[ei])

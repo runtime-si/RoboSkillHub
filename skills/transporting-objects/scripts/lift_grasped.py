@@ -16,7 +16,7 @@ from gap_core.types import OrientedBoundingBox, Quaternion, Se3Pose
 # Margins used when target_obb is provided. Kept inside the skill so a single
 # file owns them; callers don't need to reason about safe heights.
 _OBB_LIFT_CLEARANCE = 0.05  # meters above OBB top
-_MIN_LIFT_DELTA = 0.10      # meters above current EE (lower bound)
+_MIN_LIFT_DELTA = 0.10  # meters above current EE (lower bound)
 
 
 class Output(TypedDict):

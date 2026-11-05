@@ -2,10 +2,14 @@
 through the mouth, which is also where the crate is about to fall; so the jaws
 crack open, both hands back out along the crate's own mouth direction, and then
 sweep outboard past the crate's ends, up, and toward the robot, ahead of the fall."""
-import math, os, sys
+
+import math
+import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from gap import NodeContext
 import tipcommon as T
+from gap import NodeContext
 
 EXIT = 0.06
 ESCAPE = (-0.05, 0.10, 0.06)
@@ -15,7 +19,7 @@ def run(ctx: NodeContext, arms: list, theta_cmd: float, phi: float = -1.0) -> di
     st = T.crate_state(ctx)
     phi = float(phi) if phi > 0 else T.PHI
     th = math.radians(max(st["theta"], theta_cmd))
-    m = {"x": -math.sin(th), "z": math.cos(th)}   # the crate's mouth direction: the only way out
+    m = {"x": -math.sin(th), "z": math.cos(th)}  # the crate's mouth direction: the only way out
     pins = {}
     for arm in arms:
         p = ctx.tool("robot.get_ee_pose", arm_id=arm["arm_id"])["pose"]["position"]
@@ -35,7 +39,13 @@ def run(ctx: NodeContext, arms: list, theta_cmd: float, phi: float = -1.0) -> di
         tracks = {}
         for arm in arms:
             rot, _ = T.frame(ctx, arm, phi)
-            pj = ctx.tool("motion.plan_joint", pose=T.pose_dict(esc[arm["name"]], rot), arm_id=arm["arm_id"], orientation="axis", num_waypoints=12)
+            pj = ctx.tool(
+                "motion.plan_joint",
+                pose=T.pose_dict(esc[arm["name"]], rot),
+                arm_id=arm["arm_id"],
+                orientation="axis",
+                num_waypoints=12,
+            )
             tracks[str(arm["arm_id"])] = [w["positions"] for w in pj["trajectory"]["waypoints"]]
         ctx.tool("robot.stream_dual", tracks=tracks, tolerance=0.02, settle_steps=0)
     ctx.tool("robot.wait_steps", steps=90)

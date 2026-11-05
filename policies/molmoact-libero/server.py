@@ -19,10 +19,14 @@ import sys
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--checkpoint", required=True,
-                        help="HF or local checkpoint path (e.g., allenai/MolmoAct-7B-D-LIBERO-0812)")
-    parser.add_argument("--port", type=int, required=True,
-                        help="TCP port to bind the websocket server on")
+    parser.add_argument(
+        "--checkpoint",
+        required=True,
+        help="HF or local checkpoint path (e.g., allenai/MolmoAct-7B-D-LIBERO-0812)",
+    )
+    parser.add_argument(
+        "--port", type=int, required=True, help="TCP port to bind the websocket server on"
+    )
     args = parser.parse_args()
     sys.stderr.write(
         "molmoact-libero/server.py is a placeholder — implement the vLLM-style "

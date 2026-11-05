@@ -20,8 +20,7 @@ def _tool_bundles(skills_registry):
 
 def test_every_tool_bundle_declares_requires(skills_registry):
     undeclared = [
-        info.name for info in _tool_bundles(skills_registry)
-        if info.meta.requires is None
+        info.name for info in _tool_bundles(skills_registry) if info.meta.requires is None
     ]
     assert not undeclared, (
         f"tool bundles without a gap.requires block: {undeclared} — "
@@ -47,8 +46,7 @@ def test_gpu_tagged_bundles_declare_gpu_requirement(skills_registry):
         if "gpu" in info.meta.tags:
             req = info.meta.requires
             assert req is not None and req.gpu, (
-                f"{info.name} is gpu-tagged but does not declare "
-                f"gap.requires.gpu: true"
+                f"{info.name} is gpu-tagged but does not declare gap.requires.gpu: true"
             )
 
 
@@ -67,8 +65,6 @@ def test_molmo_requirement_matches_implementation(skills_registry):
     """The declared env var is the one tools.py actually reads."""
     req = skills_registry.get("molmo").meta.requires
     assert req is not None and req.env == ["GAP_MOLMO_BASE_URL"]
-    source = (
-        skills_registry.get("molmo").bundle_dir / "tools.py"
-    ).read_text(encoding="utf-8")
+    source = (skills_registry.get("molmo").bundle_dir / "tools.py").read_text(encoding="utf-8")
     assert "GAP_MOLMO_BASE_URL" in source
     assert "GAP_MOLMO_BASE_URL" in os.environ or True  # env-independent test
