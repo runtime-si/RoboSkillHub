@@ -195,8 +195,15 @@ def _model_points(model_path: str, model_scale: float) -> np.ndarray:
     return float(model_scale) * points
 
 
-def _refine_in_plane(observed: np.ndarray, initial: np.ndarray, profile: dict[str, Any], *,
-                     cutoff_m: float, max_total_m: float, reducer) -> tuple[np.ndarray | None, float, int]:
+def _refine_in_plane(
+    observed: np.ndarray,
+    initial: np.ndarray,
+    profile: dict[str, Any],
+    *,
+    cutoff_m: float,
+    max_total_m: float,
+    reducer,
+) -> tuple[np.ndarray | None, float, int]:
     """Translate a CAD pose in its own plane until wrist depth agrees with it.
 
     The gripper hides part of a held object and a wrist depth image sees one
@@ -239,12 +246,16 @@ def _refine_in_plane(observed: np.ndarray, initial: np.ndarray, profile: dict[st
 
 def _refine_scissors_from_wrist(observed, initial, profile):
     """Recover in-plane settling without letting one-sided depth move the plane."""
-    return _refine_in_plane(observed, initial, profile, cutoff_m=0.010, max_total_m=0.020, reducer=np.median)
+    return _refine_in_plane(
+        observed, initial, profile, cutoff_m=0.010, max_total_m=0.020, reducer=np.median
+    )
 
 
 def _refine_wrench_from_wrist(observed, initial, profile):
     """Refine only observable translation from the partial wrist views."""
-    return _refine_in_plane(observed, initial, profile, cutoff_m=0.012, max_total_m=0.015, reducer=np.mean)
+    return _refine_in_plane(
+        observed, initial, profile, cutoff_m=0.012, max_total_m=0.015, reducer=np.mean
+    )
 
 
 def _scissors_pose_from_feature(functional_feature: dict[str, Any]) -> np.ndarray:
@@ -261,7 +272,9 @@ def _feature_from_scissors_pose(scissors: np.ndarray, local_center) -> np.ndarra
     return result
 
 
-def _initial_wrench_pose(reference_cloud: dict[str, Any], feature: np.ndarray, profile: dict[str, Any]) -> np.ndarray:
+def _initial_wrench_pose(
+    reference_cloud: dict[str, Any], feature: np.ndarray, profile: dict[str, Any]
+) -> np.ndarray:
     points = _points(reference_cloud)
     center, ring = np.median(points, axis=0), feature[:3, 3]
     normal = feature[:3, 2]
@@ -301,7 +314,9 @@ def _register_wrench_cad(observed: np.ndarray, initial: np.ndarray, profile: dic
         pose = delta @ pose
         inliers = int(np.count_nonzero(keep))
         rmse = float(np.sqrt(np.mean(np.square(distances[keep]))))
-        if np.linalg.norm(delta[:3, 3]) < 2e-5 and Rotation.from_matrix(delta[:3, :3]).magnitude() < np.deg2rad(0.05):
+        if np.linalg.norm(delta[:3, 3]) < 2e-5 and Rotation.from_matrix(
+            delta[:3, :3]
+        ).magnitude() < np.deg2rad(0.05):
             break
     translation_jump = float(np.linalg.norm(pose[:3, 3] - initial[:3, 3]))
     rotation_jump = float(Rotation.from_matrix(pose[:3, :3] @ initial[:3, :3].T).magnitude())
@@ -310,8 +325,9 @@ def _register_wrench_cad(observed: np.ndarray, initial: np.ndarray, profile: dic
     return pose, rmse, inliers
 
 
-def _anchor_wrench_plane(pose: np.ndarray, coarse: np.ndarray, reference_points: np.ndarray,
-                         profile: dict[str, Any]) -> np.ndarray:
+def _anchor_wrench_plane(
+    pose: np.ndarray, coarse: np.ndarray, reference_points: np.ndarray, profile: dict[str, Any]
+) -> np.ndarray:
     """Keep ICP's in-plane fit but recover plane normal/thickness from RGB-D.
 
     A flat object gives weak point-to-point constraints along its thickness,
@@ -351,7 +367,9 @@ def _feature_from_wrench_pose(wrench: np.ndarray, profile: dict[str, Any]) -> np
     y_axis = np.cross(z_axis, x_axis)
     result = np.eye(4)
     result[:3, :3] = np.column_stack((x_axis, y_axis, z_axis))
-    result[:3, 3] = wrench[:3, :3] @ np.asarray(profile["feature_local"], dtype=np.float64) + wrench[:3, 3]
+    result[:3, 3] = (
+        wrench[:3, :3] @ np.asarray(profile["feature_local"], dtype=np.float64) + wrench[:3, 3]
+    )
     return result
 
 
@@ -370,27 +388,47 @@ def _recover_loop_from_overview(ctx, cameras, predicted, description, profile):
     for camera in cameras:
         if str(camera.get("name", "")) not in camera_names:
             continue
-        result = ctx.tool("sam3.segment_text", image=camera["rgb"], query=description,
-                          max_results=int(profile.get("overview_max_results", 3)))
-        for mask, raw_score in zip(result.get("masks") or [], result.get("scores") or [], strict=False):
+        result = ctx.tool(
+            "sam3.segment_text",
+            image=camera["rgb"],
+            query=description,
+            max_results=int(profile.get("overview_max_results", 3)),
+        )
+        for mask, raw_score in zip(
+            result.get("masks") or [], result.get("scores") or [], strict=False
+        ):
             score = float(raw_score)
             if score < float(profile.get("overview_minimum_score", 0.05)):
                 continue
-            cloud = ctx.tool("geometry.mask_to_world_points", mask=np.asarray(mask, dtype=np.uint8),
-                             depth=camera["depth"], intrinsics=camera["intrinsics"], camera_pose=camera["pose"])["points"]
+            cloud = ctx.tool(
+                "geometry.mask_to_world_points",
+                mask=np.asarray(mask, dtype=np.uint8),
+                depth=camera["depth"],
+                intrinsics=camera["intrinsics"],
+                camera_pose=camera["pose"],
+            )["points"]
             if len(_points(cloud)) < 20:
                 continue
             try:
-                fit = ctx.tool("geometry.fit_planar_feature", points=cloud,
-                               normal_hint={"x": float(normal[0]), "y": float(normal[1]), "z": float(normal[2])},
-                               fit_circle_center=True)
+                fit = ctx.tool(
+                    "geometry.fit_planar_feature",
+                    points=cloud,
+                    normal_hint={
+                        "x": float(normal[0]),
+                        "y": float(normal[1]),
+                        "z": float(normal[2]),
+                    },
+                    fit_circle_center=True,
+                )
             except Exception:
                 continue
             # A distant planar loop localises its centre well, but its normal
             # and in-plane roll are ambiguous under partial occlusion: keep the
             # rigid prior orientation and take only the associated centre.
             observed = predicted.copy()
-            center = np.array([fit["pose"]["position"][key] for key in ("x", "y", "z")], dtype=np.float64)
+            center = np.array(
+                [fit["pose"]["position"][key] for key in ("x", "y", "z")], dtype=np.float64
+            )
             jump = float(np.linalg.norm(center - predicted[:3, 3]))
             if jump <= maximum_jump:
                 observed[:3, 3] = center
@@ -410,15 +448,26 @@ def _wrist_clouds(ctx, cameras, wrist_name, profile, world_tcp, *, remote_fallba
     for camera in wrists:
         if camera.get("name") != wrist_name and (clouds or not remote_fallback):
             break
-        result = ctx.tool("sam3.segment_text", image=camera["rgb"], query=str(profile["query"]),
-                          max_results=int(profile.get("max_results", 3)))
+        result = ctx.tool(
+            "sam3.segment_text",
+            image=camera["rgb"],
+            query=str(profile["query"]),
+            max_results=int(profile.get("max_results", 3)),
+        )
         localized = []
-        for mask, raw_score in zip(result.get("masks") or [], result.get("scores") or [], strict=False):
+        for mask, raw_score in zip(
+            result.get("masks") or [], result.get("scores") or [], strict=False
+        ):
             score = float(raw_score)
             if score < 0.08:
                 continue
-            cloud = ctx.tool("geometry.mask_to_world_points", mask=np.asarray(mask, dtype=np.uint8),
-                             depth=camera["depth"], intrinsics=camera["intrinsics"], camera_pose=camera["pose"])["points"]
+            cloud = ctx.tool(
+                "geometry.mask_to_world_points",
+                mask=np.asarray(mask, dtype=np.uint8),
+                depth=camera["depth"],
+                intrinsics=camera["intrinsics"],
+                camera_pose=camera["pose"],
+            )["points"]
             array = _points(cloud)
             if len(array) < 40:
                 continue
@@ -432,7 +481,9 @@ def _wrist_clouds(ctx, cameras, wrist_name, profile, world_tcp, *, remote_fallba
             clouds.append(array)
             scores.append(score)
             if camera.get("name") != wrist_name:
-                print(f"[register_held] active wrist occluded; using {camera.get('name')} remote observation")
+                print(
+                    f"[register_held] active wrist occluded; using {camera.get('name')} remote observation"
+                )
     return clouds, scores
 
 
@@ -476,54 +527,87 @@ def run(
     carry = np.eye(4)
     if grasp_pose is not None:
         carry = world_tcp @ np.linalg.inv(_matrix(grasp_pose))
-    reference = _transform_cloud(reference_cloud, carry) if grasp_pose is not None else reference_cloud
+    reference = (
+        _transform_cloud(reference_cloud, carry) if grasp_pose is not None else reference_cloud
+    )
 
     # ---- CAD-backed pre-passes (profile-driven) ----------------------------
     wrench_registration = None
     wrench_confidence = 0.0
     preserve_wrench_prior = False
     if strategy == "cad_distal_loop":
-        clouds, scores = _wrist_clouds(ctx, cameras, wrist_name, profile, world_tcp, remote_fallback=True)
+        clouds, scores = _wrist_clouds(
+            ctx, cameras, wrist_name, profile, world_tcp, remote_fallback=True
+        )
         if clouds:
             if prior_object_in_tcp is not None:
                 initial = world_tcp @ _matrix(prior_object_in_tcp)
             else:
-                coarse = _initial_wrench_pose(reference_cloud, _matrix(functional_feature["pose"]), profile)
-                initial, ref_rmse, ref_inliers = _register_wrench_cad(_points(reference_cloud), coarse, profile)
+                coarse = _initial_wrench_pose(
+                    reference_cloud, _matrix(functional_feature["pose"]), profile
+                )
+                initial, ref_rmse, ref_inliers = _register_wrench_cad(
+                    _points(reference_cloud), coarse, profile
+                )
                 if initial is None:
                     initial = coarse
-                    print(f"[register_held] pre-grasp CAD ICP rejected: rmse={1000 * ref_rmse:.2f}mm inliers={ref_inliers}")
+                    print(
+                        f"[register_held] pre-grasp CAD ICP rejected: rmse={1000 * ref_rmse:.2f}mm inliers={ref_inliers}"
+                    )
                 else:
-                    initial = _anchor_wrench_plane(initial, coarse, _points(reference_cloud), profile)
-                    print(f"[register_held] pre-grasp CAD ICP accepted: rmse={1000 * ref_rmse:.2f}mm inliers={ref_inliers}")
-            wrench_registration, rmse, inliers = _refine_wrench_from_wrist(np.vstack(clouds), initial, profile)
+                    initial = _anchor_wrench_plane(
+                        initial, coarse, _points(reference_cloud), profile
+                    )
+                    print(
+                        f"[register_held] pre-grasp CAD ICP accepted: rmse={1000 * ref_rmse:.2f}mm inliers={ref_inliers}"
+                    )
+            wrench_registration, rmse, inliers = _refine_wrench_from_wrist(
+                np.vstack(clouds), initial, profile
+            )
             if wrench_registration is not None:
                 wrench_confidence = max(scores) * float(np.exp(-rmse / 0.006))
-                print(f"[register_held] wrist CAD refinement accepted: rmse={1000 * rmse:.2f}mm inliers={inliers} confidence={wrench_confidence:.3f}")
+                print(
+                    f"[register_held] wrist CAD refinement accepted: rmse={1000 * rmse:.2f}mm inliers={inliers} confidence={wrench_confidence:.3f}"
+                )
             elif prior_object_in_tcp is None:
                 # First pass: the pre-grasp CAD estimate is still the safest
                 # prior; the generic loop fitter below may still correct it.
                 wrench_registration, wrench_confidence = initial, 0.25
-                print(f"[register_held] wrist CAD refinement rejected; preserving pre-grasp CAD prior: rmse={1000 * rmse:.2f}mm inliers={inliers}")
+                print(
+                    f"[register_held] wrist CAD refinement rejected; preserving pre-grasp CAD prior: rmse={1000 * rmse:.2f}mm inliers={inliers}"
+                )
             else:
                 # Jaws closed: feature_in_tcp is rigid, and a partial ring arc
                 # fed to a circle fit moved a distant ring by centimetres.
                 # Preserve the last validated transform.
                 preserve_wrench_prior = True
-                print(f"[register_held] wrist CAD refinement rejected; preserving rigid TCP prior: rmse={1000 * rmse:.2f}mm inliers={inliers}")
+                print(
+                    f"[register_held] wrist CAD refinement rejected; preserving rigid TCP prior: rmse={1000 * rmse:.2f}mm inliers={inliers}"
+                )
     scissors_registration = None
     scissors_confidence = 0.0
     if strategy == "planar_cad_landmark" and functional_feature.get("local_center") is not None:
-        clouds, scores = _wrist_clouds(ctx, cameras, wrist_name, profile, world_tcp, remote_fallback=False)
+        clouds, scores = _wrist_clouds(
+            ctx, cameras, wrist_name, profile, world_tcp, remote_fallback=False
+        )
         if clouds:
-            initial = (world_tcp @ _matrix(prior_object_in_tcp) if prior_object_in_tcp is not None
-                       else _scissors_pose_from_feature(functional_feature))
-            scissors_registration, rmse, inliers = _refine_scissors_from_wrist(np.vstack(clouds), initial, profile)
+            initial = (
+                world_tcp @ _matrix(prior_object_in_tcp)
+                if prior_object_in_tcp is not None
+                else _scissors_pose_from_feature(functional_feature)
+            )
+            scissors_registration, rmse, inliers = _refine_scissors_from_wrist(
+                np.vstack(clouds), initial, profile
+            )
             if scissors_registration is not None:
                 scissors_confidence = max(scores) * float(np.exp(-rmse / 0.006))
-                print(f"[register_held] planar CAD refinement accepted: rmse={1000 * rmse:.2f}mm inliers={inliers} confidence={scissors_confidence:.3f}")
+                print(
+                    f"[register_held] planar CAD refinement accepted: rmse={1000 * rmse:.2f}mm inliers={inliers} confidence={scissors_confidence:.3f}"
+                )
             else:
-                print(f"[register_held] planar CAD refinement rejected: rmse={1000 * rmse:.2f}mm inliers={inliers}")
+                print(
+                    f"[register_held] planar CAD refinement rejected: rmse={1000 * rmse:.2f}mm inliers={inliers}"
+                )
 
     # ---- the generic path (main's body) ------------------------------------
     best = None
@@ -532,7 +616,11 @@ def run(
         if wrist_name and profile:
             # A profiled graph measures a held loop from the holding wrist only
             # and everything else from the overview camera.
-            if (name != wrist_name) if kind == "loop" else (name != str(profile.get("overview_camera", "overhead"))):
+            if (
+                (name != wrist_name)
+                if kind == "loop"
+                else (name != str(profile.get("overview_camera", "overhead")))
+            ):
                 continue
         elif camera_name_filter and camera_name_filter not in name:
             continue
@@ -596,16 +684,23 @@ def run(
             preserve_wrench_prior
             or best is None
             or best[0] < 0.20
-            or (wrench_registration is not None
-                and wrench_confidence < float(profile.get("overview_trigger_confidence", 0.20)))
+            or (
+                wrench_registration is not None
+                and wrench_confidence < float(profile.get("overview_trigger_confidence", 0.20))
+            )
         )
     ):
         overview_loop, overview_confidence = _recover_loop_from_overview(
-            ctx, cameras, world_tcp @ _matrix(prior_feature_in_tcp),
-            str(functional_feature.get("description", object_description)), profile,
+            ctx,
+            cameras,
+            world_tcp @ _matrix(prior_feature_in_tcp),
+            str(functional_feature.get("description", object_description)),
+            profile,
         )
         if overview_loop is not None:
-            print(f"[register_held] wrist feature occluded; accepted associated overview loop observation confidence={overview_confidence:.3f}")
+            print(
+                f"[register_held] wrist feature occluded; accepted associated overview loop observation confidence={overview_confidence:.3f}"
+            )
 
     registration_correction = np.zeros(3, dtype=np.float64)
     if overview_loop is not None:
@@ -615,7 +710,9 @@ def run(
         confidence = overview_confidence
         preserve_wrench_prior = False
     elif scissors_registration is not None:
-        world_feature = _feature_from_scissors_pose(scissors_registration, functional_feature["local_center"])
+        world_feature = _feature_from_scissors_pose(
+            scissors_registration, functional_feature["local_center"]
+        )
         confidence = scissors_confidence
     elif wrench_registration is not None:
         world_feature = _feature_from_wrench_pose(wrench_registration, profile)
@@ -666,11 +763,16 @@ def run(
         # into a distant, apparently unreachable approach pose.
         prior_matrix, proposed = _matrix(prior_feature_in_tcp), _matrix(feature_tcp)
         translation_jump = float(np.linalg.norm(proposed[:3, 3] - prior_matrix[:3, 3]))
-        rotation_jump = float(Rotation.from_matrix(proposed[:3, :3] @ prior_matrix[:3, :3].T).magnitude())
-        if (translation_jump > float(profile.get("maximum_translation_jump_m", 0.025))
-                or rotation_jump > np.deg2rad(float(profile.get("maximum_rotation_jump_deg", 20.0)))):
-            print(f"[register_held] rejected non-rigid TCP feature jump: translation={1000 * translation_jump:.1f}mm "
-                  f"rotation={np.rad2deg(rotation_jump):.1f}deg; preserving prior")
+        rotation_jump = float(
+            Rotation.from_matrix(proposed[:3, :3] @ prior_matrix[:3, :3].T).magnitude()
+        )
+        if translation_jump > float(
+            profile.get("maximum_translation_jump_m", 0.025)
+        ) or rotation_jump > np.deg2rad(float(profile.get("maximum_rotation_jump_deg", 20.0))):
+            print(
+                f"[register_held] rejected non-rigid TCP feature jump: translation={1000 * translation_jump:.1f}mm "
+                f"rotation={np.rad2deg(rotation_jump):.1f}deg; preserving prior"
+            )
             feature_tcp = dict(prior_feature_in_tcp)
             preserve_prior = True
             confidence = 0.25
@@ -688,7 +790,9 @@ def run(
         # geometry bundle fits the surface and voxel kinds.
         fit_kind = str(profile.get("attachment_fit_type", attachment_fit_type)).strip().lower()
         attachment = ctx.tool(
-            "curobo.cloud_to_attachment" if fit_kind == "morphit" else "geometry.cloud_to_attachment",
+            "curobo.cloud_to_attachment"
+            if fit_kind == "morphit"
+            else "geometry.cloud_to_attachment",
             points=attachment_cloud,
             tcp_pose=ee,
             surface_radius=0.002,
@@ -719,10 +823,12 @@ def run(
         method = "semantic_feature"
     else:
         method = "rigid_grasp_prior"
-    uncertainty = float(profile.get(
-        "fallback_uncertainty_m" if confidence <= 0.25 else "measurement_uncertainty_m",
-        0.010 if confidence <= 0.25 else 0.004,
-    ))
+    uncertainty = float(
+        profile.get(
+            "fallback_uncertainty_m" if confidence <= 0.25 else "measurement_uncertainty_m",
+            0.010 if confidence <= 0.25 else 0.004,
+        )
+    )
     if profile or arm_id is not None:
         attachment = dict(attachment)
         if arm_id is not None:

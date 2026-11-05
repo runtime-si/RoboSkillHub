@@ -59,7 +59,9 @@ def graph_sha256(graph_dir: Path) -> str:
     for folder in ("scripts", "checkpoints"):
         if (graph_dir / folder).is_dir():
             files += sorted(
-                p for p in (graph_dir / folder).rglob("*") if p.is_file() and "__pycache__" not in p.parts
+                p
+                for p in (graph_dir / folder).rglob("*")
+                if p.is_file() and "__pycache__" not in p.parts
             )
     digest = hashlib.sha256()
     for path in files:
@@ -68,7 +70,9 @@ def graph_sha256(graph_dir: Path) -> str:
 
 
 def _remote_url(root: Path) -> str:
-    result = subprocess.run(["git", "remote", "get-url", "origin"], cwd=root, capture_output=True, text=True)
+    result = subprocess.run(
+        ["git", "remote", "get-url", "origin"], cwd=root, capture_output=True, text=True
+    )
     url = result.stdout.strip()
     if "@" in url and url.startswith("https://"):
         url = "https://" + url.split("@", 1)[1]
@@ -133,7 +137,11 @@ def build_lock(graph_dir: Path, catalog: Catalog) -> dict[str, Any]:
             "repo": catalog.manifest.engine.repo,
             "commit": catalog.manifest.engine.commit,
         },
-        "hub": {"repo": _remote_url(catalog.root), "commit": hub_commit, "dirty": is_dirty(catalog.root)},
+        "hub": {
+            "repo": _remote_url(catalog.root),
+            "commit": hub_commit,
+            "dirty": is_dirty(catalog.root),
+        },
         "sources": {
             pin.name: {"repo": pin.repo, "commit": pin.commit}
             for pin in catalog.manifest.sources
@@ -176,7 +184,9 @@ def fetch(lock: dict[str, Any], dest: Path, *, weights: bool = True) -> dict[str
         path = roots[entry["source"]] / entry["path"]
         got = tree_sha256(path) if path.is_dir() else "missing"
         if got != entry["content_sha256"]:
-            raise LockError(f"{name}: content {got} at {path} is not the locked {entry['content_sha256']}")
+            raise LockError(
+                f"{name}: content {got} at {path} is not the locked {entry['content_sha256']}"
+            )
 
     pulled: dict[str, str] = {}
     if weights:

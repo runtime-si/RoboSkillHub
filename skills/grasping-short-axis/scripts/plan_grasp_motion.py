@@ -119,7 +119,10 @@ def run(
     logger.info(
         "[plan_grasp_motion] plan_grasp_motion planned approach+grasp+lift "
         "(approach_axis=%s dist=%s, lift_axis=%s dist=%s)",
-        approach_axis, approach_distance, lift_axis, lift_distance,
+        approach_axis,
+        approach_distance,
+        lift_axis,
+        lift_distance,
     )
     return {
         "approach_trajectory": plan["approach_trajectory"],

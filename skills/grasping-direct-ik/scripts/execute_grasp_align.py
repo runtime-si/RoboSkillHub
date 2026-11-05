@@ -41,15 +41,21 @@ def _tracking_error(actual: dict[str, Any], wanted: dict[str, Any]) -> tuple[flo
     )
     wanted_rotation = _rotation(wanted)
     actual_rotation = _rotation(actual)
-    approach_alignment = float(np.dot(
-        wanted_rotation.apply([0.0, 0.0, 1.0]),
-        actual_rotation.apply([0.0, 0.0, 1.0]),
-    ))
+    approach_alignment = float(
+        np.dot(
+            wanted_rotation.apply([0.0, 0.0, 1.0]),
+            actual_rotation.apply([0.0, 0.0, 1.0]),
+        )
+    )
     # A parallel-jaw grasp is invariant to reversing the closing axis.
-    closing_alignment = abs(float(np.dot(
-        wanted_rotation.apply([1.0, 0.0, 0.0]),
-        actual_rotation.apply([1.0, 0.0, 0.0]),
-    )))
+    closing_alignment = abs(
+        float(
+            np.dot(
+                wanted_rotation.apply([1.0, 0.0, 0.0]),
+                actual_rotation.apply([1.0, 0.0, 0.0]),
+            )
+        )
+    )
     return float(position_error), approach_alignment, closing_alignment
 
 

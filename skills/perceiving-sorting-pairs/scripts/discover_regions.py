@@ -118,9 +118,7 @@ def _read_labels(
         if len(found) == 4 and len(set(found.values())) == 4:
             return found
         if attempt + 1 < max(1, int(attempts)):
-            logger.warning(
-                "[discover_regions] re-asking for the layout labels: %r", answer
-            )
+            logger.warning("[discover_regions] re-asking for the layout labels: %r", answer)
     raise ValueError(f"could not read four unique destination labels: {answer!r}")
 
 

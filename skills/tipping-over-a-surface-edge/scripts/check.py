@@ -1,10 +1,13 @@
 """Where did the crate come to rest? Inverted is done; standing means the pull
 stopped short of balance and it rocked back, which the graph retries from a
 re-grasp; anything else is a fall the graph did not plan."""
-import os, sys
+
+import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from gap import NodeContext
 import tipcommon as T
+from gap import NodeContext
 
 
 def run(ctx: NodeContext, arms: list) -> dict:

@@ -10,12 +10,16 @@ crate's +x (its far long edge) upward and its +z (open mouth) toward the robot.
 theta = 0 flat and mouth-up, 90 standing on its near long wall with the mouth
 facing the robot, 180 inverted.
 """
-import json, math, os, time
 
-HX, HZ = 0.185, 0.0375          # crate half-extents in x and z [m]
-WALL_Y = 0.5 * (0.2499 + 0.26249999)   # end-wall mid-plane in the crate frame [m]
-WALL_T = 0.26249999 - 0.2499           # end-wall thickness [m]
-D = 0.12                        # pinch offset toward the far edge, in the crate frame [m]
+import json
+import math
+import os
+import time
+
+HX, HZ = 0.185, 0.0375  # crate half-extents in x and z [m]
+WALL_Y = 0.5 * (0.2499 + 0.26249999)  # end-wall mid-plane in the crate frame [m]
+WALL_T = 0.26249999 - 0.2499  # end-wall thickness [m]
+D = 0.12  # pinch offset toward the far edge, in the crate frame [m]
 """Set by two things measured on this cell. A crate hanging from the pins settles
 where its centre of mass is under them, atan(D / 0.0255) -- 67 degrees at 60 mm,
 78 at 120 -- and every degree past that has to come from a pull that rotates the
@@ -23,7 +27,7 @@ crate about its grounded corner, which drags the pinch 5 mm toward the robot per
 degree. At 60 mm the standing crate's rim edge ends at x = 0.62 and the flip lands
 off the bench; at 120 mm it ends at 0.71 and lands with 40 mm to spare. Larger
 still and the top of the lift (z = 1.07 at roll 50) leaves the arm's envelope."""
-PHI = 50.0                      # wrist roll about world y at the grasp and through the lift [deg]
+PHI = 50.0  # wrist roll about world y at the grasp and through the lift [deg]
 """Held through the lift, and then made to FOLLOW the crate during the pull.
 Measured: lifting 50 mm with the roll still, the wall slid under 1 mm in the pads
 at every squeeze from 1.5 to 6 mm; a 30 degree roll applied in place slid it
@@ -33,8 +37,8 @@ that turns WITH it (never more than a step ahead of the measured attitude) doubl
 the rotation per chord and cuts the edge's sliding by ten -- the pads do not have
 to slip. 50 degrees is inside the envelope at the top of the lift (z = 1.07) with
 the pinch 120 mm off centre; 35 is not."""
-R_PIN = HX + D                  # pinch point to the near long edge, along crate x [m]
-RHO = math.hypot(R_PIN, HZ)     # pinch point to a near bottom corner [m]
+R_PIN = HX + D  # pinch point to the near long edge, along crate x [m]
+RHO = math.hypot(R_PIN, HZ)  # pinch point to a near bottom corner [m]
 BETA = math.degrees(math.atan2(HZ, R_PIN))
 
 LOG_PATH = os.environ.get("CRATE_TIP_LOG", "")
@@ -72,7 +76,14 @@ def crate_state(ctx):
     theta = math.degrees(math.atan2(-up[0], up[2]))
     floor_corner = [c[i] + v for i, v in enumerate(mat_vec(R, [-HX, 0.0, -HZ]))]
     rim_corner = [c[i] + v for i, v in enumerate(mat_vec(R, [-HX, 0.0, HZ]))]
-    return {"c": c, "R": R, "theta": theta, "floor_corner": floor_corner, "rim_corner": rim_corner, "up": up}
+    return {
+        "c": c,
+        "R": R,
+        "theta": theta,
+        "floor_corner": floor_corner,
+        "rim_corner": rim_corner,
+        "up": up,
+    }
 
 
 def pin_world(state, sign):
@@ -89,12 +100,20 @@ def approach_for(phi_deg):
 
 
 def frame(ctx, arm, phi_deg):
-    fr = ctx.tool("robot.grasp_frame", approach=approach_for(phi_deg), close_heading_deg=90.0, arm_id=arm["arm_id"])
+    fr = ctx.tool(
+        "robot.grasp_frame",
+        approach=approach_for(phi_deg),
+        close_heading_deg=90.0,
+        arm_id=arm["arm_id"],
+    )
     return fr[arm.get("rot_key", "rotation")], fr
 
 
 def pose_dict(pos, rot):
-    return {"position": {"x": float(pos[0]), "y": float(pos[1]), "z": float(pos[2])}, "rotation": rot}
+    return {
+        "position": {"x": float(pos[0]), "y": float(pos[1]), "z": float(pos[2])},
+        "rotation": rot,
+    }
 
 
 def plan_to(ctx, arm, pos, phi_deg, n=12, tol=0.006, allow_joint=True):
@@ -108,17 +127,40 @@ def plan_to(ctx, arm, pos, phi_deg, n=12, tol=0.006, allow_joint=True):
     solutions instead, so a move that turns the wrist wants the joint plan."""
     rot, fr = frame(ctx, arm, phi_deg)
     end = pose_dict(pos, rot)
-    plan = ctx.tool("motion.plan_linear", end=end, arm_id=arm["arm_id"], orientation="lock", tolerance=tol, num_waypoints=n)
+    plan = ctx.tool(
+        "motion.plan_linear",
+        end=end,
+        arm_id=arm["arm_id"],
+        orientation="lock",
+        tolerance=tol,
+        num_waypoints=n,
+    )
     if plan.get("planned") and plan.get("trajectory", {}).get("waypoints"):
         wps = [w["positions"] for w in plan["trajectory"]["waypoints"]]
-        log("plan_linear", arm=arm["name"], pos=pos, phi=phi_deg, err_m=plan.get("position_error_m"), n=len(wps))
+        log(
+            "plan_linear",
+            arm=arm["name"],
+            pos=pos,
+            phi=phi_deg,
+            err_m=plan.get("position_error_m"),
+            n=len(wps),
+        )
         return wps
     log("plan_linear_refused", arm=arm["name"], pos=pos, phi=phi_deg, reason=plan.get("reason"))
     if not allow_joint:
         return None
-    pj = ctx.tool("motion.plan_joint", pose=end, arm_id=arm["arm_id"], orientation="lock", num_waypoints=n)
+    pj = ctx.tool(
+        "motion.plan_joint", pose=end, arm_id=arm["arm_id"], orientation="lock", num_waypoints=n
+    )
     perr, rerr = float(pj.get("position_error_m", 1.0)), float(pj.get("rotation_error_rad", 9.0))
-    log("plan_joint", arm=arm["name"], pos=pos, phi=phi_deg, err_m=perr, rot_err_deg=math.degrees(rerr))
+    log(
+        "plan_joint",
+        arm=arm["name"],
+        pos=pos,
+        phi=phi_deg,
+        err_m=perr,
+        rot_err_deg=math.degrees(rerr),
+    )
     if perr > 0.012 or rerr > math.radians(8.0):
         return None
     return [w["positions"] for w in pj["trajectory"]["waypoints"]]
@@ -130,7 +172,9 @@ def move_pair(ctx, arms, targets, phi_deg, n=12, settle=4, tol=0.006):
     for arm in arms:
         wps = plan_to(ctx, arm, targets[arm["name"]], phi_deg, n=n, tol=tol)
         if wps is None:
-            raise RuntimeError(f"{arm['name']} cannot reach {targets[arm['name']]} at roll {phi_deg:.1f}")
+            raise RuntimeError(
+                f"{arm['name']} cannot reach {targets[arm['name']]} at roll {phi_deg:.1f}"
+            )
         tracks[str(arm["arm_id"])] = wps
     ctx.tool("robot.stream_dual", tracks=tracks, tolerance=0.01, settle_steps=int(settle))
 
@@ -138,7 +182,13 @@ def move_pair(ctx, arms, targets, phi_deg, n=12, settle=4, tol=0.006):
 def grip_both(ctx, arms, ramp=24, settle=0, **kw):
     out = {}
     for arm in arms:
-        out[arm["name"]] = ctx.tool("robot.set_grip", arm_id=arm["arm_id"], ramp_steps=int(ramp), settle_steps=int(settle), **kw)
+        out[arm["name"]] = ctx.tool(
+            "robot.set_grip",
+            arm_id=arm["arm_id"],
+            ramp_steps=int(ramp),
+            settle_steps=int(settle),
+            **kw,
+        )
     return out
 
 
@@ -159,11 +209,17 @@ def slip(ctx, arms, st=None):
     wall toward the rim, dx along the wall toward the far edge. Growth here is the
     wall sliding in the pads; the pads' own reading is `grip` (closed fraction)."""
     st = st or crate_state(ctx)
-    R = st["R"]; out = {}
+    R = st["R"]
+    out = {}
     for a in arms:
-        pin = pin_world(st, a["sign"]); e = ee(ctx, a)
+        pin = pin_world(st, a["sign"])
+        e = ee(ctx, a)
         dv = [e[i] - pin[i] for i in range(3)]
         loc = [sum(R[j][i] * dv[j] for j in range(3)) for i in range(3)]
         g = ctx.tool("robot.get_gripper", arm_id=a["arm_id"])
-        out[a["name"]] = {"dx_mm": round(loc[0] * 1000, 1), "dz_mm": round(loc[2] * 1000, 1), "grip": g.get("position")}
+        out[a["name"]] = {
+            "dx_mm": round(loc[0] * 1000, 1),
+            "dz_mm": round(loc[2] * 1000, 1),
+            "grip": g.get("position"),
+        }
     return out

@@ -72,7 +72,8 @@ def run(
     if distance_xy < 1e-6:
         logger.warning(
             "offset_grasp_from_base: base and handle centers near-"
-            "coincident (%.4f m); no offset applied.", distance_xy
+            "coincident (%.4f m); no offset applied.",
+            distance_xy,
         )
         return {"adjusted_grasp": grasp_pose}
 
@@ -103,11 +104,21 @@ def run(
         "offset_grasp_from_base: base=(%.4f,%.4f,%.4f) "
         "handle=(%.4f,%.4f,%.4f) dir=(%.4f,%.4f) offset=%.4f "
         "orig=(%.4f,%.4f,%.4f) adj=(%.4f,%.4f,%.4f)",
-        base_center[0], base_center[1], base_center[2],
-        handle_center[0], handle_center[1], handle_center[2],
-        direction[0], direction[1], offset_distance,
-        grasp_pos[0], grasp_pos[1], grasp_pos[2],
-        adjusted_pos[0], adjusted_pos[1], adjusted_pos[2],
+        base_center[0],
+        base_center[1],
+        base_center[2],
+        handle_center[0],
+        handle_center[1],
+        handle_center[2],
+        direction[0],
+        direction[1],
+        offset_distance,
+        grasp_pos[0],
+        grasp_pos[1],
+        grasp_pos[2],
+        adjusted_pos[0],
+        adjusted_pos[1],
+        adjusted_pos[2],
     )
 
     adjusted_grasp: Se3Pose = {

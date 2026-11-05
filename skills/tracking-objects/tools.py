@@ -172,8 +172,7 @@ class TrackObject(Skill):
         cameras = obs["cameras"]
         if camera_index < 0 or camera_index >= len(cameras):
             raise RuntimeError(
-                f"camera_index={camera_index} out of range "
-                f"(have {len(cameras)} cameras)"
+                f"camera_index={camera_index} out of range (have {len(cameras)} cameras)"
             )
         return cameras[camera_index]["rgb"]
 

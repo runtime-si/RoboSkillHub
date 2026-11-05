@@ -162,17 +162,24 @@ linear path plus `set_on_error` is sufficient.
 ✅ Correct (the literal `gap.builder` calls you should emit):
 
 ```python
-sg.add_node("perceive", type="script",
-            script="scripts/<sg>/perceive_dino_vlm.py",
-            inputs={"cameras": Ref("observe.cameras"),
-                    "object_name": "small blue and white cream cheese",
-                    # from the task's Object context / shape_hint block:
-                    "object_description": ("small rectangular box, blue "
-                                           "and white packaging, ~5 cm wide")})
+sg.add_node(
+    "perceive",
+    type="script",
+    script="scripts/<sg>/perceive_dino_vlm.py",
+    inputs={
+        "cameras": Ref("observe.cameras"),
+        "object_name": "small blue and white cream cheese",
+        # from the task's Object context / shape_hint block:
+        "object_description": ("small rectangular box, blue and white packaging, ~5 cm wide"),
+    },
+)
 
-sg.add_node("filter_obb", type="tool",
-            tool="geometry.filter_and_compute_obb",
-            inputs={"points": Ref("perceive.cloud")})
+sg.add_node(
+    "filter_obb",
+    type="tool",
+    tool="geometry.filter_and_compute_obb",
+    inputs={"points": Ref("perceive.cloud")},
+)
 
 # add_exit() creates the success-marker noop node AND registers the
 # exit value. Do NOT also call sg.add_node("found", type="noop") — that

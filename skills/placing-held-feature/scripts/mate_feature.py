@@ -50,7 +50,11 @@ class Output(TypedDict):
 def _rotate(quat: dict[str, float], v: tuple[float, float, float]) -> tuple[float, float, float]:
     """*v* by the wxyz quaternion — the object's own frame into the world's."""
     w, x, y, z = quat["w"], quat["x"], quat["y"], quat["z"]
-    tx, ty, tz = 2.0 * (y * v[2] - z * v[1]), 2.0 * (z * v[0] - x * v[2]), 2.0 * (x * v[1] - y * v[0])
+    tx, ty, tz = (
+        2.0 * (y * v[2] - z * v[1]),
+        2.0 * (z * v[0] - x * v[2]),
+        2.0 * (x * v[1] - y * v[0]),
+    )
     return (
         v[0] + w * tx + (y * tz - z * ty),
         v[1] + w * ty + (z * tx - x * tz),
@@ -105,26 +109,37 @@ def run(
     local = _xyz(feature_local)
     if goal_point is None or local is None:
         return {
-            "route": "unknown", "hand_goal": {}, "move_m": {}, "feature_now": {},
+            "route": "unknown",
+            "hand_goal": {},
+            "move_m": {},
+            "feature_now": {},
             "distance_m": -1.0,
             "reason": "target or feature_local is not a point; pass sim.query's `at` and the "
-                      "feature centre the declared parts state",
+            "feature centre the declared parts state",
         }
     try:
         obj = ctx.tool("sim.get_object_pose", object_name=object_name) or {}
         hand = ctx.tool("robot.get_ee_pose", arm_id=arm_id) or {}
     except Exception as exc:
         return {
-            "route": "unknown", "hand_goal": {}, "move_m": {}, "feature_now": {},
-            "distance_m": -1.0, "reason": f"could not read a live pose: {exc}",
+            "route": "unknown",
+            "hand_goal": {},
+            "move_m": {},
+            "feature_now": {},
+            "distance_m": -1.0,
+            "reason": f"could not read a live pose: {exc}",
         }
     obj_pose = obj.get("pose", obj)
     hand_pose = hand.get("pose", hand)
     obj_p, hand_p = _xyz(obj_pose), _xyz(hand_pose)
     if obj_p is None or hand_p is None:
         return {
-            "route": "unknown", "hand_goal": {}, "move_m": {}, "feature_now": {},
-            "distance_m": -1.0, "reason": "a pose read back without a position",
+            "route": "unknown",
+            "hand_goal": {},
+            "move_m": {},
+            "feature_now": {},
+            "distance_m": -1.0,
+            "reason": "a pose read back without a position",
         }
     spun = _rotate(obj_pose.get("rotation", {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0}), local)
     feature_now = (obj_p[0] + spun[0], obj_p[1] + spun[1], obj_p[2] + spun[2])
@@ -138,7 +153,9 @@ def run(
         "route": "ready",
         "hand_goal": {
             "position": {
-                "x": hand_p[0] + move[0], "y": hand_p[1] + move[1], "z": hand_p[2] + move[2],
+                "x": hand_p[0] + move[0],
+                "y": hand_p[1] + move[1],
+                "z": hand_p[2] + move[2],
             },
             "rotation": hand_pose.get("rotation", {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0}),
         },

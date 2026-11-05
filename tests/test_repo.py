@@ -42,7 +42,8 @@ def test_a_scaffolded_policy_is_rejected_until_its_weights_and_io_are_filled_in(
 
     hub = read(dest / "SKILL.md")[0]["metadata"]["hub"]
     found = [
-        i.message for i in check_hub_metadata(hub, where="x", kind="policy", native=True, derived_tier=None)
+        i.message
+        for i in check_hub_metadata(hub, where="x", kind="policy", native=True, derived_tier=None)
     ]
     assert any("must pin a full 40-character commit" in m for m in found)
     assert any("sha256 of their file manifest" in m for m in found)

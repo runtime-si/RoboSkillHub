@@ -23,9 +23,8 @@ distribution and this hand's span, and answering it here would be inventing a
 measurement rather than proposing a strategy.
 """
 
-from typing import Any, TypedDict
-
 import math
+from typing import Any, TypedDict
 
 from gap import NodeContext
 from gap_core.types import OrientedBoundingBox

@@ -26,10 +26,9 @@ actual boundary and makes reflex vertices explicit.
 from __future__ import annotations
 
 import logging
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import numpy as np
-
 from gap import NodeContext
 from gap_core.types import OrientedBoundingBox, Se3Pose
 
@@ -55,6 +54,7 @@ class Output(TypedDict):
 # ---------------------------------------------------------------------------
 # Alpha shape helpers
 # ---------------------------------------------------------------------------
+
 
 def _alpha_boundary(xy: np.ndarray, alpha_radius: float) -> np.ndarray | None:
     """Ordered outer boundary of the alpha shape, or None if degenerate."""
@@ -138,16 +138,15 @@ def _alpha_boundary(xy: np.ndarray, alpha_radius: float) -> np.ndarray | None:
     return xy[ordered]
 
 
-def _concave_grip_pts(polygon: np.ndarray,
-                      min_arc_m: float,
-                      min_concavity: float = 0.26) -> list[dict]:
+def _concave_grip_pts(
+    polygon: np.ndarray, min_arc_m: float, min_concavity: float = 0.26
+) -> list[dict]:
     """Midpoints of concave (reflex) sub-contours on the boundary polygon."""
     n = len(polygon)
 
     # Ensure CCW orientation via signed area.
     area = sum(
-        polygon[i, 0] * polygon[(i + 1) % n, 1]
-        - polygon[(i + 1) % n, 0] * polygon[i, 1]
+        polygon[i, 0] * polygon[(i + 1) % n, 1] - polygon[(i + 1) % n, 0] * polygon[i, 1]
         for i in range(n)
     )
     if area < 0:
@@ -191,10 +190,7 @@ def _concave_grip_pts(polygon: np.ndarray,
         if not run:
             continue
         # Filter sub-contours shorter than min_arc_m.
-        arc_len = sum(
-            float(np.linalg.norm(run[k + 1] - run[k]))
-            for k in range(len(run) - 1)
-        )
+        arc_len = sum(float(np.linalg.norm(run[k + 1] - run[k])) for k in range(len(run) - 1))
         if len(run) > 1 and arc_len < min_arc_m:
             continue
         grip_pts.append({"point": np.mean(run, axis=0)})
@@ -205,6 +201,7 @@ def _concave_grip_pts(polygon: np.ndarray,
 # ---------------------------------------------------------------------------
 # Debug visualization
 # ---------------------------------------------------------------------------
+
 
 def _visualize(
     xy: np.ndarray,
@@ -220,7 +217,7 @@ def _visualize(
     can always include it in Output without a None check.
     """
     import json  # noqa: PLC0415
-    import os    # noqa: PLC0415
+    import os  # noqa: PLC0415
     from pathlib import Path  # noqa: PLC0415
 
     _BLANK = np.zeros((1, 1, 3), dtype=np.uint8)
@@ -245,6 +242,7 @@ def _visualize(
     # --- render figure to numpy array ---
     try:
         import matplotlib  # noqa: PLC0415
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt  # noqa: PLC0415
 
@@ -260,8 +258,14 @@ def _visualize(
         # Grip candidate midpoints
         if grip_pts:
             pts = np.array([g["point"] for g in grip_pts])
-            ax.scatter(pts[:, 0], pts[:, 1], c="orange", s=60, zorder=4,
-                       label=f"grip candidates ({len(grip_pts)})")
+            ax.scatter(
+                pts[:, 0],
+                pts[:, 1],
+                c="orange",
+                s=60,
+                zorder=4,
+                label=f"grip candidates ({len(grip_pts)})",
+            )
 
         # Best grasp: draw jaw line and centre.
         if candidates:
@@ -272,17 +276,21 @@ def _visualize(
             p2 = best.get("_p2")
             jaw_dir = best.get("_jaw_dir")
             if p1 and p2:
-                ax.plot([p1[0], p2[0]], [p1[1], p2[1]],
-                        "g-", lw=2.5, label="best jaw", zorder=5)
+                ax.plot([p1[0], p2[0]], [p1[1], p2[1]], "g-", lw=2.5, label="best jaw", zorder=5)
                 ax.scatter(*p1, c="green", s=60, zorder=6)
                 ax.scatter(*p2, c="green", s=60, zorder=6)
             elif jaw_dir is not None:
                 half = float(best.get("grip_width", 0.0)) * 0.5 or 0.03
                 dx, dy = jaw_dir[0] * half, jaw_dir[1] * half
-                ax.plot([cx - dx, cx + dx], [cy - dy, cy + dy],
-                        "g-", lw=2.5, label="best jaw (axis)", zorder=5)
-                ax.scatter([cx - dx, cx + dx], [cy - dy, cy + dy],
-                           c="green", s=60, zorder=6)
+                ax.plot(
+                    [cx - dx, cx + dx],
+                    [cy - dy, cy + dy],
+                    "g-",
+                    lw=2.5,
+                    label="best jaw (axis)",
+                    zorder=5,
+                )
+                ax.scatter([cx - dx, cx + dx], [cy - dy, cy + dy], c="green", s=60, zorder=6)
             ax.scatter([cx], [cy], c="red", s=80, zorder=7, label="grasp centre")
 
         ax.set_aspect("equal")
@@ -314,6 +322,7 @@ def _visualize(
 # Rotation helper
 # ---------------------------------------------------------------------------
 
+
 def _rotation_top_down(secant: np.ndarray) -> dict:
     """Quaternion for a straight-down tool with jaw along *secant* (unit 2-D vector)."""
     from scipy.spatial.transform import Rotation  # noqa: PLC0415
@@ -334,6 +343,7 @@ def _rotation_top_down(secant: np.ndarray) -> dict:
 # ---------------------------------------------------------------------------
 # Axis-based grasp fallback (mirrors axis_aware_grasp_pose.py logic)
 # ---------------------------------------------------------------------------
+
 
 def _axis_grasp_candidate(
     ctx: Any,
@@ -363,8 +373,8 @@ def _axis_grasp_candidate(
     # jaw_dir: closing direction in XY, perpendicular to the feature axis.
     # This is the same vector stored in _jaw_dir and drawn as the visualization line,
     # so the rotation and the figure are guaranteed to use the same direction.
-    jaw_dir = np.cross(axis_2d, approach)   # = [-ay, ax, 0], unit vector
-    y_tool = np.cross(approach, jaw_dir)    # right-hand completion
+    jaw_dir = np.cross(axis_2d, approach)  # = [-ay, ax, 0], unit vector
+    y_tool = np.cross(approach, jaw_dir)  # right-hand completion
     R = np.column_stack([jaw_dir, y_tool, approach])
     q = Rotation.from_matrix(R).as_quat()
     rotation = {"w": float(q[3]), "x": float(q[0]), "y": float(q[1]), "z": float(q[2])}
@@ -376,7 +386,11 @@ def _axis_grasp_candidate(
         "rotation": rotation,
     }
     pregrasp_pose: Se3Pose = {
-        "position": {"x": float(pregrasp_pos[0]), "y": float(pregrasp_pos[1]), "z": float(pregrasp_pos[2])},
+        "position": {
+            "x": float(pregrasp_pos[0]),
+            "y": float(pregrasp_pos[1]),
+            "z": float(pregrasp_pos[2]),
+        },
         "rotation": rotation,
     }
     return {
@@ -394,6 +408,7 @@ def _axis_grasp_candidate(
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
+
 
 def run(
     ctx: NodeContext,
@@ -511,38 +526,44 @@ def run(
             near_mask = xy_dists < max(float(dist), 0.02)
             if not np.any(near_mask):
                 near_mask = xy_dists < (xy_dists.min() * 3 + 0.005)
-            z_grasp = (bin_floor_z if bin_floor_z is not None
-                       else float(np.median(points[near_mask, 2]))) + grasp_z_offset
+            z_grasp = (
+                bin_floor_z if bin_floor_z is not None else float(np.median(points[near_mask, 2]))
+            ) + grasp_z_offset
 
             grasp_pose: Se3Pose = {
-                "position": {"x": float(center[0]), "y": float(center[1]),
-                             "z": z_grasp},
+                "position": {"x": float(center[0]), "y": float(center[1]), "z": z_grasp},
                 "rotation": rotation,
             }
             pregrasp_pose: Se3Pose = {
-                "position": {"x": float(center[0]), "y": float(center[1]),
-                             "z": z_grasp + _STANDOFF_M},
+                "position": {
+                    "x": float(center[0]),
+                    "y": float(center[1]),
+                    "z": z_grasp + _STANDOFF_M,
+                },
                 "rotation": rotation,
             }
 
             dist_from_centroid = float(np.linalg.norm(center - centroid))
             confidence = 1.0 / (1.0 + dist_from_centroid)
 
-            candidates.append({
-                "cand_index": len(candidates),
-                "grasp_pose": grasp_pose,
-                "pregrasp_pose": pregrasp_pose,
-                "grip_width": dist,
-                "confidence": confidence,
-                "_p1": p1.tolist(),
-                "_p2": p2.tolist(),
-            })
+            candidates.append(
+                {
+                    "cand_index": len(candidates),
+                    "grasp_pose": grasp_pose,
+                    "pregrasp_pose": pregrasp_pose,
+                    "grip_width": dist,
+                    "confidence": confidence,
+                    "_p1": p1.tolist(),
+                    "_p2": p2.tolist(),
+                }
+            )
 
     if not candidates:
         logger.info(
             "contour_concave: falling back to axis grasp for '%s' — "
             "all pairs exceed the %.0f mm gripper span",
-            name, span * 1000,
+            name,
+            span * 1000,
         )
         axis_cand = _axis_grasp_candidate(ctx, target_cloud)
         if axis_cand is None:

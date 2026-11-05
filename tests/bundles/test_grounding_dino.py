@@ -31,9 +31,7 @@ def test_detect_gpu_smoke(tool_registry):
 
     img = np.full((160, 160, 3), 255, dtype=np.uint8)
     img[40:120, 40:120] = (200, 30, 30)
-    out = tool_registry.invoke(
-        "grounding-dino.detect", image=img, query="red square"
-    )
+    out = tool_registry.invoke("grounding-dino.detect", image=img, query="red square")
     assert set(out) == {"detections"}
     for det in out["detections"]:
         assert set(det) == {"box", "label", "score"}

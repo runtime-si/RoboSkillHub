@@ -13,7 +13,9 @@ class Policy(PolicyLoopSkill):
 
 
 @tool(
-    name="{{name}}.run", summary="Run the checkpoint in closed loop against its own server.", tags=("policy",)
+    name="{{name}}.run",
+    summary="Run the checkpoint in closed loop against its own server.",
+    tags=("policy",),
 )
 def run_policy(
     ctx,

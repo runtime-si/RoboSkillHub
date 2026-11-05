@@ -54,8 +54,11 @@ def _ctx(replies, object_centre=(0.0, 0.0)):
         {
             "grounding-dino.detect": {
                 "detections": [
-                    {"box": {"x1": 0.0, "y1": 0.0, "x2": 400.0, "y2": 400.0},
-                     "score": 0.9, "label": "source bin"}
+                    {
+                        "box": {"x1": 0.0, "y1": 0.0, "x2": 400.0, "y2": 400.0},
+                        "score": 0.9,
+                        "label": "source bin",
+                    }
                 ]
             },
             "vlm.query": [{"text": reply} for reply in replies],
@@ -80,8 +83,10 @@ def _observation():
                 "rgb": np.zeros((480, 640, 3), dtype=np.uint8),
                 "depth": np.ones((480, 640), dtype=np.float32),
                 "intrinsics": {"fx": 500.0, "fy": 500.0, "cx": 320.0, "cy": 240.0},
-                "pose": {"position": {"x": 0.0, "y": 0.0, "z": 1.5},
-                         "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0}},
+                "pose": {
+                    "position": {"x": 0.0, "y": 0.0, "z": 1.5},
+                    "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+                },
             }
         ],
         "arms": [{}],
@@ -136,8 +141,17 @@ def test_instance_mode_logs_the_spot_it_picked(select_pair):
 def test_a_spent_spot_is_re_asked_not_returned(select_pair):
     """The whole point: the same object twice must not be picked twice."""
     spent = json.dumps(
-        [{"label": "tape", "px": 130.0, "py": 130.0, "rx": 30.0, "ry": 30.0,
-          "attempts": 2, "reason": "tried"}]
+        [
+            {
+                "label": "tape",
+                "px": 130.0,
+                "py": 130.0,
+                "rx": 30.0,
+                "ry": 30.0,
+                "attempts": 2,
+                "reason": "tried",
+            }
+        ]
     )
     ctx = _ctx([PICK, PICK, PICK])
     out = _run(select_pair, ctx, exclusion_mode="instance", attempted_json=spent)
@@ -148,8 +162,17 @@ def test_a_spent_spot_is_re_asked_not_returned(select_pair):
 
 def test_the_model_is_told_which_spots_are_spent(select_pair):
     spent = json.dumps(
-        [{"label": "tape", "px": 130.0, "py": 130.0, "rx": 30.0, "ry": 30.0,
-          "attempts": 2, "reason": "tried"}]
+        [
+            {
+                "label": "tape",
+                "px": 130.0,
+                "py": 130.0,
+                "rx": 30.0,
+                "ry": 30.0,
+                "attempts": 2,
+                "reason": "tried",
+            }
+        ]
     )
     ctx = _ctx([PICK, PICK, PICK])
     _run(select_pair, ctx, exclusion_mode="instance", attempted_json=spent)

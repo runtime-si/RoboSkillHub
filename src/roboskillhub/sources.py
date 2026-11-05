@@ -55,7 +55,9 @@ def find_root(start: Path | None = None) -> Path:
     for candidate in (here, *here.parents):
         if (candidate / MANIFEST).is_file():
             return candidate
-    raise ManifestError(f"no {MANIFEST} in {here} or any parent; run inside the hub or set ROBOSKILLHUB_ROOT")
+    raise ManifestError(
+        f"no {MANIFEST} in {here} or any parent; run inside the hub or set ROBOSKILLHUB_ROOT"
+    )
 
 
 def cache_dir(root: Path) -> Path:
@@ -96,7 +98,9 @@ def load_manifest(root: Path) -> Manifest:
     if not isinstance(data, dict):
         raise ManifestError(f"{path}: expected a mapping")
     engine = _pin(data.get("engine"), f"{path}: engine")
-    sources = tuple(_pin(e, f"{path}: sources[{i}]") for i, e in enumerate(data.get("sources") or []))
+    sources = tuple(
+        _pin(e, f"{path}: sources[{i}]") for i, e in enumerate(data.get("sources") or [])
+    )
     names = [p.name for p in sources]
     if len(set(names)) != len(names) or engine.name in names or "hub" in names:
         raise ManifestError(f"{path}: source names must be unique and not 'hub' or the engine's")
@@ -106,7 +110,9 @@ def load_manifest(root: Path) -> Manifest:
 def _git(*args: str, cwd: Path | None = None) -> str:
     result = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
     if result.returncode != 0:
-        raise RuntimeError(f"git {' '.join(args)} failed: {result.stderr.strip() or result.stdout.strip()}")
+        raise RuntimeError(
+            f"git {' '.join(args)} failed: {result.stderr.strip() or result.stdout.strip()}"
+        )
     return result.stdout.strip()
 
 

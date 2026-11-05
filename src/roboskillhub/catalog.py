@@ -50,7 +50,9 @@ class Catalog:
         return self.root if source == "hub" else source_dir(self.cache, source)
 
 
-def _scan(registry: Path, source: str, overlay: dict[str, Any], issues: list[Issue]) -> list[Bundle]:
+def _scan(
+    registry: Path, source: str, overlay: dict[str, Any], issues: list[Issue]
+) -> list[Bundle]:
     found: list[Bundle] = []
     for folder, kind in KIND_DIRS.items():
         base = registry / folder
@@ -85,7 +87,9 @@ def _load_overlay(root: Path, relpath: str, issues: list[Issue]) -> dict[str, An
         return {}
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     if not isinstance(data, dict) or not all(isinstance(v, dict) for v in data.values()):
-        issues.append(Issue("error", relpath, "an overlay maps bundle names to hub metadata mappings"))
+        issues.append(
+            Issue("error", relpath, "an overlay maps bundle names to hub metadata mappings")
+        )
         return {}
     return data
 
@@ -127,7 +131,11 @@ def load_catalog(root: Path | None = None, *, cache: Path | None = None) -> Cata
         for bundle in _scan(path, source, overlay, catalog.issues):
             if bundle.name in seen:
                 catalog.issues.append(
-                    Issue("error", f"{source}:{bundle.name}", "two bundles share this name in one registry")
+                    Issue(
+                        "error",
+                        f"{source}:{bundle.name}",
+                        "two bundles share this name in one registry",
+                    )
                 )
                 continue
             seen.add(bundle.name)

@@ -35,13 +35,10 @@ _PARAMS = {
         "Action-chunk rows consumed per window before replanning. Default 5 "
         "(the π-series LIBERO replan cadence)."
     ),
-    "term_period": Param(
-        "VLM termination check cadence (every N windows). Default 2."
-    ),
+    "term_period": Param("VLM termination check cadence (every N windows). Default 2."),
     "arm_id": Param("Index into observation arms. Default 0."),
     "vlm_camera": Param(
-        "Index into observation cameras for VLM termination screenshots. "
-        "Default 0."
+        "Index into observation cameras for VLM termination screenshots. Default 0."
     ),
     "settle_steps": Param(
         "Dummy zero-actions sent before the first window so freshly-spawned "

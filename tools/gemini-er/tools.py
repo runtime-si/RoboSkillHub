@@ -109,7 +109,7 @@ def _extract_json_array(text: str) -> list:
     if start == -1 or end <= start:
         return []
     try:
-        data = json.loads(text[start:end + 1])
+        data = json.loads(text[start : end + 1])
     except (json.JSONDecodeError, ValueError):
         return []
     return data if isinstance(data, list) else []
@@ -119,9 +119,7 @@ def _clamp(v: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, v))
 
 
-def _parse_detections(
-    text: str, *, width: int, height: int, query: str
-) -> list[Detection]:
+def _parse_detections(text: str, *, width: int, height: int, query: str) -> list[Detection]:
     """Convert normalized 0-1000 ``box_2d`` entries to pixel detections."""
     detections: list[Detection] = []
     for entry in _extract_json_array(text):
@@ -144,11 +142,13 @@ def _parse_detections(
             score = float(entry.get("score", entry.get("confidence", 1.0)))
         except (TypeError, ValueError):
             score = 1.0
-        detections.append({
-            "box": box,
-            "label": str(entry.get("label") or query),
-            "score": score,
-        })
+        detections.append(
+            {
+                "box": box,
+                "label": str(entry.get("label") or query),
+                "score": score,
+            }
+        )
     return detections
 
 
@@ -187,7 +187,8 @@ def detect(
     genai, genai_types = _import_genai()
     client = genai.Client()  # API key via GOOGLE_API_KEY / GEMINI_API_KEY
     image_part = genai_types.Part.from_bytes(
-        data=_png_bytes(arr), mime_type="image/png",
+        data=_png_bytes(arr),
+        mime_type="image/png",
     )
     model_name = model or os.environ.get("GAP_GEMINI_ER_MODEL") or DEFAULT_MODEL
     try:
@@ -201,6 +202,5 @@ def detect(
     text = response.text or ""
     detections = _parse_detections(text, width=width, height=height, query=query)
     if not detections:
-        logger.debug("gemini-er.detect: no detections for query=%r (raw=%r)",
-                     query, text[:200])
+        logger.debug("gemini-er.detect: no detections for query=%r (raw=%r)", query, text[:200])
     return {"detections": detections}

@@ -353,9 +353,7 @@ def run(
         # the current height so the lateral leg never descends. Under
         # level_lift the cap stays and only the last centimetre of sag goes.
         lift_z = (
-            transport_z
-            if level_lift
-            else max(place_z + 0.07, min(float(cur["z"]), place_z + 0.08))
+            transport_z if level_lift else max(place_z + 0.07, min(float(cur["z"]), place_z + 0.08))
         )
     # First lift the grasped item straight up so it clears the table before the
     # lateral move (avoids dragging it across the scene). lift_z is kept BELOW
@@ -372,7 +370,7 @@ def run(
     grasp_rotation = transport_rotation
     aligned = _aligned_rotation(grasp_rotation, e) if align_to_container else None
     squared = False
-    for attempt in ([aligned, grasp_rotation] if aligned is not None else [grasp_rotation]):
+    for attempt in [aligned, grasp_rotation] if aligned is not None else [grasp_rotation]:
         try:
             _cartesian(ctx, cur["x"], cur["y"], lift_z, attempt)
             squared = attempt is aligned

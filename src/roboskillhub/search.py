@@ -72,7 +72,17 @@ FAMILY_WORDS: dict[str, tuple[str, ...]] = {
         "套",
     ),
     "cable-routing": ("cable", "wire", "rope", "cord", "route", "thread", "clip", "线", "绳", "缆"),
-    "sorting": ("sort", "arrange", "group", "organize", "categorize", "pair", "分类", "整理", "归类"),
+    "sorting": (
+        "sort",
+        "arrange",
+        "group",
+        "organize",
+        "categorize",
+        "pair",
+        "分类",
+        "整理",
+        "归类",
+    ),
     "reorientation": ("flip", "tip", "reorient", "upright", "overturn", "翻", "立起"),
 }
 """Instruction words that name a task family. An instruction says "put the block
@@ -195,7 +205,9 @@ def select(
     for bundle in catalog.bundles.values():
         if bundle.kind not in kinds:
             continue
-        why = eligible(bundle, embodiment=embodiment, tier=tier, min_maturity=min_maturity, arms=arms)
+        why = eligible(
+            bundle, embodiment=embodiment, tier=tier, min_maturity=min_maturity, arms=arms
+        )
         if why:
             selection.excluded[bundle.name] = why
         else:
@@ -231,7 +243,9 @@ def select(
         if not matching and stage in _CORE_STAGES and not selection.recipes:
             matching = members[:1]
         for bundle in matching:
-            chosen[bundle.name] = Pick(bundle, scores[bundle.name], f"best {stage or 'unstaged'} match")
+            chosen[bundle.name] = Pick(
+                bundle, scores[bundle.name], f"best {stage or 'unstaged'} match"
+            )
     for bundle in scored:
         if len(chosen) >= k:
             break

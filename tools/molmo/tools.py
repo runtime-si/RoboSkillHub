@@ -109,18 +109,12 @@ def _parse_points(text: str) -> tuple[list[tuple[float, float]], float]:
     point_tags = re.findall(r"<point\b[^>]*>", text, flags=re.IGNORECASE)
     points = []
     for tag in point_tags:
-        mx = re.search(
-            r"\bx\s*=\s*['\"]([0-9]*\.?[0-9]+)['\"]", tag, flags=re.IGNORECASE
-        )
-        my = re.search(
-            r"\by\s*=\s*['\"]([0-9]*\.?[0-9]+)['\"]", tag, flags=re.IGNORECASE
-        )
+        mx = re.search(r"\bx\s*=\s*['\"]([0-9]*\.?[0-9]+)['\"]", tag, flags=re.IGNORECASE)
+        my = re.search(r"\by\s*=\s*['\"]([0-9]*\.?[0-9]+)['\"]", tag, flags=re.IGNORECASE)
         if mx and my:
             points.append((float(mx.group(1)), float(my.group(1))))
     if points:
-        return [
-            (x, y) for x, y in points if 0.0 <= x <= 100.0 and 0.0 <= y <= 100.0
-        ], 100.0
+        return [(x, y) for x, y in points if 0.0 <= x <= 100.0 and 0.0 <= y <= 100.0], 100.0
 
     # 3) Legacy <points x1=".." y1=".." ...> format
     tag_match = re.search(r"<points\b[^>]*>", text, flags=re.IGNORECASE)
@@ -128,29 +122,21 @@ def _parse_points(text: str) -> tuple[list[tuple[float, float]], float]:
         source = tag_match.group(0)
         xs = {
             int(i): float(v)
-            for i, v in re.findall(
-                r"x(\d+)\s*=\s*['\"]([0-9]*\.?[0-9]+)['\"]", source
-            )
+            for i, v in re.findall(r"x(\d+)\s*=\s*['\"]([0-9]*\.?[0-9]+)['\"]", source)
         }
         ys = {
             int(i): float(v)
-            for i, v in re.findall(
-                r"y(\d+)\s*=\s*['\"]([0-9]*\.?[0-9]+)['\"]", source
-            )
+            for i, v in re.findall(r"y(\d+)\s*=\s*['\"]([0-9]*\.?[0-9]+)['\"]", source)
         }
         idxs = sorted(set(xs) & set(ys))
         points = [(xs[i], ys[i]) for i in idxs]
         if points:
-            return [
-                (x, y) for x, y in points if 0.0 <= x <= 100.0 and 0.0 <= y <= 100.0
-            ], 100.0
+            return [(x, y) for x, y in points if 0.0 <= x <= 100.0 and 0.0 <= y <= 100.0], 100.0
 
     # 4) Fallback: parse plain "x, y" pairs anywhere in text
     pairs = re.findall(r"([0-9]*\.?[0-9]+)\s*,\s*([0-9]*\.?[0-9]+)", text)
     points = [(float(x), float(y)) for x, y in pairs]
-    return [
-        (x, y) for x, y in points if 0.0 <= x <= 100.0 and 0.0 <= y <= 100.0
-    ], 100.0
+    return [(x, y) for x, y in points if 0.0 <= x <= 100.0 and 0.0 <= y <= 100.0], 100.0
 
 
 # ---------------------------------------------------------------------------
@@ -162,8 +148,7 @@ def _validate_image(image: np.ndarray) -> np.ndarray:
     arr = np.asarray(image)
     if arr.dtype != np.uint8 or arr.ndim != 3 or arr.shape[2] != 3:
         raise ValueError(
-            f"molmo expects a uint8 [H, W, 3] RGB array, got dtype={arr.dtype} "
-            f"shape={arr.shape}"
+            f"molmo expects a uint8 [H, W, 3] RGB array, got dtype={arr.dtype} shape={arr.shape}"
         )
     return arr
 
@@ -204,10 +189,12 @@ def _query_model(tool_name: str, prompt: str, image: np.ndarray | None) -> str:
 
     content: list[dict] = [{"type": "text", "text": prompt}]
     if image is not None:
-        content.append({
-            "type": "image_url",
-            "image_url": {"url": _image_to_data_url(image)},
-        })
+        content.append(
+            {
+                "type": "image_url",
+                "image_url": {"url": _image_to_data_url(image)},
+            }
+        )
 
     payload = {
         "model": model,
@@ -228,10 +215,12 @@ def _query_model(tool_name: str, prompt: str, image: np.ndarray | None) -> str:
                 last_exc = exc
                 logger.warning(
                     "vLLM request failed (attempt %d/%d): %s",
-                    attempt + 1, _MAX_RETRIES, exc,
+                    attempt + 1,
+                    _MAX_RETRIES,
+                    exc,
                 )
                 if attempt < _MAX_RETRIES - 1:
-                    time.sleep(_BACKOFF_S * (2 ** attempt))
+                    time.sleep(_BACKOFF_S * (2**attempt))
 
     raise ToolError(
         tool_name,

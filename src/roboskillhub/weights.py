@@ -15,7 +15,9 @@ from pathlib import Path
 
 from .model import file_sha256
 
-_URI_RE = re.compile(r"^hf://(?:(?P<type>models|datasets)/)?(?P<repo>[\w.-]+/[\w.-]+)(?:@(?P<rev>[\w.-]+))?$")
+_URI_RE = re.compile(
+    r"^hf://(?:(?P<type>models|datasets)/)?(?P<repo>[\w.-]+/[\w.-]+)(?:@(?P<rev>[\w.-]+))?$"
+)
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 _IGNORED = frozenset({".gitattributes"})
 
@@ -38,7 +40,9 @@ def parse_uri(uri: str, *, require_revision: bool = False) -> HfRef:
         raise ValueError(f"{uri!r} is not hf://<owner>/<repo>@<commit>")
     revision = match.group("rev") or ""
     if require_revision and not _COMMIT_RE.match(revision):
-        raise ValueError(f"{uri!r} must pin a full 40-character commit after '@', not a branch or tag")
+        raise ValueError(
+            f"{uri!r} must pin a full 40-character commit after '@', not a branch or tag"
+        )
     repo_type = "dataset" if match.group("type") == "datasets" else "model"
     return HfRef(match.group("repo"), revision or "main", repo_type)
 
@@ -137,8 +141,12 @@ def write_into_skill_md(skill_md: Path, pushed: Pushed) -> bool:
     snippet instead of rewriting YAML it did not lay out.
     """
     text = skill_md.read_text(encoding="utf-8")
-    new, n_uri = re.subn(r"(?m)^(\s*weights_uri:\s*).*$", lambda m: m.group(1) + pushed.ref.uri, text)
-    new, n_uri_hub = re.subn(r"(?m)^(\s*uri:\s*)hf://.*$", lambda m: m.group(1) + pushed.ref.uri, new)
+    new, n_uri = re.subn(
+        r"(?m)^(\s*weights_uri:\s*).*$", lambda m: m.group(1) + pushed.ref.uri, text
+    )
+    new, n_uri_hub = re.subn(
+        r"(?m)^(\s*uri:\s*)hf://.*$", lambda m: m.group(1) + pushed.ref.uri, new
+    )
     new, n_sha = re.subn(r"(?m)^(\s*sha256:\s*).*$", lambda m: m.group(1) + pushed.sha256, new)
     if not (n_uri or n_uri_hub) or not n_sha:
         return False

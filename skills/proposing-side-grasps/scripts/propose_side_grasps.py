@@ -19,9 +19,8 @@ three axes of the half-extent projected onto that direction -- so an oriented
 box lying at any angle is measured correctly rather than by its world AABB.
 """
 
-from typing import Any, TypedDict
-
 import math
+from typing import Any, TypedDict
 
 from gap import NodeContext
 from gap_core.types import OrientedBoundingBox
@@ -52,8 +51,8 @@ def _axes(quat: dict[str, float]) -> list[tuple[float, float, float]]:
 def _width_along(axes, half, direction) -> float:
     """The box's full width along *direction* — its support function, doubled."""
     return 2.0 * sum(
-        h * abs(sum(a * d for a, d in zip(axis, direction)))
-        for axis, h in zip(axes, half)
+        h * abs(sum(a * d for a, d in zip(axis, direction, strict=True)))
+        for axis, h in zip(axes, half, strict=True)
     )
 
 
@@ -87,13 +86,15 @@ def run(
         width = _width_along(axes, half, closing)
         if span and width > span:
             continue
-        candidates.append({
-            "approach": {"x": approach[0], "y": approach[1], "z": 0.0},
-            "close_heading_deg": math.degrees(math.atan2(closing[1], closing[0])),
-            "position": {"x": centre["x"], "y": centre["y"], "z": centre["z"]},
-            "width_m": width,
-            "margin_m": (span - width) if span else None,
-        })
+        candidates.append(
+            {
+                "approach": {"x": approach[0], "y": approach[1], "z": 0.0},
+                "close_heading_deg": math.degrees(math.atan2(closing[1], closing[0])),
+                "position": {"x": centre["x"], "y": centre["y"], "z": centre["z"]},
+                "width_m": width,
+                "margin_m": (span - width) if span else None,
+            }
+        )
 
     if not candidates:
         return {

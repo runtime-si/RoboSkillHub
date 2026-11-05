@@ -39,9 +39,14 @@ logger = logging.getLogger(__name__)
 
 _VLM_LABELS = ["A", "B", "C", "D", "E", "F", "G", "H"]
 _VLM_COLORS = [
-    (255, 0, 0), (0, 255, 0), (0, 0, 255),
-    (255, 255, 0), (0, 255, 255), (255, 0, 255),
-    (255, 128, 0), (128, 0, 255),
+    (255, 0, 0),
+    (0, 255, 0),
+    (0, 0, 255),
+    (255, 255, 0),
+    (0, 255, 255),
+    (255, 0, 255),
+    (255, 128, 0),
+    (128, 0, 255),
 ]
 
 
@@ -76,7 +81,10 @@ class _CamResult:
 
 
 def _clip_box_to_image(
-    box: BoundingBox2D, img_h: int, img_w: int, pad_px: int,
+    box: BoundingBox2D,
+    img_h: int,
+    img_w: int,
+    pad_px: int,
 ) -> tuple[int, int, int, int]:
     """Return ``(x1, y1, x2, y2)`` int clipped to image bounds with padding."""
     x1 = max(0, int(box["x1"]) - pad_px)
@@ -90,15 +98,23 @@ def _clip_box_to_image(
 
 
 def _crop_rgb(
-    rgb: np.ndarray, x1: int, y1: int, x2: int, y2: int,
+    rgb: np.ndarray,
+    x1: int,
+    y1: int,
+    x2: int,
+    y2: int,
 ) -> np.ndarray:
     return rgb[y1:y2, x1:x2, :].copy()
 
 
 def _uncrop_mask_to_full(
     crop_mask: Mask,
-    full_h: int, full_w: int,
-    x1: int, y1: int, x2: int, y2: int,
+    full_h: int,
+    full_w: int,
+    x1: int,
+    y1: int,
+    x2: int,
+    y2: int,
 ) -> Mask:
     """Paste ``crop_mask`` into a zero ``(full_h, full_w)`` array at (y1, x1)."""
     crop_arr = np.asarray(crop_mask, dtype=np.uint8)
@@ -110,15 +126,18 @@ def _uncrop_mask_to_full(
     if crop_arr.shape != (expected_h, expected_w):
         try:
             import cv2
+
             crop_arr = cv2.resize(
-                crop_arr, (expected_w, expected_h),
+                crop_arr,
+                (expected_w, expected_h),
                 interpolation=cv2.INTER_NEAREST,
             )
         except Exception:
             logger.warning(
                 "perceive_subpart: crop mask shape %s != expected %s and "
                 "cv2 missing; padding with zeros",
-                crop_arr.shape, (expected_h, expected_w),
+                crop_arr.shape,
+                (expected_h, expected_w),
             )
             # Fallback: pad/crop manually.
             tmp = np.zeros((expected_h, expected_w), dtype=np.uint8)
@@ -145,30 +164,51 @@ def _parse_letter(text: str, n: int) -> int:
 
 
 def _render_boxes_on_image(
-    rgb: np.ndarray, detections: list,
+    rgb: np.ndarray,
+    detections: list,
 ) -> np.ndarray:
     """Annotate the image with labeled boxes for VLM disambiguation."""
     import cv2
+
     img = rgb.copy()
     original = img.copy()
-    cv2.putText(original, "Original", (10, 40),
-                cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 4, cv2.LINE_AA)
-    cv2.putText(original, "Original", (10, 40),
-                cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 0), 2, cv2.LINE_AA)
+    cv2.putText(
+        original,
+        "Original",
+        (10, 40),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        1.2,
+        (255, 255, 255),
+        4,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        original, "Original", (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 0), 2, cv2.LINE_AA
+    )
     annotated = img.copy()
     for i, det in enumerate(detections):
         if i >= len(_VLM_LABELS):
             break
         color = _VLM_COLORS[i % len(_VLM_COLORS)]
         b = det["box"]
-        cv2.rectangle(annotated, (int(b["x1"]), int(b["y1"])),
-                      (int(b["x2"]), int(b["y2"])), color, 3)
+        cv2.rectangle(
+            annotated, (int(b["x1"]), int(b["y1"])), (int(b["x2"]), int(b["y2"])), color, 3
+        )
         label = _VLM_LABELS[i]
         tx, ty = int(b["x1"]), max(int(b["y1"]) - 8, 20)
-        cv2.putText(annotated, label, (tx, ty),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 4, cv2.LINE_AA)
-        cv2.putText(annotated, label, (tx, ty),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, color, 2, cv2.LINE_AA)
+        cv2.putText(
+            annotated,
+            label,
+            (tx, ty),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1.0,
+            (255, 255, 255),
+            4,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            annotated, label, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 1.0, color, 2, cv2.LINE_AA
+        )
     composite = np.concatenate([original, annotated], axis=1)
     return composite
 
@@ -194,8 +234,10 @@ def _pick_parent_box(
     try:
         resp = ctx.tool(
             "grounding-dino.detect",
-            image=rgb, query=dino_prompt,
-            box_threshold=box_threshold, text_threshold=text_threshold,
+            image=rgb,
+            query=dino_prompt,
+            box_threshold=box_threshold,
+            text_threshold=text_threshold,
         )
     except Exception as exc:
         logger.warning("perceive_subpart: DINO detect failed: %s", exc)
@@ -219,19 +261,23 @@ def _pick_parent_box(
     try:
         vlm_resp = ctx.tool(
             "vlm.query",
-            prompt=vlm_prompt, image=annotated,
+            prompt=vlm_prompt,
+            image=annotated,
         )
         idx = _parse_letter(vlm_resp["text"], n)
         if 0 <= idx < n:
             logger.info(
                 "perceive_subpart: VLM picked box %d/%d for parent %r (text=%r)",
-                idx, n, parent_prompt, vlm_resp["text"][:80],
+                idx,
+                n,
+                parent_prompt,
+                vlm_resp["text"][:80],
             )
             return detections[idx]["box"]
     except Exception as exc:
         logger.warning(
-            "perceive_subpart: VLM disambiguation failed (%s); "
-            "falling back to top-confidence box", exc,
+            "perceive_subpart: VLM disambiguation failed (%s); falling back to top-confidence box",
+            exc,
         )
     # Fallback: top-confidence DINO detection (which is what DINO
     # ranks first by score anyway).
@@ -257,17 +303,24 @@ def _perceive_one_camera(
     img_h, img_w = cam["rgb"].shape[:2]
 
     parent_box = _pick_parent_box(
-        ctx, cam["rgb"], parent_prompt, box_threshold, text_threshold,
+        ctx,
+        cam["rgb"],
+        parent_prompt,
+        box_threshold,
+        text_threshold,
     )
     if parent_box is None:
         logger.debug(
             "perceive_subpart: no DINO box for parent %r in cam %r",
-            parent_prompt, cam["name"],
+            parent_prompt,
+            cam["name"],
         )
         return None
 
     x1, y1, x2, y2 = _clip_box_to_image(
-        parent_box, img_h=img_h, img_w=img_w,
+        parent_box,
+        img_h=img_h,
+        img_w=img_w,
         pad_px=padding_px,
     )
     cropped = _crop_rgb(cam["rgb"], x1, y1, x2, y2)
@@ -275,18 +328,21 @@ def _perceive_one_camera(
     try:
         parent_seg = ctx.tool(
             "sam3.segment_box",
-            image=cam["rgb"], box=parent_box,
+            image=cam["rgb"],
+            box=parent_box,
         )
     except Exception as exc:
         logger.warning(
             "perceive_subpart: sam3.segment_box(parent) failed in cam %r: %s",
-            cam["name"], exc,
+            cam["name"],
+            exc,
         )
         return None
     if not parent_seg["masks"]:
         logger.debug(
             "perceive_subpart: SAM3 returned no parent mask for %r in cam %r",
-            parent_prompt, cam["name"],
+            parent_prompt,
+            cam["name"],
         )
         return None
     parent_mask = parent_seg["masks"][0]
@@ -308,14 +364,16 @@ def _perceive_one_camera(
     except Exception as exc:
         logger.warning(
             "perceive_subpart: DINO subpart detect failed in cam %r: %s",
-            cam["name"], exc,
+            cam["name"],
+            exc,
         )
         return None
     sub_dets = list(sub_dino["detections"])
     if not sub_dets:
         logger.debug(
             "perceive_subpart: DINO returned no subpart box for %r in cam %r",
-            subpart_prompt, cam["name"],
+            subpart_prompt,
+            cam["name"],
         )
         return None
 
@@ -341,10 +399,7 @@ def _perceive_one_camera(
     def _box_area(box: BoundingBox2D) -> float:
         return float(max(0.0, box["x2"] - box["x1"]) * max(0.0, box["y2"] - box["y1"]))
 
-    small = [
-        d for d in sub_dets
-        if _box_area(d["box"]) / parent_area <= max_subpart_area_frac
-    ]
+    small = [d for d in sub_dets if _box_area(d["box"]) / parent_area <= max_subpart_area_frac]
     if small:
         small.sort(key=lambda d: float(d["score"]), reverse=True)
         subpart_box = small[0]["box"]
@@ -367,7 +422,9 @@ def _perceive_one_camera(
         logger.warning(
             "perceive_subpart: no subpart box < %.0f%% of parent for %r "
             "in cam %r; falling back to smallest (area %.0f%%)",
-            100.0 * max_subpart_area_frac, subpart_prompt, cam["name"],
+            100.0 * max_subpart_area_frac,
+            subpart_prompt,
+            cam["name"],
             100.0 * _box_area(subpart_box) / parent_area,
         )
 
@@ -375,7 +432,9 @@ def _perceive_one_camera(
     if score < min_score:
         logger.debug(
             "perceive_subpart: DINO subpart score %.3f < %.3f for %r",
-            score, min_score, subpart_prompt,
+            score,
+            min_score,
+            subpart_prompt,
         )
         return None
 
@@ -398,25 +457,31 @@ def _perceive_one_camera(
     # Tight padding (8px): enough for SAM context, small enough that the
     # pan body stays out of frame.
     hx1, hy1, hx2, hy2 = _clip_box_to_image(
-        sb_full, img_h=img_h, img_w=img_w, pad_px=8,
+        sb_full,
+        img_h=img_h,
+        img_w=img_w,
+        pad_px=8,
     )
     subpart_crop = _crop_rgb(cam["rgb"], hx1, hy1, hx2, hy2)
 
     try:
         seg_resp = ctx.tool(
             "sam3.segment_text",
-            image=subpart_crop, query=subpart_prompt,
+            image=subpart_crop,
+            query=subpart_prompt,
         )
     except Exception as exc:
         logger.warning(
             "perceive_subpart: sam3.segment_text(subpart-crop) failed in cam %r: %s",
-            cam["name"], exc,
+            cam["name"],
+            exc,
         )
         return None
     if not seg_resp["masks"]:
         logger.debug(
             "perceive_subpart: SAM3 no mask for subpart %r in subpart-crop, cam %r",
-            subpart_prompt, cam["name"],
+            subpart_prompt,
+            cam["name"],
         )
         return None
     sub_crop_mask = seg_resp["masks"][0]
@@ -424,8 +489,13 @@ def _perceive_one_camera(
     # Uncrop the handle mask from subpart-crop coords directly to FULL
     # image coords (single paste at the handle box origin).
     full_mask = _uncrop_mask_to_full(
-        sub_crop_mask, full_h=img_h, full_w=img_w,
-        x1=hx1, y1=hy1, x2=hx2, y2=hy2,
+        sub_crop_mask,
+        full_h=img_h,
+        full_w=img_w,
+        x1=hx1,
+        y1=hy1,
+        x2=hx2,
+        y2=hy2,
     )
 
     # Depth-fuse the FULL mask against the FULL camera. Intrinsics and
@@ -433,14 +503,19 @@ def _perceive_one_camera(
     # was cropped (for SAM's benefit).
     cloud = ctx.tool(
         "geometry.mask_to_world_points",
-        mask=full_mask, depth=cam["depth"],
-        intrinsics=cam["intrinsics"], camera_pose=cam["pose"],
+        mask=full_mask,
+        depth=cam["depth"],
+        intrinsics=cam["intrinsics"],
+        camera_pose=cam["pose"],
     )["points"]
     num_points = len(cloud["points"])
     if num_points < min_points:
         logger.debug(
             "perceive_subpart: %d < %d points for subpart %r in cam %r",
-            num_points, min_points, subpart_prompt, cam["name"],
+            num_points,
+            min_points,
+            subpart_prompt,
+            cam["name"],
         )
         return None
 
@@ -464,8 +539,12 @@ def _perceive_one_camera(
         points=obb_src,
     )["obb"]
     return _CamResult(
-        cloud=cloud, mask=full_mask, parent_mask=parent_mask,
-        obb=obb, score=score, cam=cam,
+        cloud=cloud,
+        mask=full_mask,
+        parent_mask=parent_mask,
+        obb=obb,
+        score=score,
+        cam=cam,
     )
 
 
@@ -516,19 +595,25 @@ def run(
     results: list[_CamResult] = []
     for cam in cameras:
         r = _perceive_one_camera(
-            ctx, cam, parent_prompt, subpart_prompt,
-            padding_px=padding_px, min_score=min_score,
+            ctx,
+            cam,
+            parent_prompt,
+            subpart_prompt,
+            padding_px=padding_px,
+            min_score=min_score,
             min_points=min_points,
-            box_threshold=box_threshold, text_threshold=text_threshold,
+            box_threshold=box_threshold,
+            text_threshold=text_threshold,
             max_subpart_area_frac=max_subpart_area_frac,
         )
         if r is not None:
             results.append(r)
     if not results:
         logger.info(
-            "perceive_subpart: no acceptable detection for parent=%r "
-            "subpart=%r across %d cameras",
-            parent_prompt, subpart_prompt, len(cameras),
+            "perceive_subpart: no acceptable detection for parent=%r subpart=%r across %d cameras",
+            parent_prompt,
+            subpart_prompt,
+            len(cameras),
         )
         return {
             "found": False,
@@ -549,8 +634,7 @@ def run(
     # grasp closes ON the bar instead of ~half-a-thickness off it. With
     # one camera the union is that one cloud → identical to before.
     fused_pts = np.concatenate(
-        [np.asarray(r.cloud["points"], dtype=np.float32).reshape(-1, 3)
-         for r in results],
+        [np.asarray(r.cloud["points"], dtype=np.float32).reshape(-1, 3) for r in results],
         axis=0,
     )
     fused_cloud: PointCloud = {"points": fused_pts}
@@ -559,9 +643,7 @@ def run(
             "geometry.filter_noise",
             points=fused_cloud,
         )["points"]
-        obb_src = (
-            filtered if len(filtered["points"]) >= min_points else fused_cloud
-        )
+        obb_src = filtered if len(filtered["points"]) >= min_points else fused_cloud
         fused_obb = ctx.tool(
             "geometry.compute_obb",
             points=obb_src,
@@ -576,10 +658,17 @@ def run(
         "perceive_subpart: parent=%r subpart=%r → mask score %.3f, "
         "fused %d 3D points from %d camera hit(s) "
         "(OBB center=(%.3f,%.3f,%.3f) extent=(%.3f,%.3f,%.3f))",
-        parent_prompt, subpart_prompt, best.score,
-        len(out_cloud["points"]), len(results),
-        out_obb["center"]["x"], out_obb["center"]["y"], out_obb["center"]["z"],
-        out_obb["extent"]["x"], out_obb["extent"]["y"], out_obb["extent"]["z"],
+        parent_prompt,
+        subpart_prompt,
+        best.score,
+        len(out_cloud["points"]),
+        len(results),
+        out_obb["center"]["x"],
+        out_obb["center"]["y"],
+        out_obb["center"]["z"],
+        out_obb["extent"]["x"],
+        out_obb["extent"]["y"],
+        out_obb["extent"]["z"],
     )
 
     # ----------------------------------------------------------------
@@ -601,7 +690,8 @@ def run(
         if best.cam is not None:
             p_cloud = ctx.tool(
                 "geometry.mask_to_world_points",
-                mask=best.parent_mask, depth=best.cam["depth"],
+                mask=best.parent_mask,
+                depth=best.cam["depth"],
                 intrinsics=best.cam["intrinsics"],
                 camera_pose=best.cam["pose"],
             )["points"]
@@ -611,11 +701,7 @@ def run(
                     "geometry.filter_noise",
                     points=p_cloud,
                 )["points"]
-                p_obb_src = (
-                    p_filtered
-                    if len(p_filtered["points"]) >= min_points
-                    else p_cloud
-                )
+                p_obb_src = p_filtered if len(p_filtered["points"]) >= min_points else p_cloud
                 parent_obb = ctx.tool(
                     "geometry.compute_obb",
                     points=p_obb_src,
@@ -626,7 +712,8 @@ def run(
         # becomes a no-op when parent and held OBB are equal/empty).
         logger.warning(
             "perceive_subpart: failed to compute parent OBB (%s); "
-            "returning empty parent_obb/parent_cloud", e,
+            "returning empty parent_obb/parent_cloud",
+            e,
         )
 
     # NOTE: `mask` returned here is the PARENT object mask (whole pan),

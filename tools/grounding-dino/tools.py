@@ -40,9 +40,9 @@ _processor: Any = None
 
 
 class Detection(TypedDict):
-    box: BoundingBox2D    # [x1, y1, x2, y2] in pixels
-    label: str            # matched text label
-    score: float          # confidence [0, 1]
+    box: BoundingBox2D  # [x1, y1, x2, y2] in pixels
+    label: str  # matched text label
+    score: float  # confidence [0, 1]
 
 
 class DetectResult(TypedDict):
@@ -94,9 +94,7 @@ def _get_model() -> tuple[Any, Any]:
         if _model is None:
             from transformers import AutoModelForZeroShotObjectDetection, AutoProcessor
 
-            logger.info(
-                "Loading Grounding DINO model: %s on %s ...", _MODEL_NAME, _DEVICE
-            )
+            logger.info("Loading Grounding DINO model: %s on %s ...", _MODEL_NAME, _DEVICE)
             _processor = AutoProcessor.from_pretrained(_MODEL_NAME)
             model = AutoModelForZeroShotObjectDetection.from_pretrained(_MODEL_NAME)
             model = model.to(_DEVICE)
@@ -148,9 +146,7 @@ def detect(
     text_threshold = text_threshold if text_threshold > 0 else _DEFAULT_TEXT_THRESHOLD
 
     try:
-        inputs = processor(
-            images=pil_image, text=text_prompt, return_tensors="pt"
-        ).to(_DEVICE)
+        inputs = processor(images=pil_image, text=text_prompt, return_tensors="pt").to(_DEVICE)
         with torch.no_grad():
             outputs = model(**inputs)
 
@@ -170,16 +166,18 @@ def detect(
     labels = results["labels"]
 
     for box, score, label in zip(boxes, scores, labels, strict=False):
-        detections.append({
-            "box": {
-                "x1": float(box[0]),
-                "y1": float(box[1]),
-                "x2": float(box[2]),
-                "y2": float(box[3]),
-            },
-            "label": str(label),
-            "score": float(score),
-        })
+        detections.append(
+            {
+                "box": {
+                    "x1": float(box[0]),
+                    "y1": float(box[1]),
+                    "x2": float(box[2]),
+                    "y2": float(box[3]),
+                },
+                "label": str(label),
+                "score": float(score),
+            }
+        )
 
     logger.info("grounding-dino.detect returning %d detections.", len(detections))
     return {"detections": detections}

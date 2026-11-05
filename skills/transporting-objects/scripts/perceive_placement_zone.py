@@ -77,16 +77,30 @@ def _render_boxes_on_image(image: np.ndarray, detections: list) -> np.ndarray:
     img_np = np.ascontiguousarray(np.asarray(image, dtype=np.uint8))
 
     original = img_np.copy()
-    cv2.putText(original, "Original", (10, 40),
-                cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 4, cv2.LINE_AA)
-    cv2.putText(original, "Original", (10, 40),
-                cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 0), 2, cv2.LINE_AA)
+    cv2.putText(
+        original,
+        "Original",
+        (10, 40),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        1.2,
+        (255, 255, 255),
+        4,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        original, "Original", (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 0), 2, cv2.LINE_AA
+    )
 
     annotated = img_np.copy()
     _COLORS = [
-        (255, 0, 0), (0, 255, 0), (0, 0, 255),
-        (255, 255, 0), (0, 255, 255), (255, 0, 255),
-        (255, 128, 0), (128, 0, 255),
+        (255, 0, 0),
+        (0, 255, 0),
+        (0, 0, 255),
+        (255, 255, 0),
+        (0, 255, 255),
+        (255, 0, 255),
+        (255, 128, 0),
+        (128, 0, 255),
     ]
 
     for i, det in enumerate(detections):
@@ -100,10 +114,19 @@ def _render_boxes_on_image(image: np.ndarray, detections: list) -> np.ndarray:
 
         label = _LABELS[i]
         tx, ty = int(b["x1"]), max(int(b["y1"]) - 8, 20)
-        cv2.putText(annotated, label, (tx, ty),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 4, cv2.LINE_AA)
-        cv2.putText(annotated, label, (tx, ty),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, color, 2, cv2.LINE_AA)
+        cv2.putText(
+            annotated,
+            label,
+            (tx, ty),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1.0,
+            (255, 255, 255),
+            4,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            annotated, label, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 1.0, color, 2, cv2.LINE_AA
+        )
 
     return np.concatenate([original, annotated], axis=1)
 
@@ -146,9 +169,7 @@ _WORKSPACE_Z = (-0.05, 1.20)
 # with compartments". Drawers and shelves also work with the same prompt
 # because their open cavities and surfaces are both visually distinct dark
 # rectangles or flat panels.
-_DEFAULT_DINO_PROMPT = (
-    "rectangular hole. dark hole. opening. drawer. shelf. compartment. cubby."
-)
+_DEFAULT_DINO_PROMPT = "rectangular hole. dark hole. opening. drawer. shelf. compartment. cubby."
 
 
 class Output(TypedDict):
@@ -232,8 +253,10 @@ def _try_dino_vlm_letter(
     try:
         gdino_resp = ctx.tool(
             "grounding-dino.detect",
-            image=cam["rgb"], query=dino_prompt,
-            box_threshold=box_threshold, text_threshold=text_threshold,
+            image=cam["rgb"],
+            query=dino_prompt,
+            box_threshold=box_threshold,
+            text_threshold=text_threshold,
         )
     except Exception as e:
         logger.warning("GDINO detect failed: %s", e)
@@ -248,7 +271,10 @@ def _try_dino_vlm_letter(
     detections = _nms_dedupe(in_container, iou_threshold=0.7)
     logger.info(
         "GDINO: %d raw → %d in container_mask → %d after NMS (prompt=%r)",
-        len(raw_detections), len(in_container), len(detections), dino_prompt,
+        len(raw_detections),
+        len(in_container),
+        len(detections),
+        dino_prompt,
     )
     if not detections:
         return None, 0.0
@@ -257,7 +283,8 @@ def _try_dino_vlm_letter(
     annotated_image = _render_boxes_on_image(cam["rgb"], detections[:n])
 
     vlm_prompt = load_prompt(
-        __package__, "vlm_select_zone",
+        __package__,
+        "vlm_select_zone",
         n=n,
         label_list=", ".join(_LABELS[:n]),
         placement_description=placement_description,
@@ -266,7 +293,8 @@ def _try_dino_vlm_letter(
     try:
         vlm_resp = ctx.tool(
             "vlm.query",
-            prompt=vlm_prompt, image=annotated_image,
+            prompt=vlm_prompt,
+            image=annotated_image,
         )
     except Exception as e:
         logger.warning("VLM query failed for placement zone: %s", e)
@@ -276,8 +304,11 @@ def _try_dino_vlm_letter(
     selected_idx = _parse_letter(vlm_text, n)
     logger.info(
         "VLM placement-zone letter=%r idx=%d (text=%r) for %r from %d detections",
-        vlm_text.strip()[:40], selected_idx, vlm_text[:80],
-        placement_description, n,
+        vlm_text.strip()[:40],
+        selected_idx,
+        vlm_text[:80],
+        placement_description,
+        n,
     )
     if selected_idx < 0:
         return None, 0.0
@@ -286,7 +317,8 @@ def _try_dino_vlm_letter(
     try:
         seg_resp = ctx.tool(
             "sam3.segment_box",
-            image=cam["rgb"], box=selected_det["box"],
+            image=cam["rgb"],
+            box=selected_det["box"],
         )
     except Exception as e:
         logger.warning("SAM3 segment_box failed for placement zone: %s", e)
@@ -297,7 +329,8 @@ def _try_dino_vlm_letter(
     if seg_resp["scores"][0] < min_score:
         logger.info(
             "SAM3 segment_box score %.2f below threshold %.2f",
-            seg_resp["scores"][0], min_score,
+            seg_resp["scores"][0],
+            min_score,
         )
         return None, 0.0
     return seg_resp["masks"][0], seg_resp["scores"][0]
@@ -326,9 +359,7 @@ def _try_segment_text(
          cavity. This recovers task 26 across description variants.
     """
     desc_lower = placement_description.lower()
-    has_interior_qualifier = any(
-        k in desc_lower for k in ("inside", "interior", "open ")
-    )
+    has_interior_qualifier = any(k in desc_lower for k in ("inside", "interior", "open "))
     has_interior_target = any(k in desc_lower for k in _INTERIOR_KEYWORDS)
     # Only auto-add "inside of" when the description is shaped like a
     # bare container noun phrase ("the bottom drawer", "the left
@@ -363,7 +394,8 @@ def _try_segment_text(
         try:
             seg_resp = ctx.tool(
                 "sam3.segment_text",
-                image=cam["rgb"], query=prompt,
+                image=cam["rgb"],
+                query=prompt,
             )
         except Exception as e:
             logger.warning("SAM3 segment_text failed for %r: %s", prompt, e)
@@ -377,7 +409,8 @@ def _try_segment_text(
         else:
             logger.info(
                 "SAM3 segment_text prompt=%r score=%.3f below threshold",
-                prompt, score,
+                prompt,
+                score,
             )
     return out
 
@@ -392,7 +425,8 @@ def _obb_in_workspace(obb: OrientedBoundingBox) -> bool:
 
 
 def _xy_offset_from_container(
-    zone: OrientedBoundingBox, container: OrientedBoundingBox | None,
+    zone: OrientedBoundingBox,
+    container: OrientedBoundingBox | None,
 ) -> float:
     """Return the XY distance from zone center to container center.
 
@@ -457,15 +491,19 @@ def _mask_to_zone_obb(
     """
     cloud = ctx.tool(
         "geometry.mask_to_world_points",
-        mask=mask, depth=cam["depth"],
-        intrinsics=cam["intrinsics"], camera_pose=cam["pose"],
+        mask=mask,
+        depth=cam["depth"],
+        intrinsics=cam["intrinsics"],
+        camera_pose=cam["pose"],
     )
     points = cloud["points"]
     num_points = int(len(points["points"]))
     if num_points < min_points:
         logger.info(
             "[%s] cloud too sparse: %d < %d points",
-            label, num_points, min_points,
+            label,
+            num_points,
+            min_points,
         )
         return None
 
@@ -474,14 +512,19 @@ def _mask_to_zone_obb(
     if zone["extent"]["z"] > max_zone_z_extent:
         logger.info(
             "[%s] Z-extent %.3f m > %.3f m — likely a wall, rejecting",
-            label, zone["extent"]["z"], max_zone_z_extent,
+            label,
+            zone["extent"]["z"],
+            max_zone_z_extent,
         )
         return None
 
     if not _obb_in_workspace(zone):
         logger.info(
             "[%s] OBB center (%.3f, %.3f, %.3f) outside workspace — rejecting",
-            label, zone["center"]["x"], zone["center"]["y"], zone["center"]["z"],
+            label,
+            zone["center"]["x"],
+            zone["center"]["y"],
+            zone["center"]["z"],
         )
         return None
 
@@ -489,7 +532,9 @@ def _mask_to_zone_obb(
         logger.info(
             "[%s] OBB center (%.3f, %.3f) too far from container center "
             "(%.3f, %.3f) given extent (%.3f, %.3f) — rejecting",
-            label, zone["center"]["x"], zone["center"]["y"],
+            label,
+            zone["center"]["x"],
+            zone["center"]["y"],
             container_obb["center"]["x"] if container_obb else 0.0,
             container_obb["center"]["y"] if container_obb else 0.0,
             container_obb["extent"]["x"] if container_obb else 0.0,
@@ -516,7 +561,9 @@ def _mask_to_zone_obb(
                 "[%s] zone center z=%.3f floats >5 cm above container top "
                 "z=%.3f — mis-projected mask, rejecting (fall back to "
                 "container-top drop)",
-                label, zone["center"]["z"], container_top,
+                label,
+                zone["center"]["z"],
+                container_top,
             )
             return None
 
@@ -557,35 +604,60 @@ def run(
     candidates: list[tuple[str, OrientedBoundingBox, float, float]] = []
 
     a_mask, a_score = _try_dino_vlm_letter(
-        ctx, cam, placement_description,
+        ctx,
+        cam,
+        placement_description,
         dino_prompt or _DEFAULT_DINO_PROMPT,
-        box_threshold, text_threshold, min_score,
+        box_threshold,
+        text_threshold,
+        min_score,
         container_mask,
     )
     if a_mask is not None:
         a_obb = _mask_to_zone_obb(
-            ctx, cam, a_mask, min_points, max_zone_z_extent,
-            container_obb, label="dino+vlm-letter",
+            ctx,
+            cam,
+            a_mask,
+            min_points,
+            max_zone_z_extent,
+            container_obb,
+            label="dino+vlm-letter",
         )
         if a_obb is not None:
-            candidates.append((
-                "dino+vlm-letter", a_obb, a_score,
-                _xy_offset_from_container(a_obb, container_obb),
-            ))
+            candidates.append(
+                (
+                    "dino+vlm-letter",
+                    a_obb,
+                    a_score,
+                    _xy_offset_from_container(a_obb, container_obb),
+                )
+            )
 
     text_candidates = _try_segment_text(
-        ctx, cam, placement_description, min_score,
+        ctx,
+        cam,
+        placement_description,
+        min_score,
     )
     for prompt, b_mask, b_score in text_candidates:
         b_obb = _mask_to_zone_obb(
-            ctx, cam, b_mask, min_points, max_zone_z_extent,
-            container_obb, label=f"sam3-text:{prompt!r}",
+            ctx,
+            cam,
+            b_mask,
+            min_points,
+            max_zone_z_extent,
+            container_obb,
+            label=f"sam3-text:{prompt!r}",
         )
         if b_obb is not None:
-            candidates.append((
-                f"sam3-text:{prompt}", b_obb, b_score,
-                _xy_offset_from_container(b_obb, container_obb),
-            ))
+            candidates.append(
+                (
+                    f"sam3-text:{prompt}",
+                    b_obb,
+                    b_score,
+                    _xy_offset_from_container(b_obb, container_obb),
+                )
+            )
 
     if not candidates:
         logger.warning(
@@ -613,9 +685,16 @@ def run(
         "Placement zone OBB chosen path=%s (xy_offset=%.3f m, mask_score=%.3f, "
         "desc=%r) center=(%.3f, %.3f, %.3f) extent=(%.3f, %.3f, %.3f); "
         "candidates=%s",
-        chosen_path, xy_offset, zone_score, placement_description,
-        zone_obb["center"]["x"], zone_obb["center"]["y"], zone_obb["center"]["z"],
-        zone_obb["extent"]["x"], zone_obb["extent"]["y"], zone_obb["extent"]["z"],
+        chosen_path,
+        xy_offset,
+        zone_score,
+        placement_description,
+        zone_obb["center"]["x"],
+        zone_obb["center"]["y"],
+        zone_obb["center"]["z"],
+        zone_obb["extent"]["x"],
+        zone_obb["extent"]["y"],
+        zone_obb["extent"]["z"],
         [(c[0], f"{c[3]:.3f}") for c in candidates],
     )
     return {"placement_zone_obb": zone_obb}

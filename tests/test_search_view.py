@@ -56,7 +56,9 @@ def test_full_tier_keeps_the_recipe_and_adds_its_skills_and_their_tools(hub):
 
 def test_view_links_bundles_and_writes_recipes(hub, tmp_path):
     selection = select(load_catalog(hub), "pick up the block", tier="full")
-    out = make_view(selection.picks, tmp_path / "view", query="q", recipes=[r for r, _ in selection.recipes])
+    out = make_view(
+        selection.picks, tmp_path / "view", query="q", recipes=[r for r, _ in selection.recipes]
+    )
     assert (out / "skills/grabbing-things/SKILL.md").is_file()
     assert (out / "tools/judge").is_symlink()
     record = json.loads((out / VIEW_FILE).read_text())

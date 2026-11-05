@@ -23,9 +23,7 @@ def run(
     grasp_pose: Se3Pose,
     target_obb: OrientedBoundingBox,
 ) -> Output:
-    approach_z = (
-        target_obb["center"]["z"] + target_obb["extent"]["z"] + _OBB_TOP_CLEARANCE
-    )
+    approach_z = target_obb["center"]["z"] + target_obb["extent"]["z"] + _OBB_TOP_CLEARANCE
     align_pose: Se3Pose = {
         "position": {
             "x": grasp_pose["position"]["x"],

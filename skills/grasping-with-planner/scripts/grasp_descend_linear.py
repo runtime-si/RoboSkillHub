@@ -33,7 +33,6 @@ import logging
 from typing import TypedDict
 
 import numpy as np
-
 from gap import NodeContext
 from gap_core.types import OrientedBoundingBox, Se3Pose
 
@@ -52,12 +51,16 @@ _DOWN = {"w": 0.0, "x": 1.0, "y": 0.0, "z": 0.0}
 # for a scene where perception UNDER-measured tall cartons; libero perception is
 # accurate — validated 99.5% ID — so keying the depth off the true OBB height is
 # safe and prevents the tall-object tip-over.)
-_DEEPEN_FRAC = 0.5        # descend this fraction of the object's height below its top (0.5 → grip at centre)
-_MAX_DEEPEN = 0.035       # cap = usable finger-pad depth. The Panda finger is ~5 cm
-                          # from palm to tip: descending more than ~3.5 cm below the
-                          # object top puts the PALM below the top and rams tall
-                          # cartons/bottles over (observed on milk + ranch dressing).
-_BASE_CLEARANCE = 0.012   # keep the grip at least this far above the object base (fingers clear the table)
+_DEEPEN_FRAC = (
+    0.5  # descend this fraction of the object's height below its top (0.5 → grip at centre)
+)
+_MAX_DEEPEN = 0.035  # cap = usable finger-pad depth. The Panda finger is ~5 cm
+# from palm to tip: descending more than ~3.5 cm below the
+# object top puts the PALM below the top and rams tall
+# cartons/bottles over (observed on milk + ranch dressing).
+_BASE_CLEARANCE = (
+    0.012  # keep the grip at least this far above the object base (fingers clear the table)
+)
 
 # Fused-OBB raised-wrist split (ported from the grocery-packing benchmark's
 # grasp_move.py). An item OBB wider than this (full size, m) is almost
@@ -74,17 +77,23 @@ class Output(TypedDict):
     done: bool
 
 
-def _cartesian(ctx: NodeContext, x: float, y: float, z: float,
-               rotation: dict | None = None) -> None:
+def _cartesian(
+    ctx: NodeContext, x: float, y: float, z: float, rotation: dict | None = None
+) -> None:
     """Straight-line cartesian move. Raises on an infeasible solve — the
     caller's planner fallback handles that, so we do NOT silently retry here."""
-    ctx.tool("robot.go_to_pose_cartesian",
-             pose={"position": {"x": float(x), "y": float(y), "z": float(z)},
-                   "rotation": rotation or _DOWN})
+    ctx.tool(
+        "robot.go_to_pose_cartesian",
+        pose={
+            "position": {"x": float(x), "y": float(y), "z": float(z)},
+            "rotation": rotation or _DOWN,
+        },
+    )
 
 
-def _descend_linear(ctx: NodeContext, target_z: float, from_z: float,
-                    rotation: dict | None = None) -> None:
+def _descend_linear(
+    ctx: NodeContext, target_z: float, from_z: float, rotation: dict | None = None
+) -> None:
     """Z-only straight-down descend via cuRobo's constrained linear planner;
     cartesian fallback if the constrained plan can't be found. FINGERTIP-frame
     heights: distance is ``from_z - target_z`` (NOT ``get_ee_pose().z - target_z``,
@@ -105,7 +114,9 @@ def _descend_linear(ctx: NodeContext, target_z: float, from_z: float,
     if res.get("success") and res.get("trajectory"):
         ctx.tool("robot.execute_trajectory", trajectory=res["trajectory"])
     else:
-        ee = ctx.tool("robot.get_ee_pose")["pose"]["position"]  # XY only (top-down: hand XY == fingertip XY)
+        ee = ctx.tool("robot.get_ee_pose")["pose"][
+            "position"
+        ]  # XY only (top-down: hand XY == fingertip XY)
         _cartesian(ctx, ee["x"], ee["y"], target_z, rotation)
 
 
@@ -125,8 +136,10 @@ def _wrist_world_cloud(ctx: NodeContext) -> np.ndarray:
     full = np.ones(depth.shape[:2], dtype=np.uint8)
     cloud = ctx.tool(
         "geometry.mask_to_world_points",
-        mask=full, depth=cam["depth"],
-        intrinsics=cam["intrinsics"], camera_pose=cam["pose"],
+        mask=full,
+        depth=cam["depth"],
+        intrinsics=cam["intrinsics"],
+        camera_pose=cam["pose"],
     )["points"]
     return np.asarray(cloud["points"], dtype=float).reshape(-1, 3)
 
@@ -146,21 +159,22 @@ def _split_merged_obb(ctx: NodeContext, target_obb: OrientedBoundingBox):
         return None
     cx, cy, cz = float(c["x"]), float(c["y"]), float(c["z"])
     try:
-        _cartesian(ctx, cx, cy, _WRIST_RAISE_Z, _DOWN)   # lift high over the merge centroid
+        _cartesian(ctx, cx, cy, _WRIST_RAISE_Z, _DOWN)  # lift high over the merge centroid
         pts = _wrist_world_cloud(ctx)
         if len(pts) < 80:
             return None
         base_z = cz - ez
-        reg = pts[(np.abs(pts[:, 0] - cx) <= ex + 0.04) &
-                  (np.abs(pts[:, 1] - cy) <= ey + 0.04) &
-                  (pts[:, 2] > base_z + 0.006) &          # drop the table plane
-                  (pts[:, 2] < cz + ez + 0.06)]           # drop the gripper, well above the objects
+        reg = pts[
+            (np.abs(pts[:, 0] - cx) <= ex + 0.04)
+            & (np.abs(pts[:, 1] - cy) <= ey + 0.04)
+            & (pts[:, 2] > base_z + 0.006)  # drop the table plane
+            & (pts[:, 2] < cz + ez + 0.06)
+        ]  # drop the gripper, well above the objects
         if len(reg) < 50:
             return None
         axis = 0 if ex >= ey else 1
         vals = reg[:, axis]
-        h, edges = np.histogram(vals, bins=20,
-                                range=(float(vals.min()), float(vals.max())))
+        h, edges = np.histogram(vals, bins=20, range=(float(vals.min()), float(vals.max())))
         pop = h >= max(4, h.max() * 0.04)
         pi = np.where(pop)[0]
         if len(pi) < 2:
@@ -180,8 +194,10 @@ def _split_merged_obb(ctx: NodeContext, target_obb: OrientedBoundingBox):
         def _aabb(side: np.ndarray) -> dict:
             lo, hi = side.min(axis=0), side.max(axis=0)
             mid, half = (lo + hi) / 2.0, (hi - lo) / 2.0
-            return {"center": {"x": float(mid[0]), "y": float(mid[1]), "z": float(mid[2])},
-                    "extent": {"x": float(half[0]), "y": float(half[1]), "z": float(half[2])}}
+            return {
+                "center": {"x": float(mid[0]), "y": float(mid[1]), "z": float(mid[2])},
+                "extent": {"x": float(half[0]), "y": float(half[1]), "z": float(half[2])},
+            }
 
         cands = []
         for side in (reg[reg[:, axis] < split], reg[reg[:, axis] >= split]):
@@ -194,8 +210,14 @@ def _split_merged_obb(ctx: NodeContext, target_obb: OrientedBoundingBox):
         logger.info(
             "[grasp] merged %.0fmm -> raised-wrist split (%d obj) -> tallest "
             "@ (%.3f,%.3f) h=%.0fmm %.0fx%.0fmm",
-            max(ex, ey) * 2000, len(cands), float(pc["x"]), float(pc["y"]),
-            float(pe["z"]) * 2000, float(pe["x"]) * 2000, float(pe["y"]) * 2000)
+            max(ex, ey) * 2000,
+            len(cands),
+            float(pc["x"]),
+            float(pc["y"]),
+            float(pe["z"]) * 2000,
+            float(pe["x"]) * 2000,
+            float(pe["y"]) * 2000,
+        )
         return pick
     except Exception as exc:  # noqa: BLE001
         logger.warning("[grasp] raised-wrist split failed (%s); keeping original OBB", exc)
@@ -203,7 +225,9 @@ def _split_merged_obb(ctx: NodeContext, target_obb: OrientedBoundingBox):
 
 
 def _refine_xy_at_hover(
-    ctx: NodeContext, gx: float, gy: float,
+    ctx: NodeContext,
+    gx: float,
+    gy: float,
     target_obb: OrientedBoundingBox,
 ) -> tuple[float, float]:
     """Re-center the grasp XY from the wrist camera at hover.
@@ -221,7 +245,8 @@ def _refine_xy_at_hover(
         if isinstance(cams, dict):
             cams = list(cams.values())
         cam = next(
-            (c for c in cams if "eye_in_hand" in (c.get("name") or "")), None,
+            (c for c in cams if "eye_in_hand" in (c.get("name") or "")),
+            None,
         )
         if cam is None:
             return gx, gy
@@ -235,11 +260,13 @@ def _refine_xy_at_hover(
         top_w = np.array([gx, gy, float(c["z"]) + float(e["z"])])
         q = cam["pose"]["rotation"]
         w_, x_, y_, z_ = (float(q[k]) for k in ("w", "x", "y", "z"))
-        R = np.array([
-            [1 - 2 * (y_ * y_ + z_ * z_), 2 * (x_ * y_ - z_ * w_), 2 * (x_ * z_ + y_ * w_)],
-            [2 * (x_ * y_ + z_ * w_), 1 - 2 * (x_ * x_ + z_ * z_), 2 * (y_ * z_ - x_ * w_)],
-            [2 * (x_ * z_ - y_ * w_), 2 * (y_ * z_ + x_ * w_), 1 - 2 * (x_ * x_ + y_ * y_)],
-        ])
+        R = np.array(
+            [
+                [1 - 2 * (y_ * y_ + z_ * z_), 2 * (x_ * y_ - z_ * w_), 2 * (x_ * z_ + y_ * w_)],
+                [2 * (x_ * y_ + z_ * w_), 1 - 2 * (x_ * x_ + z_ * z_), 2 * (y_ * z_ - x_ * w_)],
+                [2 * (x_ * z_ - y_ * w_), 2 * (y_ * z_ + x_ * w_), 1 - 2 * (x_ * x_ + y_ * y_)],
+            ]
+        )
         t = cam["pose"]["position"]
         p_cam = R.T @ (top_w - np.array([float(t["x"]), float(t["y"]), float(t["z"])]))
         if p_cam[2] <= 0.01:
@@ -251,22 +278,25 @@ def _refine_xy_at_hover(
             return gx, gy
         seg = ctx.tool(
             "sam3.segment_point",
-            image=cam["rgb"], pixel_x=float(u), pixel_y=float(v),
+            image=cam["rgb"],
+            pixel_x=float(u),
+            pixel_y=float(v),
         )
         if not seg.get("masks"):
             return gx, gy
         cloud = ctx.tool(
             "geometry.mask_to_world_points",
-            mask=seg["masks"][0], depth=cam["depth"],
-            intrinsics=cam["intrinsics"], camera_pose=cam["pose"],
+            mask=seg["masks"][0],
+            depth=cam["depth"],
+            intrinsics=cam["intrinsics"],
+            camera_pose=cam["pose"],
         )["points"]
         pts = np.asarray(cloud["points"], dtype=np.float64).reshape(-1, 3)
         if len(pts) < 30:
             return gx, gy
         # Table rejection: an object segment is compact; a table segment
         # spans the workspace.
-        if (pts[:, 0].max() - pts[:, 0].min() > 0.25
-                or pts[:, 1].max() - pts[:, 1].min() > 0.25):
+        if pts[:, 0].max() - pts[:, 0].min() > 0.25 or pts[:, 1].max() - pts[:, 1].min() > 0.25:
             return gx, gy
         z_hi = float(np.percentile(pts[:, 2], 95.0))
         slab = pts[pts[:, 2] > z_hi - 0.02]
@@ -277,15 +307,21 @@ def _refine_xy_at_hover(
         # footprint (+3 cm) — otherwise the segmenter latched onto a
         # neighbour and the original point is safer.
         c, e = target_obb["center"], target_obb["extent"]
-        if (abs(cx - float(c["x"])) > float(e["x"]) + 0.03
-                or abs(cy - float(c["y"])) > float(e["y"]) + 0.03):
+        if (
+            abs(cx - float(c["x"])) > float(e["x"]) + 0.03
+            or abs(cy - float(c["y"])) > float(e["y"]) + 0.03
+        ):
             return gx, gy
         if abs(cx - gx) < 0.003 and abs(cy - gy) < 0.003:
             return gx, gy
         logger.info(
-            "[grasp] wrist hover re-center: (%.3f, %.3f) -> (%.3f, %.3f) "
-            "(d = %.0f, %.0f mm)", gx, gy, cx, cy,
-            (cx - gx) * 1000, (cy - gy) * 1000,
+            "[grasp] wrist hover re-center: (%.3f, %.3f) -> (%.3f, %.3f) (d = %.0f, %.0f mm)",
+            gx,
+            gy,
+            cx,
+            cy,
+            (cx - gx) * 1000,
+            (cy - gy) * 1000,
         )
         return cx, cy
     except Exception as exc:  # noqa: BLE001
@@ -293,8 +329,9 @@ def _refine_xy_at_hover(
         return gx, gy
 
 
-def _cartesian_grasp(ctx: NodeContext, grasp_pose: Se3Pose,
-                     target_obb: OrientedBoundingBox, hover_z: float) -> None:
+def _cartesian_grasp(
+    ctx: NodeContext, grasp_pose: Se3Pose, target_obb: OrientedBoundingBox, hover_z: float
+) -> None:
     """Fast path: rise → XY over object (rotating to the grasp yaw) → descend.
 
     Grip depth is HEIGHT-ADAPTIVE (see the module constants): descend
@@ -304,7 +341,7 @@ def _cartesian_grasp(ctx: NodeContext, grasp_pose: Se3Pose,
     or bottle is gripped toward its centre of mass so it doesn't tip during the
     lift + lateral transport."""
     g = grasp_pose["position"]
-    rot = grasp_pose.get("rotation") or _DOWN      # grasp orientation (top-down candidate yaw)
+    rot = grasp_pose.get("rotation") or _DOWN  # grasp orientation (top-down candidate yaw)
     gx, gy = float(g["x"]), float(g["y"])
     c_z = float(target_obb["center"]["z"])
     e_z = float(target_obb["extent"]["z"])
@@ -316,7 +353,9 @@ def _cartesian_grasp(ctx: NodeContext, grasp_pose: Se3Pose,
     # with height for those; objects taller than 0.35*h >= 12 mm keep the
     # exact tuned behavior.
     base_clearance = min(_BASE_CLEARANCE, max(0.006, 0.35 * height))
-    grasp_z = max(top - deepen, base_z + base_clearance)  # toward CoM for tall; near-top+floored for flat
+    grasp_z = max(
+        top - deepen, base_z + base_clearance
+    )  # toward CoM for tall; near-top+floored for flat
     # Fused-OBB fallback: a too-wide item OBB fused two adjacent objects, so
     # (gx, gy) is the empty gap between them. A raised top-down wrist look
     # isolates the most graspable (tallest) object — re-aim onto it. Keep
@@ -327,15 +366,17 @@ def _cartesian_grasp(ctx: NodeContext, grasp_pose: Se3Pose,
         pc = picked["center"]
         gx, gy, rot = float(pc["x"]), float(pc["y"]), _DOWN
     cur = ctx.tool("robot.get_ee_pose")["pose"]["position"]
-    _cartesian(ctx, cur["x"], cur["y"], hover_z, _DOWN)   # Seg 0: rise to hover (keep down)
-    _cartesian(ctx, gx, gy, hover_z, rot)                 # Seg 1: XY over object + rotate to grasp yaw
+    _cartesian(ctx, cur["x"], cur["y"], hover_z, _DOWN)  # Seg 0: rise to hover (keep down)
+    _cartesian(ctx, gx, gy, hover_z, rot)  # Seg 1: XY over object + rotate to grasp yaw
     if picked is None:
-        rx, ry = _refine_xy_at_hover(ctx, gx, gy, target_obb)  # Seg 1b: wrist top-down re-center (best-effort)
+        rx, ry = _refine_xy_at_hover(
+            ctx, gx, gy, target_obb
+        )  # Seg 1b: wrist top-down re-center (best-effort)
         if abs(rx - gx) > 0.003 or abs(ry - gy) > 0.003:
             _cartesian(ctx, rx, ry, hover_z, rot)
     # (when the split re-aimed us, the target is already a wrist top-down
     # measurement — the hover re-center would re-seed from the merged OBB)
-    _descend_linear(ctx, grasp_z, hover_z, rot)           # Seg 2: descend INTO it (clamped; LOCK keeps yaw)
+    _descend_linear(ctx, grasp_z, hover_z, rot)  # Seg 2: descend INTO it (clamped; LOCK keeps yaw)
 
 
 def _planner_grasp(
@@ -376,8 +417,7 @@ def _planner_grasp(
                 num_ik_seeds=int(num_ik_seeds),
             )
         except Exception as exc:  # noqa: BLE001
-            logger.warning("[grasp] planner candidate %d/%d errored (%s); next",
-                           i, len(poses), exc)
+            logger.warning("[grasp] planner candidate %d/%d errored (%s); next", i, len(poses), exc)
             continue
         if plan.get("success"):
             ctx.tool("robot.execute_trajectory", trajectory=plan["trajectory"])
@@ -403,7 +443,8 @@ def run(
     except Exception as exc:  # noqa: BLE001
         logger.warning(
             "[grasp] cartesian path could not be found (%s); falling back to "
-            "the collision-aware planner over the candidate fan.", exc,
+            "the collision-aware planner over the candidate fan.",
+            exc,
         )
         _planner_grasp(ctx, candidate_poses, target_obb)
         return {"done": True}

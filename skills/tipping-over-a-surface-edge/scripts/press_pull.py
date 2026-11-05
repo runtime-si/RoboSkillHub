@@ -18,22 +18,28 @@ envelope ends at the x the pull reaches.
 Balance, measured by planting the standing crate and letting go: 106 degrees
 falls back, 107 goes over. The pull stops on the MEASURED attitude a little past
 that, so the fall starts slowly and the hands have time to leave."""
-import math, os, sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from gap import NodeContext
-import tipcommon as T
 
-STEP = 3.0          # deg of crate rotation asked per chord
-BIAS = 0.008        # m the hands are commanded below the rotated point: the press
-BIAS_STEP = 0.004   # more press each time four chords make no net progress
+import math
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import tipcommon as T
+from gap import NodeContext
+
+STEP = 3.0  # deg of crate rotation asked per chord
+BIAS = 0.008  # m the hands are commanded below the rotated point: the press
+BIAS_STEP = 0.004  # more press each time four chords make no net progress
 BIAS_MAX = 0.024
-ON_MAT = 0.003      # m; a corner this close to the mat counts as grounded
+ON_MAT = 0.003  # m; a corner this close to the mat counts as grounded
 MAX_CHORDS = 40
-ROLL_LEAD = 3.0     # deg the wrist may run ahead of the measured crate attitude
+ROLL_LEAD = 3.0  # deg the wrist may run ahead of the measured crate attitude
 ROLL_CAP = 80.0
 
 
-def run(ctx: NodeContext, arms: list, scene: dict, theta_release: float = 108.5, phi: float = -1.0) -> dict:
+def run(
+    ctx: NodeContext, arms: list, scene: dict, theta_release: float = 108.5, phi: float = -1.0
+) -> dict:
     z_table = float(scene["z_table"])
     phi0 = float(phi) if phi > 0 else T.PHI
     roll = phi0
@@ -47,7 +53,7 @@ def run(ctx: NodeContext, arms: list, scene: dict, theta_release: float = 108.5,
         fz = now["floor_corner"][2] - z_table
         rz = now["rim_corner"][2] - z_table
         if fz < ON_MAT and rz < ON_MAT:
-            pivot = now["rim_corner"]          # standing on its long wall: it will go over the rim edge
+            pivot = now["rim_corner"]  # standing on its long wall: it will go over the rim edge
         else:
             pivot = now["floor_corner"] if fz <= rz else now["rim_corner"]
         d = math.radians(STEP)
@@ -61,8 +67,22 @@ def run(ctx: NodeContext, arms: list, scene: dict, theta_release: float = 108.5,
         T.move_pair(ctx, arms, targets, roll, n=12, settle=3)
         now = T.crate_state(ctx)
         chords += 1
-        track = {a["name"]: round(1000 * math.dist(T.ee(ctx, a), targets[a["name"]]), 1) for a in arms}
-        T.log("pull_chord", k=chords, pivot=pivot, roll=roll, bias=bias, theta=now["theta"], floor_clear_mm=fz * 1000, rim_clear_mm=rz * 1000, c=now["c"], track_err_mm=track, slip=T.slip(ctx, arms, now))
+        track = {
+            a["name"]: round(1000 * math.dist(T.ee(ctx, a), targets[a["name"]]), 1) for a in arms
+        }
+        T.log(
+            "pull_chord",
+            k=chords,
+            pivot=pivot,
+            roll=roll,
+            bias=bias,
+            theta=now["theta"],
+            floor_clear_mm=fz * 1000,
+            rim_clear_mm=rz * 1000,
+            c=now["c"],
+            track_err_mm=track,
+            slip=T.slip(ctx, arms, now),
+        )
         history.append(now["theta"])
         # four chords without a degree of net progress: the edge is sliding or the
         # pads are; press harder, and give up only when pressing harder does nothing
@@ -73,4 +93,11 @@ def run(ctx: NodeContext, arms: list, scene: dict, theta_release: float = 108.5,
             T.log("pull_stall", theta=now["theta"], bias=bias, stalls=stalls)
             if stalls >= 4:
                 break
-    return {"arms": arms, "theta": now["theta"], "theta_cmd": now["theta"], "phi": roll, "rim_corner": now["rim_corner"], "chords": chords}
+    return {
+        "arms": arms,
+        "theta": now["theta"],
+        "theta_cmd": now["theta"],
+        "phi": roll,
+        "rim_corner": now["rim_corner"],
+        "chords": chords,
+    }

@@ -15,11 +15,11 @@ from pathlib import Path
 import httpx
 import numpy as np
 import pytest
-from gap_core.errors import ToolError
 from gap.skills import load_skills
+from gap_core.errors import ToolError
+from PIL import Image
 
 from .conftest import import_served_tools
-from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -51,13 +51,16 @@ def _mock_backend(molmo, monkeypatch, reply: str) -> dict:
         captured["url"] = str(request.url)
         captured["payload"] = json.loads(request.content)
         return httpx.Response(
-            200, json={"choices": [{"message": {"content": reply}}]},
+            200,
+            json={"choices": [{"message": {"content": reply}}]},
         )
 
     monkeypatch.setenv("GAP_MOLMO_BASE_URL", "http://molmo.test/v1")
     transport = httpx.MockTransport(handler)
     monkeypatch.setattr(
-        molmo, "_http_client", lambda: httpx.Client(transport=transport),
+        molmo,
+        "_http_client",
+        lambda: httpx.Client(transport=transport),
     )
     return captured
 
@@ -117,7 +120,9 @@ def test_parse_points_nothing_parseable(molmo):
 
 def test_point_prompt_converts_normalized_point_to_pixels(molmo, image, monkeypatch):
     captured = _mock_backend(
-        molmo, monkeypatch, '<point x="50" y="25">red button</point>',
+        molmo,
+        monkeypatch,
+        '<point x="50" y="25">red button</point>',
     )
 
     out = molmo.point_prompt(image=image, query="red button")
@@ -137,7 +142,8 @@ def test_point_prompt_converts_normalized_point_to_pixels(molmo, image, monkeypa
     assert url.startswith("data:image/png;base64,")
     raw = base64.b64decode(url.split(",", 1)[1])
     np.testing.assert_array_equal(
-        np.asarray(Image.open(io.BytesIO(raw)).convert("RGB")), image,
+        np.asarray(Image.open(io.BytesIO(raw)).convert("RGB")),
+        image,
     )
 
 
@@ -180,7 +186,9 @@ def test_backend_failure_raises_tool_error(molmo, image, monkeypatch):
     monkeypatch.setattr(molmo, "_BACKOFF_S", 0.0)
     transport = httpx.MockTransport(lambda req: httpx.Response(503))
     monkeypatch.setattr(
-        molmo, "_http_client", lambda: httpx.Client(transport=transport),
+        molmo,
+        "_http_client",
+        lambda: httpx.Client(transport=transport),
     )
     with pytest.raises(ToolError, match="unavailable after 3 attempts"):
         molmo.query(prompt="q")

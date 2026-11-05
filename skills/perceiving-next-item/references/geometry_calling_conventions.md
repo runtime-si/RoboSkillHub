@@ -13,7 +13,7 @@ subgraph-level output binding for an OBB MUST walk into the `obb` field:
 
 ```python
 sg.set_outputs(
-    target_obb=Ref("filter_obb.obb"),    # CORRECT
+    target_obb=Ref("filter_obb.obb"),  # CORRECT
     # target_obb=Ref("filter_obb"),      # WRONG — binds the whole {"obb": ...} wrapper
 )
 ```
@@ -31,7 +31,7 @@ Python) use trailing field names in `Ref(...)` exactly the same way:
 
 ```python
 sg.set_outputs(
-    target_mask=Ref("perceive.mask"),    # CORRECT — perceive returns {found, cloud, mask, score}
+    target_mask=Ref("perceive.mask"),  # CORRECT — perceive returns {found, cloud, mask, score}
 )
 ```
 

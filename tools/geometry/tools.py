@@ -13,7 +13,7 @@ that need them, so importing this module is always cheap.
 from __future__ import annotations
 
 import math
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import numpy as np
 from gap_core.tools import tool
@@ -226,26 +226,46 @@ def _rotation_quaternion(matrix: np.ndarray) -> Quaternion:
     trace = float(np.trace(m))
     if trace > 0.0:
         scale = math.sqrt(trace + 1.0) * 2.0
-        quat = np.array([
-            0.25 * scale,
-            (m[2, 1] - m[1, 2]) / scale,
-            (m[0, 2] - m[2, 0]) / scale,
-            (m[1, 0] - m[0, 1]) / scale,
-        ])
+        quat = np.array(
+            [
+                0.25 * scale,
+                (m[2, 1] - m[1, 2]) / scale,
+                (m[0, 2] - m[2, 0]) / scale,
+                (m[1, 0] - m[0, 1]) / scale,
+            ]
+        )
     else:
         index = int(np.argmax(np.diag(m)))
         if index == 0:
             scale = math.sqrt(1.0 + m[0, 0] - m[1, 1] - m[2, 2]) * 2.0
-            quat = np.array([(m[2, 1] - m[1, 2]) / scale, 0.25 * scale,
-                             (m[0, 1] + m[1, 0]) / scale, (m[0, 2] + m[2, 0]) / scale])
+            quat = np.array(
+                [
+                    (m[2, 1] - m[1, 2]) / scale,
+                    0.25 * scale,
+                    (m[0, 1] + m[1, 0]) / scale,
+                    (m[0, 2] + m[2, 0]) / scale,
+                ]
+            )
         elif index == 1:
             scale = math.sqrt(1.0 + m[1, 1] - m[0, 0] - m[2, 2]) * 2.0
-            quat = np.array([(m[0, 2] - m[2, 0]) / scale, (m[0, 1] + m[1, 0]) / scale,
-                             0.25 * scale, (m[1, 2] + m[2, 1]) / scale])
+            quat = np.array(
+                [
+                    (m[0, 2] - m[2, 0]) / scale,
+                    (m[0, 1] + m[1, 0]) / scale,
+                    0.25 * scale,
+                    (m[1, 2] + m[2, 1]) / scale,
+                ]
+            )
         else:
             scale = math.sqrt(1.0 + m[2, 2] - m[0, 0] - m[1, 1]) * 2.0
-            quat = np.array([(m[1, 0] - m[0, 1]) / scale, (m[0, 2] + m[2, 0]) / scale,
-                             (m[1, 2] + m[2, 1]) / scale, 0.25 * scale])
+            quat = np.array(
+                [
+                    (m[1, 0] - m[0, 1]) / scale,
+                    (m[0, 2] + m[2, 0]) / scale,
+                    (m[1, 2] + m[2, 1]) / scale,
+                    0.25 * scale,
+                ]
+            )
     quat /= np.linalg.norm(quat)
     if quat[0] < 0.0:
         quat = -quat
@@ -316,12 +336,10 @@ def fit_planar_feature(
         # allowing a partially occluded arc to determine its geometric centre.
         for _ in range(3):
             sample = uv[circle_inliers]
-            design = np.column_stack(
-                (2.0 * sample[:, 0], 2.0 * sample[:, 1], np.ones(len(sample)))
-            )
-            circle_center = np.linalg.lstsq(
-                design, np.sum(sample * sample, axis=1), rcond=None
-            )[0][:2]
+            design = np.column_stack((2.0 * sample[:, 0], 2.0 * sample[:, 1], np.ones(len(sample))))
+            circle_center = np.linalg.lstsq(design, np.sum(sample * sample, axis=1), rcond=None)[0][
+                :2
+            ]
             radii = np.linalg.norm(uv - circle_center, axis=1)
             median_radius = float(np.median(radii[circle_inliers]))
             residual = np.abs(radii - median_radius)
@@ -407,11 +425,14 @@ def fit_linear_feature(
 def _pose_matrix(pose: Se3Pose) -> np.ndarray:
     p, q = pose["position"], pose["rotation"]
     w, x, y, z = (float(q[k]) for k in ("w", "x", "y", "z"))
-    rotation = np.array([
-        [1 - 2 * (y*y + z*z), 2 * (x*y - z*w), 2 * (x*z + y*w)],
-        [2 * (x*y + z*w), 1 - 2 * (x*x + z*z), 2 * (y*z - x*w)],
-        [2 * (x*z - y*w), 2 * (y*z + x*w), 1 - 2 * (x*x + y*y)],
-    ], dtype=np.float64)
+    rotation = np.array(
+        [
+            [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+            [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+            [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+        ],
+        dtype=np.float64,
+    )
     out = np.eye(4, dtype=np.float64)
     out[:3, :3], out[:3, 3] = rotation, [p["x"], p["y"], p["z"]]
     return out
@@ -465,12 +486,20 @@ def cloud_to_attachment(
             chosen.append(index)
             nearest = np.minimum(nearest, np.linalg.norm(local - local[index], axis=1))
         spheres = [(local[index], radius) for index in chosen]
-        return {"attached_object": {"frame": "tcp", "sphere_fit_type": "surface", "spheres": [
-            {"center": _vec3(center), "radius": sphere_radius}
-            for center, sphere_radius in spheres
-        ]}}
+        return {
+            "attached_object": {
+                "frame": "tcp",
+                "sphere_fit_type": "surface",
+                "spheres": [
+                    {"center": _vec3(center), "radius": sphere_radius}
+                    for center, sphere_radius in spheres
+                ],
+            }
+        }
     if method != "voxel":
-        raise ValueError("fit_type must be 'surface' or 'voxel' (MORPHIT is curobo.cloud_to_attachment)")
+        raise ValueError(
+            "fit_type must be 'surface' or 'voxel' (MORPHIT is curobo.cloud_to_attachment)"
+        )
     cells = np.floor(local / pitch).astype(np.int64)
     _, inverse = np.unique(cells, axis=0, return_inverse=True)
     spheres = []
@@ -482,9 +511,13 @@ def cloud_to_attachment(
     if len(spheres) > count:
         keep = np.linspace(0, len(spheres) - 1, count).round().astype(int)
         spheres = [spheres[i] for i in keep]
-    return {"attached_object": {"frame": "tcp", "sphere_fit_type": "voxel", "spheres": [
-        {"center": _vec3(center), "radius": radius} for center, radius in spheres
-    ]}}
+    return {
+        "attached_object": {
+            "frame": "tcp",
+            "sphere_fit_type": "voxel",
+            "spheres": [{"center": _vec3(center), "radius": radius} for center, radius in spheres],
+        }
+    }
 
 
 @tool(
@@ -530,7 +563,8 @@ def compute_feature_mate(
     reference = np.array([0.0, 0.0, 1.0])
     if abs(float(reference @ axis)) > 0.9:
         reference = np.array([0.0, 1.0, 0.0])
-    x_axis = np.cross(reference, axis); x_axis /= np.linalg.norm(x_axis)
+    x_axis = np.cross(reference, axis)
+    x_axis /= np.linalg.norm(x_axis)
     y_axis = np.cross(axis, x_axis)
     if reference_tcp_pose is not None:
         # A loop over a shaft is invariant to roll about the shaft. Choose the
@@ -587,9 +621,7 @@ def compute_feature_mate(
                 dtype=np.float64,
             )
             offset_world = tcp_rotation @ (center - feature_tcp_position)
-            projected.append(
-                -float(offset_world @ axis) + float(sphere.get("radius", 0.0))
-            )
+            projected.append(-float(offset_world @ axis) + float(sphere.get("radius", 0.0)))
         approach_shift = max(approach_shift, penetration + max(projected) + 0.005)
     world_feature_approach[:3, 3] += approach_shift * axis
     world_tcp_approach = world_feature_approach @ np.linalg.inv(tcp_feature)
@@ -611,7 +643,7 @@ def compute_feature_mate(
 @tool(
     name="geometry.exclude_robot_points",
     summary="Remove points near the robot body via FK-based sphere exclusion "
-            "(7-DOF Franka; other arms pass through unchanged).",
+    "(7-DOF Franka; other arms pass through unchanged).",
     tags=("perception",),
 )
 def exclude_robot_points(
@@ -624,18 +656,13 @@ def exclude_robot_points(
     object sits against the robot base — the segmentation mask bleeds onto
     robot pixels and the merged cloud yields a wildly oversized OBB."""
     import numpy as np
-
     from gap_skills.tools.geometry import _impl
 
     pts = _impl.as_points(points)
     joints = np.asarray(joint_positions["positions"], dtype=np.float64).reshape(-1)
     if joints.shape[0] != 7:
         return {"points": _pc(pts)}
-    return {
-        "points": _pc(
-            _impl._exclude_robot_points(pts, joints, distance_threshold)
-        )
-    }
+    return {"points": _pc(_impl._exclude_robot_points(pts, joints, distance_threshold))}
 
 
 @tool(

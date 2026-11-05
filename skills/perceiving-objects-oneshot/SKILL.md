@@ -132,9 +132,12 @@ raises on empty clouds (the not-found path), and the subgraph's
 `perceive` — the linear path plus `set_on_error` is sufficient.
 
 ```python
-sg.add_node("filter_obb", type="tool",
-            tool="geometry.filter_and_compute_obb",
-            inputs={"points": Ref("perceive.cloud")})
+sg.add_node(
+    "filter_obb",
+    type="tool",
+    tool="geometry.filter_and_compute_obb",
+    inputs={"points": Ref("perceive.cloud")},
+)
 sg.add_exit("found")
 sg.add_edge("perceive", "filter_obb")
 sg.add_edge("filter_obb", "found")

@@ -37,7 +37,8 @@ def cmd_check(args) -> int:
     print(
         f"{counts['tool']} tools, {counts['skill']} skills, {counts['policy']} policies, "
         f"{len(catalog.recipes)} recipes, {len(catalog.papers)} papers: "
-        f"{len(errors)} errors, {len(warnings)} warnings" + ("" if args.verbose else " (-v lists warnings)")
+        f"{len(errors)} errors, {len(warnings)} warnings"
+        + ("" if args.verbose else " (-v lists warnings)")
     )
     return 1 if errors else 0
 
@@ -95,7 +96,9 @@ def cmd_search(args) -> int:
         return 0
     for pick in selection.picks:
         b = pick.bundle
-        print(f"{pick.score:6.2f}  {b.kind:6} {b.name:36} {b.stage or '-':9} {b.maturity:13} {pick.reason}")
+        print(
+            f"{pick.score:6.2f}  {b.kind:6} {b.name:36} {b.stage or '-':9} {b.maturity:13} {pick.reason}"
+        )
     for recipe, score in selection.recipes:
         print(f"{score:6.2f}  recipe {recipe.name}")
     if args.why:
@@ -128,14 +131,20 @@ def cmd_lock(args) -> int:
     lock = build_lock(graph, _catalog(args))
     out = Path(args.out) if args.out else graph / "skills.lock"
     write_lock(lock, out)
-    print(f"{len(lock['bundles'])} bundles, {len(lock['connector_tools'])} connector tools -> {out}")
+    print(
+        f"{len(lock['bundles'])} bundles, {len(lock['connector_tools'])} connector tools -> {out}"
+    )
     if lock.get("unresolved_tools"):
         print(f"unresolved tools: {lock['unresolved_tools']}")
     if lock["hub"]["dirty"]:
-        print("warning: the hub checkout has uncommitted changes; roboskillhub fetch will refuse hub bundles")
+        print(
+            "warning: the hub checkout has uncommitted changes; roboskillhub fetch will refuse hub bundles"
+        )
     if args.deploy and not lock["deployable"]:
         tiers = [n for n, b in lock["bundles"].items() if b["tier"] != "camera_only"]
-        print(f"not deployable: privileged tools {lock['privileged_tools']}, simulator-only bundles {tiers}")
+        print(
+            f"not deployable: privileged tools {lock['privileged_tools']}, simulator-only bundles {tiers}"
+        )
         return 1
     return 0
 
@@ -155,7 +164,9 @@ def cmd_weights(args) -> int:
     from . import weights
 
     if args.action == "push":
-        pushed = weights.push(Path(args.local), args.repo, private=not args.public, message=args.message)
+        pushed = weights.push(
+            Path(args.local), args.repo, private=not args.public, message=args.message
+        )
         print(f"uri:    {pushed.ref.uri}")
         print(f"sha256: {pushed.sha256}")
         print(f"files:  {len(pushed.files)}")
@@ -184,19 +195,27 @@ def _selection_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--embodiment", help="robot id (rss.robot() name), e.g. yam_i2rt")
     p.add_argument("--tier", choices=("camera_only", "full"), default="camera_only")
     p.add_argument(
-        "--min-maturity", default="community", choices=("community", "sim-verified", "real-verified")
+        "--min-maturity",
+        default="community",
+        choices=("community", "sim-verified", "real-verified"),
     )
     p.add_argument("--arms", type=int, help="arms the robot has; drops skills that need more")
     p.add_argument("--kind", default="skill,policy", help="comma-separated kinds to rank")
-    p.add_argument("-k", type=int, default=16, help="how many to keep before adding the tools they call")
+    p.add_argument(
+        "-k", type=int, default=16, help="how many to keep before adding the tools they call"
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="roboskillhub", description=__doc__)
-    parser.add_argument("--root", type=Path, help="hub checkout (default: nearest parent with sources.yaml)")
+    parser.add_argument(
+        "--root", type=Path, help="hub checkout (default: nearest parent with sources.yaml)"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("sync", help="check out every pinned source and the engine").set_defaults(fn=cmd_sync)
+    sub.add_parser("sync", help="check out every pinned source and the engine").set_defaults(
+        fn=cmd_sync
+    )
 
     p = sub.add_parser("check", help="validate bundles, overlays, recipes, papers, evals")
     p.add_argument("-v", "--verbose", action="store_true")
@@ -222,7 +241,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("lock", help="pin every bundle a generated graph uses")
     p.add_argument("graph", help="directory holding workflow.json")
     p.add_argument("--out")
-    p.add_argument("--deploy", action="store_true", help="fail unless the graph can leave simulation")
+    p.add_argument(
+        "--deploy", action="store_true", help="fail unless the graph can leave simulation"
+    )
     p.set_defaults(fn=cmd_lock)
 
     p = sub.add_parser("fetch", help="recreate a lock's registries and weights on this machine")
@@ -236,7 +257,9 @@ def build_parser() -> argparse.ArgumentParser:
     w = wsub.add_parser("push")
     w.add_argument("local", help="directory holding the checkpoint files")
     w.add_argument("--repo", required=True, help="<owner>/<name> on the Hub")
-    w.add_argument("--bundle", help="bundle directory whose SKILL.md gets the pinned uri and sha256")
+    w.add_argument(
+        "--bundle", help="bundle directory whose SKILL.md gets the pinned uri and sha256"
+    )
     w.add_argument("--public", action="store_true", help="create the repo public (default private)")
     w.add_argument("--message", default="Upload checkpoint")
     w = wsub.add_parser("pull")

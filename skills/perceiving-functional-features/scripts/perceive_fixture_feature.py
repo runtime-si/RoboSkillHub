@@ -108,9 +108,12 @@ def _depth_support(ctx, camera, profile, feature_type, correspondence_anchor) ->
     all_points = _points(_backproject(ctx, camera, full_mask))
     bounds = profile["workspace"]
     unanchored = all_points[
-        (all_points[:, 0] > float(bounds["x_min"])) & (all_points[:, 0] < float(bounds["x_max"]))
-        & (all_points[:, 1] > float(bounds["y_min"])) & (all_points[:, 1] < float(bounds["y_max"]))
-        & (all_points[:, 2] > float(bounds["z_min"])) & (all_points[:, 2] < float(bounds["z_max"]))
+        (all_points[:, 0] > float(bounds["x_min"]))
+        & (all_points[:, 0] < float(bounds["x_max"]))
+        & (all_points[:, 1] > float(bounds["y_min"]))
+        & (all_points[:, 1] < float(bounds["y_max"]))
+        & (all_points[:, 2] > float(bounds["z_min"]))
+        & (all_points[:, 2] < float(bounds["z_max"]))
     ]
     axis_index = {"x": 0, "y": 1, "z": 2}[str(profile.get("correspondence_axis", "y"))]
     workcell = unanchored
@@ -126,7 +129,9 @@ def _depth_support(ctx, camera, profile, feature_type, correspondence_anchor) ->
         # When the narrow anchor window fails, optionally fall back to the
         # declared workspace partition; a successful anchored estimate is
         # never changed.
-        if correspondence_anchor is None or not bool(profile.get("anchor_fallback_partition", False)):
+        if correspondence_anchor is None or not bool(
+            profile.get("anchor_fallback_partition", False)
+        ):
             raise
         split = float(profile.get("partition_split", 0.0))
         margin = max(0.0, float(profile.get("partition_margin", 0.0)))
@@ -144,17 +149,33 @@ def _depth_support(ctx, camera, profile, feature_type, correspondence_anchor) ->
     cloud = {"points": points.astype(np.float32)}
     obb = ctx.tool("geometry.filter_and_compute_obb", points=cloud)["obb"]
     tip_dict = {"x": float(tip[0]), "y": float(tip[1]), "z": float(tip[2])}
-    axis_dict = dict(zip(("x", "y", "z"), map(float, profile.get("axis", [-1.0, 0.0, 0.0])), strict=True))
-    feature = _feature(feature_type, tip_dict, axis_dict, seating_margin=float(profile.get("seating_margin", 0.015)))
+    axis_dict = dict(
+        zip(("x", "y", "z"), map(float, profile.get("axis", [-1.0, 0.0, 0.0])), strict=True)
+    )
+    feature = _feature(
+        feature_type,
+        tip_dict,
+        axis_dict,
+        seating_margin=float(profile.get("seating_margin", 0.015)),
+    )
     return {
-        "fixture_kind": "support", "fixture_obb": obb, "fixture_mask": full_mask, "fixture_cloud": cloud,
-        "hook_tip": tip_dict, "fixture_axis": axis_dict, "fixture_feature": _with_mating_profile(feature, profile),
+        "fixture_kind": "support",
+        "fixture_obb": obb,
+        "fixture_mask": full_mask,
+        "fixture_cloud": cloud,
+        "hook_tip": tip_dict,
+        "fixture_axis": axis_dict,
+        "fixture_feature": _with_mating_profile(feature, profile),
     }
 
 
-def _parent_inferred_aperture(ctx, camera, profile, feature_type, fixture_description, correspondence_anchor) -> Output:
+def _parent_inferred_aperture(
+    ctx, camera, profile, feature_type, fixture_description, correspondence_anchor
+) -> Output:
     parent = ctx.tool(
-        "sam3.segment_text", image=camera["rgb"], query=fixture_description,
+        "sam3.segment_text",
+        image=camera["rgb"],
+        query=fixture_description,
         max_results=int(profile.get("max_results", 3)),
     )
     if not parent.get("masks"):
@@ -173,7 +194,9 @@ def _parent_inferred_aperture(ctx, camera, profile, feature_type, fixture_descri
         lower, upper = np.percentile(points, [1, 99], axis=0)
         if np.any(upper - lower > span_max):
             continue
-        candidates.append((float(scores[index]) if index < len(scores) else 0.0, candidate_mask, candidate_cloud))
+        candidates.append(
+            (float(scores[index]) if index < len(scores) else 0.0, candidate_mask, candidate_cloud)
+        )
     if not candidates:
         raise ValueError("parent fixture candidates were not compact in 3-D")
     _, fixture_mask, cloud = max(candidates, key=lambda item: item[0])
@@ -193,9 +216,13 @@ def _parent_inferred_aperture(ctx, camera, profile, feature_type, fixture_descri
     if correspondence_anchor is not None:
         # Preserve the source's ordering at a much smaller scale inside a
         # shared container, so repeated placements land at distinct points.
-        lo, hi = np.percentile(parent_points[:, axis_index], profile.get("lateral_percentiles", [2, 98]))
-        lateral = min(float(profile.get("lateral_offset_max", 0.012)),
-                      float(profile.get("lateral_offset_fraction", 0.25)) * 0.5 * float(hi - lo))
+        lo, hi = np.percentile(
+            parent_points[:, axis_index], profile.get("lateral_percentiles", [2, 98])
+        )
+        lateral = min(
+            float(profile.get("lateral_offset_max", 0.012)),
+            float(profile.get("lateral_offset_fraction", 0.25)) * 0.5 * float(hi - lo),
+        )
         if abs(float(correspondence_anchor) - center_along) > 1e-4:
             target_along += float(np.sign(float(correspondence_anchor) - center_along)) * lateral
     tip_dict = {k: float(obb["center"][k]) for k in ("x", "y", "z")}
@@ -206,17 +233,28 @@ def _parent_inferred_aperture(ctx, camera, profile, feature_type, fixture_descri
     feature["radius_inner"] = float(profile.get("radius_inner", 0.025))
     # A container drop needs the tip just inside the rim before release, or a
     # long object can lean back out; the guide depth derives from the opening.
-    feature["insertion_depth"] = float(profile.get("insertion_depth_radius_scale", 0.8)) * feature["radius_inner"]
+    feature["insertion_depth"] = (
+        float(profile.get("insertion_depth_radius_scale", 0.8)) * feature["radius_inner"]
+    )
     feature["description"] = str(profile.get("feature_description", "open interior"))
     return {
-        "fixture_kind": "container", "fixture_obb": obb, "fixture_mask": fixture_mask, "fixture_cloud": cloud,
-        "hook_tip": tip_dict, "fixture_axis": axis_dict, "fixture_feature": _with_mating_profile(feature, profile),
+        "fixture_kind": "container",
+        "fixture_obb": obb,
+        "fixture_mask": fixture_mask,
+        "fixture_cloud": cloud,
+        "hook_tip": tip_dict,
+        "fixture_axis": axis_dict,
+        "fixture_feature": _with_mating_profile(feature, profile),
     }
 
 
-def _thin_projection(ctx, camera, profile, feature_type, fixture_description, correspondence_anchor) -> Output:
+def _thin_projection(
+    ctx, camera, profile, feature_type, fixture_description, correspondence_anchor
+) -> Output:
     detections = ctx.tool(
-        "grounding-dino.detect", image=camera["rgb"], query=fixture_description,
+        "grounding-dino.detect",
+        image=camera["rgb"],
+        query=fixture_description,
         box_threshold=float(profile.get("box_threshold", 0.18)),
         text_threshold=float(profile.get("text_threshold", 0.18)),
     )["detections"]
@@ -234,7 +272,9 @@ def _thin_projection(ctx, camera, profile, feature_type, fixture_description, co
         if max(width / height, height / width) < float(profile.get("minimum_aspect_ratio", 2.5)):
             continue
         segmented = ctx.tool("sam3.segment_box", image=camera["rgb"], box=box)
-        if not segmented["masks"] or float(segmented["scores"][0]) < float(profile.get("minimum_mask_score", 0.50)):
+        if not segmented["masks"] or float(segmented["scores"][0]) < float(
+            profile.get("minimum_mask_score", 0.50)
+        ):
             continue
         # SAM often captures the thick mount and misses the thin front half:
         # recover the whole protrusion from depth inside the tight box, the
@@ -244,16 +284,27 @@ def _thin_projection(ctx, camera, profile, feature_type, fixture_description, co
         if len(roi_points) < 40:
             continue
         board_x = float(np.percentile(roi_points[:, 0], 80))
-        points = roi_points[roi_points[:, 0] < board_x - float(profile.get("foreground_margin", 0.003))]
+        points = roi_points[
+            roi_points[:, 0] < board_x - float(profile.get("foreground_margin", 0.003))
+        ]
         if len(points) < 20 or float(np.ptp(points[:, 0])) < 0.025:
             continue
         shaft_length = float(board_x - np.percentile(points[:, 0], 5))
         transverse = min(float(np.ptp(points[:, 1])), float(np.ptp(points[:, 2])))
-        if not (float(length_bounds[0]) <= shaft_length <= float(length_bounds[1])
-                and transverse <= float(profile.get("transverse_extent_max", 0.04))):
+        if not (
+            float(length_bounds[0]) <= shaft_length <= float(length_bounds[1])
+            and transverse <= float(profile.get("transverse_extent_max", 0.04))
+        ):
             continue
-        candidates.append((float(detection.get("score", 0.0)), board_x, roi_mask,
-                           {"points": points.astype(np.float32)}, points))
+        candidates.append(
+            (
+                float(detection.get("score", 0.0)),
+                board_x,
+                roi_mask,
+                {"points": points.astype(np.float32)},
+                points,
+            )
+        )
     if not candidates:
         raise ValueError("no thin SAM3-refined hook candidate was found")
     axis_index = {"x": 0, "y": 1, "z": 2}[str(profile.get("correspondence_axis", "y"))]
@@ -261,7 +312,10 @@ def _thin_projection(ctx, camera, profile, feature_type, fixture_description, co
         _, board_x, mask, cloud, points = max(candidates, key=lambda item: item[0])
     else:
         _, board_x, mask, cloud, points = min(
-            candidates, key=lambda item: abs(float(np.median(item[4][:, axis_index])) - float(correspondence_anchor))
+            candidates,
+            key=lambda item: abs(
+                float(np.median(item[4][:, axis_index])) - float(correspondence_anchor)
+            ),
         )
     obb = ctx.tool("geometry.filter_and_compute_obb", points=cloud)["obb"]
     # The foremost points are the rounded nose, above the shank centreline:
@@ -291,14 +345,24 @@ def _thin_projection(ctx, camera, profile, feature_type, fixture_description, co
     axis /= np.linalg.norm(axis)
     tip_dict = {"x": float(tip[0]), "y": float(tip[1]), "z": float(tip[2])}
     axis_dict = {"x": float(axis[0]), "y": float(axis[1]), "z": float(axis[2])}
-    feature = _feature(feature_type, tip_dict, axis_dict, radius_outer=radius_outer,
-                       seating_margin=float(profile.get("seating_margin", 0.015)))
+    feature = _feature(
+        feature_type,
+        tip_dict,
+        axis_dict,
+        radius_outer=radius_outer,
+        seating_margin=float(profile.get("seating_margin", 0.015)),
+    )
     # Perception reports the tip and the usable shaft length; the mating skill
     # decides how far a loop crosses and travels.
     feature["usable_length"] = float(np.linalg.norm(board_point - tip))
     return {
-        "fixture_kind": "hook", "fixture_obb": obb, "fixture_mask": mask, "fixture_cloud": cloud,
-        "hook_tip": tip_dict, "fixture_axis": axis_dict, "fixture_feature": _with_mating_profile(feature, profile),
+        "fixture_kind": "hook",
+        "fixture_obb": obb,
+        "fixture_mask": mask,
+        "fixture_cloud": cloud,
+        "hook_tip": tip_dict,
+        "fixture_axis": axis_dict,
+        "fixture_feature": _with_mating_profile(feature, profile),
     }
 
 
@@ -323,7 +387,11 @@ def run(
     if strategy == "depth_support":
         return _depth_support(ctx, camera, profile, feature_type, correspondence_anchor)
     if strategy == "parent_inferred_aperture":
-        return _parent_inferred_aperture(ctx, camera, profile, feature_type, fixture_description, correspondence_anchor)
+        return _parent_inferred_aperture(
+            ctx, camera, profile, feature_type, fixture_description, correspondence_anchor
+        )
     if strategy == "thin_projection":
-        return _thin_projection(ctx, camera, profile, feature_type, fixture_description, correspondence_anchor)
+        return _thin_projection(
+            ctx, camera, profile, feature_type, fixture_description, correspondence_anchor
+        )
     raise ValueError(f"unsupported fixture feature strategy {strategy!r}")

@@ -12,8 +12,8 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
-from gap_core.errors import ToolError
 from gap.skills import load_skills
+from gap_core.errors import ToolError
 
 from .conftest import import_served_tools
 
@@ -68,7 +68,9 @@ def _fake_genai(response_text: str, captured: dict):
 def _patch(ger, monkeypatch, response_text: str) -> dict:
     captured: dict = {}
     monkeypatch.setattr(
-        ger, "_import_genai", lambda: _fake_genai(response_text, captured),
+        ger,
+        "_import_genai",
+        lambda: _fake_genai(response_text, captured),
     )
     return captured
 
@@ -79,11 +81,9 @@ def _patch(ger, monkeypatch, response_text: str) -> dict:
 
 
 def test_detect_converts_box_2d_to_pixels(ger, image, monkeypatch):
-    captured = _patch(ger, monkeypatch, (
-        "```json\n"
-        '[{"box_2d": [100, 200, 500, 600], "label": "cup"}]\n'
-        "```"
-    ))
+    captured = _patch(
+        ger, monkeypatch, ('```json\n[{"box_2d": [100, 200, 500, 600], "label": "cup"}]\n```')
+    )
 
     out = ger.detect(image=image, query="cup")
 
@@ -107,10 +107,14 @@ def test_detect_converts_box_2d_to_pixels(ger, image, monkeypatch):
 
 
 def test_detect_multiple_boxes_scores_and_clamping(ger, image, monkeypatch):
-    _patch(ger, monkeypatch, (
-        '[{"box_2d": [0, 0, 1200, 1300], "label": "table", "score": 0.4},'
-        ' {"box_2d": [250, 250, 750, 750], "label": "mug", "score": 0.9}]'
-    ))
+    _patch(
+        ger,
+        monkeypatch,
+        (
+            '[{"box_2d": [0, 0, 1200, 1300], "label": "table", "score": 0.4},'
+            ' {"box_2d": [250, 250, 750, 750], "label": "mug", "score": 0.9}]'
+        ),
+    )
 
     out = ger.detect(image=image, query="mug")
     dets = out["detections"]
@@ -155,11 +159,11 @@ def test_detect_no_detection_returns_empty_list(ger, image, monkeypatch, respons
 @pytest.mark.parametrize(
     "response_text",
     [
-        '[{"box_2d": [100, 200, 500',          # truncated JSON
-        '{"box_2d": [1, 2, 3, 4]}',            # object, not array
-        '["not-a-dict", 42]',                  # wrong entry types
-        '[{"label": "cup"}]',                  # missing box_2d
-        '[{"box_2d": [1, 2, 3], "label": "cup"}]',        # wrong arity
+        '[{"box_2d": [100, 200, 500',  # truncated JSON
+        '{"box_2d": [1, 2, 3, 4]}',  # object, not array
+        '["not-a-dict", 42]',  # wrong entry types
+        '[{"label": "cup"}]',  # missing box_2d
+        '[{"box_2d": [1, 2, 3], "label": "cup"}]',  # wrong arity
         '[{"box_2d": ["a", "b", "c", "d"], "label": "x"}]',  # non-numeric
     ],
 )
@@ -169,9 +173,7 @@ def test_detect_tolerates_malformed_json(ger, image, monkeypatch, response_text)
 
 
 def test_detect_skips_bad_entries_keeps_good_ones(ger, image, monkeypatch):
-    _patch(ger, monkeypatch, (
-        '[{"label": "no box"}, {"box_2d": [0, 0, 500, 500]}]'
-    ))
+    _patch(ger, monkeypatch, ('[{"label": "no box"}, {"box_2d": [0, 0, 500, 500]}]'))
     out = ger.detect(image=image, query="cup")
     (det,) = out["detections"]
     assert det["label"] == "cup"  # falls back to the query when label missing

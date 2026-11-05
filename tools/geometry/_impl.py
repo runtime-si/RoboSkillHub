@@ -56,25 +56,27 @@ def _franka_fk_link_positions(joint_positions: np.ndarray) -> list[np.ndarray]:
     #   a_i, d_i, alpha_i (radians)
     # Reference: Franka Emika Panda datasheet
     dh_params = [
-        (0.0,    0.333,  0.0),       # joint 1
-        (0.0,    0.0,   -np.pi/2),   # joint 2
-        (0.0,    0.316,  np.pi/2),   # joint 3
-        (0.0825, 0.0,    np.pi/2),   # joint 4
-        (-0.0825, 0.384, -np.pi/2),  # joint 5
-        (0.0,    0.0,    np.pi/2),   # joint 6
-        (0.088,  0.0,    np.pi/2),   # joint 7
+        (0.0, 0.333, 0.0),  # joint 1
+        (0.0, 0.0, -np.pi / 2),  # joint 2
+        (0.0, 0.316, np.pi / 2),  # joint 3
+        (0.0825, 0.0, np.pi / 2),  # joint 4
+        (-0.0825, 0.384, -np.pi / 2),  # joint 5
+        (0.0, 0.0, np.pi / 2),  # joint 6
+        (0.088, 0.0, np.pi / 2),  # joint 7
     ]
 
     def _mdh_transform(a, d, alpha, theta):
         """Modified DH transform matrix."""
         ct, st = np.cos(theta), np.sin(theta)
         ca, sa = np.cos(alpha), np.sin(alpha)
-        return np.array([
-            [ct,      -st,      0,     a],
-            [st*ca,    ct*ca,  -sa,  -sa*d],
-            [st*sa,    ct*sa,   ca,   ca*d],
-            [0,        0,       0,     1],
-        ])
+        return np.array(
+            [
+                [ct, -st, 0, a],
+                [st * ca, ct * ca, -sa, -sa * d],
+                [st * sa, ct * sa, ca, ca * d],
+                [0, 0, 0, 1],
+            ]
+        )
 
     T = np.eye(4)
     positions = [T[:3, 3].copy()]  # base position
@@ -113,7 +115,7 @@ def _exclude_robot_points(
         radius = _FRANKA_LINK_RADII[i] if i < len(_FRANKA_LINK_RADII) else 0.05
         effective_radius = radius + distance_threshold
         dists = np.linalg.norm(points - link_pos.reshape(1, 3), axis=1)
-        keep &= (dists > effective_radius)
+        keep &= dists > effective_radius
 
     return points[keep]
 
@@ -223,8 +225,9 @@ def _project_obb_to_mask(
     center, extent, R = _obb_parts(obb)
     extent = np.maximum(extent + inflation_m, min_extent_m)
 
-    signs = np.array([[sx, sy, sz] for sx in (-1.0, 1.0)
-                      for sy in (-1.0, 1.0) for sz in (-1.0, 1.0)])
+    signs = np.array(
+        [[sx, sy, sz] for sx in (-1.0, 1.0) for sy in (-1.0, 1.0) for sz in (-1.0, 1.0)]
+    )
     corners_world = center[None, :] + (signs * extent[None, :]) @ R.T  # (8, 3)
 
     K = np.asarray(camera["intrinsics"], dtype=np.float64)
@@ -251,7 +254,7 @@ def _project_obb_to_mask(
         return None
 
     mask_arr = np.zeros((H, W), dtype=np.uint8)
-    mask_arr[v0:v1 + 1, u0:u1 + 1] = 255
+    mask_arr[v0 : v1 + 1, u0 : u1 + 1] = 255
     return mask_arr
 
 
@@ -300,7 +303,10 @@ def compute_top_down_grasp_world_aligned(
         logger.warning(
             "TopDownGrasp[world_aligned]: raw Z=%.4f below table min %.4f "
             "(world-Z full_extent=%.4f, z_offset=%.3f). Clamping.",
-            raw_z, _TABLE_Z_MIN, world_z_half_extent * 2.0, z_offset,
+            raw_z,
+            _TABLE_Z_MIN,
+            world_z_half_extent * 2.0,
+            z_offset,
         )
         raw_z = _TABLE_Z_MIN
 
@@ -378,7 +384,10 @@ def compute_top_down_grasp_short_axis_aligned(
         logger.warning(
             "TopDownGrasp[short_axis]: raw Z=%.4f below table min %.4f "
             "(OBB vertical full_extent=%.4f, z_offset=%.3f). Clamping.",
-            raw_z, _TABLE_Z_MIN, half_extent[vertical_idx] * 2.0, z_offset,
+            raw_z,
+            _TABLE_Z_MIN,
+            half_extent[vertical_idx] * 2.0,
+            z_offset,
         )
         raw_z = _TABLE_Z_MIN
 
@@ -492,10 +501,12 @@ def top_down_grasp_candidates(
             if z_off == primary_z_offset and yaw_deg == 0.0:
                 continue  # already in poses[0]
             rw, rx, ry, rz = _yaw_quat(yaw_deg)
-            poses.append({
-                "position": {"x": cx, "y": cy, "z": z},
-                "rotation": {"w": rw, "x": rx, "y": ry, "z": rz},
-            })
+            poses.append(
+                {
+                    "position": {"x": cx, "y": cy, "z": z},
+                    "rotation": {"w": rw, "x": rx, "y": ry, "z": rz},
+                }
+            )
 
     # Only FLAT objects get the four ±30° pitch side-grasps at the
     # primary z_offset (perception often sees just the top face of a
@@ -515,10 +526,12 @@ def top_down_grasp_candidates(
             rx = qw * bx + qx * bw + qy * bz - qz * by
             ry = qw * by - qx * bz + qy * bw + qz * bx
             rz = qw * bz + qx * by - qy * bx + qz * bw
-            poses.append({
-                "position": {"x": cx, "y": cy, "z": z},
-                "rotation": {"w": rw, "x": rx, "y": ry, "z": rz},
-            })
+            poses.append(
+                {
+                    "position": {"x": cx, "y": cy, "z": z},
+                    "rotation": {"w": rw, "x": rx, "y": ry, "z": rz},
+                }
+            )
 
     return poses
 
@@ -551,14 +564,18 @@ def front_grasp_from_obb(
         logger.warning(
             "FrontGrasp: OBB XY extents nearly equal (%.4f vs %.4f); "
             "bar/approach axis assignment may be ambiguous.",
-            half_extent[0], half_extent[1],
+            half_extent[0],
+            half_extent[1],
         )
 
     approach_axis_raw = R_obb[:, approach_idx].copy()
 
     logger.debug(
         "FrontGrasp: bar_idx=%d (half_ext=%.4f) approach_idx=%d (half_ext=%.4f)",
-        bar_idx, half_extent[bar_idx], approach_idx, half_extent[approach_idx],
+        bar_idx,
+        half_extent[bar_idx],
+        approach_idx,
+        half_extent[approach_idx],
     )
 
     # --- Step 2: Resolve approach direction sign ---
@@ -572,8 +589,7 @@ def front_grasp_from_obb(
     hint_norm = np.linalg.norm(hint)
     if hint_norm < 1e-6:
         logger.warning(
-            "FrontGrasp: hint vector near-zero (OBB at origin?); "
-            "defaulting to -Y direction."
+            "FrontGrasp: hint vector near-zero (OBB at origin?); defaulting to -Y direction."
         )
         hint = np.array([0.0, -1.0, 0.0])
     else:
@@ -601,8 +617,7 @@ def front_grasp_from_obb(
     if g_x_norm < 1e-6:
         # approach_direction is near-vertical — degenerate case
         raise PlanningFailed(
-            "Approach direction is near-vertical; "
-            "use geometry.top_down_grasp_from_obb instead."
+            "Approach direction is near-vertical; use geometry.top_down_grasp_from_obb instead."
         )
 
     g_x = g_x / g_x_norm
@@ -663,9 +678,7 @@ def filter_noise(points: np.ndarray, eps: float, min_samples: int) -> np.ndarray
     return filtered
 
 
-def _significant_clusters(
-    points: np.ndarray, eps: float, min_samples: int
-) -> list[np.ndarray]:
+def _significant_clusters(points: np.ndarray, eps: float, min_samples: int) -> list[np.ndarray]:
     """Keep every meaningful connected surface, not only the largest one."""
     from sklearn.cluster import DBSCAN
 
@@ -674,16 +687,18 @@ def _significant_clusters(
     labels = DBSCAN(eps=eps, min_samples=min_samples).fit_predict(points)
     ids, counts = np.unique(labels[labels >= 0], return_counts=True)
     threshold = max(int(min_samples) * 3, int(math.ceil(len(points) * 0.002)))
-    clusters = [points[labels == label] for label, count in zip(ids, counts) if count >= threshold]
+    clusters = [
+        points[labels == label]
+        for label, count in zip(ids, counts, strict=True)
+        if count >= threshold
+    ]
     if clusters:
         return clusters
     non_noise = points[labels >= 0]
     return [non_noise if len(non_noise) >= 4 else points]
 
 
-def _planar_slab_mesh(
-    points: np.ndarray, thickness: float
-) -> tuple[np.ndarray, np.ndarray] | None:
+def _planar_slab_mesh(points: np.ndarray, thickness: float) -> tuple[np.ndarray, np.ndarray] | None:
     """Turn a planar point cluster into a closed thin convex collision slab."""
     from scipy.spatial import ConvexHull
 
@@ -800,9 +815,7 @@ def compute_obb(points: np.ndarray) -> OrientedBoundingBox:
     clean_pts = np.asarray(pcd.points)
 
     if len(clean_pts) < 4:
-        raise PerceptionFailed(
-            f"Too few points after outlier removal: {len(clean_pts)}"
-        )
+        raise PerceptionFailed(f"Too few points after outlier removal: {len(clean_pts)}")
 
     pts_2d = clean_pts[:, :2]
     z_vals = clean_pts[:, 2]
@@ -822,9 +835,7 @@ def compute_obb(points: np.ndarray) -> OrientedBoundingBox:
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
     # Extract concave contour and approximate as polygon
-    contours, _ = cv2.findContours(
-        mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-    )
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
         # Fallback to Open3D OBB if contour extraction fails
         logger.warning("No contours found, falling back to Open3D OBB")
@@ -854,7 +865,7 @@ def compute_obb(points: np.ndarray) -> OrientedBoundingBox:
     verts = approx.reshape(-1, 2).astype(float)
 
     # Find min-width bounding rectangle using concave boundary edges
-    min_width = float('inf')
+    min_width = float("inf")
     best_angle = 0.0
     for i in range(len(verts)):
         edge = verts[(i + 1) % len(verts)] - verts[i]
@@ -876,16 +887,20 @@ def compute_obb(points: np.ndarray) -> OrientedBoundingBox:
 
     # Use 2nd / 98th percentile instead of strict min/max
     _LO, _HI = 2, 98
-    mins = np.array([
-        np.percentile(rotated_2d[:, 0], _LO),
-        np.percentile(rotated_2d[:, 1], _LO),
-        np.percentile(z_vals, _LO),
-    ])
-    maxs = np.array([
-        np.percentile(rotated_2d[:, 0], _HI),
-        np.percentile(rotated_2d[:, 1], _HI),
-        np.percentile(z_vals, _HI),
-    ])
+    mins = np.array(
+        [
+            np.percentile(rotated_2d[:, 0], _LO),
+            np.percentile(rotated_2d[:, 1], _LO),
+            np.percentile(z_vals, _LO),
+        ]
+    )
+    maxs = np.array(
+        [
+            np.percentile(rotated_2d[:, 0], _HI),
+            np.percentile(rotated_2d[:, 1], _HI),
+            np.percentile(z_vals, _HI),
+        ]
+    )
     extent = maxs - mins  # full extent
     center_local = (mins + maxs) / 2.0
 
@@ -1003,9 +1018,7 @@ def select_top_down_grasp(
             has_gripper
             and np.isclose(angle, best_angle, atol=1e-3)
             and np.linalg.norm(vec3_to_np(pose["position"]) - gripper_pos)
-            < np.linalg.norm(
-                vec3_to_np(grasp_poses[best_idx]["position"]) - gripper_pos
-            )
+            < np.linalg.norm(vec3_to_np(grasp_poses[best_idx]["position"]) - gripper_pos)
         ):
             best_angle = angle
             best_idx = i
@@ -1056,9 +1069,7 @@ def build_world_config(
         mask_arr = _project_obb_to_mask(target_obb, cameras[0])
         if mask_arr is not None:
             target_name = target_obb_name or "target"
-            object_masks.append(
-                {"name": target_name, "mask": mask_arr, "camera_index": 0}
-            )
+            object_masks.append({"name": target_name, "mask": mask_arr, "camera_index": 0})
             logger.info(
                 "build_world_config: derived target mask from OBB for '%s'",
                 target_name,
@@ -1097,12 +1108,14 @@ def build_world_config(
         center = sphere.get("center") or {}
         radius = float(sphere.get("radius", 0.0))
         if radius > 0.0:
-            sphere_rows.append([
-                float(center.get("x", 0.0)),
-                float(center.get("y", 0.0)),
-                float(center.get("z", 0.0)),
-                radius,
-            ])
+            sphere_rows.append(
+                [
+                    float(center.get("x", 0.0)),
+                    float(center.get("y", 0.0)),
+                    float(center.get("z", 0.0)),
+                    radius,
+                ]
+            )
     if sphere_rows and len(merged):
         spheres_np = np.asarray(sphere_rows, dtype=np.float64)
         remove = np.zeros(len(merged), dtype=bool)
@@ -1113,7 +1126,9 @@ def build_world_config(
             remove |= np.any(np.sum(delta * delta, axis=2) <= radii * radii, axis=1)
         logger.info(
             "build_world_config: removed %d/%d points using %d captured robot spheres",
-            int(np.count_nonzero(remove)), len(merged), len(spheres_np),
+            int(np.count_nonzero(remove)),
+            len(merged),
+            len(spheres_np),
         )
         merged = merged[~remove]
 
@@ -1128,13 +1143,12 @@ def build_world_config(
         ).flatten()
         if len(joint_positions) >= 7 and len(merged) > 0:
             before_count = len(merged)
-            merged = _exclude_robot_points(
-                merged, joint_positions, robot_distance_threshold
-            )
+            merged = _exclude_robot_points(merged, joint_positions, robot_distance_threshold)
             logger.info(
-                "build_world_config: %d -> %d points after robot exclusion "
-                "(threshold=%.3f)",
-                before_count, len(merged), robot_distance_threshold,
+                "build_world_config: %d -> %d points after robot exclusion (threshold=%.3f)",
+                before_count,
+                len(merged),
+                robot_distance_threshold,
             )
 
     # ----- Step 3: DBSCAN noise filtering -----
@@ -1162,7 +1176,8 @@ def build_world_config(
         if cam_idx < 0 or cam_idx >= len(cameras):
             logger.warning(
                 "build_world_config: invalid camera_index %d for mask '%s'",
-                cam_idx, entry.get("name"),
+                cam_idx,
+                entry.get("name"),
             )
             continue
 
@@ -1179,7 +1194,9 @@ def build_world_config(
         if mask.shape != depth.shape:
             logger.warning(
                 "build_world_config: mask shape %s != depth shape %s for '%s', skipping",
-                mask.shape, depth.shape, entry.get("name"),
+                mask.shape,
+                depth.shape,
+                entry.get("name"),
             )
             continue
 
@@ -1203,7 +1220,8 @@ def build_world_config(
         if len(pts_world_obj) < 4:
             logger.warning(
                 "build_world_config: too few points (%d) for object '%s'",
-                len(pts_world_obj), entry.get("name"),
+                len(pts_world_obj),
+                entry.get("name"),
             )
             continue
 
@@ -1211,13 +1229,9 @@ def build_world_config(
         # background mesh doesn't double-cover the object.
         if len(merged) > 0:
             obj_pcd = o3d.geometry.PointCloud()
-            obj_pcd.points = o3d.utility.Vector3dVector(
-                pts_world_obj.astype(np.float64)
-            )
+            obj_pcd.points = o3d.utility.Vector3dVector(pts_world_obj.astype(np.float64))
             merged_pcd = o3d.geometry.PointCloud()
-            merged_pcd.points = o3d.utility.Vector3dVector(
-                merged.astype(np.float64)
-            )
+            merged_pcd.points = o3d.utility.Vector3dVector(merged.astype(np.float64))
             dists = np.asarray(merged_pcd.compute_point_cloud_distance(obj_pcd))
             close_mask = dists < voxel_size * 3
             object_point_indices.update(np.where(close_mask)[0].tolist())
@@ -1247,11 +1261,7 @@ def build_world_config(
                     surface_parts.extend((part, False) for part in residual_clusters)
 
             for index, (surface, is_plane) in enumerate(surface_parts):
-                mesh = (
-                    _planar_slab_mesh(surface, max(voxel_size, 0.006))
-                    if is_plane
-                    else None
-                )
+                mesh = _planar_slab_mesh(surface, max(voxel_size, 0.006)) if is_plane else None
                 if mesh is None:
                     scene_pcd = o3d.geometry.PointCloud()
                     scene_pcd.points = o3d.utility.Vector3dVector(surface.astype(np.float64))
@@ -1276,27 +1286,27 @@ def build_world_config(
                 # nearly zero-thickness, and local. These are characteristic
                 # alpha-shape depth-edge fragments, not substantive scene
                 # surfaces. Large walls and thin planar fixtures are retained.
-                if (
-                    len(s_verts) < 32
-                    and float(extent.min()) < 0.004
-                    and float(extent.max()) < 0.15
-                ):
+                if len(s_verts) < 32 and float(extent.min()) < 0.004 and float(extent.max()) < 0.15:
                     logger.info(
                         "build_world_config: dropped sparse depth-edge sliver "
                         "surface=%d vertices=%d extent=%s",
-                        index, len(s_verts), extent.tolist(),
+                        index,
+                        len(s_verts),
+                        extent.tolist(),
                     )
                     continue
                 name = f"scene_{index}"
-                collision_meshes.append({
-                    "name": name,
-                    "vertices": s_verts,
-                    "faces": s_faces,
-                    "pose": {
-                        "position": {"x": 0.0, "y": 0.0, "z": 0.0},
-                        "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
-                    },
-                })
+                collision_meshes.append(
+                    {
+                        "name": name,
+                        "vertices": s_verts,
+                        "faces": s_faces,
+                        "pose": {
+                            "position": {"x": 0.0, "y": 0.0, "z": 0.0},
+                            "rotation": {"w": 1.0, "x": 0.0, "y": 0.0, "z": 0.0},
+                        },
+                    }
+                )
                 mesh_names.append(name)
 
     return {"meshes": collision_meshes}, mesh_names

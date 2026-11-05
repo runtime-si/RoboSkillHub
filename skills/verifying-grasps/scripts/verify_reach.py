@@ -72,9 +72,7 @@ def _position(pose: Any) -> dict[str, float] | None:
     return None
 
 
-def _tolerance(
-    target_obb: OrientedBoundingBox | None, floor_m: float, ceiling_m: float
-) -> float:
+def _tolerance(target_obb: OrientedBoundingBox | None, floor_m: float, ceiling_m: float) -> float:
     """How far the tool may be off and still have the object between the pads."""
     if not target_obb:
         return -1.0
@@ -132,7 +130,9 @@ def run(
         )
         logger.info(
             "[reach] missed err_mm=%.1f tol_mm=%.1f object=%s",
-            error * 1000.0, tolerance * 1000.0, object_name or "?",
+            error * 1000.0,
+            tolerance * 1000.0,
+            object_name or "?",
         )
         return {
             "route": "missed",
@@ -143,7 +143,9 @@ def run(
         }
     logger.info(
         "[reach] reached err_mm=%.1f tol_mm=%.1f object=%s",
-        error * 1000.0, tolerance * 1000.0, object_name or "?",
+        error * 1000.0,
+        tolerance * 1000.0,
+        object_name or "?",
     )
     return {
         "route": "reached",

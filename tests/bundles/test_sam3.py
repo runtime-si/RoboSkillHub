@@ -44,10 +44,20 @@ def test_segment_box_schema(tool_registry):
 def test_tracker_schemas(tool_registry):
     init = tool_registry.get("sam3.tracker_init").schema
     assert set(init.inputs) == {
-        "image", "text", "box", "pixel_x", "pixel_y", "use_point", "object_name",
+        "image",
+        "text",
+        "box",
+        "pixel_x",
+        "pixel_y",
+        "use_point",
+        "object_name",
     }
     assert set(init.outputs) == {
-        "tracker_id", "initial_mask", "initial_box", "score", "object_present",
+        "tracker_id",
+        "initial_mask",
+        "initial_box",
+        "score",
+        "object_present",
     }
 
     update = tool_registry.get("sam3.tracker_update").schema
@@ -84,9 +94,7 @@ def test_segment_text_gpu_smoke(tool_registry):
     if not torch.cuda.is_available():
         pytest.skip("needs a CUDA device")
 
-    out = tool_registry.invoke(
-        "sam3.segment_text", image=_smoke_image(), query="red square"
-    )
+    out = tool_registry.invoke("sam3.segment_text", image=_smoke_image(), query="red square")
     assert set(out) == {"masks", "scores", "boxes"}
     assert len(out["masks"]) == len(out["scores"]) == len(out["boxes"])
     for mask in out["masks"]:
@@ -133,9 +141,7 @@ def test_tracker_roundtrip_gpu_smoke(tool_registry):
     # Shift the square a few pixels and track it.
     frame1 = np.full_like(frame0, 255)
     frame1[36:100, 36:100] = (220, 30, 30)
-    upd = tool_registry.invoke(
-        "sam3.tracker_update", tracker_id=init["tracker_id"], image=frame1
-    )
+    upd = tool_registry.invoke("sam3.tracker_update", tracker_id=init["tracker_id"], image=frame1)
     assert set(upd) == {"mask", "box", "confidence", "object_present"}
 
     closed = tool_registry.invoke("sam3.tracker_close", tracker_id=init["tracker_id"])

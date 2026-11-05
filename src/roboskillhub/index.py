@@ -22,8 +22,14 @@ def bundle_record(bundle: Bundle, catalog: Catalog) -> dict[str, Any]:
     tool_bundles = sorted(
         {t.split(".", 1)[0] for t in bundle.allowed_tools if t.split(".", 1)[0] in catalog.bundles}
     )
-    connector_tools = sorted(t for t in bundle.allowed_tools if t.split(".", 1)[0] in CONNECTOR_PREFIXES)
-    commit = head_commit(catalog.root) if bundle.native else catalog.manifest.source(bundle.source).commit
+    connector_tools = sorted(
+        t for t in bundle.allowed_tools if t.split(".", 1)[0] in CONNECTOR_PREFIXES
+    )
+    commit = (
+        head_commit(catalog.root)
+        if bundle.native
+        else catalog.manifest.source(bundle.source).commit
+    )
     record: dict[str, Any] = {
         "name": bundle.name,
         "kind": bundle.kind,
@@ -60,7 +66,9 @@ def bundle_record(bundle: Bundle, catalog: Catalog) -> dict[str, Any]:
             k: bundle.serving[k] for k in ("protocol", "requires_gpu") if k in bundle.serving
         }
     if bundle.evals:
-        record["evals"] = [{k: v for k, v in e.items() if not k.startswith("_")} for e in bundle.evals]
+        record["evals"] = [
+            {k: v for k, v in e.items() if not k.startswith("_")} for e in bundle.evals
+        ]
     return record
 
 
@@ -74,7 +82,9 @@ def build_index(catalog: Catalog) -> dict[str, Any]:
             {"name": p.name, "repo": p.repo, "commit": p.commit, "license": p.license}
             for p in catalog.manifest.sources
         ],
-        "counts": {kind: sum(1 for b in bundles if b.kind == kind) for kind in ("tool", "skill", "policy")}
+        "counts": {
+            kind: sum(1 for b in bundles if b.kind == kind) for kind in ("tool", "skill", "policy")
+        }
         | {"recipe": len(catalog.recipes), "paper": len(catalog.papers)},
         "bundles": [bundle_record(b, catalog) for b in bundles],
         "shadowed": [{"name": n, "winner": w, "loser": lo} for n, w, lo in catalog.shadowed],
@@ -83,7 +93,11 @@ def build_index(catalog: Catalog) -> dict[str, Any]:
                 "name": r.name,
                 "description": r.description,
                 "skills": sorted({str(s["skill"]) for s in r.skill_nodes.values()}),
-                **{k: r.hub[k] for k in ("version", "embodiments", "tuned_on", "tasks") if k in r.hub},
+                **{
+                    k: r.hub[k]
+                    for k in ("version", "embodiments", "tuned_on", "tasks")
+                    if k in r.hub
+                },
             }
             for r in sorted(catalog.recipes.values(), key=lambda r: r.name)
         ],

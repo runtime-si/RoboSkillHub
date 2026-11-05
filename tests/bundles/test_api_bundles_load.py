@@ -12,10 +12,10 @@ from pathlib import Path
 
 import pytest
 from gap.skills import load_skills
-
-from .conftest import import_served_tools
 from gap_core.tools import ToolRegistry
 from gap_core.tools._registry import _PENDING_TOOLS
+
+from .conftest import import_served_tools
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -146,9 +146,11 @@ def test_tools_dispatchable_through_registry(loaded):
     import os
 
     from gap_core.errors import ToolError
+
     saved = os.environ.pop("GAP_MOLMO_BASE_URL", None)
     try:
         import numpy as np
+
         with pytest.raises(ToolError, match="GAP_MOLMO_BASE_URL"):
             tool_registry.invoke(
                 "molmo.point_prompt",

@@ -34,7 +34,9 @@ def recipe_prompt(recipe: Recipe) -> str:
     for node, spec in recipe.skill_nodes.items():
         bind = spec.get("bind") or {}
         bound = f" [{', '.join(f'{k}={v}' for k, v in bind.items())}]" if bind else ""
-        route = ", ".join(f"{exit_} -> {target}" for exit_, target in (routes.get(node) or {}).items())
+        route = ", ".join(
+            f"{exit_} -> {target}" for exit_, target in (routes.get(node) or {}).items()
+        )
         lines.append(f"- {node}: {spec['skill']}{bound}; {route}")
     for node, spec in recipe.end_nodes.items():
         recovery = spec.get("recovery") or []
@@ -49,7 +51,9 @@ def make_view(
     out = Path(out).resolve()
     if out.exists():
         if not (out / VIEW_FILE).is_file():
-            raise FileExistsError(f"{out} exists and is not a roboskillhub view; refusing to replace it")
+            raise FileExistsError(
+                f"{out} exists and is not a roboskillhub view; refusing to replace it"
+            )
         shutil.rmtree(out)
     for folder in KIND_DIRS:
         (out / folder).mkdir(parents=True)
@@ -71,5 +75,7 @@ def make_view(
     record = {"query": query, "bundles": listed, "recipes": [r.name for r in recipes]}
     (out / VIEW_FILE).write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     if recipes:
-        (out / "RECIPES.md").write_text("\n".join(recipe_prompt(r) for r in recipes), encoding="utf-8")
+        (out / "RECIPES.md").write_text(
+            "\n".join(recipe_prompt(r) for r in recipes), encoding="utf-8"
+        )
     return out

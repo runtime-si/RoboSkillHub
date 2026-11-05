@@ -227,7 +227,7 @@ State details:
 ```python
 sg.add_exit("found")
 sg.add_exit("none")
-sg.set_exit(success_values=["found", "none"])   # BOTH are clean exits
+sg.set_exit(success_values=["found", "none"])  # BOTH are clean exits
 sg.set_on_error("perception_failed")
 
 sg.set_outputs(

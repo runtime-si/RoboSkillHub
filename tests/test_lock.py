@@ -17,7 +17,11 @@ def workflow(*, extra_tool: str | None = None) -> dict:
         "nodes": {
             "grab": {"type": "subgraph"},
             "decide": {"type": "subgraph"},
-            "abort": {"type": "end", "status": "failure", "recovery": [{"tool": "robot.open_gripper"}]},
+            "abort": {
+                "type": "end",
+                "status": "failure",
+                "recovery": [{"tool": "robot.open_gripper"}],
+            },
         },
         "subgraphs": {
             "grab_sg": {"skill": "grabbing-things", "nodes": {}},
@@ -38,7 +42,9 @@ def test_lock_pins_bundles_and_lists_what_the_robot_must_provide(hub, tmp_path):
     lock = build_lock(graph, load_catalog(hub))
     assert sorted(lock["bundles"]) == ["grabbing-things", "judge"]
     assert lock["bundles"]["grabbing-things"]["source"] == "upstream"
-    assert lock["sources"] == {"upstream": {"repo": "https://example.invalid/up", "commit": "0" * 40}}
+    assert lock["sources"] == {
+        "upstream": {"repo": "https://example.invalid/up", "commit": "0" * 40}
+    }
     assert lock["graph"]["generated_skills"] == ["generic"]
     assert lock["connector_tools"] == ["robot.close_gripper", "robot.open_gripper"]
     assert lock["deployable"] is True
