@@ -13,6 +13,7 @@ uv pip install --no-deps "graph-as-policy @ git+https://github.com/graph-robots/
 uv run --no-sync roboskillhub new skill grasping-by-the-rim     # or tool, policy, recipe, paper
 # edit skills/grasping-by-the-rim/
 uv run --no-sync roboskillhub check                             # 0 errors before you open the PR
+uv run --no-sync roboskillhub catalog                           # CATALOG.md picks up the change
 uv run --no-sync pytest -q
 ```
 
@@ -36,6 +37,10 @@ uv run --no-sync pytest -q
   listing the bundles under `derived`.
 
 ## What review looks for
+
+Review starts from the bundle's section in [CATALOG.md](CATALOG.md): its
+description, inputs and outputs, what each exit means and what it calls, on
+one screen, and in the PR's diff of that page.
 
 1. **The description routes.** The coordinator chooses from descriptions
    alone. Say what the bundle does, then "Use when ..." with the situation and

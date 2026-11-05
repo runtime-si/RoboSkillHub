@@ -32,6 +32,8 @@ real arm with exactly the code and weights it was tested with.
 - **Complete.** The 8 tools, 33 skills and 2 policies of
   [open-robot-skills](https://github.com/graph-robots/open-robot-skills) live
   here in this format, next to this repository's own.
+  [CATALOG.md](CATALOG.md) lists every one on a page: what it does, what goes
+  in and comes out, what each exit means, and what it calls.
 
 ## Quickstart
 
@@ -152,6 +154,8 @@ action space and rate, the state and the cameras.
 tools/ skills/ policies/   every bundle, one directory each
 recipes/ papers/    task templates and paper cards
 evals/              eval records; they set maturity
+CATALOG.md          every bundle on one page, written by `roboskillhub catalog`
+tests/              the hub's tests; tests/bundles/ holds the bundles' own
 templates/          what `roboskillhub new` copies
 src/roboskillhub/   the `roboskillhub` command
 sources.yaml        the validator's engine, and any federated registry, pinned by commit
