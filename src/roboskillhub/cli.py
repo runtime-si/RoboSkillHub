@@ -55,6 +55,25 @@ def cmd_index(args) -> int:
     return 0
 
 
+def cmd_catalog(args) -> int:
+    from .catalog_page import PAGE, render
+
+    catalog = _catalog(args)
+    path = catalog.root / PAGE
+    text = render(catalog)
+    current = path.read_text(encoding="utf-8") if path.is_file() else ""
+    if args.check:
+        if current != text:
+            print(f"{PAGE} is out of date; run `roboskillhub catalog`")
+            return 1
+        print(f"{PAGE} is current")
+        return 0
+    if current != text:
+        path.write_text(text, encoding="utf-8")
+    print(f"wrote {path}")
+    return 0
+
+
 def _select(args):
     from .search import select
 
@@ -225,6 +244,10 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("index", help="write the catalog as index.json")
     p.add_argument("--out")
     p.set_defaults(fn=cmd_index)
+
+    p = sub.add_parser("catalog", help="write CATALOG.md, every bundle on one page")
+    p.add_argument("--check", action="store_true", help="fail if CATALOG.md is out of date")
+    p.set_defaults(fn=cmd_catalog)
 
     p = sub.add_parser("search", help="rank the catalog against a task")
     _selection_args(p)

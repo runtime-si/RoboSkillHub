@@ -8,6 +8,7 @@ import pytest
 from conftest import REPO
 
 from roboskillhub.catalog import load_catalog
+from roboskillhub.catalog_page import PAGE, render
 from roboskillhub.checks import check_all, load_gap_api
 from roboskillhub.scaffold import new
 from roboskillhub.sources import cache_dir
@@ -16,6 +17,11 @@ from roboskillhub.sources import cache_dir
 def test_the_hub_checks_clean():
     issues = check_all(load_catalog(REPO), load_gap_api())
     assert [str(i) for i in issues if i.level == "error"] == []
+
+
+def test_the_catalog_page_is_current():
+    page = (REPO / PAGE).read_text(encoding="utf-8")
+    assert page == render(load_catalog(REPO)), f"{PAGE} is stale: run `roboskillhub catalog`"
 
 
 @pytest.mark.parametrize("kind", ["skill", "tool", "recipe", "paper"])
