@@ -1,0 +1,18 @@
+{
+  "skill": "approaching-above-a-target",
+  "inputs": {"target_obb": "OrientedBoundingBox"},
+  "outputs": {
+    "hover_pose": {"$ref": "approach.hover_pose"},
+    "position_error": {"$ref": "approach.position_error"}
+  },
+  "nodes": {
+    "approach": {
+      "type": "script",
+      "script": "scripts/approach_above_target.py",
+      "inputs": {"target_obb": {"$ref": "in.target_obb"}}
+    }
+  },
+  "edges": [["START", "approach"], ["approach", "END"]],
+  "exit": {"router_field": "route", "success_values": ["above"]},
+  "on_error": "unreachable"
+}

@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 34 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 35 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -49,6 +49,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`proposing-side-grasps`](#proposing-side-grasps) | propose | Propose horizontal (side-entry) grasps swept around an object's oriented box — twelve azimuths ranked by jaw margin. | any, **sim only** |
 | [`selecting-reachable-grasp`](#selecting-reachable-grasp) | select | Walk a ranked list of candidate grasp poses and take the first the arm can actually reach. | any, **sim only** |
 | [`anchoring-a-free-end`](#anchoring-a-free-end) | execute | Pins one end of a cable with the support hand before any crossing is attempted. | any, 2 arms |
+| [`approaching-above-a-target`](#approaching-above-a-target) | execute | Moves the hand to hover a set clearance above a target's oriented box, rising in place first and keeping the hand's… | any |
 | [`executing-feature-mating`](#executing-feature-mating) | execute | Executes a supplied feature-mating plan for an already-held rigid object. | any |
 | [`executing-held-object-motion`](#executing-held-object-motion) | execute | Executes an ordered, collision-aware pose sequence for an already-grasped rigid object without releasing it. | any |
 | [`grasping-direct-ik`](#grasping-direct-ik) | execute | Direct IK align-then-descend grasping. | any, *tuned on* panda |
@@ -481,6 +482,20 @@ Pins one end of a cable with the support hand before any crossing is attempted �
 - **Exits**:
   - `anchored`: The support hand holds the far end; `segment`, `q_support` and `quat` are bound for the pay-outs that follow.
   - `unanchored`: The planner returned no legs or a grasp past the IK error limit; nothing moved. Abort the weave rather than proceed one-handed.
+
+### approaching-above-a-target
+
+execute · robots: any · tasks: pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/approaching-above-a-target/SKILL.md) · [upstream](https://github.com/graph-robots/graph-as-policy/tree/main/examples/steered_policy/graph_loop/scripts/approach)
+
+Moves the hand to hover a set clearance above a target's oriented box, rising in place first and keeping the hand's current rotation, then checks from a fresh pose reading that it arrived. Use when a learned policy is about to take over and should start near the object from the rotation it was trained with, or whenever a graph needs the hand parked above an object before a step of its own; needs the target's OBB from a perception skill.
+
+- **In**: `target_obb` OrientedBoundingBox
+- **Out**: `hover_pose` Se3Pose, `position_error` float, `rotation_error_deg` float
+- **Calls**: connector `robot.get_ee_pose`, `robot.go_to_pose`
+- **Scripts**: [`approach_above_target`](skills/approaching-above-a-target/scripts/approach_above_target.py)
+- **Exits**:
+  - `above`: The tool centre stands within reach_tolerance (default 10 mm) of the point clearance (default 0.12 m) above the target's top, its rotation within rot_tolerance_deg (default 4 deg) of the one asked for.
+  - `unreachable`: A move raised or reported that it did not arrive, or the hand ended further off in position or rotation; `detail` says which.
 
 ### executing-feature-mating
 
