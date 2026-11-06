@@ -39,7 +39,7 @@ from typing import Any
 
 import numpy as np
 
-__all__ = ["fit_centerline", "track_centerline"]
+__all__ = ["endpoints", "fit_centerline", "track_centerline"]
 
 logger = logging.getLogger(__name__)
 
@@ -517,6 +517,106 @@ def track_centerline(
 
 def _arclength(Y: np.ndarray) -> float:
     return float(np.sum(np.linalg.norm(np.diff(Y, axis=0), axis=1)))
+
+
+# ---------------------------------------------------------------- endpoints
+#: Length of rod behind each end its direction is fitted over [m]. Long enough
+#: that a 40-node fit of a 0.5 m rod (a node every ~12 mm) puts two or three
+#: nodes in it, short enough that the bend a few centimetres back does not
+#: turn the tangent of the end itself.
+TANGENT_M = 0.02
+
+
+def _end_direction(Y: np.ndarray, length_m: float) -> np.ndarray:
+    """Unit vector out of the rod at ``Y[0]``: the principal axis of the nodes
+    within ``length_m`` of arc length from it, signed to point away from the
+    rest of the rod."""
+    s = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(Y, axis=0), axis=1))])
+    near = Y[: max(2, int(np.searchsorted(s, length_m, side="right")))]
+    centred = near - near.mean(axis=0)
+    axis = np.linalg.svd(centred, full_matrices=False)[2][0]
+    outward = near[0] - near[-1]
+    if float(np.dot(axis, outward)) < 0.0:
+        axis = -axis
+    return axis / max(float(np.linalg.norm(axis)), 1.0e-12)
+
+
+def _project(p: np.ndarray, K: np.ndarray, T: np.ndarray) -> list[float] | None:
+    """World point -> pixel through camera-to-world ``T``; None behind the camera."""
+    cam = np.linalg.inv(T) @ np.append(p, 1.0)
+    if cam[2] <= 1.0e-9:
+        return None
+    return [float(K[0, 0] * cam[0] / cam[2] + K[0, 2]), float(K[1, 1] * cam[1] / cam[2] + K[1, 2])]
+
+
+def endpoints(
+    centerline: dict[str, Any] | list,
+    *,
+    near_pixel: list[float] | None = None,
+    near_point: list[float] | None = None,
+    K: np.ndarray | None = None,
+    T: np.ndarray | None = None,
+    tangent_m: float = TANGENT_M,
+    extend: bool = True,
+) -> dict[str, Any]:
+    """Both ends of a fitted or tracked centreline, and which one a hint names.
+
+    Each end gets its world ``position``, the unit ``direction`` pointing out
+    of the rod there, its ``pixel`` (None unless ``K`` and ``T`` are given),
+    and its node's ``visibility`` (None unless the tracker produced it).
+
+    ``extend`` moves each end out along its direction by the centreline's
+    ``radius_m``: the skeleton a fit starts from stops about one radius short
+    of the silhouette's end (measured on a straight 6-11 px wide strip: 1-5 px
+    short at each end, the half-width within a pixel), so the last node lies
+    that far inside the real tip.
+
+    ``near_pixel`` ([u, v], needs ``K`` and ``T``) or ``near_point`` ([x, y, z],
+    world) picks the ``tip``: the end nearest the hint, e.g. a pointing model's
+    answer to "the tip of the cable". ``tip`` is -1 without a hint.
+    """
+    if isinstance(centerline, dict):
+        points = centerline.get("points") or []
+        radius = float(centerline.get("radius_m") or 0.0)
+        visibility = centerline.get("visibility")
+    else:
+        points, radius, visibility = centerline, 0.0, None
+    Y = np.asarray(points, dtype=np.float64).reshape(-1, 3) if len(points) else np.zeros((0, 3))
+    if len(Y) < 2 or _arclength(Y) < 1.0e-9:
+        return {"found": False, "ends": [], "tip": -1, "hint_distance": 0.0}
+
+    ends = []
+    for index, chain in ((0, Y), (len(Y) - 1, Y[::-1])):
+        direction = _end_direction(chain, float(tangent_m))
+        position = chain[0] + (radius * direction if extend else 0.0)
+        tracked = visibility is not None and len(visibility) == len(Y)
+        ends.append(
+            {
+                "node": index,
+                "position": [float(v) for v in position],
+                "direction": [float(v) for v in direction],
+                "pixel": _project(position, K, T) if K is not None and T is not None else None,
+                "visibility": float(visibility[index]) if tracked else None,
+            }
+        )
+
+    tip, distance = -1, 0.0
+    if near_point is not None:
+        hint = np.asarray(near_point, dtype=np.float64).reshape(3)
+        gaps = [float(np.linalg.norm(np.asarray(e["position"]) - hint)) for e in ends]
+        tip = int(np.argmin(gaps))
+        distance = gaps[tip]
+    elif near_pixel is not None:
+        if K is None or T is None:
+            raise ValueError("curve.endpoints: near_pixel needs intrinsics and camera_pose")
+        hint = np.asarray(near_pixel, dtype=np.float64).reshape(2)
+        gaps = [
+            float(np.linalg.norm(np.asarray(e["pixel"]) - hint)) if e["pixel"] else float("inf")
+            for e in ends
+        ]
+        tip = int(np.argmin(gaps))
+        distance = gaps[tip]
+    return {"found": True, "ends": ends, "tip": tip, "hint_distance": distance}
 
 
 def _respace(Y: np.ndarray, target_len: float) -> np.ndarray:

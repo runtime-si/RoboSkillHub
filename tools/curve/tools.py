@@ -15,15 +15,33 @@ importing this module is always cheap.
 
 from __future__ import annotations
 
+from typing import TypedDict
+
 import numpy as np
 from gap_core.tools import tool
 from gap_core.types import Centerline, Mask, Se3Pose, pose_to_matrix
 
-#: Defaults mirrored from ``_impl.DEFAULT_NODES`` / ``_impl.SMOOTH`` -- spelled
-#: out here because ``_impl`` is imported lazily; ``tests/test_curve.py``
-#: asserts the two agree.
+#: Defaults mirrored from ``_impl.DEFAULT_NODES`` / ``_impl.SMOOTH`` /
+#: ``_impl.TANGENT_M`` -- spelled out here because ``_impl`` is imported
+#: lazily; ``tests/test_curve.py`` asserts they agree.
 _DEFAULT_NODES = 40
 _SMOOTH = 2.0
+_TANGENT_M = 0.02
+
+
+class CurveEnd(TypedDict):
+    node: int  # index of the end's node in the centreline's points
+    position: list[float]  # [x, y, z] world metres, out at the rod's tip
+    direction: list[float]  # unit vector pointing out of the rod
+    pixel: list[float] | None  # [u, v]; None without a camera or behind it
+    visibility: float | None  # the end node's, from a tracker; None for a fit
+
+
+class CurveEnds(TypedDict):
+    found: bool
+    ends: list[CurveEnd]  # the points[0] end, then the points[-1] end
+    tip: int  # index into ends of the end nearest the hint; -1 without one
+    hint_distance: float  # metres for near_point, pixels for near_pixel
 
 
 def _camera_matrix(camera_pose: Se3Pose | np.ndarray) -> np.ndarray:
@@ -128,4 +146,51 @@ def track_centerline(
         np.asarray(intrinsics, dtype=np.float64),
         _camera_matrix(camera_pose),
         radius=None if radius is None else float(radius),
+    )
+
+
+@tool(
+    name="curve.endpoints",
+    summary=(
+        "Both ends of a centreline -- each end's position, outward direction and pixel -- "
+        "and which end a pixel or point hint names."
+    ),
+    tags=("perception",),
+)
+def endpoints(
+    centerline: Centerline,
+    near_pixel: list[float] | None = None,
+    near_point: list[float] | None = None,
+    intrinsics: np.ndarray | None = None,
+    camera_pose: Se3Pose | np.ndarray | None = None,
+    tangent_m: float = _TANGENT_M,
+    extend: bool = True,
+) -> CurveEnds:
+    """The two ends of ``centerline`` (a fit or track; a bare ``points`` list
+    is accepted): each end's world ``position``, the unit ``direction``
+    pointing out of the rod (fitted over the last ``tangent_m`` metres), its
+    ``pixel`` when ``intrinsics`` and ``camera_pose`` are given, and the end
+    node's ``visibility`` from a tracker.
+
+    ``extend`` (default) moves each end out by the centreline's ``radius_m``
+    along its direction: a fit's skeleton stops about one radius short of the
+    real tip.
+
+    A hint picks ``tip``, the end nearest it: ``near_pixel`` ([u, v], e.g.
+    ``gemini-er.point``'s answer to "the tip of the cable"; needs the camera)
+    or ``near_point`` ([x, y, z], world). ``tip`` is -1 without a hint. A
+    centreline of fewer than two points returns ``found: False`` and no ends.
+    """
+    if centerline is None:
+        raise ValueError("curve.endpoints needs a centerline")
+    from gap_skills.tools.curve import _impl
+
+    return _impl.endpoints(
+        centerline,
+        near_pixel=None if near_pixel is None else [float(v) for v in near_pixel],
+        near_point=None if near_point is None else [float(v) for v in near_point],
+        K=None if intrinsics is None else np.asarray(intrinsics, dtype=np.float64),
+        T=None if camera_pose is None else _camera_matrix(camera_pose),
+        tangent_m=float(tangent_m),
+        extend=bool(extend),
     )

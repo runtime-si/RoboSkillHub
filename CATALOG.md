@@ -75,14 +75,15 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 
 ### curve
 
-perceive · robots: any · tasks: cable-routing · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/curve/SKILL.md) · [upstream](https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/tools/curve)
+perceive · robots: any · tasks: cable-routing · Apache-2.0 · v0.2.0 · [`SKILL.md`](tools/curve/SKILL.md) · [upstream](https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/tools/curve)
 
-Ordered centrelines of deformable linear objects — skeletonises a cable, rope or hose mask, recovers one traversal order through occlusion breaks and self-crossings (TrackDLO's chain merge), back-projects the ordered pixels through depth onto the object's axis as an arc-length-parameterised polyline, and carries a known centreline onto the next frame with motion imputed for hidden stretches. Use when a workflow needs an ordered centreline of a cable, rope or hose from a mask and a depth frame, or must carry one through occlusion between frames.
+Ordered centrelines of deformable linear objects — skeletonises a cable, rope or hose mask, recovers one traversal order through occlusion breaks and self-crossings (TrackDLO's chain merge), back-projects the ordered pixels through depth onto the object's axis as an arc-length-parameterised polyline, and carries a known centreline onto the next frame with motion imputed for hidden stretches, and reads off its two ends (tip position, outward direction, pixel). Use when a workflow needs an ordered centreline of a cable, rope or hose from a mask and a depth frame, must carry one through occlusion between frames, or needs where a cable's tip is and which way it points.
 
 - **Runs**: in its own environment over `stdio-msgpack`
 - **Functions**:
   - `curve.fit_centerline`: Fit an ordered, arc-length-parameterised 3D centreline to a deformable linear object from its mask and a depth frame.
   - `curve.track_centerline`: Advance a known centreline onto a new frame, imputing motion for occluded stretches from their visible neighbours.
+  - `curve.endpoints`: Both ends of a centreline -- each end's position, outward direction and pixel -- and which end a pixel or point hint names.
 
 ### gemini-er
 
