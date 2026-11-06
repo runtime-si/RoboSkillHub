@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 35 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 36 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -58,6 +58,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grasping-with-planner`](#grasping-with-planner) | execute | Top-down grasping via a fast axis-locked linear descend with a collision-aware cuRobo fallback. | any, *tuned on* panda |
 | [`placing-held-feature`](#placing-held-feature) | execute | Move a held object so one of its declared features lands on a target point. | any, **sim only** |
 | [`plugging-a-cable-end`](#plugging-a-cable-end) | execute | Carries a cable's held free end into a terminal port after the last crossing. | any, 2 arms |
+| [`pushing-objects`](#pushing-objects) | execute | Pushes a loose object across its support toward a goal point with a closed hand, never grasping it. | any |
 | [`seating-a-cable-crossing`](#seating-a-cable-crossing) | execute | Streams one planned crossing leg of a cable onto a routing station, lets the rod settle, then LOOKS. | any |
 | [`tipping-over-a-surface-edge`](#tipping-over-a-surface-edge) | execute | Turn a body over on the surface it rests on instead of carrying it. | any, *tuned on* yam_i2rt, 2 arms, **sim only** |
 | [`transporting-objects`](#transporting-objects) | execute | Move the currently-held object to a destination and release. | any, *tuned on* panda |
@@ -610,6 +611,21 @@ Carries a cable's held free end into a terminal port after the last crossing —
 - **Exits**:
   - `plugged`: The delivering hand reached the port mouth and opened; `detail` says whether it got there routed or on the diagonal.
   - `unplugged`: No centreline or stations, no port in view, no support hand identified, the mouth unreachable at every height, or a tool raised on the carry; `detail` says which.
+
+### pushing-objects
+
+execute · robots: any · tasks: pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/pushing-objects/SKILL.md) · [upstream](https://github.com/nssmd/RoboRSI/tree/main/roborsi/embodied/skills/base/push_object/libero)
+
+Pushes a loose object across its support toward a goal point with a closed hand, never grasping it - hovers behind the object, comes straight down to a contact height on its side, pushes along a straight line, lifts away and opens. Use when an object must be slid rather than lifted (out of a corner, away from a wall or a neighbour so it can be grasped, too flat or wide for the gripper, or onto a mark), with its OBB from a perception skill and the hand empty.
+
+- **In**: `target_obb` OrientedBoundingBox, `goal_position` Vec3
+- **Out**: `push_distance` float, `achieved` float, `expected_center` Vec3
+- **Calls**: connector `robot.close_gripper`, `robot.get_ee_pose`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.open_gripper`
+- **Scripts**: [`push_object`](skills/pushing-objects/scripts/push_object.py)
+- **Exits**:
+  - `pushed`: The hand travelled past the contact point toward the goal by at least min(80 mm, 0.75 x the asked push), lifted away and opened; the object should now sit near expected_center.
+  - `not_pushed`: The goal was under 30 mm from the object's centre, or the push ran but the hand travelled short (blocked, or the move refused part way), or the retract failed; `detail` says which.
+  - `unreachable`: The hover above and behind the object was refused or ended off with every rotation tried, or the descent stopped more than reach_tolerance from the contact height; nothing was pushed.
 
 ### seating-a-cable-crossing
 
