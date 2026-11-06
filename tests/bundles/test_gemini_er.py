@@ -99,7 +99,7 @@ def test_detect_converts_box_2d_to_pixels(ger, image, monkeypatch):
     assert det["score"] == 1.0  # default when the model reports no score
 
     # Request shaping: PNG part + detection prompt, default model.
-    assert captured["model"] == ger.DEFAULT_MODEL == "gemini-robotics-er-1.5-preview"
+    assert captured["model"] == ger.DEFAULT_MODEL == "gemini-robotics-er-2-preview"
     part, prompt = captured["contents"]
     assert part.mime_type == "image/png"
     assert part.data.startswith(b"\x89PNG")
@@ -132,9 +132,9 @@ def test_detect_multiple_boxes_scores_and_clamping(ger, image, monkeypatch):
 
 def test_detect_model_env_override(ger, image, monkeypatch):
     captured = _patch(ger, monkeypatch, "[]")
-    monkeypatch.setenv("GAP_GEMINI_ER_MODEL", "gemini-robotics-er-2.0")
+    monkeypatch.setenv("GAP_GEMINI_ER_MODEL", "gemini-robotics-er-2-streaming-preview")
     ger.detect(image=image, query="cup")
-    assert captured["model"] == "gemini-robotics-er-2.0"
+    assert captured["model"] == "gemini-robotics-er-2-streaming-preview"
 
 
 # ---------------------------------------------------------------------------
@@ -212,3 +212,59 @@ def test_genai_errors_wrapped_as_tool_error(ger, image, monkeypatch):
 
     with pytest.raises(ToolError, match="quota exceeded"):
         ger.detect(image=image, query="cup")
+
+
+# ---------------------------------------------------------------------------
+# Pointing
+# ---------------------------------------------------------------------------
+
+
+def test_point_converts_y_x_to_pixels_and_keeps_every_point(ger, image, monkeypatch):
+    captured = _patch(
+        ger,
+        monkeypatch,
+        '```json\n[{"point": [250, 500], "label": "tip"}, {"point": [1200, -5]}]\n```',
+    )
+
+    out = ger.point(image=image, query="the cable tip", max_points=3)
+
+    assert out["found"] is True
+    # [y, x] = [250, 500] on a 640x480 frame:
+    assert out["pixel_x"] == pytest.approx(320.0)
+    assert out["pixel_y"] == pytest.approx(120.0)
+    first, second = out["points"]
+    assert first == {
+        "pixel_x": pytest.approx(320.0),
+        "pixel_y": pytest.approx(120.0),
+        "label": "tip",
+    }
+    assert second == {"pixel_x": 0.0, "pixel_y": 480.0, "label": "the cable tip"}  # clamped
+    _, prompt = captured["contents"]
+    assert '"the cable tip"' in prompt and "at most 3 points" in prompt
+    assert captured["model"] == ger.DEFAULT_MODEL
+
+
+def test_point_caps_the_count(ger, image, monkeypatch):
+    _patch(ger, monkeypatch, '[{"point": [1, 1]}, {"point": [2, 2]}, {"point": [3, 3]}]')
+    assert len(ger.point(image=image, query="dots", max_points=2)["points"]) == 2
+
+
+@pytest.mark.parametrize(
+    "response_text",
+    [
+        "[]",
+        "",
+        "nothing here",
+        '[{"point": [1]}]',
+        '[{"box_2d": [1, 2, 3, 4]}]',
+        '[{"point": ["a", 2]}]',
+    ],
+)
+def test_point_finds_nothing_without_raising(ger, image, monkeypatch, response_text):
+    _patch(ger, monkeypatch, response_text)
+    assert ger.point(image=image, query="unicorn") == {
+        "pixel_x": 0.0,
+        "pixel_y": 0.0,
+        "found": False,
+        "points": [],
+    }
