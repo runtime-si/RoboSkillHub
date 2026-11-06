@@ -5,9 +5,11 @@ description: Ordered centrelines of deformable linear objects — skeletonises a
   breaks and self-crossings (TrackDLO's chain merge), back-projects the ordered
   pixels through depth onto the object's axis as an arc-length-parameterised
   polyline, and carries a known centreline onto the next frame with motion
-  imputed for hidden stretches. Use when a workflow needs an ordered centreline
-  of a cable, rope or hose from a mask and a depth frame, or must carry one
-  through occlusion between frames.
+  imputed for hidden stretches, and reads off its two ends (tip position,
+  outward direction, pixel). Use when a workflow needs an ordered centreline
+  of a cable, rope or hose from a mask and a depth frame, must carry one
+  through occlusion between frames, or needs where a cable's tip is and which
+  way it points.
 license: Apache-2.0
 compatibility: requires gap>=0.1
 metadata:
@@ -17,7 +19,7 @@ metadata:
     stage: perceive
     embodiments: [any]
     tasks: [cable-routing]
-    version: 0.1.0
+    version: 0.2.0
     provenance:
       code: https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/tools/curve
       upstream_license: Apache-2.0
@@ -29,6 +31,7 @@ gap:
   tools:
     - curve.fit_centerline: Fit an ordered, arc-length-parameterised 3D centreline to a deformable linear object from its mask and a depth frame.
     - curve.track_centerline: Advance a known centreline onto a new frame, imputing motion for occluded stretches from their visible neighbours.
+    - curve.endpoints: Both ends of a centreline -- each end's position, outward direction and pixel -- and which end a pixel or point hint names.
 ---
 
 # curve
@@ -78,6 +81,21 @@ Both tools return a `Centerline` (`gap_core.types`): `points` as a plain
   numerics: a fixed number of damped correspondence steps rather than the
   paper's CPD-style EM. Route on `visibility` when deciding whether the rod
   is still known.
+- **`curve.endpoints(centerline, near_pixel=None, near_point=None,
+  intrinsics=None, camera_pose=None, tangent_m=0.02, extend=True)`** — both
+  ends of a fit or track (a bare `points` list works too). Each end in `ends`
+  (the `points[0]` end first) carries its `node` index, world `position`, the
+  unit `direction` pointing out of the rod (principal axis of the last
+  `tangent_m` of arc length), its `pixel` (`None` without a camera) and its
+  node's tracker `visibility` (`None` for a fit). `extend` moves each end out
+  by `radius_m`, because the skeleton stops about one radius short of the real
+  tip (measured on a straight free-ended strip 3-11 px wide: each end came up
+  1-5 px short, the half-width within a pixel). A hint picks `tip`, the index
+  of the nearer end: `near_pixel` `[u, v]` (needs the camera; feed it
+  `gemini-er.point`'s or `molmo.point_prompt`'s answer to "the tip of the
+  cable") or `near_point` `[x, y, z]`; `hint_distance` is in pixels or metres
+  respectively, and `tip` is `-1` without a hint. Fewer than two points →
+  `found: false`, no ends.
 
 ## The constants, and why
 
@@ -106,6 +124,9 @@ Both tools return a `Centerline` (`gap_core.types`): `points` as a plain
   unobserved and moved only by its neighbours (TrackDLO's `k_vis`): a gripper
   covering the rod must not drag those nodes onto the gripper.
 - **`TRACK_ITERS = 6`** damped steps per frame.
+- **`TANGENT_M = 0.02` m** — the stretch behind each end its `direction` is
+  fitted over: two or three nodes of a 40-node fit of a 0.5 m rod, short
+  enough that a bend a few centimetres back does not turn the end's tangent.
 - **`TRACK_STIFFNESS = 0.25`** — the bending prior, applied where the rod is
   not observed. Without it the tracker coils: measured on `weave3` with the
   arm across the rod, the occluded nodes folded into a knot (tracked error
@@ -156,6 +177,11 @@ imports the maths lazily, so the bundle loads without its deps installed.
   thinned skeleton along its principal axis instead and logs a warning
   **once per process**, not per frame. A merge that fails on *every* frame
   (an upstream API change once did) shows up only as that one line — read it.
+- `curve.endpoints` is only as good as the fit under it. With the default
+  `smooth`, a long real cable is over-smoothed and its ends land centimetres
+  off; `smooth=1e-5` brought them to 7-9 mm on a real overhead frame, at the
+  cost of a length inflated by depth jitter
+  ([#10](https://github.com/runtime-si/RoboSkillHub/issues/10)).
 - The skeleton's ends erode a few pixels, so `arclength_m` under-reads the
   true length slightly; the tracker preserves whatever length its prior had.
 - `track_centerline` with a prior of fewer than three points falls back to a

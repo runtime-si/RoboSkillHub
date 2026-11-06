@@ -181,6 +181,85 @@ def test_two_point_prior_falls_back_to_a_cold_fit(impl, arc_fit):
 
 
 # ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+
+_STRIP_U0, _STRIP_U1 = 60, 260  # inclusive pixel columns of a free-ended strip
+
+
+def _strip_mask(half_width: int = 3) -> np.ndarray:
+    """A straight horizontal strip with both ends free, (2 * half_width + 1) px wide."""
+    m = np.zeros((_H, _W), dtype=np.uint8)
+    m[120 - half_width : 120 + half_width + 1, _STRIP_U0 : _STRIP_U1 + 1] = 255
+    return m
+
+
+@pytest.fixture(scope="module")
+def strip_fit(impl):
+    return impl.fit_centerline(_strip_mask(), _flat_depth(), _K, np.eye(4))
+
+
+def _u(position) -> float:
+    x, _, z = position
+    return x / z * _FX + _K[0, 2]
+
+
+def test_endpoints_reach_the_strip_ends_once_extended(impl, strip_fit):
+    out = impl.endpoints(strip_fit, K=_K, T=np.eye(4))
+    assert out["found"] is True and out["tip"] == -1
+    first, last = out["ends"]
+    assert first["node"] == 0 and last["node"] == strip_fit["nodes"] - 1
+    us = sorted([_u(first["position"]), _u(last["position"])])
+    # The silhouette spans u in [60, 261) (pixel edges); extended ends land
+    # within a pixel of it.
+    assert us[0] == pytest.approx(_STRIP_U0, abs=1.5)
+    assert us[1] == pytest.approx(_STRIP_U1 + 1, abs=1.5)
+    for end in (first, last):
+        assert end["pixel"][0] == pytest.approx(_u(end["position"]), abs=1e-6)
+        assert end["pixel"][1] == pytest.approx(120.0, abs=1.5)
+        assert end["visibility"] is None
+
+
+def test_endpoints_unextended_sit_about_a_radius_inside(impl, strip_fit):
+    short = impl.endpoints(strip_fit, extend=False)
+    long_ = impl.endpoints(strip_fit, extend=True)
+    for a, b in zip(short["ends"], long_["ends"], strict=True):
+        gap = np.linalg.norm(np.subtract(b["position"], a["position"]))
+        assert gap == pytest.approx(strip_fit["radius_m"], rel=1e-9)
+        assert a["pixel"] is None
+
+
+def test_endpoint_directions_point_out_of_the_rod(impl, strip_fit):
+    first, last = impl.endpoints(strip_fit)["ends"]
+    left, right = (first, last) if _u(first["position"]) < _u(last["position"]) else (last, first)
+    np.testing.assert_allclose(left["direction"], [-1.0, 0.0, 0.0], atol=0.02)
+    np.testing.assert_allclose(right["direction"], [1.0, 0.0, 0.0], atol=0.02)
+
+
+def test_a_hint_picks_the_nearest_end(impl, strip_fit):
+    ends = impl.endpoints(strip_fit, K=_K, T=np.eye(4))["ends"]
+    right = int(np.argmax([_u(e["position"]) for e in ends]))
+    by_pixel = impl.endpoints(strip_fit, near_pixel=[255.0, 118.0], K=_K, T=np.eye(4))
+    assert by_pixel["tip"] == right
+    assert by_pixel["hint_distance"] < 8.0
+    by_point = impl.endpoints(strip_fit, near_point=ends[1 - right]["position"])
+    assert by_point["tip"] == 1 - right
+    assert by_point["hint_distance"] == pytest.approx(0.0, abs=1e-12)
+    with pytest.raises(ValueError, match="near_pixel needs"):
+        impl.endpoints(strip_fit, near_pixel=[255.0, 118.0])
+
+
+def test_endpoints_carry_tracker_visibility_and_refuse_nothing(impl, arc_fit):
+    tracked = impl.track_centerline(arc_fit["points"], _arc_mask(), _flat_depth(), _K, np.eye(4))
+    first, last = impl.endpoints(tracked)["ends"]
+    assert first["visibility"] == tracked["visibility"][0]
+    assert last["visibility"] == tracked["visibility"][-1]
+    empty = {"found": False, "ends": [], "tip": -1, "hint_distance": 0.0}
+    assert impl.endpoints({"points": []}) == empty
+    assert impl.endpoints([[0.0, 0.0, 1.0]]) == empty
+
+
+# ---------------------------------------------------------------------------
 # The @tool boundary
 # ---------------------------------------------------------------------------
 
@@ -188,6 +267,23 @@ def test_two_point_prior_falls_back_to_a_cold_fit(impl, arc_fit):
 def test_tool_defaults_mirror_impl(impl, tools):
     assert tools._DEFAULT_NODES == impl.DEFAULT_NODES
     assert tools._SMOOTH == impl.SMOOTH
+    assert tools._TANGENT_M == impl.TANGENT_M
+
+
+def test_endpoints_tool_takes_a_pose_dict_and_a_pixel_hint(tools, strip_fit):
+    from gap_core.types import identity_pose
+
+    out = tools.endpoints(
+        strip_fit, near_pixel=[62, 121], intrinsics=_K, camera_pose=identity_pose()
+    )
+    assert out["found"] is True
+    assert _u(out["ends"][out["tip"]]["position"]) == pytest.approx(_STRIP_U0, abs=1.5)
+    with pytest.raises(ValueError, match="curve.endpoints needs"):
+        tools.endpoints(None)
+    schema = _schema(tools, tools.endpoints)
+    assert schema.inputs["centerline"].required
+    assert not schema.inputs["near_pixel"].required
+    assert {"found", "ends", "tip", "hint_distance"} <= set(schema.outputs)
 
 
 def test_tools_accept_a_pose_dict_or_a_matrix(tools, arc_fit):
