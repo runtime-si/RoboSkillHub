@@ -23,7 +23,7 @@ API_BUNDLES = ["gemini-er", "molmo", "vlm"]
 
 EXPECTED_TOOLS: dict[str, list[str]] = {
     "vlm": ["vlm.query", "vlm.query_yes_no"],
-    "gemini-er": ["gemini-er.detect"],
+    "gemini-er": ["gemini-er.detect", "gemini-er.point"],
     "molmo": ["molmo.point_prompt", "molmo.query", "molmo.query_yes_no"],
 }
 
@@ -31,6 +31,7 @@ EXPECTED_INPUTS: dict[str, list[str]] = {
     "vlm.query": ["prompt", "image", "images", "provider", "model"],
     "vlm.query_yes_no": ["prompt", "image", "images", "provider", "model"],
     "gemini-er.detect": ["image", "query", "model"],
+    "gemini-er.point": ["image", "query", "max_points", "model"],
     "molmo.point_prompt": ["image", "query"],
     "molmo.query": ["prompt", "image"],
     "molmo.query_yes_no": ["prompt", "image"],
@@ -40,6 +41,7 @@ EXPECTED_OUTPUTS: dict[str, list[str]] = {
     "vlm.query": ["text"],
     "vlm.query_yes_no": ["answer", "text"],
     "gemini-er.detect": ["detections"],
+    "gemini-er.point": ["pixel_x", "pixel_y", "found", "points"],
     "molmo.point_prompt": ["pixel_x", "pixel_y", "found"],
     "molmo.query": ["text"],
     "molmo.query_yes_no": ["answer", "text"],

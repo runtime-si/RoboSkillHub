@@ -17,7 +17,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | Tool | Stage | What it does | Robots |
 | --- | --- | --- | --- |
 | [`curve`](#curve) | perceive | Ordered centrelines of deformable linear objects. | any |
-| [`gemini-er`](#gemini-er) | perceive | Open-vocabulary 2D object detection via the Gemini Robotics-ER API. | any |
+| [`gemini-er`](#gemini-er) | perceive | Open-vocabulary 2D detection and pointing via the Gemini Robotics-ER API. | any |
 | [`geometry`](#geometry) | perceive | Pure-math 3D geometry toolbox. | any, *tuned on* panda |
 | [`grounding-dino`](#grounding-dino) | perceive | Grounding DINO zero-shot object detection — natural-language queries to labeled 2D bounding boxes with confidence scores. | any |
 | [`molmo`](#molmo) | perceive | Visual pointing and Q&A via the Molmo VLM served from a self-hosted vLLM endpoint (OpenAI-compatible API). | any |
@@ -86,13 +86,14 @@ Ordered centrelines of deformable linear objects — skeletonises a cable, rope 
 
 ### gemini-er
 
-perceive · robots: any · MIT · v0.1.0 · [`SKILL.md`](tools/gemini-er/SKILL.md) · [upstream](https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/tools/gemini-er)
+perceive · robots: any · MIT · v0.2.0 · [`SKILL.md`](tools/gemini-er/SKILL.md) · [upstream](https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/tools/gemini-er)
 
-Open-vocabulary 2D object detection via the Gemini Robotics-ER API — one call returns pixel-space bounding boxes with labels and scores for a text query. Use when a workflow needs a detection box to seed segmentation (e.g. sam3.segment_box) or coarse localization without any local GPU model.
+Open-vocabulary 2D detection and pointing via the Gemini Robotics-ER API — one call returns pixel-space bounding boxes with labels and scores, or pixel points, for a text query. Use when a workflow needs a detection box or a point to seed segmentation (e.g. sam3.segment_box) or coarse localization without any local GPU model, including parts a box bounds poorly such as a cable's tip.
 
 - **Runs**: in its own environment over `stdio-msgpack`
 - **Functions**:
   - `gemini-er.detect`: Detect pixel-space 2D bounding boxes for a text query via Gemini Robotics-ER.
+  - `gemini-er.point`: Point at what a text query names via Gemini Robotics-ER; returns pixel points.
 
 ### geometry
 

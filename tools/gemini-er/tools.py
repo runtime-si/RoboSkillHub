@@ -41,8 +41,10 @@ from PIL import Image
 logger = logging.getLogger(__name__)
 
 #: Default Gemini Robotics-ER model. Override per-call with ``model=`` or
-#: globally with the ``GAP_GEMINI_ER_MODEL`` env var.
-DEFAULT_MODEL = "gemini-robotics-er-1.5-preview"
+#: globally with the ``GAP_GEMINI_ER_MODEL`` env var. The Gemini API listed
+#: only the ER 2 models (this one and its streaming variant) on 2026-11-06;
+#: ER 1.5 was no longer offered.
+DEFAULT_MODEL = "gemini-robotics-er-2-preview"
 
 _DETECT_PROMPT = (
     'Detect the 2D bounding boxes of "{query}" in the image. '
@@ -50,6 +52,13 @@ _DETECT_PROMPT = (
     'object with the keys "box_2d" — [ymin, xmin, ymax, xmax] as integers '
     'normalized to 0-1000 — and "label" — a short descriptive string. '
     "Return [] if nothing matches."
+)
+
+_POINT_PROMPT = (
+    'Point to "{query}" in the image, at most {max_points} points. '
+    "Return ONLY a JSON array (no prose, no markdown). Each entry must be an "
+    'object with the keys "point" — [y, x] as integers normalized to 0-1000 — '
+    'and "label" — a short descriptive string. Return [] if nothing matches.'
 )
 
 
@@ -61,6 +70,19 @@ class Detection(TypedDict):
 
 class DetectResult(TypedDict):
     detections: list[Detection]
+
+
+class Point(TypedDict):
+    pixel_x: float
+    pixel_y: float
+    label: str
+
+
+class PointResult(TypedDict):
+    pixel_x: float
+    pixel_y: float
+    found: bool
+    points: list[Point]
 
 
 # ---------------------------------------------------------------------------
@@ -152,8 +174,46 @@ def _parse_detections(text: str, *, width: int, height: int, query: str) -> list
     return detections
 
 
+def _parse_points(text: str, *, width: int, height: int, query: str) -> list[Point]:
+    """Convert normalized 0-1000 ``point`` entries ([y, x]) to pixel points."""
+    points: list[Point] = []
+    for entry in _extract_json_array(text):
+        if not isinstance(entry, dict):
+            continue
+        point = entry.get("point")
+        if not isinstance(point, (list, tuple)) or len(point) != 2:
+            continue
+        try:
+            y, x = (float(v) for v in point)
+        except (TypeError, ValueError):
+            continue
+        points.append(
+            {
+                "pixel_x": _clamp(x / 1000.0 * width, 0.0, float(width)),
+                "pixel_y": _clamp(y / 1000.0 * height, 0.0, float(height)),
+                "label": str(entry.get("label") or query),
+            }
+        )
+    return points
+
+
+def _generate(tool_name: str, image: np.ndarray, prompt: str, model: str | None) -> str:
+    genai, genai_types = _import_genai()
+    client = genai.Client()  # API key via GOOGLE_API_KEY / GEMINI_API_KEY
+    image_part = genai_types.Part.from_bytes(
+        data=_png_bytes(image),
+        mime_type="image/png",
+    )
+    model_name = model or os.environ.get("GAP_GEMINI_ER_MODEL") or DEFAULT_MODEL
+    try:
+        response = client.models.generate_content(model=model_name, contents=[image_part, prompt])
+    except Exception as exc:
+        raise ToolError(tool_name, f"generate_content failed: {exc}") from exc
+    return response.text or ""
+
+
 # ---------------------------------------------------------------------------
-# Tool
+# Tools
 # ---------------------------------------------------------------------------
 
 
@@ -183,24 +243,54 @@ def detect(
     """
     arr = _validate_image(image)
     height, width = arr.shape[:2]
-
-    genai, genai_types = _import_genai()
-    client = genai.Client()  # API key via GOOGLE_API_KEY / GEMINI_API_KEY
-    image_part = genai_types.Part.from_bytes(
-        data=_png_bytes(arr),
-        mime_type="image/png",
-    )
-    model_name = model or os.environ.get("GAP_GEMINI_ER_MODEL") or DEFAULT_MODEL
-    try:
-        response = client.models.generate_content(
-            model=model_name,
-            contents=[image_part, _DETECT_PROMPT.format(query=query)],
-        )
-    except Exception as exc:
-        raise ToolError("gemini-er.detect", f"generate_content failed: {exc}") from exc
-
-    text = response.text or ""
+    text = _generate("gemini-er.detect", arr, _DETECT_PROMPT.format(query=query), model)
     detections = _parse_detections(text, width=width, height=height, query=query)
     if not detections:
         logger.debug("gemini-er.detect: no detections for query=%r (raw=%r)", query, text[:200])
     return {"detections": detections}
+
+
+@tool(
+    name="gemini-er.point",
+    summary="Point at what a text query names via Gemini Robotics-ER; returns pixel points.",
+    tags=("perception",),
+)
+def point(
+    image: np.ndarray,
+    query: str,
+    max_points: int = 10,
+    model: str | None = None,
+) -> PointResult:
+    """Point at *query* in *image*.
+
+    A point reaches parts a box does not bound well (a cable's tip, a
+    connector's mouth) and objects a few pixels across; it seeds
+    ``sam3`` with a point prompt the way a box from :func:`detect` does.
+
+    Args:
+        image: uint8 [H, W, 3] RGB array.
+        query: What to point at (e.g. "the tip of the white cable").
+        max_points: Most points the model is asked for.
+        model: Per-call model override (else ``GAP_GEMINI_ER_MODEL``,
+            else :data:`DEFAULT_MODEL`).
+
+    Returns:
+        ``{"pixel_x", "pixel_y", "found", "points"}`` — the first point in
+        pixel coordinates (the shape ``molmo.point_prompt`` returns), and
+        every point as ``{"pixel_x", "pixel_y", "label"}``. ``found=False``
+        with zeros and no points when the model finds nothing (never an error).
+    """
+    arr = _validate_image(image)
+    height, width = arr.shape[:2]
+    prompt = _POINT_PROMPT.format(query=query, max_points=max(1, int(max_points)))
+    text = _generate("gemini-er.point", arr, prompt, model)
+    points = _parse_points(text, width=width, height=height, query=query)[: max(1, int(max_points))]
+    if not points:
+        logger.debug("gemini-er.point: no points for query=%r (raw=%r)", query, text[:200])
+        return {"pixel_x": 0.0, "pixel_y": 0.0, "found": False, "points": []}
+    return {
+        "pixel_x": points[0]["pixel_x"],
+        "pixel_y": points[0]["pixel_y"],
+        "found": True,
+        "points": points,
+    }
