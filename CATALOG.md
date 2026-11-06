@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 33 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 34 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -63,6 +63,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`verifying-a-cable-route`](#verifying-a-cable-route) | verify | Judge a finished cable route from a camera rather than from an evaluator. | any |
 | [`verifying-grasps`](#verifying-grasps) | verify | Three independent checks on one grasp attempt. | any |
 | [`verifying-placement`](#verifying-placement) | verify | Confirms from one RGB-D view that a released object went through an aperture, accepting either that it vanished into… | any |
+| [`returning-to-a-recorded-pose`](#returning-to-a-recorded-pose) | recover | Opens the gripper and drives the arm back to a joint configuration recorded earlier in the episode, then checks from a… | any |
 
 ## Policies
 
@@ -684,6 +685,20 @@ Confirms from one RGB-D view that a released object went through an aperture, ac
 - **Exits**:
   - `verified`: The object is no longer visible, or its visible centre is below the rim within the aperture footprint.
   - `not_placed`: The object is still visible above the rim or outside the aperture footprint, or too little depth was valid to confirm.
+
+### returning-to-a-recorded-pose
+
+recover · robots: any · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/returning-to-a-recorded-pose/SKILL.md) · [upstream](https://github.com/graph-robots/graph-as-policy/tree/main/examples/steered_policy/graph_loop)
+
+Opens the gripper and drives the arm back to a joint configuration recorded earlier in the episode, then checks from a fresh observation that it arrived. Use when a graph must undo a failed attempt and retry from a known start (a grasp that missed, an insert that jammed, a policy that drifted), or hand a learned policy the start pose it was trained from, and the joint state to return to was captured earlier with a robot.get_observation tool node.
+
+- **In**: `recorded_joints` JointState
+- **Out**: `max_joint_error` float
+- **Calls**: connector `robot.get_observation`, `robot.move_to_joints`, `robot.open_gripper`
+- **Scripts**: [`return_to_pose`](skills/returning-to-a-recorded-pose/scripts/return_to_pose.py)
+- **Exits**:
+  - `returned`: The arm stands at the recorded joints, every joint within max_error (default 0.08 rad) on a fresh observation, gripper open.
+  - `not_returned`: The move was refused or failed, or a joint ended more than max_error off; `detail` says which.
 
 ## Policy details
 

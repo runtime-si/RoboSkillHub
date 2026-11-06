@@ -1,0 +1,18 @@
+{
+  "skill": "returning-to-a-recorded-pose",
+  "inputs": {"recorded_joints": "JointState"},
+  "outputs": {
+    "route": {"$ref": "return.route"},
+    "max_joint_error": {"$ref": "return.max_joint_error"}
+  },
+  "nodes": {
+    "return": {
+      "type": "script",
+      "script": "scripts/return_to_pose.py",
+      "inputs": {"recorded_joints": {"$ref": "in.recorded_joints"}}
+    }
+  },
+  "edges": [["START", "return"], ["return", "END"]],
+  "exit": {"router_field": "route", "success_values": ["returned"]},
+  "on_error": "not_returned"
+}
