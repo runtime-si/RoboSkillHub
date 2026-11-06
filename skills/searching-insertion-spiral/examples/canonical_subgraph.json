@@ -1,0 +1,19 @@
+{
+  "skill": "searching-insertion-spiral",
+  "inputs": {"mouth_position": "Vec3"},
+  "outputs": {
+    "entered_at": {"$ref": "search.entered_at"},
+    "depth": {"$ref": "search.depth"},
+    "probes": {"$ref": "search.probes"}
+  },
+  "nodes": {
+    "search": {
+      "type": "script",
+      "script": "scripts/spiral_search.py",
+      "inputs": {"mouth_position": {"$ref": "in.mouth_position"}}
+    }
+  },
+  "edges": [["START", "search"], ["search", "END"]],
+  "exit": {"router_field": "route", "success_values": ["inserted"]},
+  "on_error": "unreachable"
+}
