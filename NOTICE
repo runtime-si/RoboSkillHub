@@ -18,3 +18,8 @@ relative path. Later changes are in this repository's git history.
 tools/curve/_trackdlo.py is vendored from TrackDLO
 (https://github.com/RMDLO/trackdlo, MIT); its license is
 tools/curve/LICENSE.trackdlo.
+
+skills/pushing-objects/scripts/push_object.py is adapted from RoboRSI
+(https://github.com/nssmd/RoboRSI,
+roborsi/embodied/skills/base/push_object/libero/policy.py), Apache-2.0; the
+file's header lists the changes.
