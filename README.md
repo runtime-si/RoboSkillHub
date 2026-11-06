@@ -46,7 +46,15 @@ uv run --no-sync roboskillhub search "put the red block into the bowl" --embodim
 The last command ranks the library for that task on a one-armed YAM. It drops
 what cannot run there (simulator-only and two-arm skills, LIBERO policies) and
 says why with `--why`, keeps the best skill per stage, adds the tools those
-skills call, and offers the `pick-place-camera-only` recipe.
+skills call, and offers the `pick-place-camera-only` recipe. A bundle with eval
+records on the asked robot ranks higher the more of its episodes succeeded.
+
+When a run fails at one skill, ask for what could replace it or go before it:
+
+```bash
+uv run --no-sync roboskillhub search "thread the cable through the ring" --embodiment yam_i2rt \
+    --stage execute --failure "the fingertips slid over the cable lying flat and closed on nothing"
+```
 
 For `roboskillhub check` to run Graph-as-Policy's validator too, install its
 skill loader once:

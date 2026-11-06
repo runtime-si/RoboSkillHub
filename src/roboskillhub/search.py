@@ -6,8 +6,9 @@ hundreds; this module narrows it: drop what cannot run on the robot, rank the
 rest against the instruction, keep the best per stage of a task, then add every
 tool bundle the kept skills call.
 
-Ranking is BM25 over names, tags, task families and descriptions -- no model,
-no network, the same answer every run.
+Ranking is BM25 over names, tags, task families and descriptions, raised by
+the bundle's eval records on the asked robot -- no model, no network, the same
+answer every run.
 """
 
 from __future__ import annotations
@@ -90,7 +91,58 @@ in the bowl"; a skill says "move an object into a container". The family is the
 vocabulary they share."""
 
 FAMILY_BONUS = 1.0
-"""Added to a bundle or recipe whose hub ``tasks`` include a family the instruction names."""
+"""Added to a bundle or recipe whose hub ``tasks`` include a family the instruction names.
+Within a stage, a bundle of a named family also ranks ahead of one outside it: one rare
+word an out-of-family description happens to share ("blocked" for "block") must not
+outrank the family the instruction is about."""
+
+EVIDENCE_WEIGHT = 2.0
+"""Added per unit of the Wilson lower bound on a bundle's success rate in its eval
+records for the asked embodiment, to a bundle the words already matched."""
+
+REAL_EPISODE_WEIGHT = 2
+"""A real episode counts as this many simulated ones in that bound."""
+
+
+def wilson_lower(successes: float, episodes: float, z: float = 1.96) -> float:
+    if episodes <= 0:
+        return 0.0
+    p = successes / episodes
+    centre = p + z * z / (2 * episodes)
+    margin = z * math.sqrt(p * (1 - p) / episodes + z * z / (4 * episodes * episodes))
+    return max(0.0, (centre - margin) / (1 + z * z / episodes))
+
+
+@dataclass
+class Evidence:
+    """What a bundle's eval records say about one embodiment, passed or not."""
+
+    sim: tuple[int, int] = (0, 0)
+    real: tuple[int, int] = (0, 0)
+
+    @property
+    def lower(self) -> float:
+        w = REAL_EPISODE_WEIGHT
+        return wilson_lower(self.sim[0] + w * self.real[0], self.sim[1] + w * self.real[1])
+
+    def __bool__(self) -> bool:
+        return bool(self.sim[1] or self.real[1])
+
+    def __str__(self) -> str:
+        parts = [f"{k} {s}/{n}" for k, (s, n) in (("real", self.real), ("sim", self.sim)) if n]
+        return ", ".join(parts)
+
+
+def evidence(bundle: Bundle, embodiment: str | None) -> Evidence:
+    tally = {"sim": [0, 0], "real": [0, 0]}
+    for record in bundle.evals:
+        if embodiment and record.get("embodiment") != embodiment:
+            continue
+        setting, n, s = record.get("setting"), record.get("episodes"), record.get("successes")
+        if setting in tally and isinstance(n, int) and isinstance(s, int) and 0 <= s <= n:
+            tally[setting][0] += s
+            tally[setting][1] += n
+    return Evidence(sim=tuple(tally["sim"]), real=tuple(tally["real"]))
 
 
 def infer_families(query: str) -> list[str]:
@@ -166,6 +218,8 @@ class Selection:
     recipes: list[tuple[Recipe, float]] = field(default_factory=list)
     excluded: dict[str, str] = field(default_factory=dict)
     """Bundles filtered out before ranking, and why."""
+    evidence: dict[str, str] = field(default_factory=dict)
+    """The eval tallies behind a ranked bundle's evidence bonus, e.g. ``sim 41/50``."""
 
     @property
     def names(self) -> list[str]:
@@ -199,11 +253,16 @@ def select(
     kinds: tuple[str, ...] = ("skill", "policy"),
     k: int = 16,
     per_stage: int = 2,
+    stages: tuple[str, ...] = (),
+    failure: str = "",
 ) -> Selection:
+    """``stages`` and ``failure`` ask for what could replace or precede the skill a run
+    failed at: only bundles of those stages are ranked, against the instruction and the
+    failure's words together, and no recipe is offered."""
     selection = Selection(query=query)
     pool: dict[str, Bundle] = {}
     for bundle in catalog.bundles.values():
-        if bundle.kind not in kinds:
+        if bundle.kind not in kinds or (stages and bundle.stage not in stages):
             continue
         why = eligible(
             bundle, embodiment=embodiment, tier=tier, min_maturity=min_maturity, arms=arms
@@ -215,20 +274,30 @@ def select(
 
     families = infer_families(query)
     selection.families = families
-    q = tokens(query) + [t for family in families for t in tokens(family)]
+    q = tokens(query) + tokens(failure) + [t for family in families for t in tokens(family)]
     index = Bm25({name: _document(b) for name, b in pool.items()})
 
+    def in_family(item: Bundle | Recipe) -> bool:
+        return bool(set(item.hub.get("tasks") or []) & set(families))
+
     def score(item: Bundle | Recipe, bm25: Bm25) -> float:
-        shared = set(item.hub.get("tasks") or []) & set(families)
-        return bm25.score(item.name, q) + (FAMILY_BONUS if shared else 0.0)
+        return bm25.score(item.name, q) + (FAMILY_BONUS if in_family(item) else 0.0)
 
     rank = MATURITY.index
     scores = {name: score(b, index) for name, b in pool.items()}
-    scored = sorted(pool.values(), key=lambda b: (-scores[b.name], -rank(b.maturity), b.name))
+    proof = {name: evidence(b, embodiment) for name, b in pool.items()}
+    for name, found in proof.items():
+        if scores[name] > 0 and found:
+            scores[name] += EVIDENCE_WEIGHT * found.lower
+    selection.evidence = {name: str(found) for name, found in proof.items() if found}
+    scored = sorted(
+        pool.values(),
+        key=lambda b: (not in_family(b), -scores[b.name], -rank(b.maturity), b.name),
+    )
 
     # A recipe handed to the coordinator is only useful with its skills in view.
     recipe_index = Bm25({name: _document(r) for name, r in catalog.recipes.items()})
-    for recipe in catalog.recipes.values():
+    for recipe in [] if stages else catalog.recipes.values():
         recipe_score = score(recipe, recipe_index)
         uses = {str(spec["skill"]) for spec in recipe.skill_nodes.values()}
         if recipe_score > 0 and uses <= set(pool):
@@ -258,7 +327,9 @@ def select(
             if name not in chosen:
                 chosen[name] = Pick(pool[name], scores[name], f"used by recipe {recipe.name}")
 
-    picks = sorted(chosen.values(), key=lambda p: (-p.score, p.bundle.name))
+    picks = sorted(
+        chosen.values(), key=lambda p: (not in_family(p.bundle), -p.score, p.bundle.name)
+    )
     for pick in list(picks):
         for tool_name in pick.bundle.allowed_tools:
             prefix = tool_name.split(".", 1)[0]
