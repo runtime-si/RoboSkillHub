@@ -87,6 +87,8 @@ def _select(args):
         arms=args.arms,
         kinds=tuple(args.kind.split(",")),
         k=args.k,
+        stages=tuple(s for s in (args.stage or "").split(",") if s),
+        failure=args.failure or "",
     )
 
 
@@ -103,6 +105,7 @@ def cmd_search(args) -> int:
                             "kind": p.bundle.kind,
                             "score": round(p.score, 3),
                             "reason": p.reason,
+                            "evidence": selection.evidence.get(p.bundle.name, ""),
                         }
                         for p in selection.picks
                     ],
@@ -115,8 +118,10 @@ def cmd_search(args) -> int:
         return 0
     for pick in selection.picks:
         b = pick.bundle
+        proof = selection.evidence.get(b.name)
         print(
             f"{pick.score:6.2f}  {b.kind:6} {b.name:36} {b.stage or '-':9} {b.maturity:13} {pick.reason}"
+            + (f" ({proof})" if proof else "")
         )
     for recipe, score in selection.recipes:
         print(f"{score:6.2f}  recipe {recipe.name}")
@@ -223,6 +228,11 @@ def _selection_args(p: argparse.ArgumentParser) -> None:
     p.add_argument(
         "-k", type=int, default=16, help="how many to keep before adding the tools they call"
     )
+    p.add_argument(
+        "--stage",
+        help="comma-separated stages; rank only these (what could replace a failed skill)",
+    )
+    p.add_argument("--failure", help="how the run failed, in words; ranked with the query")
 
 
 def build_parser() -> argparse.ArgumentParser:
