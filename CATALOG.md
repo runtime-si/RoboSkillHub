@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 68 skills, 2 policies, 1 recipe and 1 paper.
+10 tools, 68 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -20,6 +20,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`gemini-er`](#gemini-er) | perceive | Open-vocabulary 2D detection and pointing via the Gemini Robotics-ER API. | any |
 | [`geometry`](#geometry) | perceive | Pure-math 3D geometry toolbox. | any, *tuned on* panda |
 | [`grounding-dino`](#grounding-dino) | perceive | Grounding DINO zero-shot object detection — natural-language queries to labeled 2D bounding boxes with confidence scores. | any |
+| [`locate-anything`](#locate-anything) | perceive | NVIDIA LocateAnything-3B (non-commercial licence) run locally on a GPU. | any |
 | [`molmo`](#molmo) | perceive | Visual pointing and Q&A via the Molmo VLM served from a self-hosted vLLM endpoint (OpenAI-compatible API). | any |
 | [`sam3`](#sam3) | perceive | Segment Anything 3 — text-, point-, and box-prompted instance segmentation, plus a stateful streaming video tracker… | any |
 | [`vlm`](#vlm) | perceive | Free-form and yes/no visual question answering against a hosted vision-language model (OpenRouter API by default… | any |
@@ -172,6 +173,20 @@ Grounding DINO zero-shot object detection — natural-language queries to labele
 - **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
 - **Functions**:
   - `grounding-dino.detect`: Zero-shot detection from a text prompt (labeled boxes + scores).
+
+### locate-anything
+
+perceive · robots: any · Apache-2.0 for this bundle's code; the LocateAnything-3B weights and the NVlabs worker it downloads at run time are under the NVIDIA License, non-commercial (research or evaluation) use only · v0.1.0 · [`SKILL.md`](tools/locate-anything/SKILL.md) · [upstream](https://github.com/NVlabs/Eagle/blob/06edcff802dbdd167d196c7a1c5b44929e07d951/Embodied/locateanything_worker.py)
+
+NVIDIA LocateAnything-3B (non-commercial licence) run locally on a GPU -- category detection, referring-phrase grounding and pointing, returned in gemini-er's shapes (pixel boxes with label/score; pixel points). Use when a research or evaluation workflow wants a local, API-free alternative to gemini-er.detect / gemini-er.point on camera frames. NON-COMMERCIAL ONLY - the weights and the worker it runs are under the NVIDIA License (research or evaluation use); it refuses to run until GAP_LOCATE_ANYTHING_NONCOMMERCIAL=1 is set.
+
+- **Weights**: `hf://nvidia/LocateAnything-3B@c32291ca5e996f5a7a485845b4f57a233936bba0`
+- **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
+- **Note**: Non-commercial research or evaluation use only (NVIDIA License); never a default for commercial deployments.
+- **Functions**:
+  - `locate-anything.detect`: Boxes for every instance of one or more categories (pixel box, label, score).
+  - `locate-anything.ground`: Boxes for what a referring phrase names; drop-in for gemini-er.detect.
+  - `locate-anything.point`: Pixel points for what a phrase names; drop-in for gemini-er.point.
 
 ### molmo
 

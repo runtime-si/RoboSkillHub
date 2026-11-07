@@ -198,3 +198,14 @@ yam-arcade (https://github.com/zzigak/yam-arcade, stations/cables/run.py,
 plan_pick_plugs and demo_plan_plug), MIT, Copyright (c) 2026 zzigak; the
 license is skills/grasping-a-cable-by-its-plug/LICENSE.yam-arcade, and the
 file's header lists the changes.
+tools/locate-anything runs NVIDIA LocateAnything-3B
+(https://huggingface.co/nvidia/LocateAnything-3B, commit
+c32291ca5e996f5a7a485845b4f57a233936bba0) through NVIDIA's reference worker
+(https://github.com/NVlabs/Eagle, Embodied/locateanything_worker.py at commit
+06edcff802dbdd167d196c7a1c5b44929e07d951), Copyright (c) 2026 NVIDIA
+CORPORATION. Both are under the NVIDIA License, which allows use for
+non-commercial research or evaluation only. This repository includes neither
+the weights nor the worker: the bundle downloads both at those pinned commits
+when a tool first runs, and its tools refuse to run until
+GAP_LOCATE_ANYTHING_NONCOMMERCIAL=1 states that the use is non-commercial.
+The bundle's own code is Apache-2.0.

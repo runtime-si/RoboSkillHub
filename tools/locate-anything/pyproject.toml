@@ -1,0 +1,54 @@
+[project]
+name = "locate-anything-tool-bundle"
+version = "0.1.0.dev0"
+description = "LocateAnything-3B detection, grounding and pointing (NVIDIA non-commercial weights). Runs out-of-process via gap_core.rpc.server (needs GPU)."
+readme = "SKILL.md"
+requires-python = ">=3.10,<3.13"
+license = { text = "Apache-2.0" }
+
+# The versions the Eagle Embodied worker and the checkpoint's remote code ran
+# with on 2026-11-07 (L40S, torch 2.8 + cu128). transformers is pinned exactly
+# as Eagle Embodied pins it: the checkpoint's modeling code targets 4.57.1.
+# VFlash (same Eagle tree) pins torch 2.8 / torchvision 0.23 as well.
+dependencies = [
+  "graph-as-policy-core",
+  "torch==2.8.*",
+  "torchvision==0.23.*",
+  "transformers==4.57.1",
+  "tokenizers==0.22.0",
+  "accelerate",
+  "huggingface_hub",
+  "timm",
+  "einops",
+  "pillow>=10",
+  "numpy",
+  # Imported by the checkpoint's remote code (processing / modeling) at load
+  # time but not declared by it; each one failed a load without it.
+  "opencv-python-headless",
+  "decord",
+  "lmdb",
+  "peft==0.12.0",
+]
+
+[project.optional-dependencies]
+# GAP_LOCATE_ANYTHING_RUNTIME=batch GAP_LOCATE_ANYTHING_ATTN=la_flash. The
+# upstream prebuilt wheel for torch 2.8 / CUDA 12 / CPython 3.12 (a source
+# build compiles for an hour); installed with `uv sync --extra la-flash`.
+la-flash = [
+  "flash-attn @ https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3.post2/flash_attn-2.8.3.post2+cu12torch2.8cxx11abiTRUE-cp312-cp312-linux_x86_64.whl ; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+# The engine commit sources.yaml pins, by URL, so the bundle resolves the same
+# wherever its checkout sits (a dev clone, a robot's `roboskillhub fetch`).
+[tool.uv.sources]
+graph-as-policy-core = { git = "https://github.com/graph-robots/graph-as-policy.git", rev = "09e45f8de27bc1a29629382ed7c2b9b4b384b3d6", subdirectory = "gap-core" }
