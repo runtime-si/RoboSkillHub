@@ -34,6 +34,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | Skill | Stage | What it does | Robots |
 | --- | --- | --- | --- |
 | [`detecting-contact-from-joint-effort`](#detecting-contact-from-joint-effort) | perceive | Feels for contact without a force sensor. | any |
+| [`localizing-a-piece-in-a-reference-image`](#localizing-a-piece-in-a-reference-image) | perceive | Finds which grid cell of a jigsaw's box picture one piece belongs to, and how far the piece is turned, from a close-up… | any |
 | [`perceiving-deformable-linear-objects`](#perceiving-deformable-linear-objects) | perceive | Read a cable's ordered 3D centreline from one RGB-D frame and keep it current across a task. | any |
 | [`perceiving-functional-features`](#perceiving-functional-features) | perceive | Locates a language-described functional part of a rigid object or fixture from calibrated RGB-D and fits a typed loop… | any |
 | [`perceiving-next-item`](#perceiving-next-item) | perceive | Loop-head perception for pack-all / clean-all-items tasks. | any, *tuned on* panda |
@@ -305,6 +306,20 @@ Feels for contact without a force sensor - steps the hand along a short straight
   - `free`: The hand reached the line's end (or the tool-centre floor) with every step tracking as in free motion; it stays there.
   - `no_signal`: Nothing usable to decide with - signal=effort with an observation that carries no efforts (nothing moved), the line too short for two free-motion samples, or the free-motion lag jumping more than lag_threshold from step to step; `detail` says which.
   - `blocked`: The line is too long (over 150 mm), has no length, starts under the floor or ends out of reach (IK preview), the start was not reached, or a step was refused; `detail` says which.
+
+### localizing-a-piece-in-a-reference-image
+
+perceive · robots: any · tasks: jigsaw · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/localizing-a-piece-in-a-reference-image/SKILL.md)
+
+Finds which grid cell of a jigsaw's box picture one piece belongs to, and how far the piece is turned, from a close-up wrist-camera crop and its mask - masked normalised cross-correlation searched over rotation at the one scale the grid and board size fix, coarse over the whole picture then refined round the best cells, with border pieces matched along their straight side. Returns the cell, the angle, the position in picture pixels and board metres, the score, the margin over the next-best cell and a ranked candidate list; flat pieces (white snow, black cloth) get a shortlist of flat cells of their colour instead. Use when a jigsaw-assembly step needs to know where a picked or inspected piece goes and the box picture is available; under a second per piece on CPU.
+
+- **In**: `camera` CameraFrame, `piece_mask` Mask, `reference` string, `grid_cols` int, `grid_rows` int, `board_width` float, `board_height` float
+- **Out**: `col` int, `row` int, `angle_deg` float, `score` float, `margin` float
+- **Scripts**: [`locate_piece`](skills/localizing-a-piece-in-a-reference-image/scripts/locate_piece.py)
+- **Exits**:
+  - `located`: The best cell's score is at least min_score (0.45) and beats every other cell by min_margin (0.04; 0.10 when the scale was guessed from the mask area); col, row and angle_deg are the answer.
+  - `ambiguous`: The best cell does not stand out (repetitive or flat art); `candidates` ranks the cells for a shape check. A low-texture piece always lands here, with the flat cells of its colour as candidates.
+  - `not_found`: The best score is under min_score, a flat piece matches no flat cell, or the input could not be used (empty mask, no scale, no placement inside the picture).
 
 ### perceiving-deformable-linear-objects
 
