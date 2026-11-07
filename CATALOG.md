@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-10 tools, 68 skills, 2 policies, 1 recipe and 1 paper.
+11 tools, 68 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -25,6 +25,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`sam3`](#sam3) | perceive | Segment Anything 3 — text-, point-, and box-prompted instance segmentation, plus a stateful streaming video tracker… | any |
 | [`vlm`](#vlm) | perceive | Free-form and yes/no visual question answering against a hosted vision-language model (OpenRouter API by default… | any |
 | [`curobo`](#curobo) | plan | NVIDIA cuRobo motion planning. | any, *tuned on* panda |
+| [`molmo-motion`](#molmo-motion) | propose | AllenAI MolmoMotion-4B run locally on a GPU. | any |
 | [`predicates`](#predicates) | judge | Geometric yes/no judgments over poses and boxes the graph already holds. | any |
 
 ## Skills
@@ -246,6 +247,17 @@ NVIDIA cuRobo motion planning — collision-free trajectories to grasp goalsets,
   - `curobo.validate_joint_trajectory_robot`: Collision-validate joint waypoints (robot vs world + self).
   - `curobo.validate_joint_trajectory_grasped`: Same, with a grasped object attached at waypoint 0.
   - `curobo.cloud_to_attachment`: MORPHIT collision spheres for a held object's cloud, in the TCP frame.
+
+### molmo-motion
+
+propose · robots: any · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/molmo-motion/SKILL.md) · [upstream](https://github.com/allenai/molmo-motion/tree/ab7c5f4e7c49359e4275e9a9b21a59659be17386)
+
+AllenAI MolmoMotion-4B run locally on a GPU -- forecasts where chosen pixels (a cable tip, a cube corner) move over the next ~2 s under a language instruction, as pixels per step and, given depth and the camera, as camera and world points. Use when a propose or judge stage needs the motion a model expects ("the cable tip is pulled through the ring") before planning or checking it.
+
+- **Weights**: `hf://allenai/MolmoMotion-4B-H3-F30@3f5e790a511ff2cdf21c8d2a14cb4d8409c94629`
+- **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
+- **Functions**:
+  - `molmo-motion.forecast`: Forecast query pixels' motion under an instruction (pixels per step; camera/world points with depth).
 
 ### predicates
 
