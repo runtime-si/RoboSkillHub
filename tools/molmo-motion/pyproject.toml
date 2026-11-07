@@ -1,0 +1,43 @@
+[project]
+name = "molmo-motion-tool-bundle"
+version = "0.1.0.dev0"
+description = "MolmoMotion-4B language-conditioned point-trajectory forecasting. Runs out-of-process via gap_core.rpc.server (needs GPU)."
+readme = "SKILL.md"
+requires-python = ">=3.11,<3.13"
+license = { text = "Apache-2.0" }
+
+# The molmo_motion package at the commit the bundle was checked with
+# (2026-11-07), and the torch / torchcodec pair its README names for CUDA 12.8
+# drivers (torchcodec's minor must match torch's). transformers is within the
+# package's own <5 bound. omegaconf 2.4 reads the package's `Tuple[float]`
+# config hints as one-element tuples and refuses the checkpoint's config.yaml
+# (candidate_sampling_fps has 8); the package asks for >=2.3.
+dependencies = [
+  "graph-as-policy-core",
+  "molmo-motion",
+  "torch==2.9.1",
+  "torchvision==0.24.1",
+  "torchcodec==0.9.*",
+  "transformers==4.57.1",
+  "huggingface_hub",
+  "pillow>=10",
+  "numpy",
+  "scipy",
+  "omegaconf==2.3.*",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+# The engine commit sources.yaml pins, by URL, so the bundle resolves the same
+# wherever its checkout sits (a dev clone, a robot's `roboskillhub fetch`).
+[tool.uv.sources]
+graph-as-policy-core = { git = "https://github.com/graph-robots/graph-as-policy.git", rev = "09e45f8de27bc1a29629382ed7c2b9b4b384b3d6", subdirectory = "gap-core" }
+molmo-motion = { git = "https://github.com/allenai/molmo-motion.git", rev = "ab7c5f4e7c49359e4275e9a9b21a59659be17386" }
