@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 43 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 44 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -64,6 +64,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`pushing-objects`](#pushing-objects) | execute | Pushes a loose object across its support toward a goal point with a closed hand, never grasping it. | any |
 | [`searching-insertion-spiral`](#searching-insertion-spiral) | execute | Finds an opening the held part or the closed fingertips can enter by probing straight down over a hexagonal grid… | any |
 | [`seating-a-cable-crossing`](#seating-a-cable-crossing) | execute | Streams one planned crossing leg of a cable onto a routing station, lets the rod settle, then LOOKS. | any |
+| [`stacking-objects`](#stacking-objects) | execute | Stacks the object the hand holds centred on top of a target object. | any |
 | [`tipping-over-a-surface-edge`](#tipping-over-a-surface-edge) | execute | Turn a body over on the surface it rests on instead of carrying it. | any, *tuned on* yam_i2rt, 2 arms, **sim only** |
 | [`transporting-objects`](#transporting-objects) | execute | Move the currently-held object to a destination and release. | any, *tuned on* panda |
 | [`wiping-a-region`](#wiping-a-region) | execute | Wipes a flat region of a surface with back-and-forth strokes. | any |
@@ -708,6 +709,21 @@ Streams one planned crossing leg of a cable onto a routing station, lets the rod
 - **Exits**:
   - `done`: The place leg was streamed and the crossing measured; `seated` and `fraction` say whether it took.
   - `blocked`: A tool raised during the place or the look (the subgraph's on_error).
+
+### stacking-objects
+
+execute · robots: any · tasks: pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/stacking-objects/SKILL.md) · [upstream](https://github.com/haosulab/ManiSkill/blob/main/mani_skill/examples/motionplanning/panda/solutions/stack_cube.py)
+
+Stacks the object the hand holds centred on top of a target object - turns the hand about the vertical so the held box's faces line up with the target's, approaches above the target's top, comes straight down until the arm stops on contact, releases and retreats straight up (ManiSkill's stack-cube solution and RoboTwin's block stacking, with placing-with-contact-descent's descent in place of a move to a known height). A stop far from the target's top, a descent that meets nothing or a stop that pushed the hand sideways is routed and the object kept. Use when a held block or box must go on top of another one whose oriented box a camera has measured (towers, pyramids, stacking boxes).
+
+- **In**: `target_obb` OrientedBoundingBox, `held_obb` OrientedBoundingBox
+- **Out**: `released` bool, `yaw_turn_deg` float, `yaw_error_deg` float, `expected_contact_z` float, `contact_z` float, `contact_offset` float, `stacked_position` Vec3
+- **Calls**: connector `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.move_cartesian_until_contact`, `robot.move_to_joints`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`stack_on_object`](skills/stacking-objects/scripts/stack_on_object.py)
+- **Exits**:
+  - `stacked`: The descent over the target stopped on contact inside the contact window and within 8 mm of the planned point, the hand opened and retreated straight up; stacked_position is where the hand left the held object's bottom centre. What the hand did, not a check that the stack stands.
+  - `misaligned`: The descent did not meet the target's top where expected - it stopped more than contact_tolerance (12 mm) above it, reached its bottom without stopping (the held object missed the top, or slid up the jaws), or stopped pushed sideways more than lateral_tolerance; the hand did not release and lifted the object back to the approach height.
+  - `blocked`: The target's top is tilted more than 10 deg, no aligned turn can reach the contact pose (IK preview), the rise, the approach, the re-centring after a wrist turn or a descent move was refused, or the retreat after the release failed (`released` says which side of the release); `detail` says which.
 
 ### tipping-over-a-surface-edge
 

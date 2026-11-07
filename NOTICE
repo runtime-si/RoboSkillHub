@@ -54,3 +54,10 @@ skills/placing-with-contact-descent/scripts/place_with_contact_descent.py is
 adapted from Ravens (https://github.com/google-research/ravens,
 ravens/tasks/primitives.py, PickPlace), Copyright 2024 The Ravens Authors,
 Apache-2.0; the file's header lists the changes.
+skills/stacking-objects/scripts/stack_on_object.py is adapted from ManiSkill
+(https://github.com/haosulab/ManiSkill,
+mani_skill/examples/motionplanning/panda/solutions/stack_cube.py), Apache-2.0,
+and from RoboTwin (https://github.com/robotwin-Platform/RoboTwin,
+envs/_base_task.py get_place_pose / place_actor and envs/stack_blocks_three.py),
+MIT, Copyright (c) 2025 Tianxing Chen; the file's header lists the changes,
+and RoboTwin's license is skills/stacking-objects/LICENSE.robotwin.
