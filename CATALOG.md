@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-11 tools, 68 skills, 2 policies, 1 recipe and 1 paper.
+11 tools, 69 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -84,6 +84,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`singulating-by-pushing`](#singulating-by-pushing) | execute | Pushes a target clear of the objects crowding it until a top-down grasp's open fingers fit around it. | any |
 | [`sliding-to-edge-then-picking`](#sliding-to-edge-then-picking) | execute | Picks a flat object too thin to pinch on its support. | any, *tuned on* yam_i2rt |
 | [`stacking-objects`](#stacking-objects) | execute | Stacks the object the hand holds centred on top of a target object. | any |
+| [`threading-a-cable-tip-through-a-ring`](#threading-a-cable-tip-through-a-ring) | execute | Threads the free tip of a held cable through a standing ring. | any |
 | [`tipping-over-a-surface-edge`](#tipping-over-a-surface-edge) | execute | Turn a body over on the surface it rests on instead of carrying it. | any, *tuned on* yam_i2rt, 2 arms, **sim only** |
 | [`transporting-objects`](#transporting-objects) | execute | Move the currently-held object to a destination and release. | any, *tuned on* panda |
 | [`turning-by-wrist-ratchet`](#turning-by-wrist-ratchet) | execute | Tightens or loosens a screw lid or cap by wrist ratchet. | any |
@@ -1036,6 +1037,22 @@ Stacks the object the hand holds centred on top of a target object - turns the h
   - `stacked`: The descent over the target stopped on contact inside the contact window and within 8 mm of the planned point, the hand opened and retreated straight up; stacked_position is where the hand left the held object's bottom centre. What the hand did, not a check that the stack stands.
   - `misaligned`: The descent did not meet the target's top where expected - it stopped more than contact_tolerance (12 mm) above it, reached its bottom without stopping (the held object missed the top, or slid up the jaws), or stopped pushed sideways more than lateral_tolerance; the hand did not release and lifted the object back to the approach height.
   - `blocked`: The target's top is tilted more than 10 deg, no aligned turn can reach the contact pose (IK preview), the rise, the approach, the re-centring after a wrist turn or a descent move was refused, or the retreat after the release failed (`released` says which side of the release); `detail` says which.
+
+### threading-a-cable-tip-through-a-ring
+
+execute · robots: any · tasks: cable-routing · MIT · v0.1.0 · [`SKILL.md`](skills/threading-a-cable-tip-through-a-ring/SKILL.md) · [upstream](https://github.com/RoboTwin-Platform/RoboTwin/blob/main/envs/hanging_mug.py)
+
+Threads the free tip of a held cable through a standing ring - the end turned about the vertical to point along the ring's axis, carried to a pre-insert pose in front of the mouth with the axis aimed between the tip and where the cable leaves the fingers (so a sagging end still passes), pushed through along the axis with an overshoot capped where the fingertips would reach the ring, and judged by the hand's travel past the ring's plane (optionally a camera point on the tip). Use when the hand already holds a cable a few centimetres behind its tip (a grasp skill's state, the tip measured or given) and the ring's centre, axis and inner radius are known (perception), e.g. the first step of routing a cable through a ring or loop.
+
+- **In**: `ring_centre` Vec3, `ring_axis` Vec3, `ring_inner_radius` float
+- **Out**: `tip_past` float, `hand_travel` float, `push_planned` float, `tip_offset` float, `exit_offset` float, `crossing_offset` float, `sag_deg` float, `turned_deg` float, `tip_seen` bool, `seen_tip_past` float, `tip_position` Vec3, `cable_lost` bool
+- **Calls**: [`gemini-er`](#gemini-er); connector `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.move_to_joints`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`thread_tip_through_ring`](skills/threading-a-cable-tip-through-a-ring/scripts/thread_tip_through_ring.py)
+- **Exits**:
+  - `threaded`: The push carried the tip, as held, at least min_past (10 mm) past the ring's plane with the hand within 6 mm of its planned travel (or already past when it stopped short); with a camera, the tip was seen past the plane and the line from the fingers to it crosses the plane inside the ring. Without a camera this is what the hand did, not what the cable did. The hand stays there, closed (opened and lifted 4 cm when release is true).
+  - `jammed`: The tip did not get through - the push stopped short with the tip, as held, under min_past past the plane, or the camera saw the tip short of the plane after the push (held back or bent on the rim; the hand backed off to the pre-insert pose, still holding) - or the jaws closed to their stop before or during the push (cable_lost true; the cable slid out of the hand, nothing more is moved).
+  - `misaligned`: Before moving, the held end cannot pass the opening (it sags so far that aimed between its tip and the fingers it stands outside the opening, or the fingertips reach the ring before the tip gets min_past through, or the opening leaves no room for the cable); or the camera saw the tip past the plane on a line crossing it outside the ring. `detail` says which.
+  - `unreachable`: The jaws are at their closed stop at the start (nothing held), the hand is more than 35 deg off straight down, the ring's axis is vertical, no wrist solution reaches the pre-insert pose or the end of the push (IK preview), or a turn, carrying move or the push was refused.
 
 ### tipping-over-a-surface-edge
 
