@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 53 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 54 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -56,6 +56,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`approaching-above-a-target`](#approaching-above-a-target) | execute | Moves the hand to hover a set clearance above a target's oriented box, rising in place first and keeping the hand's… | any |
 | [`executing-feature-mating`](#executing-feature-mating) | execute | Executes a supplied feature-mating plan for an already-held rigid object. | any |
 | [`executing-held-object-motion`](#executing-held-object-motion) | execute | Executes an ordered, collision-aware pose sequence for an already-grasped rigid object without releasing it. | any |
+| [`grasping-container-rims`](#grasping-container-rims) | execute | Grasps a thin-walled open container (box, bin, tray, cup, bowl) by its rim. | any |
 | [`grasping-direct-ik`](#grasping-direct-ik) | execute | Direct IK align-then-descend grasping. | any, *tuned on* panda |
 | [`grasping-linear-feature`](#grasping-linear-feature) | execute | Fit the full 3D axis of an elongated segmented feature and grasp it with a perpendicular, inclination-aware… | any |
 | [`grasping-short-axis`](#grasping-short-axis) | execute | Deterministic short-axis-aligned grasp with CuRobo. | any, *tuned on* panda |
@@ -603,6 +604,21 @@ Executes an ordered, collision-aware pose sequence for an already-grasped rigid 
   - `reoriented`: The held-object waypoint sequence completed while the gripper remained closed.
   - `reached`: Only the first (approach) waypoint of a placement plan was executed; the object is held at the approach pose.
   - `blocked`: A planner refused a waypoint, or a waypoint motion failed before the requested pose was reached.
+
+### grasping-container-rims
+
+execute · robots: any · tasks: pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/grasping-container-rims/SKILL.md) · [upstream](https://github.com/nssmd/RoboRSI/tree/main/roborsi/embodied/skills/base/grasp_rim/robotwin)
+
+Grasps a thin-walled open container (box, bin, tray, cup, bowl) by its rim - picks a wall midpoint the arm can reach, turns the open jaws across the wall (one finger inside the mouth, one outside), hovers above, comes straight down until the pads straddle the wall below the rim top, closes, checks the jaw gap reads about the wall's thickness (not empty, not wider), and lifts a little; tries the other walls when one misses. Use when an open container must be picked or held and a body grasp would close on the empty inside (or the container is wider than the open hand), with its oriented box from a perception skill and the hand empty.
+
+- **In**: `container_obb` OrientedBoundingBox
+- **Out**: `side` string, `grasp_position` Vec3, `close_heading_deg` float, `jaw_error_deg` float, `wrist_turn_deg` float, `grip_width` float, `held_width` float, `wall_thickness` float, `lifted` float, `attempts` int
+- **Calls**: connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`grasp_rim`](skills/grasping-container-rims/scripts/grasp_rim.py)
+- **Exits**:
+  - `grasped`: The jaws closed across a wall with the gap above empty_margin and at most wall_thickness + full_margin (max_wall when the thickness is unknown), and still did after the lift; the hand holds the rim. `lifted` says how far the hand rose (short when the container is heavy or fixed; `detail` says so).
+  - `missed`: At least one wall was tried down to the grasp height but every close read empty or too wide, the wall slipped out during the lift, or the descent stopped on the rim; the hand is open.
+  - `unreachable`: No wall could be tried - the container is too shallow or too narrow for the open hand, every grasp pose failed the IK preview, the hover was refused, or the jaws could not be turned across the wall; nothing was closed.
 
 ### grasping-direct-ik
 
