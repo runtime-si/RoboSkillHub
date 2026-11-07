@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 36 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 37 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -59,6 +59,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`placing-held-feature`](#placing-held-feature) | execute | Move a held object so one of its declared features lands on a target point. | any, **sim only** |
 | [`plugging-a-cable-end`](#plugging-a-cable-end) | execute | Carries a cable's held free end into a terminal port after the last crossing. | any, 2 arms |
 | [`pushing-objects`](#pushing-objects) | execute | Pushes a loose object across its support toward a goal point with a closed hand, never grasping it. | any |
+| [`searching-insertion-spiral`](#searching-insertion-spiral) | execute | Finds an opening the held part or the closed fingertips can enter by probing straight down over a hexagonal grid… | any |
 | [`seating-a-cable-crossing`](#seating-a-cable-crossing) | execute | Streams one planned crossing leg of a cable onto a routing station, lets the rod settle, then LOOKS. | any |
 | [`tipping-over-a-surface-edge`](#tipping-over-a-surface-edge) | execute | Turn a body over on the surface it rests on instead of carrying it. | any, *tuned on* yam_i2rt, 2 arms, **sim only** |
 | [`transporting-objects`](#transporting-objects) | execute | Move the currently-held object to a destination and release. | any, *tuned on* panda |
@@ -626,6 +627,21 @@ Pushes a loose object across its support toward a goal point with a closed hand,
   - `pushed`: The hand travelled past the contact point toward the goal by at least min(80 mm, 0.75 x the asked push), lifted away and opened; the object should now sit near expected_center.
   - `not_pushed`: The goal was under 30 mm from the object's centre, or the push ran but the hand travelled short (blocked, or the move refused part way), or the retract failed; `detail` says which.
   - `unreachable`: The hover above and behind the object was refused or ended off with every rotation tried, or the descent stopped more than reach_tolerance from the contact height; nothing was pushed.
+
+### searching-insertion-spiral
+
+execute · robots: any · tasks: insertion · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/searching-insertion-spiral/SKILL.md)
+
+Finds an opening the held part or the closed fingertips can enter by probing straight down over a hexagonal grid around the opening's estimated mouth, nearest points first, stopping on contact and judging each probe by how far below the mouth the hand got - no force sensor. Use when a vertical insertion's target is known only to a few millimetres (a camera's estimate of a hole, a slot, a ring's opening, a socket), the hand already holds the part over it or is empty with the fingers closed, and the arm can stop on contact.
+
+- **In**: `mouth_position` Vec3
+- **Out**: `entered_at` Vec3, `depth` float, `probes` int
+- **Calls**: connector `robot.get_ee_pose`, `robot.go_to_pose_cartesian`, `robot.move_cartesian_until_contact`, `robot.solve_ik`
+- **Scripts**: [`spiral_search`](skills/searching-insertion-spiral/scripts/spiral_search.py)
+- **Exits**:
+  - `inserted`: A probe's tool centre got at least enter_depth (default 5 mm) below the mouth; the hand stays there unless stay_in is false.
+  - `search_exhausted`: Every reachable probe inside search_radius stopped short of enter_depth; `detail` gives the count and the deepest probe.
+  - `unreachable`: No probe position could be reached, or the hand's pose could not be read.
 
 ### seating-a-cable-crossing
 
