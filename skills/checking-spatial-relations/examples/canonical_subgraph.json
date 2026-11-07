@@ -1,0 +1,45 @@
+{
+  "skill": "checking-spatial-relations",
+  "inputs": {},
+  "outputs": {
+    "holds": {
+      "$ref": "check.holds"
+    },
+    "relations": {
+      "$ref": "check.relations"
+    },
+    "evidence": {
+      "$ref": "check.evidence"
+    }
+  },
+  "nodes": {
+    "check": {
+      "type": "script",
+      "script": "scripts/check_relation.py",
+      "inputs": {
+        "relation": "inside",
+        "subject_description": "small grey cube",
+        "reference_description": "open grey box"
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "check"
+    ],
+    [
+      "check",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "holds",
+      "does_not_hold",
+      "not_visible"
+    ]
+  },
+  "on_error": "failed"
+}

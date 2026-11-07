@@ -80,3 +80,8 @@ PickAndTransferPolicy), MIT, Copyright (c) 2023 Tony Z. Zhao; the file's
 header lists the changes, and the licenses are
 skills/handing-over-between-arms/LICENSE.robotwin and
 skills/handing-over-between-arms/LICENSE.act.
+skills/checking-spatial-relations/scripts/check_relation.py is adapted from
+REFLECT (https://github.com/real-stanford/reflect, main/scene_graph.py
+SceneGraph.add_edge and main/utils.py is_inside / in_hull / get_pcd_dist),
+MIT, Copyright (c) 2023 Zeyi (Lucia) Liu; the file's header lists the
+changes, and the license is skills/checking-spatial-relations/LICENSE.reflect.
