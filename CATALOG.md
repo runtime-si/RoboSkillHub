@@ -51,6 +51,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`proposing-side-grasps`](#proposing-side-grasps) | propose | Propose horizontal (side-entry) grasps swept around an object's oriented box — twelve azimuths ranked by jaw margin. | any, **sim only** |
 | [`selecting-free-placement-spots`](#selecting-free-placement-spots) | select | Picks world-frame spots on a named surface where a held object can be set down. | any, *tuned on* yam-station-overhead-rgbd |
 | [`selecting-reachable-grasp`](#selecting-reachable-grasp) | select | Walk a ranked list of candidate grasp poses and take the first the arm can actually reach. | any, **sim only** |
+| [`selecting-safe-cable-grasp-segments`](#selecting-safe-cable-grasp-segments) | select | Ranks top-down grasp points along a cable's fitted centreline that keep the fingers off its ends (a larger margin at… | any, *tuned on* yam-station-overhead-rgbd |
 | [`anchoring-a-free-end`](#anchoring-a-free-end) | execute | Pins one end of a cable with the support hand before any crossing is attempted. | any, 2 arms |
 | [`approaching-above-a-target`](#approaching-above-a-target) | execute | Moves the hand to hover a set clearance above a target's oriented box, rising in place first and keeping the hand's… | any |
 | [`executing-feature-mating`](#executing-feature-mating) | execute | Executes a supplied feature-mating plan for an already-held rigid object. | any |
@@ -527,6 +528,21 @@ Walk a ranked list of candidate grasp poses and take the first the arm can actua
 - **Exits**:
   - `selected`: A pose the arm reaches, with the joint configuration that reaches it.
   - `none_reachable`: No candidate solved. Route to another propose rung.
+
+### selecting-safe-cable-grasp-segments
+
+select · robots: any, *tuned on* yam-station-overhead-rgbd · tasks: cable-routing · MIT · v0.1.0 · [`SKILL.md`](skills/selecting-safe-cable-grasp-segments/SKILL.md) · [upstream](https://github.com/HAORAN808/dual-arm-cable-manipulation/blob/11b4201032074792fa04979eec918b3fbc536c27/perception/deliverable_perception_min/grasp_detection/core/safe_segments.py)
+
+Ranks top-down grasp points along a cable's fitted centreline that keep the fingers off its ends (a larger margin at the plug end), off hidden stretches and crossings, off tight bends, and clear of obstacle boxes, other cables and the cable's own other stretches, then checks each with robot.grasp_frame (jaws across the local tangent) and robot.solve_ik and returns the reachable ones as grasp poses, best first. Use when a cable must be picked up somewhere along its length (to pull it, lay it, hand it over or lift it clear) and the centreline comes from curve.fit_centerline / curve.track_centerline, optionally with curve.endpoints naming the plug end.
+
+- **In**: `centerline` Centerline
+- **Out**: `pose` Se3Pose, `candidate_count` int, `checked` int, `detail` string
+- **Calls**: connector `robot.grasp_frame`, `robot.solve_ik`
+- **Scripts**: [`select_cable_grasps`](skills/selecting-safe-cable-grasp-segments/scripts/select_cable_grasps.py)
+- **Exits**:
+  - `found`: At least one safe window solved IK; `pose` is the best grasp, `poses` all of them (at most max_poses, at least min_spacing_m apart along the cable), `grasps` their metrics.
+  - `none_safe`: No fingertip-wide stretch of the cable passed the geometry (ends, hidden, crossings, bends, clearance), or the centreline was missing or unordered; `rejected` gives the share of the cable each rule ruled out.
+  - `none_reachable`: Safe stretches exist but robot.solve_ik reached none of the best max_checks with either wrist solution; re-perceive after moving the cable or use the other arm.
 
 ### anchoring-a-free-end
 
