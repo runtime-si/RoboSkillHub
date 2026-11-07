@@ -85,3 +85,8 @@ REFLECT (https://github.com/real-stanford/reflect, main/scene_graph.py
 SceneGraph.add_edge and main/utils.py is_inside / in_hull / get_pcd_dist),
 MIT, Copyright (c) 2023 Zeyi (Lucia) Liu; the file's header lists the
 changes, and the license is skills/checking-spatial-relations/LICENSE.reflect.
+skills/classifying-failure-from-proprioception/scripts/classify_failure.py is
+adapted from VoLoAgent (https://github.com/NVlabs/VoLoAgent,
+vlm_orchestrator/failure_handlers/signal_detector.py, FailureSignalDetector and
+SignalConfig), Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES, Apache-2.0;
+the file's header lists the changes.

@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 48 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 49 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -72,6 +72,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`transporting-objects`](#transporting-objects) | execute | Move the currently-held object to a destination and release. | any, *tuned on* panda |
 | [`wiping-a-region`](#wiping-a-region) | execute | Wipes a flat region of a surface with back-and-forth strokes. | any |
 | [`checking-spatial-relations`](#checking-spatial-relations) | verify | Decides from one RGB-D view whether a spatial relation holds between two seen objects. | any |
+| [`classifying-failure-from-proprioception`](#classifying-failure-from-proprioception) | verify | Classifies the last moments of a manipulation step from proprioception alone. | any |
 | [`verifying-a-cable-route`](#verifying-a-cable-route) | verify | Judge a finished cable route from a camera rather than from an evaluator. | any |
 | [`verifying-grasps`](#verifying-grasps) | verify | Three independent checks on one grasp attempt. | any |
 | [`verifying-placement`](#verifying-placement) | verify | Confirms from one RGB-D view that a released object went through an aperture, accepting either that it vanished into… | any |
@@ -833,6 +834,25 @@ Decides from one RGB-D view whether a spatial relation holds between two seen ob
   - `holds`: Both objects were seen with enough valid depth and the asked relation is among those REFLECT's tests found from the subject to the reference.
   - `does_not_hold`: Both objects were seen with enough valid depth and the asked relation is not among those found; `relations` lists what was found instead.
   - `not_visible`: The subject or the reference was not segmented, or kept fewer than min_points valid depth points; nothing is claimed about the relation.
+
+### classifying-failure-from-proprioception
+
+verify · robots: any · tasks: pick-place, failure-detection · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/classifying-failure-from-proprioception/SKILL.md) · [upstream](https://github.com/NVlabs/VoLoAgent/blob/b4e623079ca8498a16bcd5016920d71f76c44d30/vlm_orchestrator/failure_handlers/signal_detector.py)
+
+Classifies the last moments of a manipulation step from proprioception alone - the gripper opening, the tool-centre pose and the arm joints over a short window (passed in from earlier nodes, sampled here, or both) - into stall, never_gripped, fumble, drop, stuck_mid_air or ok, with VoLoAgent's rolling-window rules re-based on the work surface and the gripper's stroke. Use when a graph must know cheaply, with no camera and no force sensor, whether a grasp, lift or carry went wrong and how, before spending a perception or VLM call or choosing a recovery.
+
+- **In**: -
+- **Out**: `state` string, `reason` string, `confidence` float, `samples` int
+- **Calls**: connector `robot.describe_gripper`, `robot.describe_workspace`, `robot.get_observation`
+- **Scripts**: [`classify_failure`](skills/classifying-failure-from-proprioception/scripts/classify_failure.py)
+- **Exits**:
+  - `ok`: No failure signal. `state` says which healthy state - held (closed on something and elevated, moving or still on its target), placed (opened after a descent, after a long close, or low), approaching (closed, low), open (no strong signal).
+  - `stall`: The tool centre barely moved over the window (z range under 30 mm, under 2 mm per sample) while it was more than lag_tolerance short of its commanded target, or expect_motion was set and no target was given; and it was not holding something in the air.
+  - `never_gripped`: The jaw closed to within 3 mm of its closed stop without having held anything in the window (closed on nothing), or the hand never left its open stop at all (upstream's rule, gated by chunks_elapsed).
+  - `fumble`: Repeated open / close - at least 6 grip transitions with the tool centre low, or at least 4 anywhere (gated by chunks_elapsed).
+  - `drop`: The hand opened while the tool centre was more than 60 mm over table level, or a held object's jaw closed to its stop with the hand still shut above carrying height (a slip).
+  - `stuck_mid_air`: The hand is closed on something above carrying height but the arm is frozen short of its commanded target.
+  - `unknown`: The arm could not be read, there were fewer than two samples, or no surface height was given or described; nothing was classified.
 
 ### verifying-a-cable-route
 
