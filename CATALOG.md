@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 55 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 56 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -63,6 +63,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grasping-with-planner`](#grasping-with-planner) | execute | Top-down grasping via a fast axis-locked linear descend with a collision-aware cuRobo fallback. | any, *tuned on* panda |
 | [`handing-over-between-arms`](#handing-over-between-arms) | execute | Hands the object one arm holds to the other arm. | any, 2 arms |
 | [`placing-held-feature`](#placing-held-feature) | execute | Move a held object so one of its declared features lands on a target point. | any, **sim only** |
+| [`placing-into-container-held-by-other-arm`](#placing-into-container-held-by-other-arm) | execute | Puts the object one arm holds into an open container the other arm holds. | any, 2 arms |
 | [`placing-with-contact-descent`](#placing-with-contact-descent) | execute | Places the object the hand holds by approaching a fixed height above its place point, coming straight down until the… | any |
 | [`plugging-a-cable-end`](#plugging-a-cable-end) | execute | Carries a cable's held free end into a terminal port after the last crossing. | any, 2 arms |
 | [`pouring-by-wrist-roll`](#pouring-by-wrist-roll) | execute | Pours from a held container into a target container by standing the hand above the target's box at a set height and… | any |
@@ -706,6 +707,21 @@ Move a held object so one of its declared features lands on a target point — a
 - **Exits**:
   - `ready`: A hand pose that puts the feature on the target, and the move it applies.
   - `unknown`: A pose or a point could not be read; nothing was moved.
+
+### placing-into-container-held-by-other-arm
+
+execute · robots: any, 2 arms · tasks: pick-place, bimanual · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/placing-into-container-held-by-other-arm/SKILL.md) · [upstream](https://github.com/nssmd/RoboRSI/blob/main/roborsi/embodied/skills/base/place_held_in_held_container/robotwin/policy.py)
+
+Puts the object one arm holds into an open container the other arm holds - the holder carries the container to a presentation point both arms reach without turning it (so it stays upright), the carrier goes above the container's opening, away from the holder's fingers (tilts that lean its wrist away from the holder first, then its own rotation, then RoboRSI's other tilts, each previewed with IK), comes straight down to a release height over the rim, opens, backs up and closes once to read that the object left its jaws; the holder's jaws are never touched. Use when a bimanual station must drop a held part into a cup, bowl or box that the other arm is holding (sort into a held bin, fill a container before carrying it away), with both held things' boxes from a perception skill and both arms addressable by arm_id.
+
+- **In**: `container_obb` OrientedBoundingBox, `object_obb` OrientedBoundingBox
+- **Out**: `chosen_rotation` str, `container_tilt_deg` float, `container_position` Vec3, `release_position` Vec3, `hand_gap` float, `container_pose` Se3Pose
+- **Calls**: connector `robot.close_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`place_in_held_container`](skills/placing-into-container-held-by-other-arm/scripts/place_in_held_container.py)
+- **Exits**:
+  - `placed`: The carrier released the object over the container's opening (its centre inside the opening less rim_margin, measured against where the holder's pose now puts the container), its jaws then closed to the stop (empty), and the holder's jaws still read a hold; the holder is at the presentation pose and can carry on. What the hand did, not a sighting of the object in the container.
+  - `missed`: The carrier held nothing at the start, its jaws did not open, or they closed on something after the release (the object stuck to them); or the holder's jaws ran to the stop (the container fell) or the holder ended where the release was outside the opening.
+  - `unreachable`: Nothing was released. The two arm ids are equal or the connector reports no separate second arm, the holder holds nothing, the container leans past max_tilt_deg (before or after the presentation), the holder could not reach the presentation pose, no carrier rotation fits the object in the opening, keeps its edge holder_keepout from the holder's tool centre and reaches the approach, or the straight descent stopped short (the carrier went back up still holding the object); also an unknown name in rotations.
 
 ### placing-with-contact-descent
 
