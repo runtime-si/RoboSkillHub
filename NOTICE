@@ -215,3 +215,9 @@ envs/hanging_mug.py play_once and envs/_base_task.py get_place_pose /
 place_actor), MIT, Copyright (c) 2025 Tianxing Chen; the file's header lists
 the changes, and the license is
 skills/threading-a-cable-tip-through-a-ring/LICENSE.robotwin.
+skills/classifying-failure-type-vlm/scripts/classify_failure_vlm.py is
+adapted from RoboFAC (https://github.com/MINT-SJTU/RoboFAC,
+evaluation/eval.py and evaluation/eval_utils.py, with the question texts of
+its test QA in MINT-SJTU/RoboFAC-dataset), MIT, Copyright (c) 2025 MINT-SJTU;
+the license is skills/classifying-failure-type-vlm/LICENSE.robofac, and the
+file's header lists the changes.

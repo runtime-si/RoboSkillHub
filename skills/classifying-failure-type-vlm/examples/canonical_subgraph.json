@@ -1,0 +1,41 @@
+{
+  "skill": "classifying-failure-type-vlm",
+  "inputs": {
+    "before": "Observation",
+    "task": "string",
+    "step": "string"
+  },
+  "outputs": {
+    "failure_class": {"$ref": "classify.failure_class"},
+    "robofac_type": {"$ref": "classify.robofac_type"},
+    "misalignment": {"$ref": "classify.misalignment"},
+    "explanation": {"$ref": "classify.explanation"},
+    "correction": {"$ref": "classify.correction"},
+    "low_level_correction": {"$ref": "classify.low_level_correction"}
+  },
+  "nodes": {
+    "classify": {
+      "type": "script",
+      "script": "scripts/classify_failure_vlm.py",
+      "inputs": {
+        "before": {"$ref": "in.before"},
+        "task": {"$ref": "in.task"},
+        "step": {"$ref": "in.step"}
+      }
+    }
+  },
+  "edges": [["START", "classify"], ["classify", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "no_failure",
+      "missed_grasp",
+      "slipped",
+      "wrong_object",
+      "misaligned",
+      "collision_or_stuck",
+      "incomplete"
+    ]
+  },
+  "on_error": "no_verdict"
+}
