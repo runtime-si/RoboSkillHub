@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 59 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 60 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -64,6 +64,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`handing-over-between-arms`](#handing-over-between-arms) | execute | Hands the object one arm holds to the other arm. | any, 2 arms |
 | [`holding-steady-while-other-arm-acts`](#holding-steady-while-other-arm-acts) | execute | One arm holds an object still. | any, 2 arms |
 | [`lifting-with-both-arms`](#lifting-with-both-arms) | execute | Lifts an elongated object (a bar, a tray, a pot by its handles) with both arms. | any, 2 arms |
+| [`moving-both-arms-together`](#moving-both-arms-together) | execute | Moves both hands to their target poses as one coordinated motion. | any, 2 arms |
 | [`picking-and-placing-two-objects`](#picking-and-placing-two-objects) | execute | Picks two objects with two arms, one each, and places both. | any, 2 arms |
 | [`placing-held-feature`](#placing-held-feature) | execute | Move a held object so one of its declared features lands on a target point. | any, **sim only** |
 | [`placing-into-container-held-by-other-arm`](#placing-into-container-held-by-other-arm) | execute | Puts the object one arm holds into an open container the other arm holds. | any, 2 arms |
@@ -728,6 +729,21 @@ Lifts an elongated object (a bar, a tray, a pot by its handles) with both arms -
   - `lifted`: Both hands rose lift_height in steps, every step arrived within level_tolerance of its height, both jaw openings stayed above the stop and the hands' separation within separation_tolerance of its value at the grasp; object_obb is the input box raised by the hands' mean rise (the hands' motion, not a re-perception).
   - `slipped`: A jaw closed to the stop at its grasp point (both hands then opened and backed off to their hovers), or during the lift a jaw ran to the stop or the hands' separation drifted past separation_tolerance; mid-lift the hands stay where they stopped, closed, and `detail` says which arm and at what height.
   - `unreachable`: No hover, wrist solution or descent for one arm (hands opened and backed off), or an arm could not follow a lift step (the other was brought back level with it, both still closed on the object); also routed when the two arm ids are equal, the connector reports no separate second arm, or the box's long axis is not horizontal.
+
+### moving-both-arms-together
+
+execute · robots: any, 2 arms · tasks: pick-place, bimanual · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/moving-both-arms-together/SKILL.md) · [upstream](https://github.com/nssmd/RoboRSI/blob/main/roborsi/embodied/skills/base/move_dual_arm/robotwin/policy.py)
+
+Moves both hands to their target poses as one coordinated motion - both straight paths are split into the same number of short segments and the arms take turns (the lead alternating) so neither runs ahead, every waypoint of both arms is previewed with IK before anything moves, each arm's arrival is read back per segment, and, when asked, the hands' relative pose is held within a bound (the second hand's waypoints ride on the first's). Use when a bimanual station must move both hands at once - a two-handed carry or lift, bringing both hands to a handover or pour, mirrored reaches - through connectors that drive one arm per call.
+
+- **In**: `left_target` Se3Pose
+- **Out**: `segments` int, `max_relative_error_m` float, `max_relative_error_deg` float, `max_transient_error_m` float, `left_residual_m` float, `right_residual_m` float, `min_hand_distance_m` float, `roll_turns` int, `left_pose` Se3Pose, `right_pose` Se3Pose, `right_target_pose` Se3Pose
+- **Calls**: connector `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose_cartesian`, `robot.move_to_joints`, `robot.solve_ik`
+- **Scripts**: [`move_both_arms`](skills/moving-both-arms-together/scripts/move_both_arms.py)
+- **Exits**:
+  - `reached`: Both hands arrived at every waypoint within reach_tolerance (read back from each arm), the last being their targets; with keep_relative the hands' relative pose stayed within the bound at every segment end.
+  - `diverged`: One hand stopped more than reach_tolerance from a waypoint (refused, raised, stalled), or with keep_relative the hands' relative pose left the bound at a segment end, after at least one hand had moved; both arms stop where they are, `detail` says which and where.
+  - `unreachable`: Nothing moved - a waypoint failed the IK preview, the planned tool centres come closer than min_hand_distance, the targets break the kept relative pose, the move needs more than max_segments, the first move was refused in place, both arm ids name one arm, or the connector reports no separate second arm.
 
 ### picking-and-placing-two-objects
 
