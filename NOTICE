@@ -72,3 +72,11 @@ GripperForceLimiter, and the limiter thresholds of
 i2rt/robots/config/linear_4310.yml), MIT, Copyright (c) I2RT Robotics; the
 file's header lists the changes. i2rt's license is
 skills/detecting-contact-from-joint-effort/LICENSE.i2rt.
+skills/handing-over-between-arms/scripts/hand_over.py is adapted from RoboTwin
+(https://github.com/robotwin-Platform/RoboTwin, envs/handover_block.py and
+envs/handover_mic.py), MIT, Copyright (c) 2025 Tianxing Chen, and from ACT
+(https://github.com/tonyzhaozh/act, scripted_policy.py,
+PickAndTransferPolicy), MIT, Copyright (c) 2023 Tony Z. Zhao; the file's
+header lists the changes, and the licenses are
+skills/handing-over-between-arms/LICENSE.robotwin and
+skills/handing-over-between-arms/LICENSE.act.

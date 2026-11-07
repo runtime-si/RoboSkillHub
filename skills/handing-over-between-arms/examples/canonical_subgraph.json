@@ -1,0 +1,50 @@
+{
+  "skill": "handing-over-between-arms",
+  "inputs": {
+    "object_obb": "OrientedBoundingBox",
+    "handover_position": "Vec3"
+  },
+  "outputs": {
+    "receiver_grip": {
+      "$ref": "handover.receiver_grip"
+    },
+    "object_position": {
+      "$ref": "handover.object_position"
+    }
+  },
+  "nodes": {
+    "handover": {
+      "type": "script",
+      "script": "scripts/hand_over.py",
+      "inputs": {
+        "object_obb": {
+          "$ref": "in.object_obb"
+        },
+        "handover_position": {
+          "$ref": "in.handover_position"
+        },
+        "donor_arm": 0,
+        "receiver_arm": 1
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "handover"
+    ],
+    [
+      "handover",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "transferred",
+      "receiver_missed",
+      "dropped"
+    ]
+  },
+  "on_error": "donor_stuck"
+}

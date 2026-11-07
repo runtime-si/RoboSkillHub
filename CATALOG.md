@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 46 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 47 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -58,6 +58,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grasping-linear-feature`](#grasping-linear-feature) | execute | Fit the full 3D axis of an elongated segmented feature and grasp it with a perpendicular, inclination-aware… | any |
 | [`grasping-short-axis`](#grasping-short-axis) | execute | Deterministic short-axis-aligned grasp with CuRobo. | any, *tuned on* panda |
 | [`grasping-with-planner`](#grasping-with-planner) | execute | Top-down grasping via a fast axis-locked linear descend with a collision-aware cuRobo fallback. | any, *tuned on* panda |
+| [`handing-over-between-arms`](#handing-over-between-arms) | execute | Hands the object one arm holds to the other arm. | any, 2 arms |
 | [`placing-held-feature`](#placing-held-feature) | execute | Move a held object so one of its declared features lands on a target point. | any, **sim only** |
 | [`placing-with-contact-descent`](#placing-with-contact-descent) | execute | Places the object the hand holds by approaching a fixed height above its place point, coming straight down until the… | any |
 | [`plugging-a-cable-end`](#plugging-a-cable-end) | execute | Carries a cable's held free end into a terminal port after the last crossing. | any, 2 arms |
@@ -623,6 +624,22 @@ Top-down grasping via a fast axis-locked linear descend with a collision-aware c
 - **Exits**:
   - `grasped`: Object held in the gripper after `close`.
   - `failed`: Any failure during the grasp attempt — the cartesian descend AND the collision-aware planner fallback both failed (a raise propagating to `on_error`). Coordinator routes to abort.
+
+### handing-over-between-arms
+
+execute · robots: any, 2 arms · tasks: pick-place, bimanual · MIT · v0.1.0 · [`SKILL.md`](skills/handing-over-between-arms/SKILL.md) · [upstream](https://github.com/robotwin-Platform/RoboTwin/blob/main/envs/handover_block.py)
+
+Hands the object one arm holds to the other arm - the donor carries it to a handover point both arms reach (keeping its rotation), the receiver pre-poses back along a horizontal approach, moves in on the side of the object away from the donor's hand and closes; only when the receiver's jaw opening says it holds something does the donor open, and the hold is rechecked before and after the donor backs out. Use when a bimanual station must pass a held object between its arms (regrasp from the other side, reach a place only the other arm reaches, free the first arm), with the held object's box from a perception skill, both arms addressable by arm_id and the receiver empty.
+
+- **In**: `object_obb` OrientedBoundingBox, `handover_position` Vec3
+- **Out**: `receiver_grip` float, `receiver_roll_error_deg` float, `donor_handover_pose` Se3Pose, `receiver_grasp_pose` Se3Pose, `object_position` Vec3
+- **Calls**: connector `robot.close_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`
+- **Scripts**: [`hand_over`](skills/handing-over-between-arms/scripts/hand_over.py)
+- **Exits**:
+  - `transferred`: The receiver closed on something (jaw opening above the stop), the donor opened, the receiver still held after the donor backed out retreat_distance and after it drew back receiver_withdraw; object_position is where the receiver's draw-back should have left the object's centre.
+  - `receiver_missed`: The receiver could not reach its pre-grasp pose with either wrist solution, stopped short moving in, or closed to the stop; the receiver opened and backed off, the donor never opened and still holds the object at the handover pose.
+  - `dropped`: The donor's jaws were at the stop at the start (nothing held), or the receiver's jaws ran to the stop after the donor opened, while it backed out, or as the receiver drew back; `detail` says when.
+  - `donor_stuck`: The donor could not reach the handover pose (it still holds the object), its jaws did not open (both hands hold it), or it opened but could not back out; also routed when donor_arm equals receiver_arm or the connector reports no separate receiver arm.
 
 ### placing-held-feature
 
