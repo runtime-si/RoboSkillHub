@@ -66,3 +66,9 @@ adapted from MAESTRO (https://github.com/penn-pal-lab/maestro,
 maestro/api.py, _hold_and_wait_for_reach), MIT, Copyright (c) 2026 The
 MAESTRO Authors; the file's header lists the changes, and the license is
 skills/reaching-with-lag-correction/LICENSE.maestro.
+skills/detecting-contact-from-joint-effort/scripts/detect_contact.py is adapted
+from i2rt (https://github.com/i2rt-robotics/i2rt, i2rt/robots/utils.py,
+GripperForceLimiter, and the limiter thresholds of
+i2rt/robots/config/linear_4310.yml), MIT, Copyright (c) I2RT Robotics; the
+file's header lists the changes. i2rt's license is
+skills/detecting-contact-from-joint-effort/LICENSE.i2rt.

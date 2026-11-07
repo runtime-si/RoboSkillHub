@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 45 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 46 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -30,6 +30,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 
 | Skill | Stage | What it does | Robots |
 | --- | --- | --- | --- |
+| [`detecting-contact-from-joint-effort`](#detecting-contact-from-joint-effort) | perceive | Feels for contact without a force sensor. | any |
 | [`perceiving-deformable-linear-objects`](#perceiving-deformable-linear-objects) | perceive | Read a cable's ordered 3D centreline from one RGB-D frame and keep it current across a task. | any |
 | [`perceiving-functional-features`](#perceiving-functional-features) | perceive | Locates a language-described functional part of a rigid object or fixture from calibrated RGB-D and fits a typed loop… | any |
 | [`perceiving-next-item`](#perceiving-next-item) | perceive | Loop-head perception for pack-all / clean-all-items tasks. | any, *tuned on* panda |
@@ -222,6 +223,22 @@ Geometric yes/no judgments over poses and boxes the graph already holds -- is a 
   - `predicates.upright`: Whether a body's local axis points up, within a tilt bound.
 
 ## Skill details
+
+### detecting-contact-from-joint-effort
+
+perceive · robots: any · tasks: pick-place, insertion · MIT · v0.1.0 · [`SKILL.md`](skills/detecting-contact-from-joint-effort/SKILL.md) · [upstream](https://github.com/i2rt-robotics/i2rt/blob/main/i2rt/robots/utils.py)
+
+Feels for contact without a force sensor - steps the hand along a short straight line a few millimetres at a time and, after each step, decides from proprioception whether something holds it - the joint efforts against a baseline taken in free motion along the same line (i2rt's gripper clog test, generalised to the arm) where the observation carries efforts, otherwise how far the measured tool centre lags the commanded one beyond its free-motion lag. Returns where the hand stopped and which signal fired. Use when a surface's position is known only to a centimetre or so and must be measured by touch (a table or a box floor before a grasp or a place, the top of an object, a wall before a slide), or to check that a line is clear before a move along it.
+
+- **In**: `end` Vec3
+- **Out**: `contact` bool, `signal` str, `contact_position` Vec3, `contact_point` Vec3, `travelled` float, `lag_over_baseline` float, `effort_ratio` float, `efforts_available` bool, `steps` int, `baseline_lag` float
+- **Calls**: connector `robot.close_gripper`, `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.solve_ik`
+- **Scripts**: [`detect_contact`](skills/detecting-contact-from-joint-effort/scripts/detect_contact.py)
+- **Exits**:
+  - `contact`: A step left the hand held - its lag beyond the free-motion lag over lag_threshold (3 mm), or a joint's effort residual over its threshold; contact_position is the tool centre where it stood, contact_point that pushed on by tip_reach, `signal` says which fired (lag, effort or effort+lag); the hand then backed off `backoff` (3 mm) along the line.
+  - `free`: The hand reached the line's end (or the tool-centre floor) with every step tracking as in free motion; it stays there.
+  - `no_signal`: Nothing usable to decide with - signal=effort with an observation that carries no efforts (nothing moved), the line too short for two free-motion samples, or the free-motion lag jumping more than lag_threshold from step to step; `detail` says which.
+  - `blocked`: The line is too long (over 150 mm), has no length, starts under the floor or ends out of reach (IK preview), the start was not reached, or a step was refused; `detail` says which.
 
 ### perceiving-deformable-linear-objects
 

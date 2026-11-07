@@ -1,0 +1,27 @@
+{
+  "skill": "detecting-contact-from-joint-effort",
+  "inputs": {
+    "start": "Vec3",
+    "end": "Vec3"
+  },
+  "outputs": {
+    "contact": {"$ref": "probe.contact"},
+    "signal": {"$ref": "probe.signal"},
+    "contact_position": {"$ref": "probe.contact_position"},
+    "contact_point": {"$ref": "probe.contact_point"},
+    "travelled": {"$ref": "probe.travelled"}
+  },
+  "nodes": {
+    "probe": {
+      "type": "script",
+      "script": "scripts/detect_contact.py",
+      "inputs": {
+        "start": {"$ref": "in.start"},
+        "end": {"$ref": "in.end"}
+      }
+    }
+  },
+  "edges": [["START", "probe"], ["probe", "END"]],
+  "exit": {"router_field": "route", "success_values": ["contact", "free", "no_signal"]},
+  "on_error": "blocked"
+}
