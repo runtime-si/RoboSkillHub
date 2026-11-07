@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 39 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 40 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -58,6 +58,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grasping-with-planner`](#grasping-with-planner) | execute | Top-down grasping via a fast axis-locked linear descend with a collision-aware cuRobo fallback. | any, *tuned on* panda |
 | [`placing-held-feature`](#placing-held-feature) | execute | Move a held object so one of its declared features lands on a target point. | any, **sim only** |
 | [`plugging-a-cable-end`](#plugging-a-cable-end) | execute | Carries a cable's held free end into a terminal port after the last crossing. | any, 2 arms |
+| [`pouring-by-wrist-roll`](#pouring-by-wrist-roll) | execute | Pours from a held container into a target container by standing the hand above the target's box at a set height and… | any |
 | [`pushing-objects`](#pushing-objects) | execute | Pushes a loose object across its support toward a goal point with a closed hand, never grasping it. | any |
 | [`searching-insertion-spiral`](#searching-insertion-spiral) | execute | Finds an opening the held part or the closed fingertips can enter by probing straight down over a hexagonal grid… | any |
 | [`seating-a-cable-crossing`](#seating-a-cable-crossing) | execute | Streams one planned crossing leg of a cable onto a routing station, lets the rod settle, then LOOKS. | any |
@@ -614,6 +615,22 @@ Carries a cable's held free end into a terminal port after the last crossing —
 - **Exits**:
   - `plugged`: The delivering hand reached the port mouth and opened; `detail` says whether it got there routed or on the diagonal.
   - `unplugged`: No centreline or stations, no port in view, no support hand identified, the mouth unreachable at every height, or a tool raised on the carry; `detail` says which.
+
+### pouring-by-wrist-roll
+
+execute · robots: any · tasks: pouring · MIT · v0.1.0 · [`SKILL.md`](skills/pouring-by-wrist-roll/SKILL.md) · [upstream](https://github.com/OpenMOSS/VLABench/blob/main/VLABench/utils/skill_lib.py)
+
+Pours from a held container into a target container by standing the hand above the target's box at a set height and rolling only the last joint (the wrist roll) to the pour angle in small speed-bounded steps, holding, and rolling back, checking every step from fresh joint readings. Use when a cup, bottle, scoop or bin is already in the hand and its contents must go into a bowl, box or other receiver whose box a perception skill found, and the grasp left the wrist-roll axis near horizontal (the roll then tips the container rather than spinning it).
+
+- **In**: `target_obb` OrientedBoundingBox
+- **Out**: `roll_reached` float, `hand_drift` float, `final_joint_error` float, `roll_axis_elevation_deg` float, `rolled_with` str
+- **Calls**: connector `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.move_to_joints`
+- **Scripts**: [`pour_wrist_roll`](skills/pouring-by-wrist-roll/scripts/pour_wrist_roll.py)
+- **Exits**:
+  - `poured`: The hand reached the pour pose, the last joint followed every step to the full pour angle within track_tolerance with the tool centre within drift_tolerance of the pour pose, held hold_s, and rolled back with every joint within 0.08 rad of its start. This is what the hand did; re-perceive the receiver to know what landed in it.
+  - `unreachable`: The move to the pour pose above the target was refused or ended more than reach_tolerance from it; nothing was rolled.
+  - `joint_limit`: The asked roll does not fit between the last joint's reading and its limits (less a 0.05 rad margin) in the chosen direction; the hand stands at the pour pose, unrolled.
+  - `roll_refused`: A roll step was refused, the last joint lagged its step's target by more than track_tolerance, the tool centre drifted past drift_tolerance, or the roll back failed or ended off; the skill rolled back as far as it could, and `detail` says which.
 
 ### pushing-objects
 
