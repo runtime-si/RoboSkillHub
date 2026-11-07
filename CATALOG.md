@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 40 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 41 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -64,6 +64,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`seating-a-cable-crossing`](#seating-a-cable-crossing) | execute | Streams one planned crossing leg of a cable onto a routing station, lets the rod settle, then LOOKS. | any |
 | [`tipping-over-a-surface-edge`](#tipping-over-a-surface-edge) | execute | Turn a body over on the surface it rests on instead of carrying it. | any, *tuned on* yam_i2rt, 2 arms, **sim only** |
 | [`transporting-objects`](#transporting-objects) | execute | Move the currently-held object to a destination and release. | any, *tuned on* panda |
+| [`wiping-a-region`](#wiping-a-region) | execute | Wipes a flat region of a surface with back-and-forth strokes. | any |
 | [`verifying-a-cable-route`](#verifying-a-cable-route) | verify | Judge a finished cable route from a camera rather than from an evaluator. | any |
 | [`verifying-grasps`](#verifying-grasps) | verify | Three independent checks on one grasp attempt. | any |
 | [`verifying-placement`](#verifying-placement) | verify | Confirms from one RGB-D view that a released object went through an aperture, accepting either that it vanished into… | any |
@@ -704,6 +705,21 @@ Move the currently-held object to a destination and release. The gripper enters 
 - **Exits**:
   - `placed`: Object released at the destination.
   - `blocked`: Path blocked or motion failed; aborted before release. Coordinator routes to abort.
+
+### wiping-a-region
+
+execute · robots: any · tasks: surface-contact · MIT · v0.1.0 · [`SKILL.md`](skills/wiping-a-region/SKILL.md) · [upstream](https://github.com/capgym/cap-x/blob/main/capx/envs/tasks/franka/franka_spill_wipe.py)
+
+Wipes a flat region of a surface with back-and-forth strokes - the hand comes down at one end of each pass, strokes along the region's long axis at a contact height just over the surface, lifts, steps across and comes back the other way, then reports how much of the region the measured strokes swept. No force sensor - each descent stops on contact, so a surface higher than estimated is met rather than pressed into. Use when a spill, crumbs or a mark on a table must be wiped (with a held sponge or cloth, or the closed fingers), given the region's box from perception (a mask's points through geometry.filter_and_compute_obb), and the region is clear of objects.
+
+- **In**: `region_obb` OrientedBoundingBox
+- **Out**: `coverage` float, `passes_planned` int, `passes_done` int, `surface_z` float, `wipe_height` float, `min_height` float, `max_height` float
+- **Calls**: connector `robot.close_gripper`, `robot.get_ee_pose`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_cartesian_until_contact`, `robot.solve_ik`
+- **Scripts**: [`wipe_region`](skills/wiping-a-region/scripts/wipe_region.py)
+- **Exits**:
+  - `wiped`: The measured strokes swept at least min_coverage (default 0.95) of the region at the wiping height and the hand lifted away; `coverage` says how much.
+  - `partial`: Some passes ran but the swept fraction is under min_coverage (passes out of reach, blocked, stopped part way) or the last lift failed; `detail` lists each skipped or stopped pass.
+  - `unreachable`: No pass ran - the first hover was refused with every rotation, or every pass was out of reach, blocked or refused; nothing was wiped.
 
 ### verifying-a-cable-route
 

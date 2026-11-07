@@ -1,0 +1,50 @@
+{
+  "skill": "wiping-a-region",
+  "inputs": {
+    "region_obb": "OrientedBoundingBox"
+  },
+  "outputs": {
+    "coverage": {
+      "$ref": "wipe.coverage"
+    },
+    "passes_done": {
+      "$ref": "wipe.passes_done"
+    },
+    "min_height": {
+      "$ref": "wipe.min_height"
+    },
+    "max_height": {
+      "$ref": "wipe.max_height"
+    }
+  },
+  "nodes": {
+    "wipe": {
+      "type": "script",
+      "script": "scripts/wipe_region.py",
+      "inputs": {
+        "region_obb": {
+          "$ref": "in.region_obb"
+        },
+        "tool_width": 0.03
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "wipe"
+    ],
+    [
+      "wipe",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "wiped",
+      "partial"
+    ]
+  },
+  "on_error": "unreachable"
+}
