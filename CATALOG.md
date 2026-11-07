@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 55 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 56 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -62,6 +62,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grasping-short-axis`](#grasping-short-axis) | execute | Deterministic short-axis-aligned grasp with CuRobo. | any, *tuned on* panda |
 | [`grasping-with-planner`](#grasping-with-planner) | execute | Top-down grasping via a fast axis-locked linear descend with a collision-aware cuRobo fallback. | any, *tuned on* panda |
 | [`handing-over-between-arms`](#handing-over-between-arms) | execute | Hands the object one arm holds to the other arm. | any, 2 arms |
+| [`moving-both-arms-together`](#moving-both-arms-together) | execute | Moves both hands to their target poses as one coordinated motion. | any, 2 arms |
 | [`placing-held-feature`](#placing-held-feature) | execute | Move a held object so one of its declared features lands on a target point. | any, **sim only** |
 | [`placing-with-contact-descent`](#placing-with-contact-descent) | execute | Places the object the hand holds by approaching a fixed height above its place point, coming straight down until the… | any |
 | [`plugging-a-cable-end`](#plugging-a-cable-end) | execute | Carries a cable's held free end into a terminal port after the last crossing. | any, 2 arms |
@@ -692,6 +693,21 @@ Hands the object one arm holds to the other arm - the donor carries it to a hand
   - `receiver_missed`: The receiver could not reach its pre-grasp pose with either wrist solution, stopped short moving in, or closed to the stop; the receiver opened and backed off, the donor never opened and still holds the object at the handover pose.
   - `dropped`: The donor's jaws were at the stop at the start (nothing held), or the receiver's jaws ran to the stop after the donor opened, while it backed out, or as the receiver drew back; `detail` says when.
   - `donor_stuck`: The donor could not reach the handover pose (it still holds the object), its jaws did not open (both hands hold it), or it opened but could not back out; also routed when donor_arm equals receiver_arm or the connector reports no separate receiver arm.
+
+### moving-both-arms-together
+
+execute · robots: any, 2 arms · tasks: pick-place, bimanual · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/moving-both-arms-together/SKILL.md) · [upstream](https://github.com/nssmd/RoboRSI/blob/main/roborsi/embodied/skills/base/move_dual_arm/robotwin/policy.py)
+
+Moves both hands to their target poses as one coordinated motion - both straight paths are split into the same number of short segments and the arms take turns (the lead alternating) so neither runs ahead, every waypoint of both arms is previewed with IK before anything moves, each arm's arrival is read back per segment, and, when asked, the hands' relative pose is held within a bound (the second hand's waypoints ride on the first's). Use when a bimanual station must move both hands at once - a two-handed carry or lift, bringing both hands to a handover or pour, mirrored reaches - through connectors that drive one arm per call.
+
+- **In**: `left_target` Se3Pose
+- **Out**: `segments` int, `max_relative_error_m` float, `max_relative_error_deg` float, `max_transient_error_m` float, `left_residual_m` float, `right_residual_m` float, `min_hand_distance_m` float, `roll_turns` int, `left_pose` Se3Pose, `right_pose` Se3Pose, `right_target_pose` Se3Pose
+- **Calls**: connector `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose_cartesian`, `robot.move_to_joints`, `robot.solve_ik`
+- **Scripts**: [`move_both_arms`](skills/moving-both-arms-together/scripts/move_both_arms.py)
+- **Exits**:
+  - `reached`: Both hands arrived at every waypoint within reach_tolerance (read back from each arm), the last being their targets; with keep_relative the hands' relative pose stayed within the bound at every segment end.
+  - `diverged`: One hand stopped more than reach_tolerance from a waypoint (refused, raised, stalled), or with keep_relative the hands' relative pose left the bound at a segment end, after at least one hand had moved; both arms stop where they are, `detail` says which and where.
+  - `unreachable`: Nothing moved - a waypoint failed the IK preview, the planned tool centres come closer than min_hand_distance, the targets break the kept relative pose, the move needs more than max_segments, the first move was refused in place, both arm ids name one arm, or the connector reports no separate second arm.
 
 ### placing-held-feature
 
