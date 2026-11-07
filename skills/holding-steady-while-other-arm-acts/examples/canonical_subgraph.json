@@ -1,0 +1,98 @@
+{
+  "skill": "holding-steady-while-other-arm-acts",
+  "inputs": {
+    "object_obb": "OrientedBoundingBox",
+    "actor_start": "Vec3",
+    "actor_target": "Vec3"
+  },
+  "outputs": {
+    "holder_shift": {
+      "$ref": "release.holder_shift"
+    },
+    "grip_change": {
+      "$ref": "release.grip_change"
+    },
+    "actor_stopped_short": {
+      "$ref": "act.stopped_short"
+    }
+  },
+  "nodes": {
+    "hold": {
+      "type": "script",
+      "script": "scripts/hold.py",
+      "inputs": {
+        "object_obb": {
+          "$ref": "in.object_obb"
+        },
+        "holder_arm": 0,
+        "other_arm": 1,
+        "mode": "grip"
+      }
+    },
+    "act": {
+      "type": "script",
+      "script": "scripts/act.py",
+      "inputs": {
+        "hold": {
+          "$ref": "hold.hold"
+        },
+        "start": {
+          "$ref": "in.actor_start"
+        },
+        "target": {
+          "$ref": "in.actor_target"
+        },
+        "mode": "press",
+        "hand": "closed"
+      }
+    },
+    "release": {
+      "type": "script",
+      "script": "scripts/release.py",
+      "inputs": {
+        "hold": {
+          "$ref": "hold.hold"
+        },
+        "step_route": {
+          "$ref": "act.route"
+        },
+        "step_success": [
+          "acted"
+        ]
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "hold"
+    ],
+    [
+      "act",
+      "release"
+    ],
+    [
+      "release",
+      "END"
+    ]
+  ],
+  "conditional_edges": {
+    "hold": {
+      "router_field": "route",
+      "mapping": {
+        "holding": "act",
+        "unreachable": "END",
+        "hold_lost": "END"
+      }
+    }
+  },
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "held_and_released",
+      "hold_lost",
+      "unreachable"
+    ]
+  },
+  "on_error": "unreachable"
+}
