@@ -1,0 +1,52 @@
+{
+  "skill": "moving-both-arms-together",
+  "inputs": {
+    "left_target": "Se3Pose",
+    "right_target": "Se3Pose"
+  },
+  "outputs": {
+    "left_pose": {
+      "$ref": "move.left_pose"
+    },
+    "right_pose": {
+      "$ref": "move.right_pose"
+    },
+    "max_relative_error_m": {
+      "$ref": "move.max_relative_error_m"
+    }
+  },
+  "nodes": {
+    "move": {
+      "type": "script",
+      "script": "scripts/move_both_arms.py",
+      "inputs": {
+        "left_target": {
+          "$ref": "in.left_target"
+        },
+        "right_target": {
+          "$ref": "in.right_target"
+        },
+        "left_arm": 0,
+        "right_arm": 1
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "move"
+    ],
+    [
+      "move",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "reached",
+      "unreachable"
+    ]
+  },
+  "on_error": "diverged"
+}
