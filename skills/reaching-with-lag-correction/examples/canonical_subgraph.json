@@ -1,0 +1,45 @@
+{
+  "skill": "reaching-with-lag-correction",
+  "inputs": {
+    "target_pose": "Se3Pose"
+  },
+  "outputs": {
+    "residual": {
+      "$ref": "reach.residual"
+    },
+    "first_residual": {
+      "$ref": "reach.first_residual"
+    },
+    "reached_pose": {
+      "$ref": "reach.reached_pose"
+    }
+  },
+  "nodes": {
+    "reach": {
+      "type": "script",
+      "script": "scripts/reach_with_correction.py",
+      "inputs": {
+        "target_pose": {
+          "$ref": "in.target_pose"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "reach"
+    ],
+    [
+      "reach",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "reached"
+    ]
+  },
+  "on_error": "not_reached"
+}

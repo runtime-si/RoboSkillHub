@@ -61,3 +61,8 @@ and from RoboTwin (https://github.com/robotwin-Platform/RoboTwin,
 envs/_base_task.py get_place_pose / place_actor and envs/stack_blocks_three.py),
 MIT, Copyright (c) 2025 Tianxing Chen; the file's header lists the changes,
 and RoboTwin's license is skills/stacking-objects/LICENSE.robotwin.
+skills/reaching-with-lag-correction/scripts/reach_with_correction.py is
+adapted from MAESTRO (https://github.com/penn-pal-lab/maestro,
+maestro/api.py, _hold_and_wait_for_reach), MIT, Copyright (c) 2026 The
+MAESTRO Authors; the file's header lists the changes, and the license is
+skills/reaching-with-lag-correction/LICENSE.maestro.
