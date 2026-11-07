@@ -188,3 +188,8 @@ MIT, Copyright (c) 2026 zzigak, and from RoboWaiter
 MujocoController.untwist), MIT, Copyright (c) 2023 Guilhem Mathieux; the
 licenses are skills/turning-by-wrist-ratchet/LICENSE.yam-arcade and
 LICENSE.robowaiter, and the file's header lists the changes.
+skills/grasping-a-cable-lying-flat/scripts/grasp_flat_cable.py is adapted
+from Newton (https://github.com/newton-physics/newton,
+newton/examples/multiphysics/example_franka_cable_ik_pick_place.py,
+Example._build_keyframes), Apache-2.0, Copyright (c) 2026 The Newton
+Developers; the file's header lists the changes.
