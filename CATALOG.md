@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 61 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 62 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -75,6 +75,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`reaching-with-lag-correction`](#reaching-with-lag-correction) | execute | Moves the tool to a target pose, waits for the arm to settle, reads the tool pose back and, if the arm stopped short… | any |
 | [`searching-insertion-spiral`](#searching-insertion-spiral) | execute | Finds an opening the held part or the closed fingertips can enter by probing straight down over a hexagonal grid… | any |
 | [`seating-a-cable-crossing`](#seating-a-cable-crossing) | execute | Streams one planned crossing leg of a cable onto a routing station, lets the rod settle, then LOOKS. | any |
+| [`singulating-by-pushing`](#singulating-by-pushing) | execute | Pushes a target clear of the objects crowding it until a top-down grasp's open fingers fit around it. | any |
 | [`stacking-objects`](#stacking-objects) | execute | Stacks the object the hand holds centred on top of a target object. | any |
 | [`tipping-over-a-surface-edge`](#tipping-over-a-surface-edge) | execute | Turn a body over on the surface it rests on instead of carrying it. | any, *tuned on* yam_i2rt, 2 arms, **sim only** |
 | [`transporting-objects`](#transporting-objects) | execute | Move the currently-held object to a destination and release. | any, *tuned on* panda |
@@ -894,6 +895,21 @@ Streams one planned crossing leg of a cable onto a routing station, lets the rod
 - **Exits**:
   - `done`: The place leg was streamed and the crossing measured; `seated` and `fraction` say whether it took.
   - `blocked`: A tool raised during the place or the look (the subgraph's on_error).
+
+### singulating-by-pushing
+
+execute · robots: any · tasks: pick-place, sorting · BSD-2-Clause · v0.1.0 · [`SKILL.md`](skills/singulating-by-pushing/SKILL.md) · [upstream](https://github.com/andyzeng/visual-pushing-grasping/blob/master/robot.py)
+
+Pushes a target clear of the objects crowding it until a top-down grasp's open fingers fit around it - picks the push heading toward the most free space around the target, turned until the closed hand can come down behind the target without touching a neighbour, sizes each push to just free the fingers (at most push_step), re-checks after every push, and reports the gap to the nearest neighbour and the fingers' clearance before and after. Use when a target touches or nearly touches other objects so the open jaws would land on a neighbour, with OBBs of the target and its neighbours from a perception skill and the hand empty.
+
+- **In**: `target_obb` OrientedBoundingBox, `neighbour_obb` OrientedBoundingBox
+- **Out**: `pushes` int, `gap_before` float, `gap_after` float, `clearance_before` float, `clearance_after` float, `fits_before` bool, `fits_after` bool, `required_gap` float, `expected_target_obb` OrientedBoundingBox
+- **Calls**: connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.open_gripper`
+- **Scripts**: [`singulate_by_pushing`](skills/singulating-by-pushing/scripts/singulate_by_pushing.py)
+- **Exits**:
+  - `singulated`: The open fingers of a top-down grasp fit around the target with FIT_MARGIN to spare - already at the start (nothing pushed) or, by the hand's travel, after `pushes` short pushes; re-perceive before grasping.
+  - `still_cluttered`: Pushes ran out (max_pushes), a push came up short (under half its length), or no usable heading would increase the fingers' clearance; the hand is open and lifted.
+  - `unreachable`: The closed hand fits behind the target in no heading before the first push, the target is wider than the opening along every grasp axis, or a hover, descent or lift was refused; the hand is open.
 
 ### stacking-objects
 
