@@ -1,0 +1,37 @@
+{
+  "skill": "verifying-insertion-by-probe-push",
+  "inputs": {},
+  "outputs": {
+    "travel": {
+      "$ref": "probe.travel"
+    },
+    "stop_position": {
+      "$ref": "probe.stop_position"
+    }
+  },
+  "nodes": {
+    "probe": {
+      "type": "script",
+      "script": "scripts/probe_push.py",
+      "inputs": {}
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "probe"
+    ],
+    [
+      "probe",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "seated",
+      "not_seated"
+    ]
+  },
+  "on_error": "blocked"
+}

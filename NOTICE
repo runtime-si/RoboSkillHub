@@ -102,3 +102,9 @@ perception/deliverable_perception_min/grasp_detection/core/safe_segments.py and
 core/dual_grasp_selector.py), MIT, Copyright (c) 2026 Haoran Han, Yuxin Fu,
 Boxian Yao; the file's header lists the changes, and the license is
 skills/selecting-safe-cable-grasp-segments/LICENSE.dual-arm-cable.
+skills/verifying-insertion-by-probe-push/scripts/probe_push.py is adapted
+from o2ac-ur (https://github.com/o2ac/o2ac-ur,
+catkin_ws/src/o2ac_routines/src/o2ac_routines/common.py, the insertion check
+at the end of insert_motor_cables_without_tools_normal), MIT License,
+Copyright (c) 2020 Team O2AC; the file's header lists the changes, and the
+license is skills/verifying-insertion-by-probe-push/LICENSE.o2ac.

@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 51 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 52 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -77,6 +77,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`classifying-failure-from-proprioception`](#classifying-failure-from-proprioception) | verify | Classifies the last moments of a manipulation step from proprioception alone. | any |
 | [`verifying-a-cable-route`](#verifying-a-cable-route) | verify | Judge a finished cable route from a camera rather than from an evaluator. | any |
 | [`verifying-grasps`](#verifying-grasps) | verify | Three independent checks on one grasp attempt. | any |
+| [`verifying-insertion-by-probe-push`](#verifying-insertion-by-probe-push) | verify | Checks whether a held part is seated after an insertion by pushing it a few millimetres further along the insertion… | any |
 | [`verifying-placement`](#verifying-placement) | verify | Confirms from one RGB-D view that a released object went through an aperture, accepting either that it vanished into… | any |
 | [`centering-a-part-with-the-gripper`](#centering-a-part-with-the-gripper) | recover | Centres a loose part between the jaws without perceiving it. | any |
 | [`returning-to-a-recorded-pose`](#returning-to-a-recorded-pose) | recover | Opens the gripper and drives the arm back to a joint configuration recorded earlier in the episode, then checks from a… | any |
@@ -917,6 +918,21 @@ Three independent checks on one grasp attempt -- that the hand arrived where it 
   - `held`: The jaws closed on something -- the gap is above the mechanical stop.
   - `empty`: The jaws ran to the stop, so they closed on nothing.
   - `unknown`: The hand could not be read, which is a gap in the instrument rather than a failed grasp.
+
+### verifying-insertion-by-probe-push
+
+verify · robots: any · tasks: insertion, pick-place · MIT · v0.1.0 · [`SKILL.md`](skills/verifying-insertion-by-probe-push/SKILL.md) · [upstream](https://github.com/o2ac/o2ac-ur/blob/main/catkin_ws/src/o2ac_routines/src/o2ac_routines/common.py)
+
+Checks whether a held part is seated after an insertion by pushing it a few millimetres further along the insertion axis (optionally also a little sideways) with a stop-on-contact move and reading where the hand stopped - no force sensor. Seated when the hand did not go further (and did not move sideways); not seated when it did. Use when an insertion, a placement into a pocket or a press-fit has just finished, the hand still holds the part, and no camera can see whether it went home.
+
+- **In**: -
+- **Out**: `travel` float, `lateral_travel` float, `start_position` Vec3, `stop_position` Vec3, `returned` bool
+- **Calls**: connector `robot.get_ee_pose`, `robot.go_to_pose_cartesian`, `robot.move_cartesian_until_contact`, `robot.solve_ik`
+- **Scripts**: [`probe_push`](skills/verifying-insertion-by-probe-push/scripts/probe_push.py)
+- **Exits**:
+  - `seated`: The push along the axis moved the hand less than seat_tolerance (default 5 mm), and every sideways push (when lateral_distance &gt; 0) less than lateral_tolerance; the hand went back to the start (return_to_start) and still holds the part.
+  - `not_seated`: The hand went at least seat_tolerance further along the axis, or a sideways push moved it lateral_tolerance or more; `travel` / `lateral_travel` say how far. The hand went back to the start unless return_to_start is false.
+  - `blocked`: No verdict - the hand's pose could not be read, the end of a push is out of reach by the IK preview, the tool-centre floor over table_z leaves no room for a push longer than seat_tolerance, or a push or the return to the start before a sideways push was refused.
 
 ### verifying-placement
 
