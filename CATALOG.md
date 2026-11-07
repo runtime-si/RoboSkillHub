@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 47 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 48 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -71,6 +71,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`tipping-over-a-surface-edge`](#tipping-over-a-surface-edge) | execute | Turn a body over on the surface it rests on instead of carrying it. | any, *tuned on* yam_i2rt, 2 arms, **sim only** |
 | [`transporting-objects`](#transporting-objects) | execute | Move the currently-held object to a destination and release. | any, *tuned on* panda |
 | [`wiping-a-region`](#wiping-a-region) | execute | Wipes a flat region of a surface with back-and-forth strokes. | any |
+| [`checking-spatial-relations`](#checking-spatial-relations) | verify | Decides from one RGB-D view whether a spatial relation holds between two seen objects. | any |
 | [`verifying-a-cable-route`](#verifying-a-cable-route) | verify | Judge a finished cable route from a camera rather than from an evaluator. | any |
 | [`verifying-grasps`](#verifying-grasps) | verify | Three independent checks on one grasp attempt. | any |
 | [`verifying-placement`](#verifying-placement) | verify | Confirms from one RGB-D view that a released object went through an aperture, accepting either that it vanished into… | any |
@@ -817,6 +818,21 @@ Wipes a flat region of a surface with back-and-forth strokes - the hand comes do
   - `wiped`: The measured strokes swept at least min_coverage (default 0.95) of the region at the wiping height and the hand lifted away; `coverage` says how much.
   - `partial`: Some passes ran but the swept fraction is under min_coverage (passes out of reach, blocked, stopped part way) or the last lift failed; `detail` lists each skipped or stopped pass.
   - `unreachable`: No pass ran - the first hover was refused with every rotation, or every pass was out of reach, blocked or refused; nothing was wiped.
+
+### checking-spatial-relations
+
+verify · robots: any · tasks: pick-place, insertion, cable-routing, sorting · MIT · v0.1.0 · [`SKILL.md`](skills/checking-spatial-relations/SKILL.md) · [upstream](https://github.com/real-stanford/reflect/blob/c2f9db993e372250321ca74e56ae27519716c934/main/scene_graph.py)
+
+Decides from one RGB-D view whether a spatial relation holds between two seen objects - inside, on_top_of, near or blocking - with REFLECT's point-cloud tests (minimum point distance, convex-hull containment, footprint-and-height, image-box occlusion with depth order), and routes holds / does_not_hold / not_visible. Use when a graph must branch on a scene fact such as "is the cube in the box", "is the plug on the board", "is the part near the fixture" or "is the hand blocking the camera's view of the target", with the two objects given as descriptions, masks or world point clouds.
+
+- **In**: `relation` string
+- **Out**: `holds` bool, `relation` string, `min_distance_m` float, `evidence` string
+- **Calls**: [`sam3`](#sam3); connector `robot.get_observation`
+- **Scripts**: [`check_relation`](skills/checking-spatial-relations/scripts/check_relation.py)
+- **Exits**:
+  - `holds`: Both objects were seen with enough valid depth and the asked relation is among those REFLECT's tests found from the subject to the reference.
+  - `does_not_hold`: Both objects were seen with enough valid depth and the asked relation is not among those found; `relations` lists what was found instead.
+  - `not_visible`: The subject or the reference was not segmented, or kept fewer than min_points valid depth points; nothing is claimed about the relation.
 
 ### verifying-a-cable-route
 
