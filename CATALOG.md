@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 42 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 43 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -58,6 +58,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grasping-short-axis`](#grasping-short-axis) | execute | Deterministic short-axis-aligned grasp with CuRobo. | any, *tuned on* panda |
 | [`grasping-with-planner`](#grasping-with-planner) | execute | Top-down grasping via a fast axis-locked linear descend with a collision-aware cuRobo fallback. | any, *tuned on* panda |
 | [`placing-held-feature`](#placing-held-feature) | execute | Move a held object so one of its declared features lands on a target point. | any, **sim only** |
+| [`placing-with-contact-descent`](#placing-with-contact-descent) | execute | Places the object the hand holds by approaching a fixed height above its place point, coming straight down until the… | any |
 | [`plugging-a-cable-end`](#plugging-a-cable-end) | execute | Carries a cable's held free end into a terminal port after the last crossing. | any, 2 arms |
 | [`pouring-by-wrist-roll`](#pouring-by-wrist-roll) | execute | Pours from a held container into a target container by standing the hand above the target's box at a set height and… | any |
 | [`pushing-objects`](#pushing-objects) | execute | Pushes a loose object across its support toward a goal point with a closed hand, never grasping it. | any |
@@ -617,6 +618,22 @@ Move a held object so one of its declared features lands on a target point — a
 - **Exits**:
   - `ready`: A hand pose that puts the feature on the target, and the move it applies.
   - `unknown`: A pose or a point could not be read; nothing was moved.
+
+### placing-with-contact-descent
+
+execute · robots: any · tasks: pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/placing-with-contact-descent/SKILL.md) · [upstream](https://github.com/google-research/ravens/blob/master/ravens/tasks/primitives.py)
+
+Places the object the hand holds by approaching a fixed height above its place point, coming straight down until the arm stops on contact, and releasing there before retreating straight up - Ravens' pick-place discipline, with the arm's stall detection standing in for a contact sensor. Contact well above the expected height (stacked on the wrong thing, a rim) or no contact at all is routed and the object kept. Use when a held object must be set down on a support or into an open container whose height is known only to a centimetre or so (a camera's estimate of a table, a box floor, the top of a stack), with its box measured after the grasp.
+
+- **In**: `place_position` Vec3
+- **Out**: `released` bool, `expected_contact_z` float, `contact_z` float, `contact_offset` float, `placed_position` Vec3
+- **Calls**: connector `robot.get_ee_pose`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.move_cartesian_until_contact`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`place_with_contact_descent`](skills/placing-with-contact-descent/scripts/place_with_contact_descent.py)
+- **Exits**:
+  - `placed`: The descent stopped on contact inside the contact window (or, with table_z, ended at the tool-centre floor with the object's bottom at or under the table), the hand opened and retreated straight up; placed_position is where the hand left the object's bottom centre.
+  - `contact_too_early`: The descent stopped more than contact_tolerance (12 mm) above the expected contact; the hand did not release and lifted the object back to the approach height.
+  - `no_contact`: The descent reached its bottom without stopping (no support there, or the object slid up the jaws); the hand did not release and lifted back.
+  - `blocked`: The expected contact is out of reach (IK preview), the approach or a descent move was refused, or the retreat after the release failed (`released` says which side of the release); `detail` says which.
 
 ### plugging-a-cable-end
 

@@ -1,0 +1,22 @@
+{
+  "skill": "placing-with-contact-descent",
+  "inputs": {"place_position": "Vec3", "held_obb": "OrientedBoundingBox"},
+  "outputs": {
+    "contact_offset": {"$ref": "place.contact_offset"},
+    "placed_position": {"$ref": "place.placed_position"},
+    "released": {"$ref": "place.released"}
+  },
+  "nodes": {
+    "place": {
+      "type": "script",
+      "script": "scripts/place_with_contact_descent.py",
+      "inputs": {
+        "place_position": {"$ref": "in.place_position"},
+        "held_obb": {"$ref": "in.held_obb"}
+      }
+    }
+  },
+  "edges": [["START", "place"], ["place", "END"]],
+  "exit": {"router_field": "route", "success_values": ["placed", "contact_too_early", "no_contact"]},
+  "on_error": "blocked"
+}
