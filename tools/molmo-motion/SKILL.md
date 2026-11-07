@@ -60,7 +60,8 @@ The result does not depend on the model; `backend` names it. A future
 `vflash.forecast` (NVIDIA VFlash: parallel decoding of visual plans, whose
 dense-motion experiment used MolmoMotion-4B as its target model; checkpoints not
 released on 2026-11-07) should return exactly this structure, so a skill switches
-forecaster by tool name.
+forecaster by tool name. `robobrain.trace` (keypoint plans) returns it too, with
+`dt_s: null` for its untimed keypoints.
 
 | field | type | meaning |
 | --- | --- | --- |
@@ -72,7 +73,7 @@ forecaster by tool name.
 | `tracks[i].start_world` / `points_world` | `[x, y, z]` / `[F][x, y, z]` | metres, world frame via `camera_pose`; `[]` without depth + pose |
 | `tracks[i].predicted` | `[F]` bool | the model emitted this step; a missing step holds the last emitted value |
 | `horizon` | int | F |
-| `dt_s` | float | seconds between steps (1/15 for MolmoMotion) |
+| `dt_s` | float or null | seconds between steps (1/15 for MolmoMotion); null for ordered, untimed keypoints |
 | `frame` | str | `world`, `camera` or `pixel`: the richest frame the tracks carry |
 | `backend` / `model` | str | `molmo-motion` / `repo@revision` |
 | `timing` | dict | `load_s` (first call only), `prepare_s`, `generate_s`, `total_s` |

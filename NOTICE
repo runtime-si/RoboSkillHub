@@ -220,4 +220,16 @@ adapted from RoboFAC (https://github.com/MINT-SJTU/RoboFAC,
 evaluation/eval.py and evaluation/eval_utils.py, with the question texts of
 its test QA in MINT-SJTU/RoboFAC-dataset), MIT, Copyright (c) 2025 MINT-SJTU;
 the license is skills/classifying-failure-type-vlm/LICENSE.robofac, and the
+tools/robobrain/tools.py runs BAAI RoboBrain 2.5-4B
+(https://huggingface.co/BAAI/RoboBrain2.5-4B, commit
+ec4b3bf5e969b48ad17df432b479c10402a0079b, Apache-2.0), downloaded when a tool
+first runs, and copies three prompt texts: the pointing and end-effector
+trajectory prompts of RoboBrain 2.5 (https://github.com/FlagOpen/RoboBrain2.5,
+inference.py at commit af98c932aac9ff715d70da177088d7bb95573ff7), Apache-2.0,
+Copyright (c) BAAI; the object-centric 3D trace prompt of RoboTracer
+(https://github.com/Zhoues/RoboTracer, Evaluation/test_benchmark.py at commit
+146a39bc8d063c990161d647b190f8d84a8f90fa), Apache-2.0, Copyright (c) the
+RoboTracer authors; and the progress prompt and score parsing of Robo-Dopamine
+(https://github.com/FlagOpen/Robo-Dopamine, examples/inference.py at commit
+2c714abca66329f8e2113587226bc9556726f6c2), Apache-2.0, Copyright (c) BAAI. The
 file's header lists the changes.
