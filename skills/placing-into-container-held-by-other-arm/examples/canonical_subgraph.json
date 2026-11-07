@@ -1,0 +1,56 @@
+{
+  "skill": "placing-into-container-held-by-other-arm",
+  "inputs": {
+    "container_obb": "OrientedBoundingBox",
+    "object_obb": "OrientedBoundingBox",
+    "presentation_position": "Vec3"
+  },
+  "outputs": {
+    "container_pose": {
+      "$ref": "place.container_pose"
+    },
+    "release_position": {
+      "$ref": "place.release_position"
+    },
+    "container_tilt_deg": {
+      "$ref": "place.container_tilt_deg"
+    }
+  },
+  "nodes": {
+    "place": {
+      "type": "script",
+      "script": "scripts/place_in_held_container.py",
+      "inputs": {
+        "container_obb": {
+          "$ref": "in.container_obb"
+        },
+        "object_obb": {
+          "$ref": "in.object_obb"
+        },
+        "presentation_position": {
+          "$ref": "in.presentation_position"
+        },
+        "container_arm": 0,
+        "object_arm": 1
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "place"
+    ],
+    [
+      "place",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "placed",
+      "missed"
+    ]
+  },
+  "on_error": "unreachable"
+}
