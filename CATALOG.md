@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 64 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 65 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -59,6 +59,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`executing-held-object-motion`](#executing-held-object-motion) | execute | Executes an ordered, collision-aware pose sequence for an already-grasped rigid object without releasing it. | any |
 | [`grasping-container-rims`](#grasping-container-rims) | execute | Grasps a thin-walled open container (box, bin, tray, cup, bowl) by its rim. | any |
 | [`grasping-direct-ik`](#grasping-direct-ik) | execute | Direct IK align-then-descend grasping. | any, *tuned on* panda |
+| [`grasping-flat-objects`](#grasping-flat-objects) | execute | Grasps an object lying flat on a surface that is too thin for a normal top-down pinch at its box centre (a card, a… | any |
 | [`grasping-linear-feature`](#grasping-linear-feature) | execute | Fit the full 3D axis of an elongated segmented feature and grasp it with a perpendicular, inclination-aware… | any |
 | [`grasping-short-axis`](#grasping-short-axis) | execute | Deterministic short-axis-aligned grasp with CuRobo. | any, *tuned on* panda |
 | [`grasping-with-planner`](#grasping-with-planner) | execute | Top-down grasping via a fast axis-locked linear descend with a collision-aware cuRobo fallback. | any, *tuned on* panda |
@@ -660,6 +661,21 @@ Direct IK align-then-descend grasping. The gripper pre-rotates to the grasp orie
 - **Exits**:
   - `grasped`: Object held in the gripper after `close`.
   - `failed`: Any failure during the grasp attempt — planning failure or trajectory execution error (a raise to `on_error`). Coordinator routes to abort.
+
+### grasping-flat-objects
+
+execute · robots: any · tasks: pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/grasping-flat-objects/SKILL.md) · [upstream](https://github.com/nssmd/RoboRSI/tree/main/roborsi/embodied/skills/base/grasp_flat/robotwin)
+
+Grasps an object lying flat on a surface that is too thin for a normal top-down pinch at its box centre (a card, a phone, a thin plate or lid, a coin if wide enough) - turns the jaws across its short side, brings the fingertips down to just above the support (as low as the tool-centre floor allows), closes, checks the jaw gap reads about the slab's width, lifts and checks again; retries once across the long side. An optional tilt brings one fingertip in along the support at the slab's edge (it did not hold in a station twin). Use when a flat object must be picked from a table and a grasp at its box centre would close on air above it, with its oriented box from a perception skill and the hand empty.
+
+- **In**: `object_obb` OrientedBoundingBox
+- **Out**: `axis` string, `close_heading_deg` float, `tilt_deg` float, `grasp_position` Vec3, `tip_height` float, `object_width` float, `thickness` float, `jaw_error_deg` float, `wrist_turn_deg` float, `grip_width` float, `held_width` float, `lifted` float, `attempts` int
+- **Calls**: connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`, `robot.set_grip`, `robot.solve_ik`
+- **Scripts**: [`grasp_flat`](skills/grasping-flat-objects/scripts/grasp_flat.py)
+- **Exits**:
+  - `grasped`: The jaws closed across the slab, the gap within narrow_margin under and full_margin over its width across the jaws (and above empty_margin), and still did after the lift; the hand holds it. `lifted` says how far the hand rose (short when the object is heavy or caught; `detail` says so).
+  - `missed`: At least one axis was tried down to the grasp height but every close read empty, too wide or too narrow (not across the slab), the slab slipped out during the lift, a tilted grasp's closing steps were refused, or the descent stopped on the slab's top; the hand is open.
+  - `unreachable`: No axis could be tried - the slab is too thin for the fingertips at this tilt (they cannot come below its top), wider than the open hand both ways, every grasp pose failed the IK preview, the hover was refused, or the jaws could not be turned; nothing was closed.
 
 ### grasping-linear-feature
 

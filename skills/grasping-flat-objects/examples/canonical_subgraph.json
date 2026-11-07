@@ -1,0 +1,49 @@
+{
+  "skill": "grasping-flat-objects",
+  "inputs": {
+    "object_obb": "OrientedBoundingBox"
+  },
+  "outputs": {
+    "axis": {
+      "$ref": "grasp.axis"
+    },
+    "grip_width": {
+      "$ref": "grasp.grip_width"
+    },
+    "held_width": {
+      "$ref": "grasp.held_width"
+    },
+    "lifted": {
+      "$ref": "grasp.lifted"
+    }
+  },
+  "nodes": {
+    "grasp": {
+      "type": "script",
+      "script": "scripts/grasp_flat.py",
+      "inputs": {
+        "object_obb": {
+          "$ref": "in.object_obb"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "grasp"
+    ],
+    [
+      "grasp",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "grasped",
+      "missed"
+    ]
+  },
+  "on_error": "unreachable"
+}

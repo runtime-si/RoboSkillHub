@@ -30,6 +30,11 @@ roborsi/embodied/skills/base/grasp_rim/robotwin/policy.py and
 roborsi/embodied/skills/base/_lib/robotwin/_perception.py, container_opening),
 Apache-2.0; the file's header lists the changes.
 
+skills/grasping-flat-objects/scripts/grasp_flat.py is adapted from RoboRSI
+(https://github.com/nssmd/RoboRSI,
+roborsi/embodied/skills/base/grasp_flat/robotwin/policy.py), Apache-2.0; the
+file's header lists the changes.
+
 skills/placing-into-container-held-by-other-arm/scripts/place_in_held_container.py
 is adapted from RoboRSI (https://github.com/nssmd/RoboRSI,
 roborsi/embodied/skills/base/place_held_in_held_container/robotwin/policy.py),
