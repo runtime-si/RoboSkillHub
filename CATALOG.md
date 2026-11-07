@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-11 tools, 70 skills, 2 policies, 1 recipe and 1 paper.
+12 tools, 70 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -26,6 +26,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`vlm`](#vlm) | perceive | Free-form and yes/no visual question answering against a hosted vision-language model (OpenRouter API by default… | any |
 | [`curobo`](#curobo) | plan | NVIDIA cuRobo motion planning. | any, *tuned on* panda |
 | [`molmo-motion`](#molmo-motion) | propose | AllenAI MolmoMotion-4B run locally on a GPU. | any |
+| [`robobrain`](#robobrain) | propose | BAAI RoboBrain 2.5-4B run locally on a GPU. | any |
 | [`predicates`](#predicates) | judge | Geometric yes/no judgments over poses and boxes the graph already holds. | any |
 
 ## Skills
@@ -260,6 +261,19 @@ AllenAI MolmoMotion-4B run locally on a GPU -- forecasts where chosen pixels (a 
 - **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
 - **Functions**:
   - `molmo-motion.forecast`: Forecast query pixels' motion under an instruction (pixels per step; camera/world points with depth).
+
+### robobrain
+
+propose · robots: any · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/robobrain/SKILL.md) · [upstream](https://github.com/FlagOpen/RoboBrain2.5/blob/af98c932aac9ff715d70da177088d7bb95573ff7/inference.py)
+
+BAAI RoboBrain 2.5-4B run locally on a GPU -- an ordered keypoint trajectory for a manipulation from one frame and an instruction (pixels, and camera / world points with the camera), pixel points for a phrase in gemini-er.point's shape, and task progress 0..1 against the task's start frame. Use when a propose stage wants a candidate path ("move the cable's free end through the ring") or a judge stage a progress score, without an API.
+
+- **Weights**: `hf://BAAI/RoboBrain2.5-4B@ec4b3bf5e969b48ad17df432b479c10402a0079b`
+- **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
+- **Functions**:
+  - `robobrain.trace`: Ordered keypoint trajectory for an instruction from one frame (visual-plan schema; pixels, camera/world points with intrinsics).
+  - `robobrain.point`: Pixel points for what a phrase names; drop-in for gemini-er.point.
+  - `robobrain.progress`: Task progress 0..1 of the current frame against the task's start frame.
 
 ### predicates
 
