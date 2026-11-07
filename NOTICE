@@ -125,3 +125,8 @@ Gemini Robotics SDK (https://github.com/google-deepmind/gemini-robotics-sdk,
 safari_sdk/agent/framework/tools/success_detection.py,
 SubtaskSuccessDetectorV4 and _GUIDED_THINKING_SD_QUESTIONS), Copyright 2025
 Google LLC, Apache-2.0; the file's header lists the changes.
+skills/picking-and-placing-two-objects/scripts/pick_place_two.py is adapted
+from RoboTwin (https://github.com/robotwin-Platform/RoboTwin,
+envs/place_dual_shoes.py and envs/pick_dual_bottles.py), MIT, Copyright (c)
+2025 Tianxing Chen; the file's header lists the changes, and RoboTwin's
+license is skills/picking-and-placing-two-objects/LICENSE.robotwin.

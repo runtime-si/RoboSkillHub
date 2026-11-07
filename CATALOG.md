@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 55 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 56 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -62,6 +62,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grasping-short-axis`](#grasping-short-axis) | execute | Deterministic short-axis-aligned grasp with CuRobo. | any, *tuned on* panda |
 | [`grasping-with-planner`](#grasping-with-planner) | execute | Top-down grasping via a fast axis-locked linear descend with a collision-aware cuRobo fallback. | any, *tuned on* panda |
 | [`handing-over-between-arms`](#handing-over-between-arms) | execute | Hands the object one arm holds to the other arm. | any, 2 arms |
+| [`picking-and-placing-two-objects`](#picking-and-placing-two-objects) | execute | Picks two objects with two arms, one each, and places both. | any, 2 arms |
 | [`placing-held-feature`](#placing-held-feature) | execute | Move a held object so one of its declared features lands on a target point. | any, **sim only** |
 | [`placing-with-contact-descent`](#placing-with-contact-descent) | execute | Places the object the hand holds by approaching a fixed height above its place point, coming straight down until the… | any |
 | [`plugging-a-cable-end`](#plugging-a-cable-end) | execute | Carries a cable's held free end into a terminal port after the last crossing. | any, 2 arms |
@@ -692,6 +693,22 @@ Hands the object one arm holds to the other arm - the donor carries it to a hand
   - `receiver_missed`: The receiver could not reach its pre-grasp pose with either wrist solution, stopped short moving in, or closed to the stop; the receiver opened and backed off, the donor never opened and still holds the object at the handover pose.
   - `dropped`: The donor's jaws were at the stop at the start (nothing held), or the receiver's jaws ran to the stop after the donor opened, while it backed out, or as the receiver drew back; `detail` says when.
   - `donor_stuck`: The donor could not reach the handover pose (it still holds the object), its jaws did not open (both hands hold it), or it opened but could not back out; also routed when donor_arm equals receiver_arm or the connector reports no separate receiver arm.
+
+### picking-and-placing-two-objects
+
+execute · robots: any, 2 arms · tasks: pick-place, bimanual · MIT · v0.1.0 · [`SKILL.md`](skills/picking-and-placing-two-objects/SKILL.md) · [upstream](https://github.com/robotwin-Platform/RoboTwin/blob/main/envs/place_dual_shoes.py)
+
+Picks two objects with two arms, one each, and places both - each object goes to the arm whose IK preview reaches its whole pick-and-place plan (the nearer arm when both do), both are grasped top-down with the two arms' hover / descend / close / lift steps interleaved, carried to their place points, lowered, released, and the arms go back to where they started; every move is gated on the two tool centres staying min_hand_gap apart, so where the arms would meet one finishes while the other waits. Use when a bimanual station must move two objects at once (two parts into a box or a tray, two items to their marks), with both objects' boxes from a perception skill, both arms addressable by arm_id and both hands empty.
+
+- **In**: `object_a_obb` OrientedBoundingBox, `object_b_obb` OrientedBoundingBox, `place_a` Vec3, `place_b` Vec3
+- **Out**: `arm_a` int, `arm_b` int, `outcome_a` string, `outcome_b` string, `failed_arms` string, `min_hand_gap_m` float, `staggered` bool, `release_pose_a` Se3Pose, `release_pose_b` Se3Pose
+- **Calls**: connector `robot.close_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`pick_place_two`](skills/picking-and-placing-two-objects/scripts/pick_place_two.py)
+- **Exits**:
+  - `both_placed`: Both arms held their object by the jaw opening after the lift and after the lowering, opened at the release height over their place points; failed_arms is empty. What the hands did, not where the objects ended - re-perceive (verifying-placement) before relying on it.
+  - `one_placed`: One arm placed its object, the other did not; failed_arms names it and outcome_a / outcome_b say why (grasp_missed, dropped, move_refused, clearance).
+  - `none_placed`: Neither arm placed its object; failed_arms names both, outcome_a / outcome_b say why.
+  - `unreachable`: No assignment of the two objects to the two arms has an IK preview reaching every pose of both plans, the arm ids are equal, or the connector reports no separate second arm; failed_arms names the arm(s) without a plan and nothing moved.
 
 ### placing-held-feature
 
