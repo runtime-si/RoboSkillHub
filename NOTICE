@@ -233,3 +233,9 @@ RoboTracer authors; and the progress prompt and score parsing of Robo-Dopamine
 (https://github.com/FlagOpen/Robo-Dopamine, examples/inference.py at commit
 2c714abca66329f8e2113587226bc9556726f6c2), Apache-2.0, Copyright (c) BAAI. The
 file's header lists the changes.
+skills/sliding-along-a-cable/scripts/slide_along_cable.py is adapted from
+o2ac-ur (https://github.com/o2ac/o2ac-ur,
+catkin_ws/src/o2ac_routines/src/o2ac_routines/common.py,
+insert_motor_cables_without_tools_normal), MIT License, Copyright (c) 2020
+Team O2AC; the file's header lists the changes, and the license is
+skills/sliding-along-a-cable/LICENSE.o2ac.

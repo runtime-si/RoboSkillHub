@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-12 tools, 70 skills, 2 policies, 1 recipe and 1 paper.
+12 tools, 71 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -83,6 +83,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`searching-insertion-spiral`](#searching-insertion-spiral) | execute | Finds an opening the held part or the closed fingertips can enter by probing straight down over a hexagonal grid… | any |
 | [`seating-a-cable-crossing`](#seating-a-cable-crossing) | execute | Streams one planned crossing leg of a cable onto a routing station, lets the rod settle, then LOOKS. | any |
 | [`singulating-by-pushing`](#singulating-by-pushing) | execute | Pushes a target clear of the objects crowding it until a top-down grasp's open fingers fit around it. | any |
+| [`sliding-along-a-cable`](#sliding-along-a-cable) | execute | Slides the hand along a cable it holds toward one of the cable's ends. | any |
 | [`sliding-to-edge-then-picking`](#sliding-to-edge-then-picking) | execute | Picks a flat object too thin to pinch on its support. | any, *tuned on* yam_i2rt |
 | [`stacking-objects`](#stacking-objects) | execute | Stacks the object the hand holds centred on top of a target object. | any |
 | [`threading-a-cable-tip-through-a-ring`](#threading-a-cable-tip-through-a-ring) | execute | Threads the free tip of a held cable through a standing ring. | any |
@@ -1021,6 +1022,21 @@ Pushes a target clear of the objects crowding it until a top-down grasp's open f
   - `singulated`: The open fingers of a top-down grasp fit around the target with FIT_MARGIN to spare - already at the start (nothing pushed) or, by the hand's travel, after `pushes` short pushes; re-perceive before grasping.
   - `still_cluttered`: Pushes ran out (max_pushes), a push came up short (under half its length), or no usable heading would increase the fingers' clearance; the hand is open and lifted.
   - `unreachable`: The closed hand fits behind the target in no heading before the first push, the target is wider than the opening along every grasp axis, or a hover, descent or lift was refused; the hand is open.
+
+### sliding-along-a-cable
+
+execute · robots: any · tasks: cable-routing · MIT · v0.1.0 · [`SKILL.md`](skills/sliding-along-a-cable/SKILL.md) · [upstream](https://github.com/o2ac/o2ac-ur/blob/65ddc5496879799038cefbad061380b7d0300d73/catkin_ws/src/o2ac_routines/src/o2ac_routines/common.py#L4622)
+
+Slides the hand along a cable it holds toward one of the cable's ends - the jaws opened to a loose cage just wider than the cable (not a pinch), the hand stepped along the perceived centreline with the jaws kept across it, stopped a planned distance before the end (or earlier when the hand stalls against the end's plug or the jaws are pushed open), then closed firmly. Use when a cable taken somewhere along its length must be held near its end instead, e.g. right behind a plug before plugging it, or to run the hand out to the tip of a cable lying on the table without regrasping, with the cable's centreline from curve.fit_centerline / curve.track_centerline and its end from curve.endpoints.
+
+- **In**: `centerline` Centerline
+- **Out**: `stopped_by` string, `start_from_end` float, `end_from_end` float, `slid` float, `cage_width` float, `cage_reading` float, `jaw_width` float, `steps` int, `wrist_turns` int
+- **Calls**: connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose_cartesian`, `robot.move_to_joints`, `robot.open_gripper`, `robot.set_grip`, `robot.solve_ik`
+- **Scripts**: [`slide_along_cable`](skills/sliding-along-a-cable/scripts/slide_along_cable.py)
+- **Exits**:
+  - `reached_end`: The hand stopped at the planned distance before the end (stopped_by planned_stop or already_there), was pushed open by something thicker than the cable (jaws), or stalled within end_window (60 mm) of the tip (stall, read as the end's plug against the fingertips); the jaws then closed firmly and short of their stop. The hand stands there, closed on the cable.
+  - `lost_cable`: The hand was not on the cable before it moved (more than max_offset from the centreline in plan, jaws closed on nothing, or jaws held open wider than the cage), or the firm close at the end shut to the closed stop; in the last case the hand opened and rose 4 cm.
+  - `unreachable`: The arm solver could not reach a waypoint (previewed before anything moved), a step was refused, or the hand stalled further than end_window from the tip (a snag, not the end); after a refusal or a stall the jaws closed firmly where the hand stopped. `detail` says which.
 
 ### sliding-to-edge-then-picking
 

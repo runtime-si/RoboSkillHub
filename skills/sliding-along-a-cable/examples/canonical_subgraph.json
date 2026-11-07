@@ -1,0 +1,25 @@
+{
+  "skill": "sliding-along-a-cable",
+  "inputs": {"centerline": "Centerline", "tip": "Vec3", "close_heading_deg": "float"},
+  "outputs": {
+    "stopped_by": {"$ref": "slide.stopped_by"},
+    "end_from_end": {"$ref": "slide.end_from_end"},
+    "slid": {"$ref": "slide.slid"},
+    "jaw_width": {"$ref": "slide.jaw_width"}
+  },
+  "nodes": {
+    "slide": {
+      "type": "script",
+      "script": "scripts/slide_along_cable.py",
+      "inputs": {
+        "centerline": {"$ref": "in.centerline"},
+        "end": {"$ref": "in.tip"},
+        "close_heading_deg": {"$ref": "in.close_heading_deg"},
+        "stop_before_end": 0.04
+      }
+    }
+  },
+  "edges": [["START", "slide"], ["slide", "END"]],
+  "exit": {"router_field": "route", "success_values": ["reached_end", "lost_cable"]},
+  "on_error": "unreachable"
+}
