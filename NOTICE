@@ -39,3 +39,7 @@ skills/pouring-by-wrist-roll/scripts/pour_wrist_roll.py is adapted from
 VLABench (https://github.com/OpenMOSS/VLABench,
 VLABench/utils/skill_lib.py, SkillLib.pour and SkillLib.flip), MIT,
 Copyright (c) 2024 simpler-env; the file's header lists the changes.
+skills/wiping-a-region/scripts/wipe_region.py is adapted from CaP-X
+(https://github.com/capgym/cap-x,
+capx/envs/tasks/franka/franka_spill_wipe.py, ORACLE_CODE), MIT, Copyright (c)
+2026 Max Fu; the file's header lists the changes.
