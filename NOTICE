@@ -95,3 +95,10 @@ adapted from MOSART (https://github.com/mosart-system/code,
 modules/motion_planning.py, Motion_Plan_Module.get_motion_plan and its SeqIK
 loop), MIT, Copyright (c) 2024 Arjun Gupta; the file's header lists the
 changes, and the license is skills/planning-articulation-opening/LICENSE.mosart.
+skills/selecting-safe-cable-grasp-segments/scripts/select_cable_grasps.py is
+adapted from dual-arm-cable-manipulation
+(https://github.com/HAORAN808/dual-arm-cable-manipulation,
+perception/deliverable_perception_min/grasp_detection/core/safe_segments.py and
+core/dual_grasp_selector.py), MIT, Copyright (c) 2026 Haoran Han, Yuxin Fu,
+Boxian Yao; the file's header lists the changes, and the license is
+skills/selecting-safe-cable-grasp-segments/LICENSE.dual-arm-cable.

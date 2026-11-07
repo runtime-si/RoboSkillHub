@@ -1,0 +1,20 @@
+{
+  "skill": "selecting-safe-cable-grasp-segments",
+  "inputs": {"centerline": "Centerline"},
+  "outputs": {
+    "pose": {"$ref": "select.pose"},
+    "poses": {"$ref": "select.poses"},
+    "grasps": {"$ref": "select.grasps"},
+    "detail": {"$ref": "select.detail"}
+  },
+  "nodes": {
+    "select": {
+      "type": "script",
+      "script": "scripts/select_cable_grasps.py",
+      "inputs": {"centerline": {"$ref": "in.centerline"}}
+    }
+  },
+  "edges": [["START", "select"], ["select", "END"]],
+  "exit": {"router_field": "route", "success_values": ["found", "none_safe", "none_reachable"]},
+  "on_error": "none_safe"
+}
