@@ -50,3 +50,7 @@ Fangchen Liu, and asks the free-space question of RoboPoint
 (https://github.com/wentaoyuan/RoboPoint,
 robopoint/serve/gradio_web_server.py), Apache-2.0; the file's header lists
 the changes. MOKA's license is skills/selecting-free-placement-spots/LICENSE.moka.
+skills/placing-with-contact-descent/scripts/place_with_contact_descent.py is
+adapted from Ravens (https://github.com/google-research/ravens,
+ravens/tasks/primitives.py, PickPlace), Copyright 2024 The Ravens Authors,
+Apache-2.0; the file's header lists the changes.
