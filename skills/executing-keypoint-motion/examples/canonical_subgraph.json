@@ -1,0 +1,66 @@
+{
+  "skill": "executing-keypoint-motion",
+  "inputs": {
+    "observation": "Observation",
+    "instruction": "str"
+  },
+  "outputs": {
+    "final_function_point": {
+      "$ref": "execute.final_function_point"
+    },
+    "held": {
+      "$ref": "execute.held"
+    }
+  },
+  "nodes": {
+    "plan": {
+      "type": "script",
+      "script": "scripts/plan_keypoint_motion.py",
+      "inputs": {
+        "observation": {
+          "$ref": "in.observation"
+        },
+        "instruction": {
+          "$ref": "in.instruction"
+        }
+      }
+    },
+    "execute": {
+      "type": "script",
+      "script": "scripts/execute_keypoint_motion.py",
+      "inputs": {
+        "plan": {
+          "$ref": "plan.plan"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "plan"
+    ],
+    [
+      "execute",
+      "END"
+    ]
+  ],
+  "conditional_edges": {
+    "plan": {
+      "router_field": "route",
+      "mapping": {
+        "planned": "execute",
+        "no_plan": "END"
+      }
+    }
+  },
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "done",
+      "grasp_failed",
+      "no_plan"
+    ]
+  },
+  "on_error": "unreachable"
+}

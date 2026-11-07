@@ -168,3 +168,10 @@ slide_edge_common.py and pick_overhang.py) adapts the push primitive of Ravens
 (https://github.com/google-research/ravens, ravens/tasks/primitives.py, push),
 Copyright 2024 The Ravens Authors, Apache-2.0; the file's header lists the
 changes.
+skills/executing-keypoint-motion/scripts/plan_keypoint_motion.py and
+execute_keypoint_motion.py are adapted from MOKA
+(https://github.com/moka-manipulation/moka, moka/planners/visual_prompt_utils.py,
+moka/vision/keypoint.py, moka/planners/planner.py,
+moka/policies/franka_policy.py and prompts/visual_prompt_planner/), MIT,
+Copyright (c) 2024 Kuan Fang, Fangchen Liu; each file's header lists the
+changes, and the license is skills/executing-keypoint-motion/LICENSE.moka.
