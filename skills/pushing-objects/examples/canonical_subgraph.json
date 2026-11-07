@@ -1,21 +1,47 @@
 {
   "skill": "pushing-objects",
-  "inputs": {"target_obb": "OrientedBoundingBox", "goal_position": "Vec3"},
+  "inputs": {
+    "target_obb": "OrientedBoundingBox",
+    "goal_position": "Vec3"
+  },
   "outputs": {
-    "achieved": {"$ref": "push.achieved"},
-    "expected_center": {"$ref": "push.expected_center"}
+    "achieved": {
+      "$ref": "push.achieved"
+    },
+    "expected_center": {
+      "$ref": "push.expected_center"
+    }
   },
   "nodes": {
     "push": {
       "type": "script",
       "script": "scripts/push_object.py",
       "inputs": {
-        "target_obb": {"$ref": "in.target_obb"},
-        "goal_position": {"$ref": "in.goal_position"}
+        "target_obb": {
+          "$ref": "in.target_obb"
+        },
+        "goal_position": {
+          "$ref": "in.goal_position"
+        }
       }
     }
   },
-  "edges": [["START", "push"], ["push", "END"]],
-  "exit": {"router_field": "route", "success_values": ["pushed"]},
+  "edges": [
+    [
+      "START",
+      "push"
+    ],
+    [
+      "push",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "pushed",
+      "not_pushed"
+    ]
+  },
   "on_error": "unreachable"
 }
