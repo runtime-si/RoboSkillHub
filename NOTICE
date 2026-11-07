@@ -125,3 +125,8 @@ Gemini Robotics SDK (https://github.com/google-deepmind/gemini-robotics-sdk,
 safari_sdk/agent/framework/tools/success_detection.py,
 SubtaskSuccessDetectorV4 and _GUIDED_THINKING_SD_QUESTIONS), Copyright 2025
 Google LLC, Apache-2.0; the file's header lists the changes.
+skills/holding-steady-while-other-arm-acts/scripts/hold.py, act.py and
+release.py are adapted from RoboTwin (https://github.com/robotwin-Platform/RoboTwin,
+envs/put_object_cabinet.py), MIT, Copyright (c) 2025 Tianxing Chen; each
+file's header lists the changes, and the license is
+skills/holding-steady-while-other-arm-acts/LICENSE.robotwin.

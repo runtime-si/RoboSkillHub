@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 55 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 56 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -62,6 +62,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grasping-short-axis`](#grasping-short-axis) | execute | Deterministic short-axis-aligned grasp with CuRobo. | any, *tuned on* panda |
 | [`grasping-with-planner`](#grasping-with-planner) | execute | Top-down grasping via a fast axis-locked linear descend with a collision-aware cuRobo fallback. | any, *tuned on* panda |
 | [`handing-over-between-arms`](#handing-over-between-arms) | execute | Hands the object one arm holds to the other arm. | any, 2 arms |
+| [`holding-steady-while-other-arm-acts`](#holding-steady-while-other-arm-acts) | execute | One arm holds an object still. | any, 2 arms |
 | [`placing-held-feature`](#placing-held-feature) | execute | Move a held object so one of its declared features lands on a target point. | any, **sim only** |
 | [`placing-with-contact-descent`](#placing-with-contact-descent) | execute | Places the object the hand holds by approaching a fixed height above its place point, coming straight down until the… | any |
 | [`plugging-a-cable-end`](#plugging-a-cable-end) | execute | Carries a cable's held free end into a terminal port after the last crossing. | any, 2 arms |
@@ -692,6 +693,23 @@ Hands the object one arm holds to the other arm - the donor carries it to a hand
   - `receiver_missed`: The receiver could not reach its pre-grasp pose with either wrist solution, stopped short moving in, or closed to the stop; the receiver opened and backed off, the donor never opened and still holds the object at the handover pose.
   - `dropped`: The donor's jaws were at the stop at the start (nothing held), or the receiver's jaws ran to the stop after the donor opened, while it backed out, or as the receiver drew back; `detail` says when.
   - `donor_stuck`: The donor could not reach the handover pose (it still holds the object), its jaws did not open (both hands hold it), or it opened but could not back out; also routed when donor_arm equals receiver_arm or the connector reports no separate receiver arm.
+
+### holding-steady-while-other-arm-acts
+
+execute · robots: any, 2 arms · tasks: pick-place, bimanual · MIT · v0.1.0 · [`SKILL.md`](skills/holding-steady-while-other-arm-acts/SKILL.md) · [upstream](https://github.com/robotwin-Platform/RoboTwin/blob/main/envs/put_object_cabinet.py)
+
+One arm holds an object still - a top-down grasp, or its closed hand pressed down on the object's top - while the other arm does a step, then the holder checks it still holds (its jaw opening and its own pose unchanged since the hold, and optionally a re-perceived box of the object) and lets go. Three scripts with clean entry and exit, hold, act and release, so a graph can put any skill between hold and release; act is a simple step for the other arm (a straight-line move, or a press whose last leg may end on contact). Use when a bimanual station must fix a part, fixture or container with one hand while the other pushes, inserts, wipes or places on it, with the object's box from a perception skill and both arms addressable by arm_id.
+
+- **In**: `object_obb` OrientedBoundingBox, `actor_target` Vec3
+- **Out**: `holder_grip` float, `stopped_short` float, `holder_shift` float, `grip_change` float
+- **Calls**: connector `robot.close_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`hold`](skills/holding-steady-while-other-arm-acts/scripts/hold.py), [`act`](skills/holding-steady-while-other-arm-acts/scripts/act.py), [`release`](skills/holding-steady-while-other-arm-acts/scripts/release.py)
+- **Exits**:
+  - `holding`: (hold only) The holder grips the object (jaws above the stop) or presses on it (stopped short of the press target by at least half the press depth); `hold` records its read-back pose and jaw opening. The entry point for the step between hold and release.
+  - `acted`: (act only) The other arm reached its start, every via point and the target (move), or stopped on contact on the last leg (press, `contact` true) or reached it; then it backed out to its start unless `detail` says it could not. The step's exit; release follows.
+  - `held_and_released`: The holder held (jaws above the stop, or a press that stopped on the object), the other arm's step ended `acted`, and at release the holder's tool centre was within pose_tolerance and angle_tolerance_deg of the hold pose and (grip) its jaw opening within grip_tolerance of the one at the hold; it then opened and backed out to its stand-off.
+  - `hold_lost`: The holder's jaws closed to the stop at the hold (missed), its press went down to the target (nothing under it), or at release its pose or jaw opening had changed past the tolerances (or a re-perceived object box had moved); the holder has let go and backed out.
+  - `unreachable`: The holder could not reach above the object or down onto it, the connector does not report a separate second arm, the other arm could not reach its start or a waypoint (move mode, or the press target failed the IK preview), or the holder could not back out after letting go; `detail` says which. After a failed step the hold is still checked and released.
 
 ### placing-held-feature
 
