@@ -209,3 +209,9 @@ the weights nor the worker: the bundle downloads both at those pinned commits
 when a tool first runs, and its tools refuse to run until
 GAP_LOCATE_ANYTHING_NONCOMMERCIAL=1 states that the use is non-commercial.
 The bundle's own code is Apache-2.0.
+skills/threading-a-cable-tip-through-a-ring/scripts/thread_tip_through_ring.py
+is adapted from RoboTwin (https://github.com/robotwin-Platform/RoboTwin,
+envs/hanging_mug.py play_once and envs/_base_task.py get_place_pose /
+place_actor), MIT, Copyright (c) 2025 Tianxing Chen; the file's header lists
+the changes, and the license is
+skills/threading-a-cable-tip-through-a-ring/LICENSE.robotwin.

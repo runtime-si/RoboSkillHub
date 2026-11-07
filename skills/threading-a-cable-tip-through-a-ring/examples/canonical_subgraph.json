@@ -1,0 +1,33 @@
+{
+  "skill": "threading-a-cable-tip-through-a-ring",
+  "inputs": {
+    "ring_centre": "Vec3",
+    "ring_axis": "Vec3",
+    "ring_inner_radius": "float",
+    "tip_position": "Vec3"
+  },
+  "outputs": {
+    "tip_past": {"$ref": "thread.tip_past"},
+    "hand_travel": {"$ref": "thread.hand_travel"},
+    "crossing_offset": {"$ref": "thread.crossing_offset"},
+    "sag_deg": {"$ref": "thread.sag_deg"},
+    "tip_seen": {"$ref": "thread.tip_seen"}
+  },
+  "nodes": {
+    "thread": {
+      "type": "script",
+      "script": "scripts/thread_tip_through_ring.py",
+      "inputs": {
+        "ring_centre": {"$ref": "in.ring_centre"},
+        "ring_axis": {"$ref": "in.ring_axis"},
+        "ring_inner_radius": {"$ref": "in.ring_inner_radius"},
+        "tip_position": {"$ref": "in.tip_position"},
+        "camera": "wrist",
+        "cable_description": "white charging cable"
+      }
+    }
+  },
+  "edges": [["START", "thread"], ["thread", "END"]],
+  "exit": {"router_field": "route", "success_values": ["threaded", "jammed", "misaligned"]},
+  "on_error": "unreachable"
+}
