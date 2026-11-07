@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 67 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 68 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -57,6 +57,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`approaching-above-a-target`](#approaching-above-a-target) | execute | Moves the hand to hover a set clearance above a target's oriented box, rising in place first and keeping the hand's… | any |
 | [`executing-feature-mating`](#executing-feature-mating) | execute | Executes a supplied feature-mating plan for an already-held rigid object. | any |
 | [`executing-held-object-motion`](#executing-held-object-motion) | execute | Executes an ordered, collision-aware pose sequence for an already-grasped rigid object without releasing it. | any |
+| [`grasping-a-cable-by-its-plug`](#grasping-a-cable-by-its-plug) | execute | Grasps a cable by the rigid plug at its end rather than by its thin jacket. | any |
 | [`grasping-a-cable-lying-flat`](#grasping-a-cable-lying-flat) | execute | Grasps a thin cable lying flat on a table. | any |
 | [`grasping-container-rims`](#grasping-container-rims) | execute | Grasps a thin-walled open container (box, bin, tray, cup, bowl) by its rim. | any |
 | [`grasping-direct-ik`](#grasping-direct-ik) | execute | Direct IK align-then-descend grasping. | any, *tuned on* panda |
@@ -634,6 +635,21 @@ Executes an ordered, collision-aware pose sequence for an already-grasped rigid 
   - `reoriented`: The held-object waypoint sequence completed while the gripper remained closed.
   - `reached`: Only the first (approach) waypoint of a placement plan was executed; the object is held at the approach pose.
   - `blocked`: A planner refused a waypoint, or a waypoint motion failed before the requested pose was reached.
+
+### grasping-a-cable-by-its-plug
+
+execute · robots: any · tasks: cable-routing · MIT · v0.1.0 · [`SKILL.md`](skills/grasping-a-cable-by-its-plug/SKILL.md) · [upstream](https://github.com/zzigak/yam-arcade/blob/2804ddeb49ca1f00cb61b8a73c65b4a58e0190e7/stations/cables/run.py)
+
+Grasps a cable by the rigid plug at its end rather than by its thin jacket - finds the plug body behind the cable's tip (curve.endpoints, optionally refined by gemini-er.point on the plug and the depth under it), comes down top-down with the jaws closing across the plug's short axis and the fingertips just over the plug's bottom (never over its mid-height, never under the station's tool-centre floor), closes, lifts 4 cm and checks the jaw gap still matches the plug's width (and, given a description, the plug seen to rise in the hand). Use when a charging, USB or audio cable must be picked up to be plugged in or routed and its end has a moulded plug lying flat on the table.
+
+- **In**: -
+- **Out**: `located_by` string, `grasp_point` Vec3, `close_heading_deg` float, `plug_height` float, `plug_width` float, `planned_tool_z` float, `fingertips_over_table` float, `jaw_width` float, `jaw_width_lifted` float, `plug_rise` float, `lift_checked` bool
+- **Calls**: [`gemini-er`](#gemini-er), [`geometry`](#geometry), [`sam3`](#sam3); connector `robot.close_gripper`, `robot.describe_gripper`, `robot.describe_workspace`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`, `robot.set_grip`, `robot.solve_ik`
+- **Scripts**: [`grasp_plug`](skills/grasping-a-cable-by-its-plug/scripts/grasp_plug.py)
+- **Exits**:
+  - `grasped`: The jaws closed on the plug (the gap no more than width_slack, 4 mm, under the plug's width) and still read so after the 4 cm test lift; with a plug_description the plug was also seen at least min_rise (2 cm) up in the hand (lift_checked true). The hand is left lifted, closed on the plug.
+  - `missed`: The descent stopped on the plug or the cable, the jaws closed to their stop or under the plug's width (the jacket or the plug's edge taken), closed further with the lift (the plug slipped out), or the camera saw the plug stay down; the hand opened and stands over the plug. Re-perceive before another try.
+  - `unreachable`: The plug is not resting flat on the table, the fingertips at the tool-centre floor would stand over the plug's mid-height, the plug is wider than the hand opens, no wrist solution reaches it (IK preview), or a rise, the approach, the wrist turn or the descent was refused; `detail` says which.
 
 ### grasping-a-cable-lying-flat
 
