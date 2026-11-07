@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 38 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 39 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -68,6 +68,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`verifying-placement`](#verifying-placement) | verify | Confirms from one RGB-D view that a released object went through an aperture, accepting either that it vanished into… | any |
 | [`centering-a-part-with-the-gripper`](#centering-a-part-with-the-gripper) | recover | Centres a loose part between the jaws without perceiving it. | any |
 | [`returning-to-a-recorded-pose`](#returning-to-a-recorded-pose) | recover | Opens the gripper and drives the arm back to a joint configuration recorded earlier in the episode, then checks from a… | any |
+| [`judging-step-with-before-now-vlm`](#judging-step-with-before-now-vlm) | judge | Judges the current subgoal of a task from camera frames taken before the step and now. | any |
 
 ## Policies
 
@@ -762,6 +763,24 @@ Opens the gripper and drives the arm back to a joint configuration recorded earl
 - **Exits**:
   - `returned`: The arm stands at the recorded joints, every joint within max_error (default 0.08 rad) on a fresh observation, gripper open.
   - `not_returned`: The move was refused or failed, or a joint ended more than max_error off; `detail` says which.
+
+### judging-step-with-before-now-vlm
+
+judge · robots: any · tasks: pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/judging-step-with-before-now-vlm/SKILL.md) · [upstream](https://github.com/NVlabs/VoLoAgent/blob/b4e623079ca8498a16bcd5016920d71f76c44d30/vlm_orchestrator/failure_handlers/vlm.py)
+
+Judges the current subgoal of a task from camera frames taken before the step and now - sends the BEFORE and NOW frames of each camera, the task, the subgoal and the subgoals after it to a VLM that returns a status (complete / in_progress / failure) and an action (next / continue / replan / grasp_tool / place_tool), and routes on the action. Use when a graph must decide after (or during) a step whether to advance, keep going, replan, or recover a wrong object or a wrong destination, with only cameras, after capturing a robot.get_observation before the step.
+
+- **In**: `before` Observation, `task` string, `subgoal` string
+- **Out**: `status` string, `action` string, `reason` string, `grasp_target` string, `place_destination` string, `place_held_object` string
+- **Calls**: [`vlm`](#vlm); connector `robot.get_observation`
+- **Scripts**: [`judge_step`](skills/judging-step-with-before-now-vlm/scripts/judge_step.py)
+- **Exits**:
+  - `complete`: The VLM chose "next" - clear visual evidence in NOW that the subgoal is done (its object at its destination).
+  - `in_progress`: The VLM chose "continue" - not done yet but still achievable, including not started; also any action outside recovery_mode's vocabulary.
+  - `failed`: The VLM chose "replan" - dropped, stuck, no visible progress, or the plan no longer fits the NOW scene; `reason` says which.
+  - `wrong_object`: The VLM chose "grasp_tool" - the hand holds or is closing on an object other than the subgoal's; `grasp_target` names the right one.
+  - `wrong_destination`: The VLM chose "place_tool" - the held object is heading to or was released at another destination; `place_destination` is a freeform phrase for the right one.
+  - `no_verdict`: No camera has RGB in both BEFORE and NOW, vlm.query raised, or its reply had no JSON; nothing was judged (VoLoAgent continued in this case).
 
 ## Policy details
 
