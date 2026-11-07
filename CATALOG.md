@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 62 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 63 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -76,6 +76,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`searching-insertion-spiral`](#searching-insertion-spiral) | execute | Finds an opening the held part or the closed fingertips can enter by probing straight down over a hexagonal grid… | any |
 | [`seating-a-cable-crossing`](#seating-a-cable-crossing) | execute | Streams one planned crossing leg of a cable onto a routing station, lets the rod settle, then LOOKS. | any |
 | [`singulating-by-pushing`](#singulating-by-pushing) | execute | Pushes a target clear of the objects crowding it until a top-down grasp's open fingers fit around it. | any |
+| [`sliding-to-edge-then-picking`](#sliding-to-edge-then-picking) | execute | Picks a flat object too thin to pinch on its support. | any, *tuned on* yam_i2rt |
 | [`stacking-objects`](#stacking-objects) | execute | Stacks the object the hand holds centred on top of a target object. | any |
 | [`tipping-over-a-surface-edge`](#tipping-over-a-surface-edge) | execute | Turn a body over on the surface it rests on instead of carrying it. | any, *tuned on* yam_i2rt, 2 arms, **sim only** |
 | [`transporting-objects`](#transporting-objects) | execute | Move the currently-held object to a destination and release. | any, *tuned on* panda |
@@ -910,6 +911,22 @@ Pushes a target clear of the objects crowding it until a top-down grasp's open f
   - `singulated`: The open fingers of a top-down grasp fit around the target with FIT_MARGIN to spare - already at the start (nothing pushed) or, by the hand's travel, after `pushes` short pushes; re-perceive before grasping.
   - `still_cluttered`: Pushes ran out (max_pushes), a push came up short (under half its length), or no usable heading would increase the fingers' clearance; the hand is open and lifted.
   - `unreachable`: The closed hand fits behind the target in no heading before the first push, the target is wider than the opening along every grasp axis, or a hover, descent or lift was refused; the hand is open.
+
+### sliding-to-edge-then-picking
+
+execute · robots: any, *tuned on* yam_i2rt · tasks: pick-thin-flat, pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/sliding-to-edge-then-picking/SKILL.md) · [upstream](https://github.com/google-research/ravens/blob/master/ravens/tasks/primitives.py)
+
+Picks a flat object too thin to pinch on its support - closed fingers slide it in a straight line until part of it overhangs the support's edge, then the open jaws come down beside the overhang, below the support's top, close on it from its two sides and lift. Use when a slab, card, plate, phone or book lies flat on a table and a top-down pinch cannot reach its sides, a free edge of the support is within reach, the object's OBB comes from a perception skill, the edge from a plane or table boundary (a point, or a point and a direction, world frame), and the hand is empty.
+
+- **In**: `target_obb` OrientedBoundingBox, `edge_point` Vec3
+- **Out**: `overhang_before` float, `overhang_target` float, `slide_planned` float, `slide_achieved` float, `overhang_expected` float, `held_width` float
+- **Calls**: connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_cartesian_until_contact`, `robot.move_to_joints`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`slide_to_edge`](skills/sliding-to-edge-then-picking/scripts/slide_to_edge.py), [`pick_overhang`](skills/sliding-to-edge-then-picking/scripts/pick_overhang.py)
+- **Exits**:
+  - `slid`: (slide only) The hand travelled the planned slide (within 5 mm) and lifted off the slab, or the slab already overhung enough; `plan` holds the pinch. The entry point of pick.
+  - `picked`: The slab was slid until it overhung the edge by about overhang_target, the open jaws came down beside the overhang to the slab's mid-height, closed, and after a 50 mm lift the jaw gap still read wider than closed by more than 4 mm.
+  - `slid_not_picked`: The slide ran but the hand travelled short of it or could not lift off, or the pinch's hover was refused, or the open hand stopped more than 6 mm above the pinch height (a blade on the slab or the support), or the jaws closed on nothing (or lost it in the lift); `detail` says which. The slab may have moved; re-perceive it.
+  - `unreachable`: Nothing moved the slab - its centre is not inside the edge, it is too short across the edge to overhang enough with its centre on the support, too wide for the jaws, more than max_slide from the edge, the IK preview refused the end of the slide or the pinch, the hover was refused for every rotation, or the descent behind it (push) / onto it (press) failed.
 
 ### stacking-objects
 

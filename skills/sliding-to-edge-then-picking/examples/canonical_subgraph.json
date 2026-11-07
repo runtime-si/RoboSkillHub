@@ -1,0 +1,78 @@
+{
+  "skill": "sliding-to-edge-then-picking",
+  "inputs": {
+    "target_obb": "OrientedBoundingBox",
+    "edge_point": "Vec3",
+    "edge_direction": "Vec3"
+  },
+  "outputs": {
+    "overhang_expected": {
+      "$ref": "slide.overhang_expected"
+    },
+    "slide_achieved": {
+      "$ref": "slide.slide_achieved"
+    },
+    "held_width": {
+      "$ref": "pick.held_width"
+    }
+  },
+  "nodes": {
+    "slide": {
+      "type": "script",
+      "script": "scripts/slide_to_edge.py",
+      "inputs": {
+        "target_obb": {
+          "$ref": "in.target_obb"
+        },
+        "edge_point": {
+          "$ref": "in.edge_point"
+        },
+        "edge_direction": {
+          "$ref": "in.edge_direction"
+        },
+        "mode": "push"
+      }
+    },
+    "pick": {
+      "type": "script",
+      "script": "scripts/pick_overhang.py",
+      "inputs": {
+        "plan": {
+          "$ref": "slide.plan"
+        },
+        "slide_route": {
+          "$ref": "slide.route"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "slide"
+    ],
+    [
+      "pick",
+      "END"
+    ]
+  ],
+  "conditional_edges": {
+    "slide": {
+      "router_field": "route",
+      "mapping": {
+        "slid": "pick",
+        "slid_not_picked": "END",
+        "unreachable": "END"
+      }
+    }
+  },
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "picked",
+      "slid_not_picked",
+      "unreachable"
+    ]
+  },
+  "on_error": "unreachable"
+}

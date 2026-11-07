@@ -163,3 +163,8 @@ primitive of visual-pushing-grasping
 BSD-2-Clause, Copyright (c) 2018 Andy Zeng; the file's header lists the
 changes, and the license is
 skills/singulating-by-pushing/LICENSE.visual-pushing-grasping.
+skills/sliding-to-edge-then-picking/scripts/slide_to_edge.py (with its helpers
+slide_edge_common.py and pick_overhang.py) adapts the push primitive of Ravens
+(https://github.com/google-research/ravens, ravens/tasks/primitives.py, push),
+Copyright 2024 The Ravens Authors, Apache-2.0; the file's header lists the
+changes.
