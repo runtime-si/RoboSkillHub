@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-11 tools, 69 skills, 2 policies, 1 recipe and 1 paper.
+11 tools, 70 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -99,6 +99,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`verifying-placement`](#verifying-placement) | verify | Confirms from one RGB-D view that a released object went through an aperture, accepting either that it vanished into… | any |
 | [`centering-a-part-with-the-gripper`](#centering-a-part-with-the-gripper) | recover | Centres a loose part between the jaws without perceiving it. | any |
 | [`returning-to-a-recorded-pose`](#returning-to-a-recorded-pose) | recover | Opens the gripper and drives the arm back to a joint configuration recorded earlier in the episode, then checks from a… | any |
+| [`classifying-failure-type-vlm`](#classifying-failure-type-vlm) | judge | Classifies why a manipulation step failed from camera frames taken before, during (optional, a short video as frames)… | any |
 | [`detecting-subtask-success`](#detecting-subtask-success) | judge | Checks whether a subtask is done from the latest frame of every camera at one moment. | any |
 | [`judging-step-with-before-now-vlm`](#judging-step-with-before-now-vlm) | judge | Judges the current subgoal of a task from camera frames taken before the step and now. | any |
 
@@ -1268,6 +1269,26 @@ Opens the gripper and drives the arm back to a joint configuration recorded earl
 - **Exits**:
   - `returned`: The arm stands at the recorded joints, every joint within max_error (default 0.08 rad) on a fresh observation, gripper open.
   - `not_returned`: The move was refused or failed, or a joint ended more than max_error off; `detail` says which.
+
+### classifying-failure-type-vlm
+
+judge · robots: any · tasks: pick-place, failure-detection · MIT · v0.1.0 · [`SKILL.md`](skills/classifying-failure-type-vlm/SKILL.md) · [upstream](https://github.com/MINT-SJTU/RoboFAC/blob/638eb5320d409e4072710a0db26f1c0d68cef3de/evaluation/eval.py)
+
+Classifies why a manipulation step failed from camera frames taken before, during (optional, a short video as frames) and after it - asks a VLM RoboFAC's failure questions (detection, its six failure types, explanation, high- and low-level correction) together with a routing class and exits on the class - missed_grasp, slipped, wrong_object, misaligned, collision_or_stuck, incomplete, or no_failure - with the VLM's explanation and correction. Use when a graph knows (or suspects) a step went wrong and must pick the recovery that fits the cause, with only cameras, after capturing a robot.get_observation before the step.
+
+- **In**: `before` Observation, `task` string, `step` string
+- **Out**: `failed` bool, `failure_class` string, `robofac_type` string, `misalignment` string, `explanation` string, `correction` string, `low_level_correction` string
+- **Calls**: [`vlm`](#vlm); connector `robot.get_observation`
+- **Scripts**: [`classify_failure_vlm`](skills/classifying-failure-type-vlm/scripts/classify_failure_vlm.py)
+- **Exits**:
+  - `no_failure`: The VLM said the step succeeded (AFTER shows its intended result); the class is ignored.
+  - `missed_grasp`: The gripper closed but the object is not in it - closed beside it or on air, or pushed it away.
+  - `slipped`: The object was held at some point and is no longer in the hand - slipped or fell while lifting or carrying.
+  - `wrong_object`: The robot grasped, moved or holds an object other than the one the task names.
+  - `misaligned`: The right object, the step carried out, but the object or hand ended offset or turned from its target (placed beside the box, tilted); `misalignment` is translation / rotation when RoboFAC's type says which.
+  - `collision_or_stuck`: The hand or the object ran into something (a wall, a fixture, another object, the table) and stopped or jammed.
+  - `incomplete`: The step stopped short or part of it was never done, with no collision and no wrong object.
+  - `no_verdict`: No camera has RGB in both BEFORE and AFTER, vlm.query raised, the reply had no JSON, no success verdict, or a failure with neither a class nor a RoboFAC type that maps to one.
 
 ### detecting-subtask-success
 
