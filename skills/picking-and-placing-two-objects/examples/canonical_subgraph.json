@@ -1,0 +1,63 @@
+{
+  "skill": "picking-and-placing-two-objects",
+  "inputs": {
+    "object_a_obb": "OrientedBoundingBox",
+    "object_b_obb": "OrientedBoundingBox",
+    "place_a": "Vec3",
+    "place_b": "Vec3"
+  },
+  "outputs": {
+    "arm_a": {
+      "$ref": "pick_place.arm_a"
+    },
+    "arm_b": {
+      "$ref": "pick_place.arm_b"
+    },
+    "failed_arms": {
+      "$ref": "pick_place.failed_arms"
+    },
+    "min_hand_gap_m": {
+      "$ref": "pick_place.min_hand_gap_m"
+    }
+  },
+  "nodes": {
+    "pick_place": {
+      "type": "script",
+      "script": "scripts/pick_place_two.py",
+      "inputs": {
+        "object_a_obb": {
+          "$ref": "in.object_a_obb"
+        },
+        "object_b_obb": {
+          "$ref": "in.object_b_obb"
+        },
+        "place_a": {
+          "$ref": "in.place_a"
+        },
+        "place_b": {
+          "$ref": "in.place_b"
+        },
+        "arm_ids": [0, 1]
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "pick_place"
+    ],
+    [
+      "pick_place",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "both_placed",
+      "one_placed",
+      "none_placed"
+    ]
+  },
+  "on_error": "unreachable"
+}
