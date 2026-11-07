@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 60 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 61 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -79,6 +79,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`tipping-over-a-surface-edge`](#tipping-over-a-surface-edge) | execute | Turn a body over on the surface it rests on instead of carrying it. | any, *tuned on* yam_i2rt, 2 arms, **sim only** |
 | [`transporting-objects`](#transporting-objects) | execute | Move the currently-held object to a destination and release. | any, *tuned on* panda |
 | [`wiping-a-region`](#wiping-a-region) | execute | Wipes a flat region of a surface with back-and-forth strokes. | any |
+| [`checking-dual-arm-clearance`](#checking-dual-arm-clearance) | verify | Predicts, before a move is sent, the minimum clearance between the two arms along the planned path. | any, 2 arms |
 | [`checking-spatial-relations`](#checking-spatial-relations) | verify | Decides from one RGB-D view whether a spatial relation holds between two seen objects. | any |
 | [`classifying-failure-from-proprioception`](#classifying-failure-from-proprioception) | verify | Classifies the last moments of a manipulation step from proprioception alone. | any |
 | [`previewing-target-overlay`](#previewing-target-overlay) | verify | Checks a target gripper pose before the arm moves. | any |
@@ -952,6 +953,21 @@ Wipes a flat region of a surface with back-and-forth strokes - the hand comes do
   - `wiped`: The measured strokes swept at least min_coverage (default 0.95) of the region at the wiping height and the hand lifted away; `coverage` says how much.
   - `partial`: Some passes ran but the swept fraction is under min_coverage (passes out of reach, blocked, stopped part way) or the last lift failed; `detail` lists each skipped or stopped pass.
   - `unreachable`: No pass ran - the first hover was refused with every rotation, or every pass was out of reach, blocked or refused; nothing was wiped.
+
+### checking-dual-arm-clearance
+
+verify · robots: any, 2 arms · tasks: bimanual, pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/checking-dual-arm-clearance/SKILL.md) · [upstream](https://github.com/nssmd/RoboRSI/tree/main/roborsi/embodied/skills/base/check_dual_arm_collision/robotwin)
+
+Predicts, before a move is sent, the minimum clearance between the two arms along the planned path - both arms' joints and tool poses are read together, each planned leg (joint waypoints, or tool poses solved with the arm's IK every 2 cm) is sampled every 0.01 rad, and at every sample a capsule model of the YAM's links (plus held-object spheres) gives the closest cross-arm pair - and routes clear / too_close / unknown with the minimum distance, where along the path it falls and the closest link pair. Use when a bimanual station is about to move one arm near the other (a handover, a two-hand lift, a place beside the other hand) and its planner does not see the other arm, with both arms addressable by arm_id.
+
+- **In**: -
+- **Out**: `min_clearance_m` float, `closest_link_a` string, `closest_link_b` string, `closest_point_a` Vec3, `closest_point_b` Vec3, `at_fraction` float, `start_clearance_m` float, `end_clearance_m` float, `samples` int, `model_error_m` float
+- **Calls**: connector `robot.describe_arm`, `robot.forward_kinematics`, `robot.get_observation`, `robot.solve_ik`
+- **Scripts**: [`check_clearance`](skills/checking-dual-arm-clearance/scripts/check_clearance.py)
+- **Exits**:
+  - `clear`: The capsule model's smallest cross-arm clearance over every sample of the planned motion is at least too_close_m (default 5 mm); min_clearance_m, closest_link_a / closest_link_b and at_fraction say where it is tightest.
+  - `too_close`: Somewhere along the planned motion (or now, with no plan given) the capsules come within too_close_m or overlap (negative min_clearance_m); at_fraction and closest_link_a / closest_link_b say where and which links.
+  - `unknown`: The check could not be made - a second arm is not reported or reads as the first, an arm has no joint reading or not 6 joints, the connector's forward kinematics disagrees with the YAM model by more than 5 mm, a pose waypoint has no IK solution within the servo's tolerance or the IK changed branch along a straight leg, or the inputs conflict; `detail` says which.
 
 ### checking-spatial-relations
 

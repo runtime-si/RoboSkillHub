@@ -1,0 +1,49 @@
+{
+  "skill": "checking-dual-arm-clearance",
+  "inputs": {
+    "poses_a": "PoseSequence"
+  },
+  "outputs": {
+    "min_clearance_m": {
+      "$ref": "check.min_clearance_m"
+    },
+    "closest_link_a": {
+      "$ref": "check.closest_link_a"
+    },
+    "closest_link_b": {
+      "$ref": "check.closest_link_b"
+    },
+    "at_fraction": {
+      "$ref": "check.at_fraction"
+    }
+  },
+  "nodes": {
+    "check": {
+      "type": "script",
+      "script": "scripts/check_clearance.py",
+      "inputs": {
+        "poses_a": {
+          "$ref": "in.poses_a"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "check"
+    ],
+    [
+      "check",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "clear",
+      "too_close"
+    ]
+  },
+  "on_error": "unknown"
+}
