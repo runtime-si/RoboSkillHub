@@ -130,3 +130,8 @@ from RoboTwin (https://github.com/robotwin-Platform/RoboTwin,
 envs/place_dual_shoes.py and envs/pick_dual_bottles.py), MIT, Copyright (c)
 2025 Tianxing Chen; the file's header lists the changes, and RoboTwin's
 license is skills/picking-and-placing-two-objects/LICENSE.robotwin.
+skills/holding-steady-while-other-arm-acts/scripts/hold.py, act.py and
+release.py are adapted from RoboTwin (https://github.com/robotwin-Platform/RoboTwin,
+envs/put_object_cabinet.py), MIT, Copyright (c) 2025 Tianxing Chen; each
+file's header lists the changes, and the license is
+skills/holding-steady-while-other-arm-acts/LICENSE.robotwin.
