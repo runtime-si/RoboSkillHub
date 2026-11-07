@@ -90,3 +90,8 @@ adapted from VoLoAgent (https://github.com/NVlabs/VoLoAgent,
 vlm_orchestrator/failure_handlers/signal_detector.py, FailureSignalDetector and
 SignalConfig), Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES, Apache-2.0;
 the file's header lists the changes.
+skills/planning-articulation-opening/scripts/plan_articulation_opening.py is
+adapted from MOSART (https://github.com/mosart-system/code,
+modules/motion_planning.py, Motion_Plan_Module.get_motion_plan and its SeqIK
+loop), MIT, Copyright (c) 2024 Arjun Gupta; the file's header lists the
+changes, and the license is skills/planning-articulation-opening/LICENSE.mosart.
