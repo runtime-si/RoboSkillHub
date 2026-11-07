@@ -85,6 +85,19 @@ FAMILY_WORDS: dict[str, tuple[str, ...]] = {
         "归类",
     ),
     "reorientation": ("flip", "tip", "reorient", "upright", "overturn", "翻", "立起"),
+    "articulated": (
+        "drawer",
+        "door",
+        "cabinet",
+        "lid",
+        "hinge",
+        "knob",
+        "handle",
+        "抽屉",
+        "柜门",
+        "门",
+        "盖",
+    ),
 }
 """Instruction words that name a task family. An instruction says "put the block
 in the bowl"; a skill says "move an object into a container". The family is the

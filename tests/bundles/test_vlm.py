@@ -97,7 +97,7 @@ def test_openrouter_is_default_with_data_url_image(vlm, image, monkeypatch):
     assert captured["auth"] == "Bearer sk-router"
     payload = captured["payload"]
     assert payload["model"] == vlm.DEFAULT_MODEL == "gemini-3.1-flash-lite-preview"
-    assert payload["max_tokens"] == 1024
+    assert payload["max_tokens"] == vlm._MAX_TOKENS == 4096
     assert payload["temperature"] == 0.0
 
     content = payload["messages"][0]["content"]
@@ -109,6 +109,17 @@ def test_openrouter_is_default_with_data_url_image(vlm, image, monkeypatch):
         np.asarray(Image.open(io.BytesIO(raw)).convert("RGB")),
         image,
     )
+
+
+def test_max_tokens_env_override(vlm, image, monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-router")
+    captured = _mock_openrouter(vlm, monkeypatch, reply="ok")
+    monkeypatch.setenv("GAP_VLM_MAX_TOKENS", "8192")
+    vlm.query(prompt="q", image=image)
+    assert captured["payload"]["max_tokens"] == 8192
+    monkeypatch.setenv("GAP_VLM_MAX_TOKENS", "not-a-number")
+    vlm.query(prompt="q", image=image)
+    assert captured["payload"]["max_tokens"] == vlm._MAX_TOKENS
 
 
 def test_openrouter_model_env_override_and_multiple_images(vlm, image, monkeypatch):
@@ -208,10 +219,10 @@ def test_vertex_provider_routes_gemini_models_to_genai(vlm, image, monkeypatch):
     }
     assert captured["model"] == "gemini-3-flash-preview"
     assert captured["contents"][0] == "hi"
-    # Deterministic decoding — parity with the dev servicer's production
-    # path (temperature 0.0, max_tokens 1024).
+    # Deterministic decoding, as the dev servicer's production path; the cap
+    # is raised from its 1024 so a thinking model's answer is not cut (#20).
     assert captured["config"].temperature == 0.0
-    assert captured["config"].max_output_tokens == 1024
+    assert captured["config"].max_output_tokens == 4096
 
 
 def test_vertex_gemini_retries_transient_failures(vlm, image, monkeypatch):
