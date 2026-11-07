@@ -1,0 +1,22 @@
+{
+  "skill": "classifying-failure-from-proprioception",
+  "inputs": {},
+  "outputs": {
+    "state": {"$ref": "classify.state"},
+    "reason": {"$ref": "classify.reason"},
+    "confidence": {"$ref": "classify.confidence"}
+  },
+  "nodes": {
+    "classify": {
+      "type": "script",
+      "script": "scripts/classify_failure.py",
+      "inputs": {}
+    }
+  },
+  "edges": [["START", "classify"], ["classify", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["ok", "stall", "never_gripped", "fumble", "drop", "stuck_mid_air"]
+  },
+  "on_error": "unknown"
+}
