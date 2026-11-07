@@ -37,9 +37,8 @@
     "router_field": "route",
     "success_values": [
       "holds",
-      "does_not_hold",
-      "not_visible"
+      "does_not_hold"
     ]
   },
-  "on_error": "failed"
+  "on_error": "not_visible"
 }
