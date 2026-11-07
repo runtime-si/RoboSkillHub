@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 49 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 50 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -44,6 +44,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`registering-held-objects`](#registering-held-objects) | perceive | Reobserves a grasped rigid object from the wrist cameras, estimates its functional feature in the TCP frame, and fits… | any |
 | [`tracking-objects`](#tracking-objects) | perceive | Long-running skill that drives the SAM3 tracker from the graph-scoped observation stream. | any |
 | [`computing-feature-mating-poses`](#computing-feature-mating-poses) | plan | Computes approach, engaged, and mate TCP poses from a held feature in the hand and a fixture feature, resolving free… | any |
+| [`planning-articulation-opening`](#planning-articulation-opening) | plan | Plans the hand's path that opens a drawer or a door it already holds by the handle. | any |
 | [`planning-held-object-motion`](#planning-held-object-motion) | plan | Plans the carry and engagement phases for an already-held rigid object. | any |
 | [`grasping-concave-contour`](#grasping-concave-contour) | propose | Grasp an awkward rigid part by the waists in its own silhouette. | any |
 | [`proposing-short-axis-grasps`](#proposing-short-axis-grasps) | propose | Propose top-down grasps whose jaws close ACROSS an elongated object's short axis, derived from its oriented box. | any, **sim only** |
@@ -428,6 +429,20 @@ Computes approach, engaged, and mate TCP poses from a held feature in the hand a
 - **Exits**:
   - `computed`: A valid mate was computed.
   - `infeasible`: The fixture feature has no directed axis or the feature dimensions cannot satisfy the relation.
+
+### planning-articulation-opening
+
+plan · robots: any · tasks: articulated · MIT · v0.1.0 · [`SKILL.md`](skills/planning-articulation-opening/SKILL.md) · [upstream](https://github.com/mosart-system/code/blob/main/modules/motion_planning.py)
+
+Plans the hand's path that opens a drawer or a door it already holds by the handle - a straight pull for a prismatic joint, or an arc about the hinge that turns the hand with the door so its grip on the handle never changes - and checks every waypoint with the arm's IK, chained from the previous solution, returning the reachable poses and joint trajectory. Use when a handle is grasped (or about to be) and its articulation is known (pull direction and distance, or hinge point, axis and opening angle), before an execution skill moves the arm along the path.
+
+- **In**: `handle_pose` Se3Pose, `joint_type` string
+- **Out**: `waypoints` PoseSequence, `all_poses` PoseSequence, `joint_trajectory` Trajectory, `reachable_fraction` float, `opening` float, `planned_opening` float, `radius` float
+- **Calls**: connector `robot.solve_ik`
+- **Scripts**: [`plan_articulation_opening`](skills/planning-articulation-opening/scripts/plan_articulation_opening.py)
+- **Exits**:
+  - `planned`: Every waypoint from the grasp to the full opening solved (or, with min_fraction under 1, the reachable prefix covers at least that share of the steps); `waypoints` and `joint_trajectory` hold the executable prefix.
+  - `unreachable`: The grasp pose itself did not solve, or the reachable prefix falls short of min_fraction; `waypoints` holds whatever prefix did solve (possibly none), `reachable` marks every waypoint, and `detail` names the first failure.
 
 ### planning-held-object-motion
 

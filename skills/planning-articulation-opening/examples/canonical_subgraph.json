@@ -1,0 +1,60 @@
+{
+  "skill": "planning-articulation-opening",
+  "inputs": {
+    "handle_pose": "Se3Pose",
+    "joint_type": "string",
+    "pull_direction": "Vec3",
+    "distance": "float"
+  },
+  "outputs": {
+    "waypoints": {
+      "$ref": "plan.waypoints"
+    },
+    "joint_trajectory": {
+      "$ref": "plan.joint_trajectory"
+    },
+    "reachable": {
+      "$ref": "plan.reachable"
+    },
+    "opening": {
+      "$ref": "plan.opening"
+    }
+  },
+  "nodes": {
+    "plan": {
+      "type": "script",
+      "script": "scripts/plan_articulation_opening.py",
+      "inputs": {
+        "handle_pose": {
+          "$ref": "in.handle_pose"
+        },
+        "joint_type": {
+          "$ref": "in.joint_type"
+        },
+        "pull_direction": {
+          "$ref": "in.pull_direction"
+        },
+        "distance": {
+          "$ref": "in.distance"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "plan"
+    ],
+    [
+      "plan",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "planned"
+    ]
+  },
+  "on_error": "unreachable"
+}
