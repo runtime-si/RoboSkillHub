@@ -66,6 +66,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`verifying-a-cable-route`](#verifying-a-cable-route) | verify | Judge a finished cable route from a camera rather than from an evaluator. | any |
 | [`verifying-grasps`](#verifying-grasps) | verify | Three independent checks on one grasp attempt. | any |
 | [`verifying-placement`](#verifying-placement) | verify | Confirms from one RGB-D view that a released object went through an aperture, accepting either that it vanished into… | any |
+| [`centering-a-part-with-the-gripper`](#centering-a-part-with-the-gripper) | recover | Centres a loose part between the jaws without perceiving it. | any |
 | [`returning-to-a-recorded-pose`](#returning-to-a-recorded-pose) | recover | Opens the gripper and drives the arm back to a joint configuration recorded earlier in the episode, then checks from a… | any |
 
 ## Policies
@@ -732,6 +733,21 @@ Confirms from one RGB-D view that a released object went through an aperture, ac
 - **Exits**:
   - `verified`: The object is no longer visible, or its visible centre is below the rim within the aperture footprint.
   - `not_placed`: The object is still visible above the rim or outside the aperture footprint, or too little depth was valid to confirm.
+
+### centering-a-part-with-the-gripper
+
+recover · robots: any · tasks: pick-place, insertion · MIT · v0.1.0 · [`SKILL.md`](skills/centering-a-part-with-the-gripper/SKILL.md) · [upstream](https://github.com/o2ac/o2ac-ur/blob/main/catkin_ws/src/o2ac_routines/src/o2ac_routines/common.py)
+
+Centres a loose part between the jaws without perceiving it - closes on it, opens, turns the wrist a quarter turn about the hand's approach axis, closes again (each close squares the part up along one axis), opens and turns back; fails when the jaw gap after a close says nothing is between the pads. Use when the hand already stands around a small part whose estimated position is a few millimetres off (before a pick that must be centred, an insertion of a plug or peg, or threading a ring held in the fingers), the part is free to slide on its support, and the hand is open or empty.
+
+- **In**: -
+- **Out**: `first_width` float, `second_width` float, `turned_deg` float, `turned_by` string, `returned` bool
+- **Calls**: connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose_cartesian`, `robot.move_to_joints`, `robot.open_gripper`
+- **Scripts**: [`center_with_gripper`](skills/centering-a-part-with-the-gripper/scripts/center_with_gripper.py)
+- **Exits**:
+  - `centered`: Both closes ended on something (the jaw gap above the closed stop by more than min_held_width, or unread), the wrist turn between them arrived, and the hand opened again (kept closed with release=false); `returned` says whether it turned back.
+  - `nothing_caught`: A close ended within min_held_width of the closed stop, so nothing was between the pads; the hand is open and, after the turn, turned back when return_to_start.
+  - `unreachable`: Neither quarter turn arrived, by pose or by the last joint (refused, or the read-back rotation more than rotation_tolerance_deg or the tool centre more than position_tolerance off); the hand is open and was sent back to its start rotation.
 
 ### returning-to-a-recorded-pose
 

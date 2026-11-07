@@ -1,0 +1,18 @@
+{
+  "skill": "centering-a-part-with-the-gripper",
+  "inputs": {},
+  "outputs": {
+    "first_width": {"$ref": "center.first_width"},
+    "second_width": {"$ref": "center.second_width"}
+  },
+  "nodes": {
+    "center": {
+      "type": "script",
+      "script": "scripts/center_with_gripper.py",
+      "inputs": {}
+    }
+  },
+  "edges": [["START", "center"], ["center", "END"]],
+  "exit": {"router_field": "route", "success_values": ["centered", "nothing_caught"]},
+  "on_error": "unreachable"
+}
