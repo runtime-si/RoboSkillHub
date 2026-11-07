@@ -1,0 +1,23 @@
+{
+  "skill": "stacking-objects",
+  "inputs": {"target_obb": "OrientedBoundingBox", "held_obb": "OrientedBoundingBox"},
+  "outputs": {
+    "released": {"$ref": "stack.released"},
+    "yaw_turn_deg": {"$ref": "stack.yaw_turn_deg"},
+    "contact_offset": {"$ref": "stack.contact_offset"},
+    "stacked_position": {"$ref": "stack.stacked_position"}
+  },
+  "nodes": {
+    "stack": {
+      "type": "script",
+      "script": "scripts/stack_on_object.py",
+      "inputs": {
+        "target_obb": {"$ref": "in.target_obb"},
+        "held_obb": {"$ref": "in.held_obb"}
+      }
+    }
+  },
+  "edges": [["START", "stack"], ["stack", "END"]],
+  "exit": {"router_field": "route", "success_values": ["stacked", "misaligned"]},
+  "on_error": "blocked"
+}
