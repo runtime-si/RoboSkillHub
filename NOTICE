@@ -120,3 +120,8 @@ ImageEditApi.get_raw_images / world_to_image / _draw_point_with_label /
 _draw_pose / feedback), MIT, Copyright (c) 2026 The MAESTRO Authors; the
 file's header lists the changes, and the license is
 skills/previewing-target-overlay/LICENSE.maestro.
+skills/detecting-subtask-success/scripts/detect_success.py is adapted from the
+Gemini Robotics SDK (https://github.com/google-deepmind/gemini-robotics-sdk,
+safari_sdk/agent/framework/tools/success_detection.py,
+SubtaskSuccessDetectorV4 and _GUIDED_THINKING_SD_QUESTIONS), Copyright 2025
+Google LLC, Apache-2.0; the file's header lists the changes.

@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 54 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 55 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -83,6 +83,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`verifying-placement`](#verifying-placement) | verify | Confirms from one RGB-D view that a released object went through an aperture, accepting either that it vanished into… | any |
 | [`centering-a-part-with-the-gripper`](#centering-a-part-with-the-gripper) | recover | Centres a loose part between the jaws without perceiving it. | any |
 | [`returning-to-a-recorded-pose`](#returning-to-a-recorded-pose) | recover | Opens the gripper and drives the arm back to a joint configuration recorded earlier in the episode, then checks from a… | any |
+| [`detecting-subtask-success`](#detecting-subtask-success) | judge | Checks whether a subtask is done from the latest frame of every camera at one moment. | any |
 | [`judging-step-with-before-now-vlm`](#judging-step-with-before-now-vlm) | judge | Judges the current subgoal of a task from camera frames taken before the step and now. | any |
 
 ## Policies
@@ -1008,6 +1009,22 @@ Opens the gripper and drives the arm back to a joint configuration recorded earl
 - **Exits**:
   - `returned`: The arm stands at the recorded joints, every joint within max_error (default 0.08 rad) on a fresh observation, gripper open.
   - `not_returned`: The move was refused or failed, or a joint ended more than max_error off; `detail` says which.
+
+### detecting-subtask-success
+
+judge · robots: any · tasks: pick-place, sorting, insertion, cable-routing · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/detecting-subtask-success/SKILL.md) · [upstream](https://github.com/google-deepmind/gemini-robotics-sdk/blob/26b49f1a15b96f1e65b05160f5b991d6167aba74/safari_sdk/agent/framework/tools/success_detection.py)
+
+Checks whether a subtask is done from the latest frame of every camera at one moment - sends them to a VLM with the Gemini Robotics SDK's four guided questions (object states, relations, required end state, differences) and reads its "FINAL ANSWER yes / no", once or polling fresh frames until yes or a timeout. Use when a graph needs a yes/no "is &lt;subtask&gt; done now?" gate after a step or while a policy runs, with only cameras and no frame from before the step; use judging-step-with-before-now-vlm instead when the decision needs a BEFORE frame or a recovery choice.
+
+- **In**: `subtask` string
+- **Out**: `success` bool, `answer` string, `checks` int, `follow_ups` int, `errors` int, `elapsed_s` float, `reason` string, `raw` string
+- **Calls**: [`vlm`](#vlm); connector `robot.get_observation`
+- **Scripts**: [`detect_success`](skills/detecting-subtask-success/scripts/detect_success.py)
+- **Exits**:
+  - `succeeded`: The VLM's reply ended in FINAL ANSWER yes for the latest frames (on the first check, or on any check before timeout_s).
+  - `not_yet`: Asked once (timeout_s 0) and the reply was FINAL ANSWER no, or had no FINAL ANSWER even after the follow-up (read as no, as upstream did).
+  - `timed_out`: timeout_s &gt; 0 passed without a yes; `checks` replies were all no or unparsed.
+  - `no_view`: Nothing was judged - no camera had RGB in any observation, or every vlm.query call raised; `reason` says which.
 
 ### judging-step-with-before-now-vlm
 
