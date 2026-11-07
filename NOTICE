@@ -24,6 +24,12 @@ skills/pushing-objects/scripts/push_object.py is adapted from RoboRSI
 roborsi/embodied/skills/base/push_object/libero/policy.py), Apache-2.0; the
 file's header lists the changes.
 
+skills/grasping-container-rims/scripts/grasp_rim.py is adapted from RoboRSI
+(https://github.com/nssmd/RoboRSI,
+roborsi/embodied/skills/base/grasp_rim/robotwin/policy.py and
+roborsi/embodied/skills/base/_lib/robotwin/_perception.py, container_opening),
+Apache-2.0; the file's header lists the changes.
+
 skills/centering-a-part-with-the-gripper/scripts/center_with_gripper.py is
 adapted from o2ac-ur (https://github.com/o2ac/o2ac-ur,
 catkin_ws/src/o2ac_routines/src/o2ac_routines/common.py, center_with_gripper

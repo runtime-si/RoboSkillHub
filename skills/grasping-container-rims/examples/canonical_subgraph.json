@@ -1,0 +1,46 @@
+{
+  "skill": "grasping-container-rims",
+  "inputs": {
+    "container_obb": "OrientedBoundingBox"
+  },
+  "outputs": {
+    "side": {
+      "$ref": "grasp.side"
+    },
+    "grip_width": {
+      "$ref": "grasp.grip_width"
+    },
+    "held_width": {
+      "$ref": "grasp.held_width"
+    }
+  },
+  "nodes": {
+    "grasp": {
+      "type": "script",
+      "script": "scripts/grasp_rim.py",
+      "inputs": {
+        "container_obb": {
+          "$ref": "in.container_obb"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "grasp"
+    ],
+    [
+      "grasp",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "grasped",
+      "missed"
+    ]
+  },
+  "on_error": "unreachable"
+}
