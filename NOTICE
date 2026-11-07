@@ -30,3 +30,8 @@ catkin_ws/src/o2ac_routines/src/o2ac_routines/common.py, center_with_gripper
 and simple_gripper_check), MIT License, Copyright (c) 2020 Team O2AC; the
 file's header lists the changes, and the license is
 skills/centering-a-part-with-the-gripper/LICENSE.o2ac.
+skills/judging-step-with-before-now-vlm/scripts/judge_step.py is adapted from
+VoLoAgent (https://github.com/NVlabs/VoLoAgent,
+vlm_orchestrator/failure_handlers/vlm.py and the BEFORE / NOW labelling of
+vlm_orchestrator/strategies/subgoal_base.py), Copyright (c) 2026 NVIDIA
+CORPORATION & AFFILIATES, Apache-2.0; the file's header lists the changes.

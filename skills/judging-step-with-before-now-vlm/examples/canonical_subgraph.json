@@ -1,0 +1,60 @@
+{
+  "skill": "judging-step-with-before-now-vlm",
+  "inputs": {
+    "before": "Observation",
+    "task": "string",
+    "subgoal": "string"
+  },
+  "outputs": {
+    "status": {
+      "$ref": "judge.status"
+    },
+    "reason": {
+      "$ref": "judge.reason"
+    },
+    "grasp_target": {
+      "$ref": "judge.grasp_target"
+    },
+    "place_destination": {
+      "$ref": "judge.place_destination"
+    }
+  },
+  "nodes": {
+    "judge": {
+      "type": "script",
+      "script": "scripts/judge_step.py",
+      "inputs": {
+        "before": {
+          "$ref": "in.before"
+        },
+        "task": {
+          "$ref": "in.task"
+        },
+        "subgoal": {
+          "$ref": "in.subgoal"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "judge"
+    ],
+    [
+      "judge",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "complete",
+      "in_progress",
+      "failed",
+      "wrong_object",
+      "wrong_destination"
+    ]
+  },
+  "on_error": "no_verdict"
+}
