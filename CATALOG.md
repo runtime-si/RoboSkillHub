@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 54 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 53 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -76,7 +76,6 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`wiping-a-region`](#wiping-a-region) | execute | Wipes a flat region of a surface with back-and-forth strokes. | any |
 | [`checking-spatial-relations`](#checking-spatial-relations) | verify | Decides from one RGB-D view whether a spatial relation holds between two seen objects. | any |
 | [`classifying-failure-from-proprioception`](#classifying-failure-from-proprioception) | verify | Classifies the last moments of a manipulation step from proprioception alone. | any |
-| [`previewing-target-overlay`](#previewing-target-overlay) | verify | Checks a target gripper pose before the arm moves. | any |
 | [`verifying-a-cable-route`](#verifying-a-cable-route) | verify | Judge a finished cable route from a camera rather than from an evaluator. | any |
 | [`verifying-grasps`](#verifying-grasps) | verify | Three independent checks on one grasp attempt. | any |
 | [`verifying-insertion-by-probe-push`](#verifying-insertion-by-probe-push) | verify | Checks whether a held part is seated after an insertion by pushing it a few millimetres further along the insertion… | any |
@@ -902,21 +901,6 @@ Classifies the last moments of a manipulation step from proprioception alone - t
   - `drop`: The hand opened while the tool centre was more than 60 mm over table level, or a held object's jaw closed to its stop with the hand still shut above carrying height (a slip).
   - `stuck_mid_air`: The hand is closed on something above carrying height but the arm is frozen short of its commanded target.
   - `unknown`: The arm could not be read, there were fewer than two samples, or no surface height was given or described; nothing was classified.
-
-### previewing-target-overlay
-
-verify · robots: any · tasks: pick-place, cable-routing, insertion · MIT · v0.1.0 · [`SKILL.md`](skills/previewing-target-overlay/SKILL.md) · [upstream](https://github.com/penn-pal-lab/maestro/blob/e60d326233a238ddc496bf7a08acb7a278e9e66d/maestro/api.py)
-
-Checks a target gripper pose before the arm moves - projects the pose into every camera that sees it (tool centre, open jaw line with its fingers at the hand's span, approach axis), draws it as MAESTRO's image editor does, dashes what lies behind the depth image's surface, and asks the VLM a yes/no question - is this target right for the stated intent (e.g. "grasp the cube from above")? Use when a perceived or computed grasp, place or approach pose should be sanity-checked against the scene (wrong object, wrong side, mid-air, inside the table) before committing a move, with only cameras and the hand's own description.
-
-- **In**: `target_pose` Se3Pose, `intent` string
-- **Out**: `approved` bool, `answer` string, `reason` string
-- **Calls**: [`vlm`](#vlm); connector `robot.describe_gripper`, `robot.get_observation`, `robot.grasp_frame`
-- **Scripts**: [`preview_target`](skills/previewing-target-overlay/scripts/preview_target.py)
-- **Exits**:
-  - `approved`: The VLM answered yes - on the overlay the target fits the intent (right object or part, right side, right height); `answer` is its one-line justification.
-  - `rejected`: The VLM answered no; `answer` says why (wrong object, approach, height ...). Nothing moved.
-  - `no_view`: No camera with RGB, intrinsics and pose has the tool centre inside its image (or in front of it), or vlm.query_yes_no raised; nothing was judged and `reason` says which.
 
 ### verifying-a-cable-route
 

@@ -1,0 +1,47 @@
+{
+  "skill": "detecting-subtask-success",
+  "inputs": {
+    "subtask": "string"
+  },
+  "outputs": {
+    "success": {
+      "$ref": "detect.success"
+    },
+    "answer": {
+      "$ref": "detect.answer"
+    },
+    "reason": {
+      "$ref": "detect.reason"
+    }
+  },
+  "nodes": {
+    "detect": {
+      "type": "script",
+      "script": "scripts/detect_success.py",
+      "inputs": {
+        "subtask": {
+          "$ref": "in.subtask"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "detect"
+    ],
+    [
+      "detect",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "succeeded",
+      "not_yet",
+      "timed_out"
+    ]
+  },
+  "on_error": "no_view"
+}
