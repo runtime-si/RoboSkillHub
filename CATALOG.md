@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 63 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 64 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -44,6 +44,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`registering-held-objects`](#registering-held-objects) | perceive | Reobserves a grasped rigid object from the wrist cameras, estimates its functional feature in the TCP frame, and fits… | any |
 | [`tracking-objects`](#tracking-objects) | perceive | Long-running skill that drives the SAM3 tracker from the graph-scoped observation stream. | any |
 | [`computing-feature-mating-poses`](#computing-feature-mating-poses) | plan | Computes approach, engaged, and mate TCP poses from a held feature in the hand and a fixture feature, resolving free… | any |
+| [`executing-keypoint-motion`](#executing-keypoint-motion) | plan | Plans and executes a one-step manipulation from a language instruction with MOKA's mark-based visual prompting. | any |
 | [`planning-articulation-opening`](#planning-articulation-opening) | plan | Plans the hand's path that opens a drawer or a door it already holds by the handle. | any |
 | [`planning-held-object-motion`](#planning-held-object-motion) | plan | Plans the carry and engagement phases for an already-held rigid object. | any |
 | [`grasping-concave-contour`](#grasping-concave-contour) | propose | Grasp an awkward rigid part by the waists in its own silhouette. | any |
@@ -442,6 +443,23 @@ Computes approach, engaged, and mate TCP poses from a held feature in the hand a
 - **Exits**:
   - `computed`: A valid mate was computed.
   - `infeasible`: The fixture feature has no directed axis or the feature dimensions cannot satisfy the relation.
+
+### executing-keypoint-motion
+
+plan · robots: any · tasks: tool-use, pick-place · MIT · v0.1.0 · [`SKILL.md`](skills/executing-keypoint-motion/SKILL.md) · [upstream](https://github.com/moka-manipulation/moka/blob/main/moka/policies/franka_policy.py)
+
+Plans and executes a one-step manipulation from a language instruction with MOKA's mark-based visual prompting - candidate keypoints on the named objects and a lettered waypoint grid are drawn on the overhead image, a VLM picks the grasp point, the function point, the target point and the pre/post-contact waypoint tiles and heights, depth makes them world points, and the arm grasps the object at the grasp point (or closes its hand) and carries the function point through pre-contact, target and post-contact. Use when a short instruction such as "push the cube to the right", "press the button", "sweep the cable aside with the stick" or "put the plug on the board" must become one motion without a task-specific skill, with a calibrated overhead RGB-D camera and a hand that is empty.
+
+- **In**: `observation` Observation, `instruction` str
+- **Out**: `final_function_point` Vec3, `hand_offset` Vec3, `held` bool
+- **Calls**: [`gemini-er`](#gemini-er), [`sam3`](#sam3), [`vlm`](#vlm); connector `robot.close_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.open_gripper`
+- **Scripts**: [`plan_keypoint_motion`](skills/executing-keypoint-motion/scripts/plan_keypoint_motion.py), [`execute_keypoint_motion`](skills/executing-keypoint-motion/scripts/execute_keypoint_motion.py)
+- **Exits**:
+  - `planned`: (plan only) The VLM's reply named offered marks and tiles, every chosen keypoint has depth, and `plan` holds the world points, heights, mode and hand heading; execute follows.
+  - `no_plan`: (plan only) The instruction names no object, an object was not found (sam3 / gemini-er returned nothing), no candidate had depth, or every VLM reply (up to `attempts`) was unparsable or picked marks that were not offered; `detail` says which. Nothing moved.
+  - `done`: (execute only) Every phase reached its point within reach_tolerance (read back from the arm), including the grasp (jaws above empty_fraction) when there is one; the hand then released and lifted. This is what the hand did, not what the object did - re-perceive before relying on it.
+  - `grasp_failed`: (execute only) The jaws closed to empty_fraction or less at the grasp keypoint; the hand opened and rose back to the safe height.
+  - `unreachable`: (execute only) A free move (the first lift, a hover above the grasp or the pre-contact point) or the descent to the grasp was refused or ended off with every rotation tried (nothing touched), or a contact move (pre-contact, target, post-contact) stopped short; `detail` names the phase. After a contact-phase shortfall the hand still released and lifted.
 
 ### planning-articulation-opening
 
