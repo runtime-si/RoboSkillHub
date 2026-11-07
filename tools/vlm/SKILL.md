@@ -13,7 +13,7 @@ metadata:
   hub:
     stage: perceive
     embodiments: [any]
-    version: 0.1.0
+    version: 0.1.1
     provenance:
       code: https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/tools/vlm
       upstream_license: MIT
@@ -53,6 +53,10 @@ a per-call `provider=` override.
 |--------------|-----------------------------------------------------|-----------------------------------------------------------|
 | `openrouter` | OpenRouter's OpenAI-compatible chat-completions API | `OPENROUTER_API_KEY` (or `GAP_VLM_API_KEY`); `GAP_VLM_MODEL` (default `gemini-3.1-flash-lite-preview`, see `DEFAULT_MODEL` in `tools.py`); set `GAP_VLM_BASE_URL` to point at another OpenAI-compatible server (e.g. a local vLLM) |
 | `vertex`     | Vertex AI via google-genai (Gemini models)          | `GAP_VLM_MODEL`, `GAP_VLM_PROJECT_ID`, `GAP_VLM_REGION`   |
+
+`GAP_VLM_MAX_TOKENS` (default 4096) caps the reply for every provider. A thinking model spends
+part of it reasoning: at the earlier 1024, 5 of 56 gemini-3-flash replies stopped before their
+answer line.
 
 The `vertex` provider lazy-imports google-genai — install the engine's vertex
 extra first: `pip install "graph-as-policy[vertex]"`.

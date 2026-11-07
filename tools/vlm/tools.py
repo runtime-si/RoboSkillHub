@@ -116,7 +116,21 @@ def _resolve_vertex_region() -> str:
     )
 
 
-_MAX_TOKENS = 1024  # ported from the source servicer
+_MAX_TOKENS = 4096
+"""Default output cap; ``GAP_VLM_MAX_TOKENS`` overrides it. The source servicer's
+1024 counts a thinking model's reasoning too: through this tool, 5 of 56
+gemini-3-flash replies stopped before their answer line at 1024 (#20)."""
+
+
+def _max_tokens() -> int:
+    raw = _envstr("GAP_VLM_MAX_TOKENS")
+    try:
+        value = int(raw) if raw else _MAX_TOKENS
+    except ValueError:
+        value = _MAX_TOKENS
+    return value if value > 0 else _MAX_TOKENS
+
+
 _MAX_RETRIES = 3
 _BACKOFF_S = 1.0
 #: Deterministic decoding for the binary perception judgments (tournament
@@ -198,10 +212,10 @@ def _query_openrouter(prompt: str, images: list[np.ndarray], model: str | None) 
     # non-default temperature values on the Chat Completions endpoint. Keep
     # the legacy OpenAI-compatible payload for OpenRouter and older models.
     if model.lower().startswith("gpt-5"):
-        payload["max_completion_tokens"] = _MAX_TOKENS
+        payload["max_completion_tokens"] = _max_tokens()
         payload["reasoning_effort"] = "low"
     else:
-        payload["max_tokens"] = _MAX_TOKENS
+        payload["max_tokens"] = _max_tokens()
         payload["temperature"] = 0.0
     headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
 
@@ -275,7 +289,7 @@ def _query_vertex(prompt: str, images: list[np.ndarray], model: str | None) -> s
         )
     config = types.GenerateContentConfig(
         temperature=_TEMPERATURE,
-        max_output_tokens=_MAX_TOKENS,
+        max_output_tokens=_max_tokens(),
     )
     last_exc: Exception | None = None
     for attempt in range(_MAX_RETRIES):
