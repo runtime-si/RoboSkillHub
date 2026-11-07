@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 41 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 42 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -47,6 +47,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grasping-concave-contour`](#grasping-concave-contour) | propose | Grasp an awkward rigid part by the waists in its own silhouette. | any |
 | [`proposing-short-axis-grasps`](#proposing-short-axis-grasps) | propose | Propose top-down grasps whose jaws close ACROSS an elongated object's short axis, derived from its oriented box. | any, **sim only** |
 | [`proposing-side-grasps`](#proposing-side-grasps) | propose | Propose horizontal (side-entry) grasps swept around an object's oriented box — twelve azimuths ranked by jaw margin. | any, **sim only** |
+| [`selecting-free-placement-spots`](#selecting-free-placement-spots) | select | Picks world-frame spots on a named surface where a held object can be set down. | any, *tuned on* yam-station-overhead-rgbd |
 | [`selecting-reachable-grasp`](#selecting-reachable-grasp) | select | Walk a ranked list of candidate grasp poses and take the first the arm can actually reach. | any, **sim only** |
 | [`anchoring-a-free-end`](#anchoring-a-free-end) | execute | Pins one end of a cable with the support hand before any crossing is attempted. | any, 2 arms |
 | [`approaching-above-a-target`](#approaching-above-a-target) | execute | Moves the hand to hover a set clearance above a target's oriented box, rising in place first and keeping the hand's… | any |
@@ -460,6 +461,20 @@ Propose horizontal (side-entry) grasps swept around an object's oriented box —
 - **Exits**:
   - `proposed`: One or more horizontal approaches, widest jaw margin first.
   - `declined`: No azimuth leaves a width the hand can span.
+
+### selecting-free-placement-spots
+
+select · robots: any, *tuned on* yam-station-overhead-rgbd · tasks: pick-place · MIT · v0.1.0 · [`SKILL.md`](skills/selecting-free-placement-spots/SKILL.md) · [upstream](https://github.com/moka-manipulation/moka/blob/f6b642514e5eb5f11f45d9da22af7b4b97514f6d/moka/planners/visual_prompt_utils.py)
+
+Picks world-frame spots on a named surface where a held object can be set down - asks a pointing model for points in the vacant area (RoboPoint's question to gemini-er.point) or a VLM for free tiles of a grid drawn over the image (MOKA), back-projects each through calibrated depth, keeps those whose footprint is level, flat, on the surface and clear of anything standing on it, and ranks them by free room. Use when a place step needs a target and the task says only where in general ("put it somewhere free on the table", "on the board", "on the empty part of the tray"), from one overhead RGB-D frame.
+
+- **In**: `observation` Observation, `region` string
+- **Out**: `place_position` Vec3, `spot_count` int, `footprint_radius` float
+- **Calls**: [`gemini-er`](#gemini-er), [`geometry`](#geometry), [`vlm`](#vlm)
+- **Scripts**: [`select_free_spots`](skills/selecting-free-placement-spots/scripts/select_free_spots.py)
+- **Exits**:
+  - `found`: At least one model-proposed spot passed the depth check; place_position is the best, place_positions all of them, ranked.
+  - `none_free`: The model named no spot or tile, or every candidate failed the depth check (tilted, occupied, edge, rough, no_depth); `detail` says which.
 
 ### selecting-reachable-grasp
 

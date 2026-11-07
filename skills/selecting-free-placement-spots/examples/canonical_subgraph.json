@@ -1,0 +1,23 @@
+{
+  "skill": "selecting-free-placement-spots",
+  "inputs": {"observation": "Observation", "region": "string"},
+  "outputs": {
+    "place_position": {"$ref": "select.place_position"},
+    "place_positions": {"$ref": "select.place_positions"},
+    "spot_count": {"$ref": "select.spot_count"},
+    "footprint_radius": {"$ref": "select.footprint_radius"}
+  },
+  "nodes": {
+    "select": {
+      "type": "script",
+      "script": "scripts/select_free_spots.py",
+      "inputs": {
+        "observation": {"$ref": "in.observation"},
+        "region": {"$ref": "in.region"}
+      }
+    }
+  },
+  "edges": [["START", "select"], ["select", "END"]],
+  "exit": {"router_field": "route", "success_values": ["found"]},
+  "on_error": "none_free"
+}

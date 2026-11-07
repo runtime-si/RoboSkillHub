@@ -43,3 +43,10 @@ skills/wiping-a-region/scripts/wipe_region.py is adapted from CaP-X
 (https://github.com/capgym/cap-x,
 capx/envs/tasks/franka/franka_spill_wipe.py, ORACLE_CODE), MIT, Copyright (c)
 2026 Max Fu; the file's header lists the changes.
+skills/selecting-free-placement-spots/scripts/select_free_spots.py is adapted
+from MOKA (https://github.com/moka-manipulation/moka,
+moka/planners/visual_prompt_utils.py), MIT, copyright 2024 Kuan Fang,
+Fangchen Liu, and asks the free-space question of RoboPoint
+(https://github.com/wentaoyuan/RoboPoint,
+robopoint/serve/gradio_web_server.py), Apache-2.0; the file's header lists
+the changes. MOKA's license is skills/selecting-free-placement-spots/LICENSE.moka.
