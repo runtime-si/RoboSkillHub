@@ -1,0 +1,50 @@
+{
+  "skill": "previewing-target-overlay",
+  "inputs": {
+    "target_pose": "Se3Pose",
+    "intent": "string"
+  },
+  "outputs": {
+    "approved": {
+      "$ref": "preview.approved"
+    },
+    "answer": {
+      "$ref": "preview.answer"
+    },
+    "reason": {
+      "$ref": "preview.reason"
+    }
+  },
+  "nodes": {
+    "preview": {
+      "type": "script",
+      "script": "scripts/preview_target.py",
+      "inputs": {
+        "target_pose": {
+          "$ref": "in.target_pose"
+        },
+        "intent": {
+          "$ref": "in.intent"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "preview"
+    ],
+    [
+      "preview",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "approved",
+      "rejected"
+    ]
+  },
+  "on_error": "no_view"
+}

@@ -108,3 +108,9 @@ catkin_ws/src/o2ac_routines/src/o2ac_routines/common.py, the insertion check
 at the end of insert_motor_cables_without_tools_normal), MIT License,
 Copyright (c) 2020 Team O2AC; the file's header lists the changes, and the
 license is skills/verifying-insertion-by-probe-push/LICENSE.o2ac.
+skills/previewing-target-overlay/scripts/preview_target.py is adapted from
+MAESTRO (https://github.com/penn-pal-lab/maestro, maestro/api.py,
+ImageEditApi.get_raw_images / world_to_image / _draw_point_with_label /
+_draw_pose / feedback), MIT, Copyright (c) 2026 The MAESTRO Authors; the
+file's header lists the changes, and the license is
+skills/previewing-target-overlay/LICENSE.maestro.
