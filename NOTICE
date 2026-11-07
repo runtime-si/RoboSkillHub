@@ -193,3 +193,8 @@ from Newton (https://github.com/newton-physics/newton,
 newton/examples/multiphysics/example_franka_cable_ik_pick_place.py,
 Example._build_keyframes), Apache-2.0, Copyright (c) 2026 The Newton
 Developers; the file's header lists the changes.
+skills/grasping-a-cable-by-its-plug/scripts/grasp_plug.py is adapted from
+yam-arcade (https://github.com/zzigak/yam-arcade, stations/cables/run.py,
+plan_pick_plugs and demo_plan_plug), MIT, Copyright (c) 2026 zzigak; the
+license is skills/grasping-a-cable-by-its-plug/LICENSE.yam-arcade, and the
+file's header lists the changes.

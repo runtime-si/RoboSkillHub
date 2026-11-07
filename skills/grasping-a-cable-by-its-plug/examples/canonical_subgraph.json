@@ -1,0 +1,27 @@
+{
+  "skill": "grasping-a-cable-by-its-plug",
+  "inputs": {"centerline": "Centerline", "end_node": "int", "table_z": "float"},
+  "outputs": {
+    "grasp_point": {"$ref": "grasp.grasp_point"},
+    "close_heading_deg": {"$ref": "grasp.close_heading_deg"},
+    "jaw_width_lifted": {"$ref": "grasp.jaw_width_lifted"},
+    "plug_rise": {"$ref": "grasp.plug_rise"},
+    "lift_checked": {"$ref": "grasp.lift_checked"}
+  },
+  "nodes": {
+    "grasp": {
+      "type": "script",
+      "script": "scripts/grasp_plug.py",
+      "inputs": {
+        "centerline": {"$ref": "in.centerline"},
+        "end_node": {"$ref": "in.end_node"},
+        "table_z": {"$ref": "in.table_z"},
+        "plug_width": 0.012,
+        "plug_description": "the black USB-C plug"
+      }
+    }
+  },
+  "edges": [["START", "grasp"], ["grasp", "END"]],
+  "exit": {"router_field": "route", "success_values": ["grasped", "missed"]},
+  "on_error": "unreachable"
+}
