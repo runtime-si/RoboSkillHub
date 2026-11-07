@@ -1,0 +1,25 @@
+{
+  "skill": "grasping-a-cable-lying-flat",
+  "inputs": {"centerline": "Centerline", "table_z": "float"},
+  "outputs": {
+    "grasp_point": {"$ref": "grasp.grasp_point"},
+    "jaw_width": {"$ref": "grasp.jaw_width"},
+    "cable_rise": {"$ref": "grasp.cable_rise"},
+    "lift_checked": {"$ref": "grasp.lift_checked"}
+  },
+  "nodes": {
+    "grasp": {
+      "type": "script",
+      "script": "scripts/grasp_flat_cable.py",
+      "inputs": {
+        "centerline": {"$ref": "in.centerline"},
+        "table_z": {"$ref": "in.table_z"},
+        "grasp_s": 0.5,
+        "cable_description": "the white cable"
+      }
+    }
+  },
+  "edges": [["START", "grasp"], ["grasp", "END"]],
+  "exit": {"router_field": "route", "success_values": ["grasped", "missed"]},
+  "on_error": "unreachable"
+}

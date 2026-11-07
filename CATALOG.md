@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 66 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 67 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -57,6 +57,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`approaching-above-a-target`](#approaching-above-a-target) | execute | Moves the hand to hover a set clearance above a target's oriented box, rising in place first and keeping the hand's… | any |
 | [`executing-feature-mating`](#executing-feature-mating) | execute | Executes a supplied feature-mating plan for an already-held rigid object. | any |
 | [`executing-held-object-motion`](#executing-held-object-motion) | execute | Executes an ordered, collision-aware pose sequence for an already-grasped rigid object without releasing it. | any |
+| [`grasping-a-cable-lying-flat`](#grasping-a-cable-lying-flat) | execute | Grasps a thin cable lying flat on a table. | any |
 | [`grasping-container-rims`](#grasping-container-rims) | execute | Grasps a thin-walled open container (box, bin, tray, cup, bowl) by its rim. | any |
 | [`grasping-direct-ik`](#grasping-direct-ik) | execute | Direct IK align-then-descend grasping. | any, *tuned on* panda |
 | [`grasping-flat-objects`](#grasping-flat-objects) | execute | Grasps an object lying flat on a surface that is too thin for a normal top-down pinch at its box centre (a card, a… | any |
@@ -633,6 +634,21 @@ Executes an ordered, collision-aware pose sequence for an already-grasped rigid 
   - `reoriented`: The held-object waypoint sequence completed while the gripper remained closed.
   - `reached`: Only the first (approach) waypoint of a placement plan was executed; the object is held at the approach pose.
   - `blocked`: A planner refused a waypoint, or a waypoint motion failed before the requested pose was reached.
+
+### grasping-a-cable-lying-flat
+
+execute · robots: any · tasks: cable-routing · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/grasping-a-cable-lying-flat/SKILL.md) · [upstream](https://github.com/newton-physics/newton/blob/main/newton/examples/multiphysics/example_franka_cable_ik_pick_place.py)
+
+Grasps a thin cable lying flat on a table - top-down over a point on its centreline with the jaws closing across its local tangent, the fingertips brought down until they meet the table (the arm's stall, no force sensor), optionally narrowed first and held pressed on the table while they shut, then a test lift that checks the cable came up with the hand. Use when a cable, wire or cord a few millimetres thick lies on its support (from curve.fit_centerline / curve.endpoints, or a given point and direction) and must be picked up, e.g. to route or plug it.
+
+- **In**: -
+- **Out**: `grasp_point` Vec3, `close_heading_deg` float, `planned_tool_z` float, `contact_z` float, `fingertips_over_table` float, `touched_table` bool, `pressed` bool, `pre_closed` bool, `jaw_width` float, `cable_rise` float, `lift_checked` bool
+- **Calls**: [`geometry`](#geometry), [`sam3`](#sam3); connector `robot.close_gripper`, `robot.describe_gripper`, `robot.describe_workspace`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_cartesian_until_contact`, `robot.move_to_joints`, `robot.open_gripper`, `robot.set_grip`, `robot.solve_ik`
+- **Scripts**: [`grasp_flat_cable`](skills/grasping-a-cable-lying-flat/scripts/grasp_flat_cable.py)
+- **Exits**:
+  - `grasped`: The jaws closed short of their closed stop and, with a cable_description, the cable beside the fingers was seen to rise at least min_rise (7 mm) with the test lift (lift_checked true); without one it is judged by the jaw gap alone (lift_checked false), which on a real YAM does not tell a cable caught on the fingertips from a held one. The hand is left lifted, closed.
+  - `missed`: The jaws closed to their stop, or the cable beside the fingers did not rise with the hand; the hand opened and stands over the cable.
+  - `unreachable`: The cable does not lie flat at the grasp point, the depth the fingertips need is under the tool-centre floor (min_tool_height), no wrist solution reaches the grasp pose (IK preview), or a rise, the approach, the wrist turn or the descent was refused; `detail` says which.
 
 ### grasping-container-rims
 
