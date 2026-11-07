@@ -1,0 +1,53 @@
+{
+  "skill": "singulating-by-pushing",
+  "inputs": {
+    "target_obb": "OrientedBoundingBox",
+    "neighbour_obb": "OrientedBoundingBox"
+  },
+  "outputs": {
+    "gap_before": {
+      "$ref": "singulate.gap_before"
+    },
+    "gap_after": {
+      "$ref": "singulate.gap_after"
+    },
+    "fits_after": {
+      "$ref": "singulate.fits_after"
+    },
+    "expected_target_obb": {
+      "$ref": "singulate.expected_target_obb"
+    }
+  },
+  "nodes": {
+    "singulate": {
+      "type": "script",
+      "script": "scripts/singulate_by_pushing.py",
+      "inputs": {
+        "target_obb": {
+          "$ref": "in.target_obb"
+        },
+        "neighbour_obb": {
+          "$ref": "in.neighbour_obb"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "singulate"
+    ],
+    [
+      "singulate",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "singulated",
+      "still_cluttered"
+    ]
+  },
+  "on_error": "unreachable"
+}

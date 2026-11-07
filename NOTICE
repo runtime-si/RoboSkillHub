@@ -156,3 +156,10 @@ header lists the changes. Its kinematic chain and link capsules are derived
 from i2rt's YAM model and meshes (https://github.com/i2rt-robotics/i2rt), MIT,
 Copyright (c) I2RT Robotics; the license is
 skills/checking-dual-arm-clearance/LICENSE.i2rt.
+
+skills/singulating-by-pushing/scripts/singulate_by_pushing.py adapts the push
+primitive of visual-pushing-grasping
+(https://github.com/andyzeng/visual-pushing-grasping, robot.py, Robot.push),
+BSD-2-Clause, Copyright (c) 2018 Andy Zeng; the file's header lists the
+changes, and the license is
+skills/singulating-by-pushing/LICENSE.visual-pushing-grasping.
