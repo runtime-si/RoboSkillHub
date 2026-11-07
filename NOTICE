@@ -35,3 +35,7 @@ VoLoAgent (https://github.com/NVlabs/VoLoAgent,
 vlm_orchestrator/failure_handlers/vlm.py and the BEFORE / NOW labelling of
 vlm_orchestrator/strategies/subgoal_base.py), Copyright (c) 2026 NVIDIA
 CORPORATION & AFFILIATES, Apache-2.0; the file's header lists the changes.
+skills/pouring-by-wrist-roll/scripts/pour_wrist_roll.py is adapted from
+VLABench (https://github.com/OpenMOSS/VLABench,
+VLABench/utils/skill_lib.py, SkillLib.pour and SkillLib.flip), MIT,
+Copyright (c) 2024 simpler-env; the file's header lists the changes.

@@ -1,0 +1,44 @@
+{
+  "skill": "pouring-by-wrist-roll",
+  "inputs": {
+    "target_obb": "OrientedBoundingBox"
+  },
+  "outputs": {
+    "roll_reached": {
+      "$ref": "pour.roll_reached"
+    },
+    "hand_drift": {
+      "$ref": "pour.hand_drift"
+    }
+  },
+  "nodes": {
+    "pour": {
+      "type": "script",
+      "script": "scripts/pour_wrist_roll.py",
+      "inputs": {
+        "target_obb": {
+          "$ref": "in.target_obb"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "pour"
+    ],
+    [
+      "pour",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "poured",
+      "unreachable",
+      "joint_limit"
+    ]
+  },
+  "on_error": "roll_refused"
+}
