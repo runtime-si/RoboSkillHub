@@ -86,6 +86,10 @@ PickAndTransferPolicy), MIT, Copyright (c) 2023 Tony Z. Zhao; the file's
 header lists the changes, and the licenses are
 skills/handing-over-between-arms/LICENSE.robotwin and
 skills/handing-over-between-arms/LICENSE.act.
+skills/lifting-with-both-arms/scripts/lift_with_both_arms.py is adapted from
+RoboTwin (https://github.com/robotwin-Platform/RoboTwin, envs/lift_pot.py),
+MIT, Copyright (c) 2025 Tianxing Chen; the file's header lists the changes,
+and the license is skills/lifting-with-both-arms/LICENSE.robotwin.
 skills/checking-spatial-relations/scripts/check_relation.py is adapted from
 REFLECT (https://github.com/real-stanford/reflect, main/scene_graph.py
 SceneGraph.add_edge and main/utils.py is_inside / in_hull / get_pcd_dist),

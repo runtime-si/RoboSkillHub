@@ -1,0 +1,49 @@
+{
+  "skill": "lifting-with-both-arms",
+  "inputs": {
+    "object_obb": "OrientedBoundingBox"
+  },
+  "outputs": {
+    "rise_m": {
+      "$ref": "lift.rise_m"
+    },
+    "hand_tilt_deg": {
+      "$ref": "lift.hand_tilt_deg"
+    },
+    "object_obb": {
+      "$ref": "lift.object_obb"
+    }
+  },
+  "nodes": {
+    "lift": {
+      "type": "script",
+      "script": "scripts/lift_with_both_arms.py",
+      "inputs": {
+        "object_obb": {
+          "$ref": "in.object_obb"
+        },
+        "first_arm": 0,
+        "second_arm": 1,
+        "lift_height": 0.1
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "lift"
+    ],
+    [
+      "lift",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "lifted",
+      "slipped"
+    ]
+  },
+  "on_error": "unreachable"
+}
