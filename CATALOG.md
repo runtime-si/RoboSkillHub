@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 44 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 45 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -62,6 +62,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`plugging-a-cable-end`](#plugging-a-cable-end) | execute | Carries a cable's held free end into a terminal port after the last crossing. | any, 2 arms |
 | [`pouring-by-wrist-roll`](#pouring-by-wrist-roll) | execute | Pours from a held container into a target container by standing the hand above the target's box at a set height and… | any |
 | [`pushing-objects`](#pushing-objects) | execute | Pushes a loose object across its support toward a goal point with a closed hand, never grasping it. | any |
+| [`reaching-with-lag-correction`](#reaching-with-lag-correction) | execute | Moves the tool to a target pose, waits for the arm to settle, reads the tool pose back and, if the arm stopped short… | any |
 | [`searching-insertion-spiral`](#searching-insertion-spiral) | execute | Finds an opening the held part or the closed fingertips can enter by probing straight down over a hexagonal grid… | any |
 | [`seating-a-cable-crossing`](#seating-a-cable-crossing) | execute | Streams one planned crossing leg of a cable onto a routing station, lets the rod settle, then LOOKS. | any |
 | [`stacking-objects`](#stacking-objects) | execute | Stacks the object the hand holds centred on top of a target object. | any |
@@ -680,6 +681,20 @@ Pushes a loose object across its support toward a goal point with a closed hand,
   - `pushed`: The hand travelled past the contact point toward the goal by at least min(80 mm, 0.75 x the asked push), lifted away and opened; the object should now sit near expected_center.
   - `not_pushed`: The goal was under 30 mm from the object's centre, or the push ran but the hand travelled short (blocked, or the move refused part way), or the retract failed; `detail` says which.
   - `unreachable`: The hover above and behind the object was refused or ended off with every rotation tried, or the descent stopped more than reach_tolerance from the contact height; nothing was pushed.
+
+### reaching-with-lag-correction
+
+execute · robots: any · tasks: pick-place, insertion, cable-routing · MIT · v0.1.0 · [`SKILL.md`](skills/reaching-with-lag-correction/SKILL.md) · [upstream](https://github.com/penn-pal-lab/maestro/blob/main/maestro/api.py)
+
+Moves the tool to a target pose, waits for the arm to settle, reads the tool pose back and, if the arm stopped short (tracking lag, gravity sag), commands once more aimed past the target by the shortfall, then reports the residual. Use when a pose must be hit closer than the arm's own move bound allows - a look pose, a pre-grasp or pre-insert pose, a descent near the table, or anywhere far out in the reach where a joint controller without an integral term leaves a steady error - and as a reach check whose not_reached exit means the arm is blocked, stuck or at the edge of its reach.
+
+- **In**: `target_pose` Se3Pose
+- **Out**: `residual` float, `residual_rotation` float, `first_residual` float, `first_residual_rotation` float, `corrected` bool, `correction` Vec3, `reached_pose` Se3Pose
+- **Calls**: connector `robot.get_ee_pose`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`
+- **Scripts**: [`reach_with_correction`](skills/reaching-with-lag-correction/scripts/reach_with_correction.py)
+- **Exits**:
+  - `reached`: After at most one aim-past move the settled tool centre stands within tolerance (default 5 mm) of the target and its rotation within rot_tolerance (default 0.05 rad); residual is that distance.
+  - `not_reached`: The move was refused outright (the hand did not move), or the shortfall exceeded the correction cap and the plain retry also ended off, or the aim-past move did not land; `detail` says which and residual is how far off the hand stands.
 
 ### searching-insertion-spiral
 
