@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 57 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 58 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -63,6 +63,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grasping-with-planner`](#grasping-with-planner) | execute | Top-down grasping via a fast axis-locked linear descend with a collision-aware cuRobo fallback. | any, *tuned on* panda |
 | [`handing-over-between-arms`](#handing-over-between-arms) | execute | Hands the object one arm holds to the other arm. | any, 2 arms |
 | [`holding-steady-while-other-arm-acts`](#holding-steady-while-other-arm-acts) | execute | One arm holds an object still. | any, 2 arms |
+| [`lifting-with-both-arms`](#lifting-with-both-arms) | execute | Lifts an elongated object (a bar, a tray, a pot by its handles) with both arms. | any, 2 arms |
 | [`picking-and-placing-two-objects`](#picking-and-placing-two-objects) | execute | Picks two objects with two arms, one each, and places both. | any, 2 arms |
 | [`placing-held-feature`](#placing-held-feature) | execute | Move a held object so one of its declared features lands on a target point. | any, **sim only** |
 | [`placing-with-contact-descent`](#placing-with-contact-descent) | execute | Places the object the hand holds by approaching a fixed height above its place point, coming straight down until the… | any |
@@ -711,6 +712,21 @@ One arm holds an object still - a top-down grasp, or its closed hand pressed dow
   - `held_and_released`: The holder held (jaws above the stop, or a press that stopped on the object), the other arm's step ended `acted`, and at release the holder's tool centre was within pose_tolerance and angle_tolerance_deg of the hold pose and (grip) its jaw opening within grip_tolerance of the one at the hold; it then opened and backed out to its stand-off.
   - `hold_lost`: The holder's jaws closed to the stop at the hold (missed), its press went down to the target (nothing under it), or at release its pose or jaw opening had changed past the tolerances (or a re-perceived object box had moved); the holder has let go and backed out.
   - `unreachable`: The holder could not reach above the object or down onto it, the connector does not report a separate second arm, the other arm could not reach its start or a waypoint (move mode, or the press target failed the IK preview), or the holder could not back out after letting go; `detail` says which. After a failed step the hold is still checked and released.
+
+### lifting-with-both-arms
+
+execute · robots: any, 2 arms · tasks: pick-place, bimanual · MIT · v0.1.0 · [`SKILL.md`](skills/lifting-with-both-arms/SKILL.md) · [upstream](https://github.com/robotwin-Platform/RoboTwin/blob/main/envs/lift_pot.py)
+
+Lifts an elongated object (a bar, a tray, a pot by its handles) with both arms - one near-top-down grasp near each end of the object's long axis (or at two given handle points), each arm taking the end nearer its hand, its wrist leaned 15 deg away from the other hand so the two wrists keep clear, then both hands rise together in small interleaved steps that keep their separation and height difference bounded, with both jaw openings and the separation checked after every step. Use when an object is too long, heavy or floppy for one hand and a bimanual station has both arms addressable by arm_id, the object's box comes from a perception skill and both hands are empty.
+
+- **In**: `object_obb` OrientedBoundingBox
+- **Out**: `rise_m` float, `hand_tilt_deg` float, `separation_change_m` float, `first_grip` float, `second_grip` float, `first_grasp_pose` Se3Pose, `second_grasp_pose` Se3Pose, `object_obb` OrientedBoundingBox
+- **Calls**: connector `robot.close_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`
+- **Scripts**: [`lift_with_both_arms`](skills/lifting-with-both-arms/scripts/lift_with_both_arms.py)
+- **Exits**:
+  - `lifted`: Both hands rose lift_height in steps, every step arrived within level_tolerance of its height, both jaw openings stayed above the stop and the hands' separation within separation_tolerance of its value at the grasp; object_obb is the input box raised by the hands' mean rise (the hands' motion, not a re-perception).
+  - `slipped`: A jaw closed to the stop at its grasp point (both hands then opened and backed off to their hovers), or during the lift a jaw ran to the stop or the hands' separation drifted past separation_tolerance; mid-lift the hands stay where they stopped, closed, and `detail` says which arm and at what height.
+  - `unreachable`: No hover, wrist solution or descent for one arm (hands opened and backed off), or an arm could not follow a lift step (the other was brought back level with it, both still closed on the object); also routed when the two arm ids are equal, the connector reports no separate second arm, or the box's long axis is not horizontal.
 
 ### picking-and-placing-two-objects
 
