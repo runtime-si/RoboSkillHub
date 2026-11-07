@@ -180,3 +180,11 @@ moka/vision/keypoint.py, moka/planners/planner.py,
 moka/policies/franka_policy.py and prompts/visual_prompt_planner/), MIT,
 Copyright (c) 2024 Kuan Fang, Fangchen Liu; each file's header lists the
 changes, and the license is skills/executing-keypoint-motion/LICENSE.moka.
+skills/turning-by-wrist-ratchet/scripts/turn_wrist_ratchet.py is adapted from
+yam-arcade (https://github.com/zzigak/yam-arcade,
+stations/jars/robot_demo.py, Demo.twist_on, Demo.stroke and Demo.regrasp),
+MIT, Copyright (c) 2026 zzigak, and from RoboWaiter
+(https://github.com/guimath/RoboWaiter, MujocoController.py,
+MujocoController.untwist), MIT, Copyright (c) 2023 Guilhem Mathieux; the
+licenses are skills/turning-by-wrist-ratchet/LICENSE.yam-arcade and
+LICENSE.robowaiter, and the file's header lists the changes.

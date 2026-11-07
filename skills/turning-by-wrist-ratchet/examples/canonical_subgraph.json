@@ -1,0 +1,51 @@
+{
+  "skill": "turning-by-wrist-ratchet",
+  "inputs": {
+    "lid_obb": "OrientedBoundingBox",
+    "direction": "str"
+  },
+  "outputs": {
+    "strokes_done": {
+      "$ref": "turn.strokes_done"
+    },
+    "total_turn": {
+      "$ref": "turn.total_turn"
+    },
+    "seated": {
+      "$ref": "turn.seated"
+    }
+  },
+  "nodes": {
+    "turn": {
+      "type": "script",
+      "script": "scripts/turn_wrist_ratchet.py",
+      "inputs": {
+        "lid_obb": {
+          "$ref": "in.lid_obb"
+        },
+        "direction": {
+          "$ref": "in.direction"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "turn"
+    ],
+    [
+      "turn",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "turned",
+      "stalled",
+      "slipped"
+    ]
+  },
+  "on_error": "unreachable"
+}

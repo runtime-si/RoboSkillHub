@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-9 tools, 65 skills, 2 policies, 1 recipe and 1 paper.
+9 tools, 66 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -82,6 +82,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`stacking-objects`](#stacking-objects) | execute | Stacks the object the hand holds centred on top of a target object. | any |
 | [`tipping-over-a-surface-edge`](#tipping-over-a-surface-edge) | execute | Turn a body over on the surface it rests on instead of carrying it. | any, *tuned on* yam_i2rt, 2 arms, **sim only** |
 | [`transporting-objects`](#transporting-objects) | execute | Move the currently-held object to a destination and release. | any, *tuned on* panda |
+| [`turning-by-wrist-ratchet`](#turning-by-wrist-ratchet) | execute | Tightens or loosens a screw lid or cap by wrist ratchet. | any |
 | [`wiping-a-region`](#wiping-a-region) | execute | Wipes a flat region of a surface with back-and-forth strokes. | any |
 | [`checking-dual-arm-clearance`](#checking-dual-arm-clearance) | verify | Predicts, before a move is sent, the minimum clearance between the two arms along the planned path. | any, 2 arms |
 | [`checking-spatial-relations`](#checking-spatial-relations) | verify | Decides from one RGB-D view whether a spatial relation holds between two seen objects. | any |
@@ -1005,6 +1006,22 @@ Move the currently-held object to a destination and release. The gripper enters 
 - **Exits**:
   - `placed`: Object released at the destination.
   - `blocked`: Path blocked or motion failed; aborted before release. Coordinator routes to abort.
+
+### turning-by-wrist-ratchet
+
+execute · robots: any · tasks: contact-assembly · MIT · v0.1.0 · [`SKILL.md`](skills/turning-by-wrist-ratchet/SKILL.md) · [upstream](https://github.com/zzigak/yam-arcade/blob/main/stations/jars/robot_demo.py)
+
+Tightens or loosens a screw lid or cap by wrist ratchet - grips it from above, rolls only the last joint through a 218 deg stroke (joint 6 -1.9 -&gt; +1.9 rad on a YAM) in speed-bounded steps, opens, rolls back, re-grips and repeats for a number of strokes or until the turn stops, read from joint 6's tracking lag (no force sensor), the gripper reading and the tool centre's drift; after loosening it lifts to check the cap came free. Use when a jar lid, bottle cap or knob held on a thread (or a twist-lock) must be turned on or off and its box is known from perception, and the jar or bottle is held by the other arm or a fixture.
+
+- **In**: `lid_obb` OrientedBoundingBox
+- **Out**: `direction` str, `strokes_done` int, `total_turn` float, `seated` bool, `hand_drift` float, `lift_rise` float, `holding` bool, `rolled_with` str
+- **Calls**: connector `robot.close_gripper`, `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`turn_wrist_ratchet`](skills/turning-by-wrist-ratchet/scripts/turn_wrist_ratchet.py)
+- **Exits**:
+  - `turned`: Tighten: every stroke ran, or joint 6 stalled after the strokes had turned at least min_turn in all (seated: true); the hand opened and rose. Loosen: every stroke ran and the lift check rose lift_height with the jaws still holding (or lift_check was off); the hand keeps the cap. What the hand did; re-perceive to know the lid's state.
+  - `stalled`: Joint 6 lagged its target by more than stall_lag and stopped turning (a tightening stall before min_turn, or any loosening stall), a stroke or roll-back step was refused, the tool centre drifted past drift_tolerance, or the loosening lift check rose short (the cap still on its thread); the hand opened and rose. `detail` says which.
+  - `slipped`: The gripper reading fell under empty_grip (jaws closed on nothing) at a grip, during a stroke, or after the loosening lift; the hand opened and rose.
+  - `unreachable`: The pregrasp over the lid, the turn of joint 6 to the stroke's start, or the descent to the grip point was refused or ended off, the stroke does not fit joint 6's limits, or there is no joint reading; nothing was turned.
 
 ### wiping-a-region
 
