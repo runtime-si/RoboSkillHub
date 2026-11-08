@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 100 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 101 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -65,6 +65,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`parsing-ldraw-build-instructions`](#parsing-ldraw-build-instructions) | plan | Reads an LDraw .ldr / .mpd build file. | any |
 | [`planning-a-brick-mosaic-from-an-image`](#planning-a-brick-mosaic-from-an-image) | plan | Turns an image into a one-layer LEGO mosaic on a baseplate of a given stud size. | any |
 | [`planning-a-domino-layout`](#planning-a-domino-layout) | plan | Plans a domino line along a path on the table. | any |
+| [`planning-a-flat-domino-mosaic-from-an-image`](#planning-a-flat-domino-mosaic-from-an-image) | plan | Plans a domino mosaic of a picture, every tile lying flat with its pips up. | any |
 | [`planning-articulation-opening`](#planning-articulation-opening) | plan | Plans the hand's path that opens a drawer or a door it already holds by the handle. | any |
 | [`planning-brick-assembly-order`](#planning-brick-assembly-order) | plan | Orders the bricks of a stud-grid design for a robot that presses each one down from above. | any |
 | [`planning-held-object-motion`](#planning-held-object-motion) | plan | Plans the carry and engagement phases for an already-held rigid object. | any |
@@ -803,6 +804,25 @@ Plans a domino line along a path on the table - a line, an arc, a polyline (corn
   - `out_of_reach`: A slot is outside every arm's tool-centre box or reach, off the `table`, or the placing skill's lead-in leg at a slot would leave the box.
   - `blocked`: An obstacle is where the open hand goes over a slot, a given gate cannot stop the wave or cannot be closed without the arm reaching past standing tiles, or no order places every slot without reaching past standing tiles.
   - `invalid_input`: The path or tile size cannot be read (also the route of a raised error).
+
+### planning-a-flat-domino-mosaic-from-an-image
+
+plan · robots: any · tasks: domino · MIT · v0.1.0 · [`SKILL.md`](skills/planning-a-flat-domino-mosaic-from-an-image/SKILL.md) · [upstream](https://github.com/ArnoldF/DominoArtSolver/blob/3f9e260ea97a6ad659784fc6931bbb64d9196eba/src/domino_model.py)
+
+Plans a domino mosaic of a picture, every tile lying flat with its pips up - DominoArtSolver's integer program chooses, for a number of complete double-six sets, which tile covers which two neighbouring grid cells and which way round, so the pips' darkness reproduces the image (all tiles used once per set; a smaller grid picks from spare tiles). Returns an ordered placement list in world (grid origin, cell pitch and yaw given; 48 x 24 mm tiles by default) with each tile's value, which end carries which value, its pose, its arm, the copy of the set it comes from and the free sides for the fingers; the order places the tiles farthest from each arm first and never has an arm reach across a placed tile (one or two arms). Also a preview render, per-set usage and the image error. CPU only, no motion. Use before laying a domino mosaic with the arm, to know which tile to fetch from the supply (reading-domino-pips-and-orientation identifies it there), where to put it and which way it faces.
+
+- **In**: `image_path` str, `sets` int
+- **Out**: `placements_json` str, `pose_sequence` PoseSequence, `first_pose` Se3Pose, `n_tiles` int, `rows` int, `cols` int, `sets` int, `max_pips` int, `objective` float, `cell_rmse` float, `floor_rmse` float, `image_rmse` float, `correlation` float, `solver` str, `solver_status` str, `solve_time_s` float, `reach_over` int, `steps_without_finger_room` int, `preview_path` str
+- **Scripts**: [`plan_mosaic`](skills/planning-a-flat-domino-mosaic-from-an-image/scripts/plan_mosaic.py)
+- **Exits**:
+  - `planned`: Every cell is covered once and every tile used `sets` times (or at most `sets` times on a given smaller grid); `placements` (in placing order), `pose_sequence`, `by_arm`, `per_set`, `supply`, `values`, `preview` and the error measures are filled. `problems` lists what a robot should know - poses in the grid's own frame (no `grid_origin`), a grid that stretches the image, steps without finger room at this pitch, a plan found by the time limit but not proven optimal, steps that reach across a placed tile.
+  - `not_enough_sets`: `sets` is under 1, or the given `rows` x `cols` grid needs more tiles than the sets hold (`detail` says how many sets it needs).
+  - `solver_timeout`: The solver found no tiling within `time_limit_s`, or (with `accept_suboptimal` false) found one but could not prove it optimal.
+  - `invalid_image`: No image, an unreadable file, an array that is not H x W (x 3), an image smaller than the grid in pixels, or no contrast between the grid's fields.
+  - `out_of_reach`: Some cells are outside every arm's `reach_m` (or inside its `min_reach_m`); `out_of_reach` lists them as [row, col]. Checked before solving, so nothing is planned.
+  - `solver_unavailable`: Neither PuLP with a CBC binary nor SciPy's `milp` (HiGHS) could be loaded.
+  - `solver_failed`: The solver reported the model infeasible or returned values that are not a tiling (not seen; the model is always feasible).
+  - `invalid_input`: A grid with an odd cell count or only one of rows / cols, a pitch smaller than the tile, an unknown option, a bad origin or arm (also the route of a raised error).
 
 ### planning-articulation-opening
 
