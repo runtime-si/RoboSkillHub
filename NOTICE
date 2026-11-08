@@ -355,3 +355,14 @@ predicators/envs/pybullet_domino/components/domino_component.py), MIT License,
 Copyright (c) 2022 Rohan Chitnis and Tom Silver; the file's header lists the
 changes, and the license is
 skills/placing-an-upright-domino-beside-neighbours/LICENSE.predicators.
+skills/pressing-a-brick-onto-studs/scripts/press_brick.py is adapted from
+BrickSim (https://github.com/intelligent-control-lab/BrickSim,
+python/bricksim/envs/assemble_brick/expert.py, commit
+cbd5de3238e6ac12f44ef699e1507a9f16bdafc3), MIT License, Copyright (c) 2026
+Haowei Wen, and from Robotic_Lego_Manipulation
+(https://github.com/intelligent-control-lab/Robotic_Lego_Manipulation,
+src/ros_nodes/lego_task_planning_node.cpp and config/user_config.json, commit
+9bc91654e708e4d8428ecfa76840103cacb2a19a), MIT License (its LICENSE.md carries
+the MIT text under the line "Copyright (c) 2011-2023 GitHub Inc."); the file's
+header lists the changes, and the licenses are
+skills/pressing-a-brick-onto-studs/LICENSE.bricksim and LICENSE.icl.
