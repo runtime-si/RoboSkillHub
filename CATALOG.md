@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-18 tools, 101 skills, 2 policies, 1 recipe and 1 paper.
+18 tools, 102 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -57,6 +57,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`reconstructing-collision-worlds`](#reconstructing-collision-worlds) | perceive | Reconstructs a planner collision world from calibrated RGB-D views alone, excluding the grasp target, the robot, and a… | any |
 | [`refining-target-from-wrist-closeup`](#refining-target-from-wrist-closeup) | perceive | Refines a coarse world-frame target (an overhead perception's OBB or point) by aiming the wrist RGB-D camera at it… | any |
 | [`registering-held-objects`](#registering-held-objects) | perceive | Reobserves a grasped rigid object from the wrist cameras, estimates its functional feature in the TCP frame, and fits… | any |
+| [`segmenting-and-picking-pieces-classical`](#segmenting-and-picking-pieces-classical) | perceive | Finds the loose jigsaw pieces lying on a staging mat in one top-down RGB(-D) frame without a learned model. | any |
 | [`tracking-objects`](#tracking-objects) | perceive | Long-running skill that drives the SAM3 tracker from the graph-scoped observation stream. | any |
 | [`checking-design-connectivity-and-collisions`](#checking-design-connectivity-and-collisions) | plan | Checks a brick design on a stud grid before the arms build it. | any |
 | [`choosing-a-domino-move-by-end-matching`](#choosing-a-domino-move-by-end-matching) | plan | Chooses the robot's move in a game of dominoes and where the tile goes on the table. | any |
@@ -665,6 +666,21 @@ Reobserves a grasped rigid object from the wrist cameras, estimates its function
 - **Exits**:
   - `registered`: A feature-in-TCP transform and attachment were produced; registration_confidence is the accepted mask score, or 0.25 when the grasp-time or prior transform was retained.
   - `lost`: Registration raised — no cloud could be fitted into an attachment or a geometry fit failed, so the object is no longer localized.
+
+### segmenting-and-picking-pieces-classical
+
+perceive · robots: any · tasks: jigsaw · MIT · v0.1.0 · [`SKILL.md`](skills/segmenting-and-picking-pieces-classical/SKILL.md) · [upstream](https://github.com/JPStrydom/Jigsaw-Puzzle-Building-Robot/blob/be867bda743740fac9d843f606b9211e663777f7/code/software/Functions_1.py)
+
+Finds the loose jigsaw pieces lying on a staging mat in one top-down RGB(-D) frame without a learned model - removes the mat by its colour (estimated from the frame, shadow-tolerant, or a fixed HSV band) and by height when the depth is fine, sorts the blobs by area and shape into pieces, touching or stacked pieces and foreign objects, splits touching pieces with a distance-transform watershed that follows the dark cut line, and gives every piece its mask, a pick point at the centre of its largest inscribed circle lifted to the world, its side angle, area, touching neighbours, a two-finger grip check and a face-up / face-down cue. Routes segmented, touching_pieces or nothing_found. Use before picking a jigsaw piece from a staging area (and before localizing it in the box picture), on CPU, in a fraction of a second; sam3 is the learned alternative when a GPU is available.
+
+- **In**: `observation` Observation
+- **Out**: `n_pieces` int, `n_touching` int, `n_pickable` int, `piece_mask` Mask, `pick_point` Vec3, `angle_deg` float
+- **Calls**: [`geometry`](#geometry)
+- **Scripts**: [`segment_pieces`](skills/segmenting-and-picking-pieces-classical/scripts/segment_pieces.py)
+- **Exits**:
+  - `segmented`: At least one piece was found and none touches anything; `pieces` lists them, piece_mask / pick_point are the best pickable one (clearest of its surroundings, then the widest inscribed circle).
+  - `touching_pieces`: Pieces were found but some touch or lie on one another (split by the watershed or by height; their records say touching, neighbours, layer), or a blob did not split into piece-sized parts (`clusters`, with the source's drag point and direction); piece_mask / pick_point still name the best pickable piece when n_pickable &gt; 0. Singulate the rest, e.g. singulating-by-pushing toward `free_spot`.
+  - `nothing_found`: No piece-sized blob on the mat (empty, or only foreign objects and specks).
 
 ### tracking-objects
 
