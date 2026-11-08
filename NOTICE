@@ -409,6 +409,12 @@ StackedLine is adapted from "domino-simulation" by Matthew Chapman
 under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); it was
 modified (module globals turned into a class, RK4 only, stall detection,
 returns hit times instead of plotting). The file's header lists all changes.
+skills/choosing-a-domino-move-by-end-matching/scripts/choose_move.py is adapted
+from dominoes (https://github.com/abw333/dominoes, commit
+ea9f532c9b834117a5c07d214711515872f7537e: dominoes/game.py, dominoes/board.py,
+dominoes/players.py, dominoes/search.py), MIT License, Copyright (c) 2016 Alan
+Wagner; the file's header lists the changes, and the license is
+skills/choosing-a-domino-move-by-end-matching/LICENSE.dominoes.
 skills/parsing-ldraw-build-instructions/scripts/parse_ldraw.py is adapted from
 ldraw-py (https://github.com/michaelgale/ldraw-py, ldrawpy/ldrmodel.py, commit
 d650ab0a9c2a774e1ba6f206aa2cd3b1925478e3), MIT License, Copyright (c) 2019

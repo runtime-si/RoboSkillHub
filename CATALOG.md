@@ -58,6 +58,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`registering-held-objects`](#registering-held-objects) | perceive | Reobserves a grasped rigid object from the wrist cameras, estimates its functional feature in the TCP frame, and fits… | any |
 | [`tracking-objects`](#tracking-objects) | perceive | Long-running skill that drives the SAM3 tracker from the graph-scoped observation stream. | any |
 | [`checking-design-connectivity-and-collisions`](#checking-design-connectivity-and-collisions) | plan | Checks a brick design on a stud grid before the arms build it. | any |
+| [`choosing-a-domino-move-by-end-matching`](#choosing-a-domino-move-by-end-matching) | plan | Chooses the robot's move in a game of dominoes and where the tile goes on the table. | any |
 | [`computing-brick-pose-from-stud-grid`](#computing-brick-pose-from-stud-grid) | plan | Converts between a cell on a LEGO or DUPLO baseplate's stud grid (x, y, layer, brick size such as 2x4, rotation… | any |
 | [`computing-feature-mating-poses`](#computing-feature-mating-poses) | plan | Computes approach, engaged, and mate TCP poses from a held feature in the hand and a fixture feature, resolving free… | any |
 | [`executing-keypoint-motion`](#executing-keypoint-motion) | plan | Plans and executes a one-step manipulation from a language instruction with MOKA's mark-based visual prompting. | any |
@@ -682,6 +683,24 @@ Checks a brick design on a stud grid before the arms build it - BrickGPT's rules
   - `step_blocked`: Some brick is placed under (anywhere in a higher layer over its footprint) a brick already placed, so it cannot be pressed on from above; `step_blocked` lists [brick, blocker] pairs.
   - `weakly_connected`: A joint of a single stud carries bricks that reach past that stud (removing it would cut them off the plate); `weak_joints` lists [lower, upper] (-1 = the plate), `weak_bricks` what hangs on them.
   - `unstable`: Holding the design (or, with stability 'steps', one of its partial builds) up needs more than the stud clutch (clutch_n, 0.98 N) at some stud; `stability_max` is the utilisation, `worst_brick` / `unstable_step` say where.
+
+### choosing-a-domino-move-by-end-matching
+
+plan · robots: any · tasks: domino · MIT · v0.1.0 · [`SKILL.md`](skills/choosing-a-domino-move-by-end-matching/SKILL.md) · [upstream](https://github.com/abw333/dominoes/blob/ea9f532c9b834117a5c07d214711515872f7537e/dominoes/players.py)
+
+Chooses the robot's move in a game of dominoes and where the tile goes on the table. From the hand (values as reading-domino-pips-and-orientation reads them), the board's two open ends (value, world edge point, outward direction), the other players' tile counts and the boneyard, it lists the legal moves (a tile holding an end's value goes on that end, as abw333/dominoes does), ranks them with a player - random, greedy (biggest pip sum), doubles first, or search (the source's probabilistic alpha-beta over deals of the hidden tiles) - and returns the tile, the end and the tile's world pose with its matching half touching that end - straight on, round a corner before the table edge or a placed tile, doubles crosswise. With no legal move it routes draw, pass or game_over. Block or draw rules, 2-4 players, double-six or bigger sets. No motion. Use on the robot's turn in a domino game, after reading the hand and the board ends, before placing the tile.
+
+- **In**: -
+- **Out**: `hand_index` int, `end` int, `end_value` int, `layout` string, `place_pose` Se3Pose, `place_yaw_deg` float, `my_pips` int, `game_over_reason` string
+- **Calls**: connector `robot.describe_workspace`
+- **Scripts**: [`choose_move`](skills/choosing-a-domino-move-by-end-matching/scripts/choose_move.py)
+- **Exits**:
+  - `play`: A legal move was chosen and fits; `tile` (the hand's [a, b], a at the tile's end a), `hand_index`, `end` (0 / 1, -1 for the opening), `layout` (straight / crosswise / corner_left / corner_right), `place_pose` (tile centre, yaw of the a-to-b axis), `target_ends_world` (where end a and end b go), `new_ends` and `new_footprint` for the next turn. Ends given without positions give the move with an empty pose.
+  - `draw`: No tile holds either end value, the rules are `draw` and the boneyard has tiles; draw one, read it, and run this skill again.
+  - `pass`: No tile holds either end value and the boneyard is empty (or the block game); also when the opening tile `must_play` is not in this hand.
+  - `game_over`: The hand is empty (`out`), an opponent has no tiles (`opponent_out`), or the game is blocked (`blocked`) - every other player passed in a row and this hand cannot play either, or every tile holding either end value is in `played`.
+  - `no_room`: Legal moves exist but none has a placement inside the table (less `edge_margin`) and clear of the placed footprints, straight or round a corner; `tile` / `end` carry the player's choice. Make room (slide the line) or play it by hand.
+  - `invalid_input`: A hand tile or end value outside 0..max_pip, a tile twice, not two ends, an end direction with no length, an unknown player or rules, search without opponent_counts, or fewer unseen tiles than the hidden places (also the route of a raised error).
 
 ### computing-brick-pose-from-stud-grid
 
