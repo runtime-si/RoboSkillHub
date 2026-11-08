@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-12 tools, 72 skills, 2 policies, 1 recipe and 1 paper.
+12 tools, 73 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -51,6 +51,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`executing-keypoint-motion`](#executing-keypoint-motion) | plan | Plans and executes a one-step manipulation from a language instruction with MOKA's mark-based visual prompting. | any |
 | [`planning-articulation-opening`](#planning-articulation-opening) | plan | Plans the hand's path that opens a drawer or a door it already holds by the handle. | any |
 | [`planning-held-object-motion`](#planning-held-object-motion) | plan | Plans the carry and engagement phases for an already-held rigid object. | any |
+| [`following-a-visual-plan`](#following-a-visual-plan) | propose | Follows a visual plan from robobrain.trace or molmo-motion.forecast (the shared visual-plan schema) the way those… | any |
 | [`grasping-concave-contour`](#grasping-concave-contour) | propose | Grasp an awkward rigid part by the waists in its own silhouette. | any |
 | [`proposing-short-axis-grasps`](#proposing-short-axis-grasps) | propose | Propose top-down grasps whose jaws close ACROSS an elongated object's short axis, derived from its oriented box. | any, **sim only** |
 | [`proposing-side-grasps`](#proposing-side-grasps) | propose | Propose horizontal (side-entry) grasps swept around an object's oriented box — twelve azimuths ranked by jaw margin. | any, **sim only** |
@@ -551,6 +552,23 @@ Plans the carry and engagement phases for an already-held rigid object: a cleara
 - **Exits**:
   - `planned`: A carry plan or an engagement plan was produced.
   - `blocked`: No feasible symmetry-equivalent held-object orientation was found, or the direct strategy was requested without an approach pose.
+
+### following-a-visual-plan
+
+propose · robots: any · tasks: pick-place, cable-routing, insertion · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/following-a-visual-plan/SKILL.md)
+
+Follows a visual plan from robobrain.trace or molmo-motion.forecast (the shared visual-plan schema) the way those models can be trusted - the plan's endpoint pixel becomes a target lifted with the measured depth and the calibrated camera (not the model's depth), checked (on the table, in reach by IK preview, optionally against a pointing model for the target phrase), and geometry decides the motion - rise, travel at a height that clears the measured scene (optionally through the plan's path), hover above the target, descend to the caller's goal height or a clearance over the object's measured top. Optionally asks the planner once more from a fresh frame when a check fails. Use when a model proposes where something should go ("place the cube in the box", "move the cable end to the ring") and the hand should be brought there, above or into the target, before a placing, inserting or releasing step.
+
+- **In**: `instruction` str
+- **Out**: `target_point` Vec3, `goal_pose` Se3Pose, `hover_pose` Se3Pose, `approach_direction` Vec3, `target_obb` OrientedBoundingBox, `final_position` Vec3, `position_error` float
+- **Calls**: [`gemini-er`](#gemini-er), [`locate-anything`](#locate-anything), [`molmo-motion`](#molmo-motion), [`robobrain`](#robobrain); connector `robot.describe_workspace`, `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.solve_ik`
+- **Scripts**: [`propose_target_from_plan`](skills/following-a-visual-plan/scripts/propose_target_from_plan.py), [`follow_proposal`](skills/following-a-visual-plan/scripts/follow_proposal.py)
+- **Exits**:
+  - `proposed`: (propose only) The plan's endpoint lifted to a target on the table, in reach (IK preview of the hover and the goal), and, with target_phrase, within cross_check_tolerance of the pointing model's point; `proposal` holds the goal, hover, travel height and waypoints. Nothing moved.
+  - `no_plan`: (propose only) No plan was given and no instruction to ask for one, the planner raised or returned no track, or the track's endpoint is within 12 px of its start (no motion proposed - what MolmoMotion answers for a still scene); with replan, both plans. Nothing moved.
+  - `plan_rejected`: (propose only) The endpoint is outside the image or has no depth, is off the table (its surface under the table plane, past workspace_bounds) or implausibly high over it, the route needs a travel height over the ceiling, no rotation reaches the hover and the goal (IK preview), or the cross-check found no target or disagrees; `detail` says which. With replan, both plans failed. Nothing moved.
+  - `arrived`: (execute only) Every leg was accepted and a fresh pose reading puts the tool centre within reach_tolerance (15 mm) of the goal above the target. What the hand did; re-perceive before relying on what is under it.
+  - `unreachable`: (execute only) A leg (rise, waypoint, hover, descend) raised or reported it did not arrive (a servo timeout counts only when the hand is further than reach_tolerance from the leg's end), or the hand ended further than reach_tolerance from the goal; `detail` names the leg.
 
 ### grasping-concave-contour
 
