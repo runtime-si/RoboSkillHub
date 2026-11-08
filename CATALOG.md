@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 101 skills, 2 policies, 1 recipe and 1 paper.
+18 tools, 101 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -30,6 +30,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`track`](#track) | perceive | Google DeepMind TAPNext++ run locally on a GPU. | any |
 | [`vlm`](#vlm) | perceive | Free-form and yes/no visual question answering against a hosted vision-language model (OpenRouter API by default… | any |
 | [`curobo`](#curobo) | plan | NVIDIA cuRobo motion planning. | any, *tuned on* panda |
+| [`grconvnet`](#grconvnet) | propose | Proposes ranked top-down parallel-jaw grasps from one RGB-D frame with GR-ConvNet (skumra/robotic-grasping), on CPU… | any |
 | [`molmo-motion`](#molmo-motion) | propose | AllenAI MolmoMotion-4B run locally on a GPU. | any |
 | [`robobrain`](#robobrain) | propose | BAAI RoboBrain 2.5-4B run locally on a GPU. | any |
 | [`predicates`](#predicates) | judge | Geometric yes/no judgments over poses and boxes the graph already holds. | any |
@@ -347,6 +348,17 @@ NVIDIA cuRobo motion planning — collision-free trajectories to grasp goalsets,
   - `curobo.validate_joint_trajectory_robot`: Collision-validate joint waypoints (robot vs world + self).
   - `curobo.validate_joint_trajectory_grasped`: Same, with a grasped object attached at waypoint 0.
   - `curobo.cloud_to_attachment`: MORPHIT collision spheres for a held object's cloud, in the TCP frame.
+
+### grconvnet
+
+propose · robots: any · tasks: pick-place · BSD-3-Clause · v0.1.0 · [`SKILL.md`](tools/grconvnet/SKILL.md) · [upstream](https://github.com/skumra/robotic-grasping/tree/183c6f68c44c1c7ff0f07707e2db6fcfd6840d2d/inference)
+
+Proposes ranked top-down parallel-jaw grasps from one RGB-D frame with GR-ConvNet (skumra/robotic-grasping), on CPU (75 ms a call on 8 desktop cores) or a GPU -- pixel centre, jaw angle, opening in px and metres and a quality, and with a camera pose the world grasp point, the heading the jaws close along (for robot.grasp_frame) and an oriented box measured from the depth along the jaw line (for OBB-driven grasp skills). Use when a pick needs a learned propose rung beside proposing-short-axis-grasps because the object's box does not say where to grasp it -- a container wider than the hand (grasp its wall), a curved cable, an irregular part -- with a mask from a perception skill to focus it on one target.
+
+- **Weights**: `https://raw.githubusercontent.com/skumra/robotic-grasping/183c6f68c44c1c7ff0f07707e2db6fcfd6840d2d/trained-models/jacquard-d-grconvnet3-drop0-ch32/epoch_50_iou_0.94`
+- **Runs**: in its own environment over `stdio-msgpack`
+- **Functions**:
+  - `grconvnet.propose`: Ranked top-down parallel-jaw grasps from an RGB-D frame; pixel centre, angle, width (px, m), quality, and world grasp point / closing heading / box with a camera pose.
 
 ### molmo-motion
 
