@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 86 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 87 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -56,6 +56,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`registering-held-objects`](#registering-held-objects) | perceive | Reobserves a grasped rigid object from the wrist cameras, estimates its functional feature in the TCP frame, and fits… | any |
 | [`tracking-objects`](#tracking-objects) | perceive | Long-running skill that drives the SAM3 tracker from the graph-scoped observation stream. | any |
 | [`checking-design-connectivity-and-collisions`](#checking-design-connectivity-and-collisions) | plan | Checks a brick design on a stud grid before the arms build it. | any |
+| [`computing-brick-pose-from-stud-grid`](#computing-brick-pose-from-stud-grid) | plan | Converts between a cell on a LEGO or DUPLO baseplate's stud grid (x, y, layer, brick size such as 2x4, rotation… | any |
 | [`computing-feature-mating-poses`](#computing-feature-mating-poses) | plan | Computes approach, engaged, and mate TCP poses from a held feature in the hand and a fixture feature, resolving free… | any |
 | [`executing-keypoint-motion`](#executing-keypoint-motion) | plan | Plans and executes a one-step manipulation from a language instruction with MOKA's mark-based visual prompting. | any |
 | [`planning-articulation-opening`](#planning-articulation-opening) | plan | Plans the hand's path that opens a drawer or a door it already holds by the handle. | any |
@@ -639,6 +640,26 @@ Checks a brick design on a stud grid before the arms build it - BrickGPT's rules
   - `step_blocked`: Some brick is placed under (anywhere in a higher layer over its footprint) a brick already placed, so it cannot be pressed on from above; `step_blocked` lists [brick, blocker] pairs.
   - `weakly_connected`: A joint of a single stud carries bricks that reach past that stud (removing it would cut them off the plate); `weak_joints` lists [lower, upper] (-1 = the plate), `weak_bricks` what hangs on them.
   - `unstable`: Holding the design (or, with stability 'steps', one of its partial builds) up needs more than the stud clutch (clutch_n, 0.98 N) at some stud; `stability_max` is the utilisation, `worst_brick` / `unstable_step` say where.
+
+### computing-brick-pose-from-stud-grid
+
+plan · robots: any · tasks: assembly, lego · MIT · v0.1.0 · [`SKILL.md`](skills/computing-brick-pose-from-stud-grid/SKILL.md) · [upstream](https://github.com/intelligent-control-lab/Robotic_Lego_Manipulation/blob/9bc91654e708e4d8428ecfa76840103cacb2a19a/src/Lego.cpp)
+
+Converts between a cell on a LEGO or DUPLO baseplate's stud grid (x, y, layer, brick size such as 2x4, rotation 0/90/180/270) and metric world poses - ICL's calc_brick_loc chain (plate pose * top-left offset * cell offset * yaw * brick-centre offset) - giving the brick's body-centre pose, the seat pressing-a-brick-onto-studs takes, a top-down parallel-jaw grasp across the short side with its approach (press hover), and pose6d's box and support plane; and back, from a world pose (e.g. pose6d's) to the nearest cell with the residual. Checks the plate's bounds and, given occupied cells, collisions, support from the layer below and room for the fingers. Use when a build step names a cell on a calibrated baseplate and the arm needs where to grasp or press, or when a perceived brick must be read as a grid cell.
+
+- **In**: `plate_pose` Se3Pose
+- **Out**: `brick_pose` Se3Pose, `top_pose` Se3Pose, `seat_position` Vec3, `seat_yaw_deg` float, `system` string, `stud_pitch` float, `stud_height` float, `stud_diameter` float, `brick_height` float, `grasp_pose` Se3Pose, `grasp_pose_flipped` Se3Pose, `approach_pose` Se3Pose, `press_pose` Se3Pose, `close_heading_deg` float, `close_axis` string, `jaw_width` float
+- **Calls**: connector `robot.describe_gripper`, `robot.grasp_frame`, `robot.solve_ik`
+- **Scripts**: [`brick_pose`](skills/computing-brick-pose-from-stud-grid/scripts/brick_pose.py)
+- **Exits**:
+  - `computed`: The cell is on the plate (and, given occupied cells, free, supported, with room for the fingers; the jaws open wide enough where the gripper is described; the grasp passes the IK preview when check_reach). For a pose input, it lies within the tolerances of its nearest cell.
+  - `off_grid`: Pose input only. The nearest cell is returned, but the pose is more than lateral_tolerance (a quarter pitch) from it along a plate axis, more than a quarter brick height from a layer, yawed more than 10 deg off the rows or tilted more than 10 deg; residual says by how much.
+  - `out_of_plate`: Part of the footprint lies off the plate's stud grid, or the layer is under 1. Poses are still filled in.
+  - `collides`: One of the brick's cells is in occupied; collisions lists them.
+  - `unsupported`: Occupied cells were given, the layer is 2 or more, and nothing occupies the layer under any of its cells.
+  - `ungraspable`: The finger rows beside the brick (along the closing axis, at its layer and above) are occupied on both sides it could be grasped across, or the described jaws open less than the brick's width + jaw_margin.
+  - `unreachable`: check_reach, and neither wrist solution of the grasp and approach passes robot.solve_ik.
+  - `invalid`: Malformed inputs (unknown system, rotation not a multiple of 90, neither or both of cell / observed_pose, a grasp_depth outside the brick).
 
 ### computing-feature-mating-poses
 

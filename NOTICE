@@ -379,3 +379,11 @@ skills/checking-design-connectivity-and-collisions/LICENSE.brickgpt. Its
 stability score takes only the idea of StableLego
 (https://github.com/intelligent-control-lab/StableLego, MIT); no StableLego code
 is copied.
+skills/computing-brick-pose-from-stud-grid/scripts/brick_pose.py is adapted
+from Robotic_Lego_Manipulation
+(https://github.com/intelligent-control-lab/Robotic_Lego_Manipulation,
+src/Lego.cpp (Lego::calc_brick_loc, Lego::calc_brick_grab_pose) and
+include/Lego.hpp, commit 9bc91654e708e4d8428ecfa76840103cacb2a19a), MIT License
+(its LICENSE.md carries the MIT text under the line "Copyright (c) 2011-2023
+GitHub Inc."); the file's header lists the changes, and the license is
+skills/computing-brick-pose-from-stud-grid/LICENSE.icl.
