@@ -8,8 +8,9 @@ description: Refines a coarse world-frame target (an overhead perception's OBB
   and back-projecting the pointed pixel with the wrist depth and the camera's
   pose to a refined world point and a shifted OBB. Use when an overhead
   detection is too coarse for the next step (a small part, a grasp that
-  missed by 1-3 cm, a target the overhead camera sees at a few pixels) and the
-  arm carrying the wrist camera is free.
+  missed by 1-3 cm, a target the overhead camera sees at a few pixels, such as
+  a jigsaw piece to be matched from a wrist close-up) and the arm carrying the
+  wrist camera is free.
 license: Apache-2.0
 compatibility: requires gap>=0.1
 metadata:
@@ -19,7 +20,7 @@ metadata:
     stage: perceive
     embodiments: [any]
     version: 0.1.0
-    tasks: [pick-place, insertion, sorting]
+    tasks: [pick-place, insertion, sorting, jigsaw]
     provenance:
       authors: [runtime-si]
       code: https://github.com/nssmd/RoboRSI/tree/main/roborsi/embodied/skills/base/find_object_via_wrist/robotwin
@@ -80,6 +81,22 @@ world point.
   *camera*.
 - **Not `perceiving-objects`' wrist gate**: that uses a wrist frame wherever
   the arm already is; this one moves the camera first.
+
+## Jigsaw pieces
+
+The jigsaw station's overhead Orbbec at ~0.9 m sees a 2 cm piece as ~11 px:
+enough to find a piece, not to match it. Run this skill per piece with the
+overhead box and `camera_range=0.15` if the arm reaches it (a piece is then
+~60 px in the D405; on a YAM the 50 mm clearance floor rules out the 0.15 m
+look-down view, so expect the 0.20 m one, ~45 px), and a query naming the
+piece by its colour. The hand is left looking at the piece, so the next
+node's `robot.get_observation` wrist frame is the close-up
+`localizing-a-piece-in-a-reference-image` matches against the box picture,
+and `refined_obb` is the box a pick takes. Limits: neighbouring pieces are
+~22 mm apart, inside the default drift bound, so the gate does not tell
+neighbours apart; the nearest-to-coarse choice does, and only among the
+points the pointer returned. Set `max_drift` near the overhead's real error.
+Not run on puzzle pieces yet (no wrist frames of the puzzle exist).
 
 ## What it does
 
@@ -181,7 +198,29 @@ settle wait in step 5 gave 1.73 / 0.24 / 0.07 / 1.61 mm (truth) and
 station's folded rest pose, live gemini-er.point put "the centre of the top
 face of the grey cube" on the cube's top face 3/3 times (2-5 s a call) and
 returned no point 3/3 times for a red cube that was not there (the
-`not_seen` path). Not measured: a closed loop on the real arm, molmo.
+`not_seen` path). A second run of the same script and harness reproduced the
+projected-truth row exactly; its gemini row was 0.48 / 0.70 / 0.42 / 6.51 mm,
+the 6.5 mm being Gemini pointing at the top face's near edge instead of its
+centre (21 px at 0.20 m), still on the cube.
+
+**The pointing, depth and gating step on other real station frames**, live
+`gemini-er.point`, 3 calls each; truth is a hand-labelled pixel lifted with
+the same depth window:
+
+| frame / query | coarse error | result |
+|---|---|---|
+| D405 close-up (0.36 m), "the metal tip of the plug of the white cable" | 25 mm | refined 3/3: 1.1 / 5.5 / 1.6 mm in the plane |
+| same, coarse point on a plate 93 mm away | 93 mm | not_seen 3/3 (drift bound) |
+| same, "the hole nearest its top-left corner of the grey perforated metal plate" | 18 mm | not_seen 3/3: no point twice; once a second, aluminium perforated plate in the background (refused) |
+| same, "a round hole of the black perforated plate in the foreground" | 0 mm | refined 3/3 on the neighbouring hole, 15 mm from the labelled one |
+| overhead Orbbec (0.99 m), "the white plug of the white cable", plug ~15 px | 25 mm | not_seen 3/3: pointed 220 px off at another stretch of the cable (and past the 50 cm depth range) |
+
+The pointer is the weak link: a name that fits another object in the frame
+gets that object, and the drift and depth gates turn it into `not_seen`
+rather than a wrong point. Name the target so nothing else in view fits.
+The overhead row is why the close-up is needed for parts a few pixels across.
+
+Not measured: a closed loop on the real arm, molmo.
 
 ## Provenance
 

@@ -472,9 +472,9 @@ Reconstructs a planner collision world from calibrated RGB-D views alone, exclud
 
 ### refining-target-from-wrist-closeup
 
-perceive · robots: any · tasks: pick-place, insertion, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/refining-target-from-wrist-closeup/SKILL.md) · [upstream](https://github.com/nssmd/RoboRSI/tree/main/roborsi/embodied/skills/base/find_object_via_wrist/robotwin)
+perceive · robots: any · tasks: pick-place, insertion, sorting, jigsaw · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/refining-target-from-wrist-closeup/SKILL.md) · [upstream](https://github.com/nssmd/RoboRSI/tree/main/roborsi/embodied/skills/base/find_object_via_wrist/robotwin)
 
-Refines a coarse world-frame target (an overhead perception's OBB or point) by aiming the wrist RGB-D camera at it from 0.15-0.3 m - the hand is placed so the camera's optical axis passes through the target, looking straight down when the arm reaches that - then re-pointing the object in the close-up frame with a pointing model (gemini-er.point or molmo.point_prompt) and back-projecting the pointed pixel with the wrist depth and the camera's pose to a refined world point and a shifted OBB. Use when an overhead detection is too coarse for the next step (a small part, a grasp that missed by 1-3 cm, a target the overhead camera sees at a few pixels) and the arm carrying the wrist camera is free.
+Refines a coarse world-frame target (an overhead perception's OBB or point) by aiming the wrist RGB-D camera at it from 0.15-0.3 m - the hand is placed so the camera's optical axis passes through the target, looking straight down when the arm reaches that - then re-pointing the object in the close-up frame with a pointing model (gemini-er.point or molmo.point_prompt) and back-projecting the pointed pixel with the wrist depth and the camera's pose to a refined world point and a shifted OBB. Use when an overhead detection is too coarse for the next step (a small part, a grasp that missed by 1-3 cm, a target the overhead camera sees at a few pixels, such as a jigsaw piece to be matched from a wrist close-up) and the arm carrying the wrist camera is free.
 
 - **In**: `object_name` str
 - **Out**: `refined_point` Vec3, `refined_obb` OrientedBoundingBox, `coarse_point` Vec3, `drift` float, `depth` float, `camera_range` float, `view_pose` Se3Pose
