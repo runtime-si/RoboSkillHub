@@ -416,3 +416,16 @@ car.ldr (James Jessiman, from the LDraw.org complete library) and 1869-1.mpd
 ("1869 - South African Flag", Merlijn Wissink, from the LDraw.org Official Model
 Repository, marked "Redistributable under CCAL version 2.0") are redistributed
 under CC BY 2.0; attribution: LDraw.org and the authors named.
+skills/planning-brick-assembly-order/scripts/plan_order.py is adapted from
+BrickGPT (https://github.com/AvaLovelace1/BrickGPT,
+src/mesh2brick/src/mesh2brick/planning.py plan_robotic_operation, commit
+9c53c7cb65f9de0df89562cc74b2d2e270fbcab4), MIT License, Copyright (c) 2025 Ava
+Pun, and from BrickSim (https://github.com/intelligent-control-lab/BrickSim,
+python/bricksim/topology/ordering.py bfs_sort_connections, commit
+cbd5de3238e6ac12f44ef699e1507a9f16bdafc3), MIT License, Copyright (c) 2026
+Haowei Wen; the file's header lists the changes, and the licenses are
+skills/planning-brick-assembly-order/LICENSE.brickgpt and LICENSE.bricksim. The
+test data tests/bundles/data/brick_plans/*.json are derived from the LDraw
+models pyramid.ldr and car.ldr (James Jessiman, LDraw.org complete library) and
+1869-1.mpd ("1869 - South African Flag", Merlijn Wissink, LDraw.org Official
+Model Repository), CC BY 2.0; attribution: LDraw.org and the authors named.

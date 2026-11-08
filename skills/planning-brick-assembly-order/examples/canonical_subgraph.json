@@ -1,0 +1,35 @@
+{
+  "skill": "planning-brick-assembly-order",
+  "inputs": {"steps_json": "str"},
+  "outputs": {
+    "sequence": {"$ref": "plan.sequence"},
+    "by_arm": {"$ref": "plan.by_arm"},
+    "not_placed": {"$ref": "plan.not_placed"},
+    "n_placed": {"$ref": "plan.n_placed"},
+    "sequence_json": {"$ref": "plan.sequence_json"}
+  },
+  "nodes": {
+    "plan": {
+      "type": "script",
+      "script": "scripts/plan_order.py",
+      "inputs": {
+        "steps_json": {"$ref": "in.steps_json"},
+        "step_order": "prefer",
+        "check_fingers": true,
+        "arms": ["left", "right"]
+      }
+    }
+  },
+  "edges": [["START", "plan"], ["plan", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "sequence_ready",
+      "inventory_short",
+      "unreachable_step",
+      "not_buildable",
+      "finger_blocked"
+    ]
+  },
+  "on_error": "invalid_input"
+}
