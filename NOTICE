@@ -355,6 +355,15 @@ predicators/envs/pybullet_domino/components/domino_component.py), MIT License,
 Copyright (c) 2022 Rohan Chitnis and Tom Silver; the file's header lists the
 changes, and the license is
 skills/placing-an-upright-domino-beside-neighbours/LICENSE.predicators.
+skills/verifying-a-domino-cascade-from-video/scripts/verify_cascade.py is
+adapted from predicators (https://github.com/BasisResearch/predicators, commit
+afb6f2918091f5ca372a75b9a335aea317a8a209:
+predicators/envs/pybullet_domino/cascade_certificate.py (_topple_onset),
+predicators/envs/pybullet_domino/components/domino_component.py and the
+onset-detection rules of docs/envs/domino/continuous-perception.md), MIT
+License, Copyright (c) 2022 Rohan Chitnis and Tom Silver; the file's header
+lists the changes, and the license is
+skills/verifying-a-domino-cascade-from-video/LICENSE.predicators.
 skills/pressing-a-brick-onto-studs/scripts/press_brick.py is adapted from
 BrickSim (https://github.com/intelligent-control-lab/BrickSim,
 python/bricksim/envs/assemble_brick/expert.py, commit

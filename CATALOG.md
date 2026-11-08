@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 95 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 96 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -122,6 +122,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`detecting-disturbed-pieces-by-snapshot-diff`](#detecting-disturbed-pieces-by-snapshot-diff) | verify | Checks whether anything already placed was knocked since the last verified step. | any |
 | [`previewing-target-overlay`](#previewing-target-overlay) | verify | Checks a target gripper pose before the arm moves. | any |
 | [`verifying-a-cable-route`](#verifying-a-cable-route) | verify | Judge a finished cable route from a camera rather than from an evaluator. | any |
+| [`verifying-a-domino-cascade-from-video`](#verifying-a-domino-cascade-from-video) | verify | Decides from a short RGB(-D) clip of the overhead or a wrist camera which tiles of a planned domino line fell and… | any |
 | [`verifying-articulation-displacement`](#verifying-articulation-displacement) | verify | Checks from the camera whether a drawer or a door really moved as asked. | any |
 | [`verifying-grasps`](#verifying-grasps) | verify | Three independent checks on one grasp attempt. | any |
 | [`verifying-insertion-by-probe-push`](#verifying-insertion-by-probe-push) | verify | Checks whether a held part is seated after an insertion by pushing it a few millimetres further along the insertion… | any |
@@ -1664,6 +1665,24 @@ Judge a finished cable route from a camera rather than from an evaluator — re-
 - **Exits**:
   - `woven`: Every station has rod on its owed side within the seat's reach, and the hand is clear of the rod.
   - `short`: At least one station is unseated (no rod abreast of it, on the wrong side, or outside the box), the hand is still on the rod, or no rod could be read at all; `detail` says which.
+
+### verifying-a-domino-cascade-from-video
+
+verify · robots: any · tasks: domino · MIT · v0.1.0 · [`SKILL.md`](skills/verifying-a-domino-cascade-from-video/SKILL.md) · [upstream](https://github.com/BasisResearch/predicators/blob/afb6f2918091f5ca372a75b9a335aea317a8a209/predicators/envs/pybullet_domino/cascade_certificate.py)
+
+Decides from a short RGB(-D) clip of the overhead or a wrist camera which tiles of a planned domino line fell and when, how fast the wave ran and where it stopped. Per planned slot it measures a fall angle each frame (depth - a rotated-box height profile fitted along the tile's fall corridor; RGB only - how much of the gap in front of the tile its body covers; optionally a tracked point (track) or tracked mask (sam3) fitted to the rotated box's image), drops frames where a hand or the arm hides the tile, confirms a fall after 3 frames past the fallen threshold and dates it back to when the tile left the upright band (predicators' cascade certificate), then routes all_fell, stopped_at (with the first standing tile), not_triggered, fell_before_trigger, irregular or unverifiable. No motion. Use after triggering a domino line or curve to check the chain, before re-triggering from where it stopped or rebuilding.
+
+- **In**: `first_slot` Se3Pose, `pitch` float, `n_tiles` int
+- **Out**: `n_tiles` int, `n_fell` int, `stop_index` int, `last_fallen_index` int, `stop_point` Vec3, `wave_speed` float, `wave_rate` float, `first_onset_time` float, `last_onset_time` float, `signal` str
+- **Calls**: [`sam3`](#sam3), [`track`](#track); connector `robot.get_observation`
+- **Scripts**: [`verify_cascade`](skills/verifying-a-domino-cascade-from-video/scripts/verify_cascade.py)
+- **Exits**:
+  - `all_fell`: Every tile fell, one after another from slot 0 (onsets never run backwards by more than a frame plus their uncertainty) and none before the trigger; `wave_speed` (m/s along the path) and `wave_rate` (tiles/s) are robust fits over the onsets, `intervals` the successive propagation intervals.
+  - `stopped_at`: Tiles 0 to k-1 fell and tile k was seen standing after the wave reached it, with every tile after it standing or unseen; `stop_index` is k, `stop_point` its centre (where to re-trigger or fix the gap).
+  - `not_triggered`: No tile fell and the first tile was seen standing.
+  - `fell_before_trigger`: A tile started falling before `trigger_frame` / `trigger_time` (the frame the push began) - the line was knocked, not triggered.
+  - `irregular`: The falls are not one wave from slot 0 - a tile fell while the first stood, a tile fell beyond a standing one, or a later tile started falling clearly before an earlier one.
+  - `unverifiable`: No clip, no slots, a tile already down in its first frames, too few usable frames to tell whether the first tile or the tile where the wave stopped fell (a hand over it, out of view), or a raised error.
 
 ### verifying-articulation-displacement
 

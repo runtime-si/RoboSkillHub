@@ -1,0 +1,31 @@
+{
+  "skill": "verifying-a-domino-cascade-from-video",
+  "inputs": {"first_slot": "Se3Pose", "pitch": "float", "n_tiles": "int"},
+  "outputs": {
+    "n_fell": {"$ref": "verify.n_fell"},
+    "stop_index": {"$ref": "verify.stop_index"},
+    "stop_point": {"$ref": "verify.stop_point"},
+    "wave_speed": {"$ref": "verify.wave_speed"},
+    "first_onset_time": {"$ref": "verify.first_onset_time"},
+    "detail": {"$ref": "verify.detail"}
+  },
+  "nodes": {
+    "verify": {
+      "type": "script",
+      "script": "scripts/verify_cascade.py",
+      "inputs": {
+        "first_slot": {"$ref": "in.first_slot"},
+        "pitch": {"$ref": "in.pitch"},
+        "n_tiles": {"$ref": "in.n_tiles"},
+        "camera_name": "overhead",
+        "record_frames": 45
+      }
+    }
+  },
+  "edges": [["START", "verify"], ["verify", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["all_fell", "stopped_at", "not_triggered", "fell_before_trigger", "irregular"]
+  },
+  "on_error": "unverifiable"
+}
