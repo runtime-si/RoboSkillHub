@@ -213,7 +213,7 @@ arguments, plus one run of the plan through the graph's own nodes (13 runs):
 | position error (skill's reading) | 1.7-4.9 mm, median 4.1 mm |
 | target from the box's centre | 8.4-48.9 mm, median 20.7 mm (the inner half-width is 47.7 mm) |
 | hand inside the walls (simulator truth) | 12/13: `cube0/end_effector/start` ended 0.9 mm past the inner wall, over the far wall, where its endpoint pixel is (3.7 px inside the box's far edge) |
-| hand over the rim | 33.3-36.5 mm (goal: measured top + 30 mm) |
+| hand over the rim | 31.3-34.5 mm over the true rim (42 mm: a 40 mm box on the 2 mm cloth; goal: measured top + 30 mm) |
 | rejections | an endpoint on the floor past the table's edge (616 mm under the table plane) and one off the image: `plan_rejected`, hand moved 0.0 mm |
 
 Before the timeout read-back was added, the same run routed 3 of its first 5
@@ -221,7 +221,28 @@ descents `unreachable` with the hand 3.8-4.9 mm over the goal. The no-depth
 rejection was not exercised (the render had no invalid depth); it and the
 pointing cross-check are covered by the unit tests only. No planner model was
 called during the simulation: the plans are robobrain.trace's real answers on
-the real frame, replayed.
+the real frame, replayed. Each run took ~4 min of wall time on a GPU shared
+with other simulators at 100 % utilization.
+
+**Unit tests** (40, FakeContext) put every saved trace through a ray-cast
+depth image of the same scene built from the station's calibration (camera
+pose and intrinsics, table at -21 mm, box and cube where the twin's fit put
+them): 12/12 over the box, 11/12 inside its walls (the same far-wall
+endpoint). On the cable frame, the depth-anchored "insert the free end of
+the white cable into the left black ring" trace ends within 5 cm of a point
+on that ring (proposed) and "move ... through the black ring" ends 40 px off
+it (rejected by the cross-check).
+
+**The approach direction.** The plan's last segment, carried to the
+target's height, points mostly toward the camera (-y in the station frame)
+on these traces: on the tilted overhead camera the descent at the end of
+RoboBrain's arc projects as motion down the image. `approach_from:
+whole_path` (start to end) gives the lateral direction instead (+x, cube to
+box, 12/12 in the unit tests). Neither is a 3D approach axis.
+
+Not run: a live planner call from the skill, the cross-check against a live
+pointing model, `replan`, `follow_path` waypoints and an obstacle-raised
+travel height in the twin (unit tests only), and anything on a real YAM.
 
 ## Provenance
 
