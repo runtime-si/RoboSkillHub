@@ -312,3 +312,15 @@ fd27bbe875dbd656e381f72ae2b44efdfb243924:
 flowstate/aic_perception/aic_perception/board_visibility.py and
 flowstate/aic_perception/move_to_board_skill.py), Apache-2.0, Copyright (c)
 the aic authors; the file's header lists the changes.
+tools/colour/_ciede2000.py is adapted from scikit-image
+(https://github.com/scikit-image/scikit-image, src/skimage/color/delta_e.py
+deltaE_ciede2000 and src/skimage/color/colorconv.py _cart2polar_2pi, commit
+5d91fed804ec8d9133118f02b3a785790df75934), BSD-3-Clause, Copyright 2009-2022
+the scikit-image team; the file's header lists the changes, and the license is
+tools/colour/LICENSE.scikit-image.
+The LEGO colour names, codes and sRGB values in tools/colour/_impl.py are from
+the LDraw.org colour table LDConfig.ldr
+(https://library.ldraw.org/library/official/LDConfig.ldr, 2026-05-29 update),
+licensed under the Creative Commons Attribution Licence 2.0 (CCAL 2.0 / CC BY
+2.0) per the LDraw Contributor Agreement; attribution: LDraw.org. LEGO is a
+trademark of the LEGO Group, which does not sponsor or endorse this project.
