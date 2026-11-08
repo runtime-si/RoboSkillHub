@@ -1,0 +1,51 @@
+{
+  "skill": "planning-a-flat-domino-mosaic-from-an-image",
+  "inputs": {"image_path": "str", "sets": "int"},
+  "outputs": {
+    "placements": {"$ref": "plan.placements"},
+    "placements_json": {"$ref": "plan.placements_json"},
+    "pose_sequence": {"$ref": "plan.pose_sequence"},
+    "first_pose": {"$ref": "plan.first_pose"},
+    "per_set": {"$ref": "plan.per_set"},
+    "supply": {"$ref": "plan.supply"},
+    "n_tiles": {"$ref": "plan.n_tiles"},
+    "rows": {"$ref": "plan.rows"},
+    "cols": {"$ref": "plan.cols"},
+    "cell_rmse": {"$ref": "plan.cell_rmse"},
+    "image_rmse": {"$ref": "plan.image_rmse"},
+    "solve_time_s": {"$ref": "plan.solve_time_s"},
+    "preview_path": {"$ref": "plan.preview_path"},
+    "problems": {"$ref": "plan.problems"},
+    "detail": {"$ref": "plan.detail"}
+  },
+  "nodes": {
+    "plan": {
+      "type": "script",
+      "script": "scripts/plan_mosaic.py",
+      "inputs": {
+        "image_path": {"$ref": "in.image_path"},
+        "sets": {"$ref": "in.sets"},
+        "grid_origin": [0.30, 0.12, 0.0],
+        "pitch_m": 0.026,
+        "pip_contrast": "dark_on_light",
+        "arms": [{"arm_id": 0, "base": [0.0, 0.0, 0.0]}],
+        "time_limit_s": 60,
+        "preview_path": "domino_mosaic_preview.png"
+      }
+    }
+  },
+  "edges": [["START", "plan"], ["plan", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "planned",
+      "not_enough_sets",
+      "solver_timeout",
+      "invalid_image",
+      "out_of_reach",
+      "solver_unavailable",
+      "solver_failed"
+    ]
+  },
+  "on_error": "invalid_input"
+}

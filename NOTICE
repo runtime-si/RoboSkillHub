@@ -496,3 +496,17 @@ Blackboard.absolute_name, commit 49bcffd069afa2b7bd9ca7b0e7312f5cbb3640bd),
 BSD-3-Clause License, Copyright (c) 2020 Daniel Stonier; the file's header lists
 the changes, and the license is
 skills/checkpointing-assembly-state-for-resume/LICENSE.py_trees.
+
+skills/planning-a-flat-domino-mosaic-from-an-image/scripts/mosaic_model.py is
+adapted from DominoArtSolver (https://github.com/ArnoldF/DominoArtSolver,
+commit 3f9e260ea97a6ad659784fc6931bbb64d9196eba: src/domino_model.py
+DominoModel, src/preprocessing.py, src/image_processing.py
+get_field_brightness and the end-order rule of src/plotting.py), MIT License,
+Copyright (c) 2025 Florian Arnold Thurm; the file's header lists the changes,
+and the license is
+skills/planning-a-flat-domino-mosaic-from-an-image/LICENSE.dominoartsolver. It
+calls PuLP (https://github.com/coin-or/pulp, MIT) and the CBC solver
+(https://github.com/coin-or/Cbc; bundled with PuLP 2.x/3.x under the Eclipse
+Public License 1.0, or the cbcbox package under EPL-2.0) when installed, else
+HiGHS through SciPy's scipy.optimize.milp (MIT / BSD-3-Clause), as separate
+libraries or programs; no code of them is copied or distributed here.
