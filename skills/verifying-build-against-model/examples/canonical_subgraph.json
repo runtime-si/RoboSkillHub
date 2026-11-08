@@ -1,0 +1,37 @@
+{
+  "skill": "verifying-build-against-model",
+  "inputs": {"steps_json": "string", "step": "int", "plate_pose": "Se3Pose"},
+  "outputs": {
+    "score": {"$ref": "verify.score"},
+    "n_missing": {"$ref": "verify.n_missing"},
+    "n_unseated": {"$ref": "verify.n_unseated"},
+    "report_json": {"$ref": "verify.report_json"}
+  },
+  "nodes": {
+    "verify": {
+      "type": "script",
+      "script": "scripts/verify_build.py",
+      "inputs": {
+        "target": {"$ref": "in.steps_json"},
+        "upto_step": {"$ref": "in.step"},
+        "plate_pose": {"$ref": "in.plate_pose"},
+        "plate_studs": [32, 32],
+        "system": "lego",
+        "camera_name": "left_wrist"
+      }
+    }
+  },
+  "edges": [["START", "verify"], ["verify", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "matches",
+      "misplaced",
+      "wrong_colour",
+      "extra_bricks",
+      "unseated",
+      "missing_bricks"
+    ]
+  },
+  "on_error": "unverifiable"
+}

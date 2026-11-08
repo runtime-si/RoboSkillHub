@@ -462,3 +462,12 @@ e098ebbb684788df60b42e3bde112c014d0d9517), BSD-3-Clause License, Copyright (c)
 license is skills/detecting-disturbed-pieces-by-snapshot-diff/LICENSE.scikit-image.
 It calls OpenCV's findTransformECC / findTransformECCWithMask (Apache-2.0) and
 copies none of it.
+skills/verifying-build-against-model/scripts/verify_build.py is adapted from
+LTRON (https://github.com/aaronwalsman/ltron, commit
+253be3e55cef068c1842fd9a7d2e2b3c22d19d7b: ltron/matching.py match_assemblies,
+validate_matches, match_lookup; ltron/score.py f1, score_assemblies,
+edit_distance; ltron/geometry/symmetry.py pose_match_under_symmetries), MIT
+License, Copyright 2021 Aaron Walsman; the file's header lists the changes, and
+the license is skills/verifying-build-against-model/LICENSE.ltron (LTRON's
+LICENSE file, which also covers the LDraw parts library under CC BY 2.0; no
+LDraw parts are bundled with this skill).
