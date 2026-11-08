@@ -1,0 +1,12 @@
+0 LPub metas: a buffer exchange (parts shown then removed), a ROTSTEP, a ghost line
+0 Name: lpub.ldr
+0 Author: runtime-si (hand-written test file)
+0 !LICENSE Apache-2.0
+1 4 0 -24 0 1 0 0 0 1 0 0 0 1 3001.dat
+0 BUFEXCHG A STORE
+1 4 0 -48 0 1 0 0 0 1 0 0 0 1 3001.dat
+0 BUFEXCHG A RETRIEVE
+0 ROTSTEP 0 45 0 ABS
+0 GHOST 1 4 0 -48 0 1 0 0 0 1 0 0 0 1 3003.dat
+1 14 0 -48 0 1 0 0 0 1 0 0 0 1 3003.dat
+0 STEP

@@ -1,0 +1,28 @@
+{
+  "skill": "parsing-ldraw-build-instructions",
+  "inputs": {"ldraw_path": "str"},
+  "outputs": {
+    "steps": {"$ref": "parse.steps"},
+    "bricks": {"$ref": "parse.bricks"},
+    "unsupported": {"$ref": "parse.unsupported"},
+    "n_bricks": {"$ref": "parse.n_bricks"},
+    "steps_json": {"$ref": "parse.steps_json"}
+  },
+  "nodes": {
+    "parse": {
+      "type": "script",
+      "script": "scripts/parse_ldraw.py",
+      "inputs": {
+        "ldraw_path": {"$ref": "in.ldraw_path"},
+        "submodels": "inline",
+        "origin": "auto"
+      }
+    }
+  },
+  "edges": [["START", "parse"], ["parse", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["steps_ready", "unsupported_part", "off_grid"]
+  },
+  "on_error": "invalid_file"
+}

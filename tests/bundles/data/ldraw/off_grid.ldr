@@ -1,0 +1,11 @@
+0 Off-grid parts: a brick turned 45 deg, one upside down, a half-stud shift, a tilt, a slope
+0 Name: off_grid.ldr
+0 Author: runtime-si (hand-written test file)
+0 !LICENSE Apache-2.0
+1 4 0 -24 0 1 0 0 0 1 0 0 0 1 3001.dat
+1 4 0 -48 0 0.7071 0 0.7071 0 1 0 -0.7071 0 0.7071 3003.dat
+1 4 0 -48 100 1 0 0 0 -1 0 0 0 -1 3003.dat
+1 4 10 -48 200 1 0 0 0 1 0 0 0 1 3003.dat
+1 4 0 -48 300 1 0 0 0 0.9848 -0.1736 0 0.1736 0.9848 3003.dat
+1 4 0 -60 0 1 0 0 0 1 0 0 0 1 3001.dat
+1 4 0 -24 400 1 0 0 0 1 0 0 0 1 3039.dat

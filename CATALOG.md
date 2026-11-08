@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 88 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 89 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -59,6 +59,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`computing-brick-pose-from-stud-grid`](#computing-brick-pose-from-stud-grid) | plan | Converts between a cell on a LEGO or DUPLO baseplate's stud grid (x, y, layer, brick size such as 2x4, rotation… | any |
 | [`computing-feature-mating-poses`](#computing-feature-mating-poses) | plan | Computes approach, engaged, and mate TCP poses from a held feature in the hand and a fixture feature, resolving free… | any |
 | [`executing-keypoint-motion`](#executing-keypoint-motion) | plan | Plans and executes a one-step manipulation from a language instruction with MOKA's mark-based visual prompting. | any |
+| [`parsing-ldraw-build-instructions`](#parsing-ldraw-build-instructions) | plan | Reads an LDraw .ldr / .mpd build file. | any |
 | [`planning-a-domino-layout`](#planning-a-domino-layout) | plan | Plans a domino line along a path on the table. | any |
 | [`planning-articulation-opening`](#planning-articulation-opening) | plan | Plans the hand's path that opens a drawer or a door it already holds by the handle. | any |
 | [`planning-held-object-motion`](#planning-held-object-motion) | plan | Plans the carry and engagement phases for an already-held rigid object. | any |
@@ -692,6 +693,21 @@ Plans and executes a one-step manipulation from a language instruction with MOKA
   - `done`: (execute only) Every phase reached its point within reach_tolerance (read back from the arm), including the grasp (jaws above empty_fraction) when there is one; the hand then released and lifted. This is what the hand did, not what the object did - re-perceive before relying on it.
   - `grasp_failed`: (execute only) The jaws closed to empty_fraction or less at the grasp keypoint; the hand opened and rose back to the safe height.
   - `unreachable`: (execute only) A free move (the first lift, a hover above the grasp or the pre-contact point) or the descent to the grasp was refused or ended off with every rotation tried (nothing touched), or a contact move (pre-contact, target, post-contact) stopped short; `detail` names the phase. After a contact-phase shortfall the hand still released and lifted.
+
+### parsing-ldraw-build-instructions
+
+plan · robots: any · tasks: assembly, lego · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/parsing-ldraw-build-instructions/SKILL.md) · [upstream](https://github.com/michaelgale/ldraw-py/blob/d650ab0a9c2a774e1ba6f206aa2cd3b1925478e3/ldrawpy/ldrmodel.py)
+
+Reads an LDraw .ldr / .mpd build file - submodels, STEP and ROTSTEP meta commands, part ids, colour codes, transforms in LDraw units - into ordered build steps of bricks on a stud grid, each brick as a cell (x, y, layer from 1), a size 'AxB', a rotation 0 / 90, a height in plates and a colour name from the LDraw colour table. Basic LEGO bricks, plates and tiles (1xN, 2xN, 4xN ...), DUPLO bricks and plates, and baseplates are converted; every other part, and any part that is turned off the 90-degree grid or sits between studs, is listed with a reason instead of guessed. Use when a build instruction comes as an LDraw file (from an editor, BrickGPT, or the LDraw model library) and the robot needs the bricks it describes, in order, in the stud-grid convention computing-brick-pose-from-stud-grid and planning-brick-assembly-order take.
+
+- **In**: `ldraw_path` str
+- **Out**: `system` str, `n_bricks` int, `n_steps` int, `n_unsupported` int, `n_off_grid` int, `steps_json` str
+- **Scripts**: [`parse_ldraw`](skills/parsing-ldraw-build-instructions/scripts/parse_ldraw.py)
+- **Exits**:
+  - `steps_ready`: Every part became a brick on the grid; `steps` holds them in build order.
+  - `unsupported_part`: Some parts are not in the basic-brick table (slopes, Technic, minifigures, a missing sub-file, the other system's bricks); they are in `unsupported` with the line and step, and `steps` holds the rest. A plan that needs them must be changed or finished by hand.
+  - `off_grid`: Some table parts are tilted, upside down, mirrored, turned by other than a multiple of 90 deg, or sit off the stud or plate grid (a half-stud jumper offset); they are in `off_grid` with the reason. Takes precedence over unsupported_part.
+  - `invalid_file`: No file or text, an unreadable file, no parts at all, a submodel that includes itself, or a bad argument; `detail` says which.
 
 ### planning-a-domino-layout
 

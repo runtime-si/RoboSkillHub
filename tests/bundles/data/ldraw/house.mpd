@@ -1,0 +1,21 @@
+0 FILE house.ldr
+0 House: a wall submodel placed twice, the second turned 90 deg, then a roof plate
+0 Name: house.ldr
+0 Author: runtime-si (hand-written test file)
+0 !LICENSE Apache-2.0
+1 15 0 0 0 1 0 0 0 1 0 0 0 1 3811.dat
+1 4 -60 0 -10 1 0 0 0 1 0 0 0 1 wall.ldr
+0 STEP
+1 1 10 0 40 0 0 1 0 1 0 -1 0 0 wall.ldr
+0 STEP
+1 71 -20 -56 0 1 0 0 0 1 0 0 0 1 3031.dat
+0 STEP
+
+0 FILE wall.ldr
+0 Wall: two layers of 1x4 bricks in the parent's colour
+0 Name: wall.ldr
+1 16 0 -24 0 1 0 0 0 1 0 0 0 1 3010.dat
+0 STEP
+1 16 0 -48 0 1 0 0 0 1 0 0 0 1 3010.dat
+1 0 -30 -72 0 1 0 0 0 1 0 0 0 1 3005.dat
+0 STEP
