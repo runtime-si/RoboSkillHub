@@ -1,0 +1,28 @@
+{
+  "skill": "planning-a-domino-layout",
+  "inputs": {"path": "Centerline"},
+  "outputs": {
+    "first_slot": {"$ref": "plan.first_slot"},
+    "pitch": {"$ref": "plan.pitch"},
+    "n_tiles": {"$ref": "plan.n_tiles"},
+    "critical_gap": {"$ref": "plan.critical_gap"},
+    "topple_margin": {"$ref": "plan.topple_margin"},
+    "gate_count": {"$ref": "plan.gate_count"},
+    "detail": {"$ref": "plan.detail"}
+  },
+  "nodes": {
+    "plan": {
+      "type": "script",
+      "script": "scripts/plan_layout.py",
+      "inputs": {
+        "path": {"$ref": "in.path"}
+      }
+    }
+  },
+  "edges": [["START", "plan"], ["plan", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["planned", "too_tight", "too_loose", "too_short", "out_of_reach", "blocked"]
+  },
+  "on_error": "invalid_input"
+}
