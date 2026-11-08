@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-15 tools, 82 skills, 2 policies, 1 recipe and 1 paper.
+16 tools, 82 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -24,6 +24,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grounding-dino`](#grounding-dino) | perceive | Grounding DINO zero-shot object detection — natural-language queries to labeled 2D bounding boxes with confidence scores. | any |
 | [`locate-anything`](#locate-anything) | perceive | NVIDIA LocateAnything-3B (non-commercial licence) run locally on a GPU. | any |
 | [`molmo`](#molmo) | perceive | Visual pointing and Q&A via the Molmo VLM served from a self-hosted vLLM endpoint (OpenAI-compatible API). | any |
+| [`pose6d`](#pose6d) | perceive | 6D pose of a known rigid part from depth. | any |
 | [`sam3`](#sam3) | perceive | Segment Anything 3 — text-, point-, and box-prompted instance segmentation, plus a stateful streaming video tracker… | any |
 | [`track`](#track) | perceive | Google DeepMind TAPNext++ run locally on a GPU. | any |
 | [`vlm`](#vlm) | perceive | Free-form and yes/no visual question answering against a hosted vision-language model (OpenRouter API by default… | any |
@@ -243,6 +244,17 @@ Visual pointing and Q&A via the Molmo VLM served from a self-hosted vLLM endpoin
   - `molmo.point_prompt`: Point at a named object in an image; returns pixel coordinates.
   - `molmo.query`: Free-form visual question answering via Molmo.
   - `molmo.query_yes_no`: Yes/no visual question answering via Molmo; coerces the reply to a bool.
+
+### pose6d
+
+perceive · robots: any · tasks: pick-place, insertion, reorientation, sorting · MIT · v0.1.0 · [`SKILL.md`](tools/pose6d/SKILL.md) · [upstream](https://github.com/isl-org/Open3D/tree/b6c5e196384ad71e75b6e6f9c5da22d046221f1d/examples/python/pipelines)
+
+6D pose of a known rigid part from depth — registers a box, cube or cylinder primitive (LEGO brick body, domino, cube, peg) or a mesh file to the part's point cloud or to its mask in a depth frame, and returns the pose with fitness, RMSE, surface coverage, every symmetric equivalent and the best non-equivalent alternative. Boxes and cylinders take an analytic, visibility-aware point-to-plane ICP over a hypothesis search (numpy/scipy, tens to a few hundred ms); meshes take Open3D FPFH + RANSAC global registration then point-to-plane ICP. Use when a workflow needs the full pose (not just an OBB) of a known-size part from the wrist D405 or the overhead camera.
+
+- **Runs**: in its own environment over `stdio-msgpack`
+- **Functions**:
+  - `pose6d.register_mesh`: 6D pose of a known part (box / cube / cylinder primitive or mesh file) from its point cloud, with fitness, RMSE, coverage and its symmetric equivalents.
+  - `pose6d.register_mask`: 6D pose of a known part from its segmentation mask and a depth frame (camera centre used as the viewpoint); world pose when a camera pose is given.
 
 ### sam3
 

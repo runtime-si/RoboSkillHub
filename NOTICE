@@ -324,3 +324,11 @@ the LDraw.org colour table LDConfig.ldr
 licensed under the Creative Commons Attribution Licence 2.0 (CCAL 2.0 / CC BY
 2.0) per the LDraw Contributor Agreement; attribution: LDraw.org. LEGO is a
 trademark of the LEGO Group, which does not sponsor or endorse this project.
+tools/pose6d/_impl.py (_register_global) is adapted from Open3D
+(https://github.com/isl-org/Open3D, commit
+b6c5e196384ad71e75b6e6f9c5da22d046221f1d:
+examples/python/pipelines/registration_ransac.py preprocess_point_cloud and
+the feature-matching RANSAC call, examples/python/pipelines/robust_icp.py
+Tukey-loss point-to-plane ICP), MIT License, Copyright (c) 2018-2026
+www.open3d.org; the file's header lists the changes, and the license is
+tools/pose6d/LICENSE.open3d.
