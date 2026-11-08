@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 90 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 91 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -39,6 +39,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | Skill | Stage | What it does | Robots |
 | --- | --- | --- | --- |
 | [`detecting-contact-from-joint-effort`](#detecting-contact-from-joint-effort) | perceive | Feels for contact without a force sensor. | any |
+| [`estimating-cut-grid-from-pieces`](#estimating-cut-grid-from-pieces) | perceive | Estimates a jigsaw's real cut grid (cols x rows) and cell size from the piece count printed on the box, the board's… | any |
 | [`framing-a-target-by-mask-edge-steering`](#framing-a-target-by-mask-edge-steering) | perceive | Moves the wrist camera until a named target lies wholly inside its image with a margin. | any |
 | [`localizing-a-piece-in-a-reference-image`](#localizing-a-piece-in-a-reference-image) | perceive | Finds which grid cell of a jigsaw's box picture one piece belongs to, and how far the piece is turned, from a close-up… | any |
 | [`perceiving-deformable-linear-objects`](#perceiving-deformable-linear-objects) | perceive | Read a cable's ordered 3D centreline from one RGB-D frame and keep it current across a task. | any |
@@ -390,6 +391,21 @@ Feels for contact without a force sensor - steps the hand along a short straight
   - `free`: The hand reached the line's end (or the tool-centre floor) with every step tracking as in free motion; it stays there.
   - `no_signal`: Nothing usable to decide with - signal=effort with an observation that carries no efforts (nothing moved), the line too short for two free-motion samples, or the free-motion lag jumping more than lag_threshold from step to step; `detail` says which.
   - `blocked`: The line is too long (over 150 mm), has no length, starts under the floor or ends out of reach (IK preview), the start was not reached, or a step was refused; `detail` says which.
+
+### estimating-cut-grid-from-pieces
+
+perceive · robots: any · tasks: jigsaw · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/estimating-cut-grid-from-pieces/SKILL.md)
+
+Estimates a jigsaw's real cut grid (cols x rows) and cell size from the piece count printed on the box, the board's size or the box picture's aspect, and the corner-to-corner side lengths of a few measured pieces (top- down masks with depth scale, corners found as in matching-a-piece-to-placed-neighbours). Every grid with c x r within 10 % of the count is scored against the pieces' sides (with the side pairs mixed both ways unless each piece's turn is known), under one shared scale factor, a prior on how manufacturers round the count and, if given, a full count of edge pieces (2(c + r) - 4). Returns the grid, its posterior confidence and the runner-up. Use before localizing-a-piece-in-a-reference-image or matching-a-piece-to-placed-neighbours, which both take the grid as input, when the real grid has not been counted; CPU only, under 0.1 s plus a few ms per piece.
+
+- **In**: `piece_count` int
+- **Out**: `grid_cols` int, `grid_rows` int, `cell_width` float, `cell_height` float, `confidence` float, `runner_up_cols` int, `runner_up_rows` int
+- **Calls**: [`sam3`](#sam3); connector `robot.get_observation`
+- **Scripts**: [`estimate_grid`](skills/estimating-cut-grid-from-pieces/scripts/estimate_grid.py)
+- **Exits**:
+  - `estimated`: At least min_pieces (6) pieces were measured, the best grid's posterior probability is at least min_confidence (0.9) and a given edge-piece count agrees with it (within 3 sigma). grid_cols, grid_rows and the cell size are the answer.
+  - `ambiguous`: Pieces were measured but the best grid is under min_confidence, or a given edge-piece count disagrees with it; grid_cols / grid_rows are the best guess and `candidates` ranks the alternatives. Give each piece's turn (angle_deg), measure more pieces, or count the edge pieces.
+  - `insufficient_pieces`: Fewer than min_pieces usable pieces (the prior-only best guess is still returned), no board size / aspect / reference, a piece count under 4, no camera for measure_view, or the corner skill is not installed; `detail` says which.
 
 ### framing-a-target-by-mask-edge-steering
 
