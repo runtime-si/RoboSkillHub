@@ -1,0 +1,29 @@
+{
+  "skill": "placing-an-upright-domino-beside-neighbours",
+  "inputs": {"slot": "Se3Pose", "tile": "Se3Pose", "table_z": "float"},
+  "outputs": {
+    "released": {"$ref": "place.released"},
+    "picked": {"$ref": "place.picked"},
+    "verified": {"$ref": "place.verified"},
+    "release_position": {"$ref": "place.release_position"},
+    "placement_offset": {"$ref": "place.placement_offset"},
+    "detail": {"$ref": "place.detail"}
+  },
+  "nodes": {
+    "place": {
+      "type": "script",
+      "script": "scripts/place_domino.py",
+      "inputs": {
+        "slot": {"$ref": "in.slot"},
+        "tile": {"$ref": "in.tile"},
+        "table_z": {"$ref": "in.table_z"}
+      }
+    }
+  },
+  "edges": [["START", "place"], ["place", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["placed", "knocked_neighbour", "fell", "unverified", "not_holding"]
+  },
+  "on_error": "unreachable"
+}
