@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 96 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 97 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -124,6 +124,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`verifying-a-cable-route`](#verifying-a-cable-route) | verify | Judge a finished cable route from a camera rather than from an evaluator. | any |
 | [`verifying-a-domino-cascade-from-video`](#verifying-a-domino-cascade-from-video) | verify | Decides from a short RGB(-D) clip of the overhead or a wrist camera which tiles of a planned domino line fell and… | any |
 | [`verifying-articulation-displacement`](#verifying-articulation-displacement) | verify | Checks from the camera whether a drawer or a door really moved as asked. | any |
+| [`verifying-build-against-model`](#verifying-build-against-model) | verify | Compares a brick build with its target model up to the current step. | any |
 | [`verifying-grasps`](#verifying-grasps) | verify | Three independent checks on one grasp attempt. | any |
 | [`verifying-insertion-by-probe-push`](#verifying-insertion-by-probe-push) | verify | Checks whether a held part is seated after an insertion by pushing it a few millimetres further along the insertion… | any |
 | [`verifying-placement`](#verifying-placement) | verify | Confirms from one RGB-D view that a released object went through an aperture, accepting either that it vanished into… | any |
@@ -1701,6 +1702,25 @@ Checks from the camera whether a drawer or a door really moved as asked - re-fin
   - `moved_wrong_way`: It travelled at least 30 mm against the expected sense (a close that opened it).
   - `inconsistent`: The handle was found, but the face normal is not the one expected (cosine under 0.9), the handle drifted more than 70 mm off the articulation, or a drawer moved more than 250 mm; most likely another handle or face was found, or the cabinet itself moved.
   - `not_seen`: The pointer found no handle, or no vertical face plane or nothing proud of it was found round the pointed pixel, in the frame after (or before) actuation; the hand may still hide it.
+
+### verifying-build-against-model
+
+verify · robots: any · tasks: assembly, lego · MIT · v0.1.0 · [`SKILL.md`](skills/verifying-build-against-model/SKILL.md) · [upstream](https://github.com/aaronwalsman/ltron/blob/253be3e55cef068c1842fd9a7d2e2b3c22d19d7b/ltron/matching.py)
+
+Compares a brick build with its target model up to the current step - LTRON's assembly matching (the best assignment of observed to target bricks by shape, colour and pose within a tolerance, F1 score and edit distance) - and reports the bricks that are missing, extra, misplaced (same brick elsewhere), the wrong colour, unseated (top a stud height high, 1.7 mm LEGO / 4.5 mm DUPLO, or at one end) or ahead of the instructions, with an ordered repair list. The observed bricks come either as stud-grid cells from upstream perception, or from a depth frame and the plate pose - every pixel's ray is cast against the target's expected height map and the measured height compared per stud cell; colours by tools/colour when the frame has RGB. Use after each placement or at the end of a build, to decide whether to go on, re-press, remove, move or place a brick.
+
+- **In**: `target` string
+- **Out**: `score` float, `edit_distance` int, `n_target` int, `n_matched` int, `n_missing` int, `n_extra` int, `n_misplaced` int, `n_wrong_colour` int, `n_unseated` int, `n_unverified` int, `report_json` string
+- **Calls**: [`colour`](#colour); connector `robot.get_observation`
+- **Scripts**: [`verify_build`](skills/verifying-build-against-model/scripts/verify_build.py)
+- **Exits**:
+  - `matches`: Every target brick up to the step is matched (seated where its seating could be measured), nothing extra; bricks of later steps already in place are listed in `ahead`, bricks whose seating is within the depth noise in `seat_unresolved` (a note, unless require_seating).
+  - `misplaced`: A target brick is missing and a brick of the same shape and colour that matches no target brick is elsewhere (shifted, turned or a layer off); `misplaced` pairs them with the shift.
+  - `wrong_colour`: A brick of the right shape sits at a target brick's place but its colour is another; `wrong_colour` lists expected and seen.
+  - `extra_bricks`: A brick (or depth blob) matches no target brick of this or a later step and pairs with no missing brick; `extra` lists it.
+  - `unseated`: A matched brick's top reads more than half a stud over its seated height (`how` raised), or its highest stud cell does (`how` one end - seated at one end, on the studs at the other), significant at 3 (brick) / 4 (cell) standard errors of the depth noise; `unseated` lists the heights.
+  - `missing_bricks`: Some target bricks up to the step are not there, and nothing above explains them; `missing` lists them.
+  - `unverifiable`: No camera frame / depth, no depth point on the plate, or target bricks seen too little to judge (`unverified`); with require_seating, also a seating within the noise.
 
 ### verifying-grasps
 
