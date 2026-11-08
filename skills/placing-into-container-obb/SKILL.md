@@ -197,12 +197,15 @@ and `rim_z` (`xy_tolerance_m` 0.05), then the cube was measured.
 |---|---|---|---|---|
 | RoboRSI's 0.20 m lift, 90th-percentile rim | unreachable (IK preview, all 5 points) | rim 0.754 vs 0.791 m (on the floor); lift stopped 48 mm short | still held, turned 15 deg | - |
 | 0.10 m lift, 98th-percentile rim, band mean as centre | placed (centre point) | rim 0.792 vs 0.791 m, floor 0.754 m (true 0.754), opening centre 32 mm off, inner halves 44 / 74 mm vs 47.7 | in the box, on the floor, upright (0.0 deg), 23 mm from the centre; 4 mm from the skill's `release_position` | verified ("disappeared": sam3 did not find the cube in the box) |
+| **as shipped** (band's 10th-90th percentile span) | placed (centre point) | rim 0.792 vs 0.791 m, floor 0.754 m (true 0.754), opening centre 5.3 mm off, inner halves 41 / 45 mm vs 47.7 | in the box, 1.1 mm over the floor, upright (0.0 deg), 7.2 mm from the centre; 3.7 mm from `release_position` | verified ("visible cube centre is below the aperture") |
+| as shipped, `footprint_margin` 0.04 m | no_room (needs 31 x 31 mm + 40 mm a side, opening 82 x 89 mm) | opening centre 5.1 mm off | still held, lifted, 2.9 deg in the jaws | - |
+| as shipped, "red ceramic bowl" (not in the scene) | container_not_found (best sam3 score 0.01) | - | still held, lifted, 2.9 deg in the jaws | - |
 
 The second run's off-centre opening (a tilted camera sees one wall's inner
 face densely in the rim band) is why the opening is now the band's
-10th-90th percentile span, capped by the box; that version's run is in the PR.
-sam3 scored the box 0.56. verifying-placement passed on "the object
-disappeared", the weakest of its two outcomes.
+10th-90th percentile span, capped by the box. The span reads the inner
+opening 3-7 mm narrow per side (41 / 45 mm vs 47.7 mm), which only costs room.
+sam3 scored the box 0.56. One run per case: the numbers are single samples.
 
 ## Provenance
 
