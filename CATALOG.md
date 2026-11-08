@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 99 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 100 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -132,6 +132,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`verifying-placement`](#verifying-placement) | verify | Confirms from one RGB-D view that a released object went through an aperture, accepting either that it vanished into… | any |
 | [`backtracking-a-wrong-placement`](#backtracking-a-wrong-placement) | recover | Decides what to undo after a jigsaw piece fails its check at a cell (it does not seat, a seam with a placed neighbour… | any |
 | [`centering-a-part-with-the-gripper`](#centering-a-part-with-the-gripper) | recover | Centres a loose part between the jaws without perceiving it. | any |
+| [`checkpointing-assembly-state-for-resume`](#checkpointing-assembly-state-for-resume) | recover | Saves and restores the state of a long assembly run (a 550-piece jigsaw, a LEGO build, a domino layout) so a run… | any |
 | [`correcting-insertion-offset-from-port-opening`](#correcting-insertion-offset-from-port-opening) | recover | Re-centres a held part over a port before or after a failed insertion using cameras only. | any |
 | [`returning-to-a-recorded-pose`](#returning-to-a-recorded-pose) | recover | Opens the gripper and drives the arm back to a joint configuration recorded earlier in the episode, then checks from a… | any |
 | [`classifying-failure-type-vlm`](#classifying-failure-type-vlm) | judge | Classifies why a manipulation step failed from camera frames taken before, during (optional, a short video as frames)… | any |
@@ -1836,6 +1837,24 @@ Centres a loose part between the jaws without perceiving it - closes on it, open
   - `centered`: Both closes ended on something (the jaw gap above the closed stop by more than min_held_width, or unread), the wrist turn between them arrived, and the hand opened again (kept closed with release=false); `returned` says whether it turned back.
   - `nothing_caught`: A close ended within min_held_width of the closed stop, so nothing was between the pads; the hand is open and, after the turn, turned back when return_to_start.
   - `unreachable`: Neither quarter turn arrived, by pose or by the last joint (refused, or the read-back rotation more than rotation_tolerance_deg or the tool centre more than position_tolerance off); the hand is open and was sent back to its start rotation.
+
+### checkpointing-assembly-state-for-resume
+
+recover · robots: any · tasks: jigsaw, lego, assembly · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/checkpointing-assembly-state-for-resume/SKILL.md) · [upstream](https://github.com/splintered-reality/py_trees/blob/49bcffd069afa2b7bd9ca7b0e7312f5cbb3640bd/py_trees/blackboard.py)
+
+Saves and restores the state of a long assembly run (a 550-piece jigsaw, a LEGO build, a domino layout) so a run stopped after hours resumes where it was. save_checkpoint writes one versioned JSON checkpoint atomically (temp file, fsync, rename) with a SHA-256 over its payload - task, step, placed pieces / bricks / items with cells and poses, the pending queue, backtracking-a-wrong-placement's ledger, the reference snapshot and items for detecting-disturbed-pieces-by-snapshot-diff, arms and what they hold, timestamps and an activity stream of what changed - keeping the newest N. resume_from_checkpoint loads the newest checkpoint that passes its hash (migrating older schema versions), compares it with a fresh observation through the snapshot-diff skill and, for bricks, verifying-build-against-model, and lists the items to re-verify before going on. Use after every few verified placements of a long run (save), and when a stopped run starts up again (resume); files and CPU only, no motion.
+
+- **In**: `checkpoint_dir` string
+- **Out**: `checkpoint_path` string, `task_id` string, `step_index` int, `seq` int, `sha256` string, `n_recheck` int, `n_skipped` int, `age_s` float, `state_json` string
+- **Calls**: [`colour`](#colour); connector `robot.get_observation`
+- **Scripts**: [`save_checkpoint`](skills/checkpointing-assembly-state-for-resume/scripts/save_checkpoint.py), [`resume_from_checkpoint`](skills/checkpointing-assembly-state-for-resume/scripts/resume_from_checkpoint.py)
+- **Exits**:
+  - `saved`: save_checkpoint wrote the checkpoint (whole or not at all) and removed the ones past `keep`; `checkpoint_path`, `seq`, `sha256`.
+  - `save_failed`: The write raised (disk full, no permission, an unstorable value); the earlier checkpoints are untouched.
+  - `resumed`: resume_from_checkpoint loaded a valid checkpoint and every placed item was cleared by a check against the fresh view (unchanged in the snapshot diff, matched by the build check); nothing held or half done.
+  - `resumed_with_rechecks`: A valid checkpoint was loaded but some items must be re-verified first; `recheck` lists them, surest problems first, each with its reasons (lost, held_when_stopped, missing, misplaced, wrong_colour, moved with its shift, appearance_changed, in_progress_when_stopped, ledger_after_checkpoint, unseated, extra, unexpected_object, occluded, unverified_at_save, placed_after_reference, not_checked).
+  - `no_checkpoint`: The directory has no checkpoint for the task, or none passes its hash and schema checks (`skipped` says why for each); start the task fresh.
+  - `state_mismatch`: The fresh view does not register onto the reference snapshot, at least a quarter (and 3) of the checked items moved, vanished or are wrong, or the grid differs from expect_grid; re-perceive the board instead of trusting the checkpoint.
 
 ### correcting-insertion-offset-from-port-opening
 

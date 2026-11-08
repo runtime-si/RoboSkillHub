@@ -1,0 +1,34 @@
+{
+  "skill": "checkpointing-assembly-state-for-resume",
+  "inputs": {
+    "checkpoint_dir": "string",
+    "task_id": "string"
+  },
+  "outputs": {
+    "step_index": {"$ref": "resume.step_index"},
+    "n_recheck": {"$ref": "resume.n_recheck"},
+    "recheck": {"$ref": "resume.recheck"},
+    "placements": {"$ref": "resume.placements"},
+    "bricks": {"$ref": "resume.bricks"},
+    "pending": {"$ref": "resume.pending"},
+    "ledger_path": {"$ref": "resume.ledger_path"},
+    "lost_items": {"$ref": "resume.lost_items"},
+    "checkpoint_path": {"$ref": "resume.checkpoint_path"}
+  },
+  "nodes": {
+    "resume": {
+      "type": "script",
+      "script": "scripts/resume_from_checkpoint.py",
+      "inputs": {
+        "checkpoint_dir": {"$ref": "in.checkpoint_dir"},
+        "task_id": {"$ref": "in.task_id"}
+      }
+    }
+  },
+  "edges": [["START", "resume"], ["resume", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["resumed", "resumed_with_rechecks", "no_checkpoint"]
+  },
+  "on_error": "state_mismatch"
+}
