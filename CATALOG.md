@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-13 tools, 75 skills, 2 policies, 1 recipe and 1 paper.
+13 tools, 76 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -80,6 +80,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`picking-and-placing-two-objects`](#picking-and-placing-two-objects) | execute | Picks two objects with two arms, one each, and places both. | any, 2 arms |
 | [`placing-held-feature`](#placing-held-feature) | execute | Move a held object so one of its declared features lands on a target point. | any, **sim only** |
 | [`placing-into-container-held-by-other-arm`](#placing-into-container-held-by-other-arm) | execute | Puts the object one arm holds into an open container the other arm holds. | any, 2 arms |
+| [`placing-into-container-obb`](#placing-into-container-obb) | execute | Puts the object the hand holds into an open bin, box or tray the camera sees. | any |
 | [`placing-with-contact-descent`](#placing-with-contact-descent) | execute | Places the object the hand holds by approaching a fixed height above its place point, coming straight down until the… | any |
 | [`plugging-a-cable-end`](#plugging-a-cable-end) | execute | Carries a cable's held free end into a terminal port after the last crossing. | any, 2 arms |
 | [`pouring-by-wrist-roll`](#pouring-by-wrist-roll) | execute | Pours from a held container into a target container by standing the hand above the target's box at a set height and… | any |
@@ -985,6 +986,24 @@ Puts the object one arm holds into an open container the other arm holds - the h
   - `placed`: The carrier released the object over the container's opening (its centre inside the opening less rim_margin, measured against where the holder's pose now puts the container), its jaws then closed to the stop (empty), and the holder's jaws still read a hold; the holder is at the presentation pose and can carry on. What the hand did, not a sighting of the object in the container.
   - `missed`: The carrier held nothing at the start, its jaws did not open, or they closed on something after the release (the object stuck to them); or the holder's jaws ran to the stop (the container fell) or the holder ended where the release was outside the opening.
   - `unreachable`: Nothing was released. The two arm ids are equal or the connector reports no separate second arm, the holder holds nothing, the container leans past max_tilt_deg (before or after the presentation), the holder could not reach the presentation pose, no carrier rotation fits the object in the opening, keeps its edge holder_keepout from the holder's tool centre and reaches the approach, or the straight descent stopped short (the carrier went back up still holding the object); also an unknown name in rotations.
+
+### placing-into-container-obb
+
+execute · robots: any · tasks: pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/placing-into-container-obb/SKILL.md) · [upstream](https://github.com/nssmd/RoboRSI/blob/main/roborsi/embodied/skills/base/place_obb/robotwin/policy.py)
+
+Puts the object the hand holds into an open bin, box or tray the camera sees - lifts it straight up, segments the named container with sam3, fits its box and its opening (rim height, opening centre, inner extents, floor) from depth, picks a drop point inside the opening where the held object's footprint keeps a margin from the walls, comes over it above the rim, straight down until the object is just over the container's floor, opens and retreats straight up. Routes no_room when the object fits nowhere and keeps it when no drop point can be reached. Use when a held part must be dropped into a fixed open container on the table (sorting into a bin, filling a box), with the held object's box measured after the grasp; follow with verifying-placement on the aperture_center and rim_z it outputs.
+
+- **In**: `container_description` string, `held_obb` OrientedBoundingBox
+- **Out**: `container_obb` OrientedBoundingBox, `aperture_center` Vec3, `rim_z` float, `floor_z` float, `opening_obb` OrientedBoundingBox, `opening_source` string, `release_position` Vec3, `candidate` string
+- **Calls**: [`geometry`](#geometry), [`sam3`](#sam3); connector `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`place_into_container`](skills/placing-into-container-obb/scripts/place_into_container.py)
+- **Exits**:
+  - `placed`: The hand reached a release pose inside the container's inner opening (the held object's footprint keeping footprint_margin from the walls, its bottom release_height over the floor seen from depth), opened (its jaws read open) and retreated. What the hand did, not a sighting of the object in the container - run verifying-placement on aperture_center and rim_z.
+  - `no_room`: The held object's footprint plus footprint_margin on each side is wider than the inner opening along one of its axes; the hand lifted and still holds the object.
+  - `unreachable`: Every drop point failed - out of reach in the IK preview, the move over it refused or short, or the straight descent stopped above the release (on the rim, a wall or the contents; the hand went back up); still holding.
+  - `container_not_found`: No RGB-D camera, no sam3 mask of container_description at score_min (or under container_pixel), a mask over 40% of the frame, or fewer than 30 depth points on it; the hand lifted and still holds the object.
+  - `not_holding`: The jaws read at the stop before anything moved; nothing moved.
+  - `not_released`: At the release pose the jaws still read closed after open_gripper; the object may still be in the hand, inside the container.
 
 ### placing-with-contact-descent
 
