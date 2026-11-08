@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 91 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 92 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -123,6 +123,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`verifying-grasps`](#verifying-grasps) | verify | Three independent checks on one grasp attempt. | any |
 | [`verifying-insertion-by-probe-push`](#verifying-insertion-by-probe-push) | verify | Checks whether a held part is seated after an insertion by pushing it a few millimetres further along the insertion… | any |
 | [`verifying-placement`](#verifying-placement) | verify | Confirms from one RGB-D view that a released object went through an aperture, accepting either that it vanished into… | any |
+| [`backtracking-a-wrong-placement`](#backtracking-a-wrong-placement) | recover | Decides what to undo after a jigsaw piece fails its check at a cell (it does not seat, a seam with a placed neighbour… | any |
 | [`centering-a-part-with-the-gripper`](#centering-a-part-with-the-gripper) | recover | Centres a loose part between the jaws without perceiving it. | any |
 | [`correcting-insertion-offset-from-port-opening`](#correcting-insertion-offset-from-port-opening) | recover | Re-centres a held part over a port before or after a failed insertion using cameras only. | any |
 | [`returning-to-a-recorded-pose`](#returning-to-a-recorded-pose) | recover | Opens the gripper and drives the arm back to a joint configuration recorded earlier in the episode, then checks from a… | any |
@@ -1676,6 +1677,22 @@ Confirms from one RGB-D view that a released object went through an aperture, ac
 - **Exits**:
   - `verified`: The object is no longer visible, or its visible centre is below the rim within the aperture footprint.
   - `not_placed`: The object is still visible above the rim or outside the aperture footprint, or too little depth was valid to confirm.
+
+### backtracking-a-wrong-placement
+
+recover · robots: any · tasks: jigsaw · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/backtracking-a-wrong-placement/SKILL.md) · [upstream](https://github.com/scipy/scipy/blob/main/scipy/optimize/_lsap.py)
+
+Decides what to undo after a jigsaw piece fails its check at a cell (it does not seat, a seam with a placed neighbour scores badly, or a re-check puts it elsewhere) - blames the piece or one of the cell's placed neighbours by a small Bayesian vote over this failure and every earlier one in a persistent JSON ledger (priors from the pieces' localization scores and margins), then re-solves the assignment of the known loose pieces and the lifted ones to the free cells with SciPy's linear_sum_assignment on -log P(piece belongs in cell). Returns the corrective actions (seat again, remove piece X from cell C, place piece Y at C' with its angle and attempt number, set aside, re-localize, search for a cell, defer a cell) under a retry ladder with limits, and saves the ledger so a run can resume. Use when a jigsaw placement has just failed verification and the pieces have records from localizing-a-piece-in-a-reference-image (seam scores from matching-a-piece-to-placed-neighbours help); planning only, no robot motion.
+
+- **In**: `grid_cols` int, `grid_rows` int
+- **Out**: `culprit_piece` string, `culprit_p_wrong` float, `p_false_alarm` float, `n_actions` int
+- **Scripts**: [`backtrack`](skills/backtracking-a-wrong-placement/scripts/backtrack.py)
+- **Exits**:
+  - `retry_seat`: The piece did not seat but no seam is bad and the check being wrong is likelier than any placement being wrong; seat the same piece again (once by default, max_seat_retries).
+  - `reassigned`: The failed piece itself is the likeliest wrong placement; it is lifted and the best admissible known piece for its cell is placed there.
+  - `remove_neighbour`: A placed neighbour is the likeliest wrong placement (with neighbour removals left for this cell); it and the failed piece are lifted, its cell gets its best known piece and the failed piece is placed again.
+  - `no_alternative`: A culprit was lifted but no known piece is admissible for a cell it emptied (every candidate forbidden or under min_assign_prob); `actions` asks to re-localize the lifted pieces and to search the loose pieces for that cell.
+  - `give_up`: The cell has failed with more than max_pieces_per_cell different pieces and its neighbours cannot be blamed, or max_backtracks is spent; the piece is lifted and the cell deferred (left out of every later re-solve).
 
 ### centering-a-part-with-the-gripper
 
