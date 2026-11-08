@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-13 tools, 76 skills, 2 policies, 1 recipe and 1 paper.
+13 tools, 77 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -92,6 +92,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`sliding-along-a-cable`](#sliding-along-a-cable) | execute | Slides the hand along a cable it holds toward one of the cable's ends. | any |
 | [`sliding-to-edge-then-picking`](#sliding-to-edge-then-picking) | execute | Picks a flat object too thin to pinch on its support. | any, *tuned on* yam_i2rt |
 | [`stacking-objects`](#stacking-objects) | execute | Stacks the object the hand holds centred on top of a target object. | any |
+| [`straightening-a-cable-toward-a-target-curve`](#straightening-a-cable-toward-a-target-curve) | execute | Pulls a cable lying flat on a table toward a target curve, one correction at a time. | any |
 | [`threading-a-cable-tip-through-a-ring`](#threading-a-cable-tip-through-a-ring) | execute | Threads the free tip of a held cable through a standing ring. | any |
 | [`tipping-over-a-surface-edge`](#tipping-over-a-surface-edge) | execute | Turn a body over on the surface it rests on instead of carrying it. | any, *tuned on* yam_i2rt, 2 arms, **sim only** |
 | [`transporting-objects`](#transporting-objects) | execute | Move the currently-held object to a destination and release. | any, *tuned on* panda |
@@ -1169,6 +1170,24 @@ Stacks the object the hand holds centred on top of a target object - turns the h
   - `stacked`: The descent over the target stopped on contact inside the contact window and within 8 mm of the planned point, the hand opened and retreated straight up; stacked_position is where the hand left the held object's bottom centre. What the hand did, not a check that the stack stands.
   - `misaligned`: The descent did not meet the target's top where expected - it stopped more than contact_tolerance (12 mm) above it, reached its bottom without stopping (the held object missed the top, or slid up the jaws), or stopped pushed sideways more than lateral_tolerance; the hand did not release and lifted the object back to the approach height.
   - `blocked`: The target's top is tilted more than 10 deg, no aligned turn can reach the contact pose (IK preview), the rise, the approach, the re-centring after a wrist turn or a descent move was refused, or the retreat after the release failed (`released` says which side of the release); `detail` says which.
+
+### straightening-a-cable-toward-a-target-curve
+
+execute · robots: any · tasks: cable-routing · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/straightening-a-cable-toward-a-target-curve/SKILL.md) · [upstream](https://github.com/DanielTakeshi/deformable-ravens/blob/73982748bdfe756e04553e28698948facccecb41/ravens/tasks/task.py)
+
+Pulls a cable lying flat on a table toward a target curve, one correction at a time - the perceived centreline and the target are resampled at equal arc length in plan, matched in the cable's two directions (and, when their lengths differ, at every placement of the shorter along the longer), the point with the largest discrepancy is picked with grasping-a-cable-lying-flat and put down a little past its target, and the cable is looked at again, until every node is within a tolerance, a cap on corrections is reached, the error stalls or the cable is lost. Use when a cable on the table must lie along a line or curve, e.g. to lay its last 10 cm straight and pointing at a ring before threading, or to undo a bend before routing, with an overhead RGB-D camera (sam3.segment_text and curve.fit_centerline) or a centreline fitted by the caller.
+
+- **In**: `target` Centerline
+- **Out**: `max_error` float, `mean_error` float, `initial_max_error` float, `corrections` int, `misses` int, `reversed` bool, `offset_m` float, `coverage` float, `pick_point` Vec3, `place_point` Vec3, `centerline` Centerline
+- **Calls**: [`curve`](#curve), [`geometry`](#geometry), [`sam3`](#sam3); connector `robot.close_gripper`, `robot.describe_gripper`, `robot.describe_workspace`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_cartesian_until_contact`, `robot.move_to_joints`, `robot.open_gripper`, `robot.set_grip`, `robot.solve_ik`
+- **Scripts**: [`straighten_cable`](skills/straightening-a-cable-toward-a-target-curve/scripts/straighten_cable.py)
+- **Exits**:
+  - `shaped`: The latest look put every matched node within tolerance (10 mm) of the target in plan; the hand is open and stands retreat (5 cm) over the last place, or has not moved if the cable was already there.
+  - `corrected`: No cable_description was given, so after one pick-and-place the cable was not looked at again; fit its centreline and call again. The hand is open over the place.
+  - `not_converged`: max_iters (8) corrections were made, or the best max error did not improve by 2 mm in 3 corrections, and some node is still further than the tolerance; the cable lies on the table, the hand is open.
+  - `grasp_failed`: Two grasps in a row (one without a camera) closed on nothing; the hand is open over the cable.
+  - `lost_cable`: The cable was not found by the camera, its fit was empty, or the cable seen is shorter than min_coverage (80 %) of the target in plan (part of it hidden or out of view).
+  - `unreachable`: No pick among the PICK_TRIES (3) largest discrepancies was reachable (grasping-a-cable-lying-flat routed unreachable for each), or the carry to the place was refused; after a refused carry the cable was set down where the hand stood and released. `detail` says which.
 
 ### threading-a-cable-tip-through-a-ring
 
