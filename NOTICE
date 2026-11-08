@@ -35,6 +35,11 @@ skills/grasping-flat-objects/scripts/grasp_flat.py is adapted from RoboRSI
 roborsi/embodied/skills/base/grasp_flat/robotwin/policy.py), Apache-2.0; the
 file's header lists the changes.
 
+skills/refining-target-from-wrist-closeup/scripts/refine_from_wrist.py is
+adapted from RoboRSI (https://github.com/nssmd/RoboRSI,
+roborsi/embodied/skills/base/find_object_via_wrist/robotwin/policy.py),
+Apache-2.0; the file's header lists the changes.
+
 skills/placing-into-container-held-by-other-arm/scripts/place_in_held_container.py
 is adapted from RoboRSI (https://github.com/nssmd/RoboRSI,
 roborsi/embodied/skills/base/place_held_in_held_container/robotwin/policy.py),
