@@ -339,3 +339,10 @@ and the flow of sahi/predict.py get_sliced_prediction), MIT License, Copyright
 (c) 2020 obss; the file's header lists the changes, and the license is
 tools/sahi/LICENSE.sahi. SAHI's ultralytics model backend (AGPL-3.0) is not
 used.
+
+skills/reading-domino-pips-and-orientation/scripts/read_dominoes.py is adapted
+from Domino-Arm (https://github.com/SponTanious/Domino-Arm,
+Functions/Domino_Detection.m and Class/Domino.m), MIT License, Copyright (c)
+2016 Samuel Comerford, Cameron Gear, Lachlan Gear, Daniel Tanious, McKay
+Wight; the file's header lists the changes, and the license is
+skills/reading-domino-pips-and-orientation/LICENSE.domino-arm.
