@@ -526,7 +526,7 @@ def run(
     ldraw: str = "",
     plate_size: str = PLATE_SIZE,
     max_layers: int = MAX_LAYERS,
-    first_layer: int = 0,
+    first_layer: int = 1,
     ldraw_offset: list | None = None,
     ldraw_fit: bool = False,
     extra_parts: dict | None = None,
@@ -585,7 +585,7 @@ def run(
                 my = min(b.y for b in parsed)
                 mz = min(b.z for b in parsed)
                 parsed = [Brick(h=b.h, w=b.w, x=b.x - mx, y=b.y - my, z=b.z - mz) for b in parsed]
-            first_layer = 0
+            first_layer = 1
         else:
             if isinstance(bricks, str):
                 bricks = json.loads(bricks) if bricks.strip() else []

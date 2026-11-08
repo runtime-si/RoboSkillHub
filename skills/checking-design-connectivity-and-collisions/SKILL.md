@@ -67,13 +67,14 @@ Either `bricks` or `ldraw`.
 - `bricks`: a list (or its JSON text, or BrickGPT's `{"1": {...}, ...}` dict) of
   - `{"cell": [x, y, layer], "size": "AxB", "rotation": 0 | 90 | 180 | 270,
     "step": k}`: the cell is the brick's lowest-index corner stud on the
-    plate, layer 0 sits on the plate, A studs run along the plate's x at
+    plate, layer 1 sits on the plate (the hub's convention, shared with
+    computing-brick-pose-from-stud-grid and planning-brick-assembly-order), A studs run along the plate's x at
     rotation 0 and along y at 90 / 270. `x`, `y`, `layer` (or `z`) keys work
     instead of `cell`.
   - or the ICL / BrickGPT task form `{"brick_id", "x", "y", "z", "ori"}`
     (ids 2-12 of BrickGPT's brick_library.json and ICL's lego_library.json;
-    ori 1 swaps the axes; `brick_seq` is the step). ICL task files count the
-    first layer as z = 1: pass `first_layer: 1`.
+    ori 1 swaps the axes; `brick_seq` is the step). ICL task files also count the
+    first layer as z = 1; pass `first_layer: 0` for data that counts it as 0.
   - `step` defaults to the list position; bricks with the same step are placed
     in list order.
 - `ldraw`: LDraw text. Each `1` line of a basic brick (3005, 3004, 3622, 3010,

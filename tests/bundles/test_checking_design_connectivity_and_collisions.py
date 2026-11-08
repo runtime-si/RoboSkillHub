@@ -34,7 +34,8 @@ def check(script, **kwargs):
 
 
 def b(x, y, layer, size, rotation=0, **extra):
-    return {"cell": [x, y, layer], "size": size, "rotation": rotation, **extra}
+    """layer counts from 0 here; the skill's cells count from 1 (a brick on the plate is layer 1)."""
+    return {"cell": [x, y, layer + 1], "size": size, "rotation": rotation, **extra}
 
 
 # ------------------------------------------------------------------ valid structures
@@ -261,7 +262,7 @@ def test_ldraw_round_trip_of_brickgpt_output(script):
     out = check(script, ldraw=text)
     assert out["n_steps"] == len(bricks)
     got = [(br["footprint"][0], br["footprint"][1], *br["cell"]) for br in out["bricks"]]
-    assert got == [tuple(v) for v in bricks]
+    assert got == [(h, w, x, y, z + 1) for h, w, x, y, z in bricks]
 
 
 def test_ldraw_several_parts_per_step_and_quarter_turns(script):
@@ -280,7 +281,7 @@ def test_ldraw_several_parts_per_step_and_quarter_turns(script):
     assert out["n_steps"] == 2
     assert [br["step"] for br in out["bricks"]] == [0, 0, 1]
     assert [br["footprint"] for br in out["bricks"]] == [[2, 4], [2, 4], [4, 2]]
-    assert out["bricks"][2]["cell"] == [0, 1, 1]
+    assert out["bricks"][2]["cell"] == [0, 1, 2]
     assert out["route"] == "valid"
 
 
@@ -307,13 +308,13 @@ def test_ldraw_offset_fit_and_extra_parts(script):
     )
     assert check(script, ldraw=centred)["route"] == "out_of_plate"
     shifted = check(script, ldraw=centred, ldraw_offset=[10, 10, 0])
-    assert shifted["route"] == "valid" and shifted["bricks"][0]["cell"] == [9, 8, 0]
+    assert shifted["route"] == "valid" and shifted["bricks"][0]["cell"] == [9, 8, 1]
     fitted = check(script, ldraw=centred, ldraw_fit=True)
-    assert fitted["route"] == "valid" and fitted["bricks"][0]["cell"] == [0, 0, 0]
+    assert fitted["route"] == "valid" and fitted["bricks"][0]["cell"] == [0, 0, 1]
     custom = "1 4 30 0 30 1 0 0 0 1 0 0 0 1 99999.dat"
     assert check(script, ldraw=custom)["route"] == "invalid_input"
     out = check(script, ldraw=custom, extra_parts={"99999.dat": "3x3"})
-    assert out["route"] == "valid" and out["bricks"][0]["cell"] == [0, 0, 0]
+    assert out["route"] == "valid" and out["bricks"][0]["cell"] == [0, 0, 1]
 
 
 # ------------------------------------------------------------------ input errors
@@ -398,7 +399,7 @@ def test_floating_matches_brickgpt_connectivity_on_random_structures(script):
     disagreements = 0
     for _ in range(200):
         tup = random_structure(rng, rng.randrange(3, 40))
-        bricks = [{"cell": [x, y, z], "size": f"{h}x{w}"} for h, w, x, y, z in tup]
+        bricks = [{"cell": [x, y, z + 1], "size": f"{h}x{w}"} for h, w, x, y, z in tup]
         out = check(script, bricks=bricks, plate_size="16x16", max_layers=6, stability="off")
         disagreements += out["floating"] != brickgpt_connectivity(tup)
     assert disagreements == 0
