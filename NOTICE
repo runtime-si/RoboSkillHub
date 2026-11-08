@@ -332,3 +332,10 @@ the feature-matching RANSAC call, examples/python/pipelines/robust_icp.py
 Tukey-loss point-to-plane ICP), MIT License, Copyright (c) 2018-2026
 www.open3d.org; the file's header lists the changes, and the license is
 tools/pose6d/LICENSE.open3d.
+tools/sahi/tools.py is adapted from SAHI (https://github.com/obss/sahi, commit
+10061afd5fa076e00f8eda55e2ee290f9d72f3c1, release 0.14.0: sahi/slicing.py
+get_slice_bboxes, sahi/postprocess/_numpy_backend.py, combine.py and utils.py,
+and the flow of sahi/predict.py get_sliced_prediction), MIT License, Copyright
+(c) 2020 obss; the file's header lists the changes, and the license is
+tools/sahi/LICENSE.sahi. SAHI's ultralytics model backend (AGPL-3.0) is not
+used.
