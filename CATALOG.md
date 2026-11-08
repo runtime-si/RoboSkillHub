@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 87 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 88 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -59,6 +59,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`computing-brick-pose-from-stud-grid`](#computing-brick-pose-from-stud-grid) | plan | Converts between a cell on a LEGO or DUPLO baseplate's stud grid (x, y, layer, brick size such as 2x4, rotation… | any |
 | [`computing-feature-mating-poses`](#computing-feature-mating-poses) | plan | Computes approach, engaged, and mate TCP poses from a held feature in the hand and a fixture feature, resolving free… | any |
 | [`executing-keypoint-motion`](#executing-keypoint-motion) | plan | Plans and executes a one-step manipulation from a language instruction with MOKA's mark-based visual prompting. | any |
+| [`planning-a-domino-layout`](#planning-a-domino-layout) | plan | Plans a domino line along a path on the table. | any |
 | [`planning-articulation-opening`](#planning-articulation-opening) | plan | Plans the hand's path that opens a drawer or a door it already holds by the handle. | any |
 | [`planning-held-object-motion`](#planning-held-object-motion) | plan | Plans the carry and engagement phases for an already-held rigid object. | any |
 | [`following-a-visual-plan`](#following-a-visual-plan) | propose | Follows a visual plan from robobrain.trace or molmo-motion.forecast (the shared visual-plan schema) the way those… | any |
@@ -691,6 +692,25 @@ Plans and executes a one-step manipulation from a language instruction with MOKA
   - `done`: (execute only) Every phase reached its point within reach_tolerance (read back from the arm), including the grasp (jaws above empty_fraction) when there is one; the hand then released and lifted. This is what the hand did, not what the object did - re-perceive before relying on it.
   - `grasp_failed`: (execute only) The jaws closed to empty_fraction or less at the grasp keypoint; the hand opened and rose back to the safe height.
   - `unreachable`: (execute only) A free move (the first lift, a hover above the grasp or the pre-contact point) or the descent to the grasp was refused or ended off with every rotation tried (nothing touched), or a contact move (pre-contact, target, post-contact) stopped short; `detail` names the phase. After a contact-phase shortfall the hand still released and lifted.
+
+### planning-a-domino-layout
+
+plan · robots: any · tasks: domino · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/planning-a-domino-layout/SKILL.md) · [upstream](https://github.com/maxencelaunayquerre/domino-fall-simulation/blob/f6147f635b2a4a3f3f7ca0589284f45dda6aa309/scripts/spacing_threshold.py)
+
+Plans a domino line along a path on the table - a line, an arc, a polyline (corners rounded) or a sampled curve - and returns the ordered slot poses (tile centre and facing, the pose placing-an-upright-domino-beside-neighbours takes), the pitch and how far it stays under the critical gap a toppling wave can cross (from a 2D toppling simulation), the checks that matter on a curve (the inner corners, where a falling tile's top lands on the next one), safety gates left open while building and the order to close them, and a build order in which the open hand never meets a standing tile and the arm never reaches past one. No motion. Use before building a domino line or curve with the arm, to choose the pitch and the slots and to know whether the layout will topple.
+
+- **In**: `path` Centerline
+- **Out**: `first_slot` Se3Pose, `pitch` float, `n_tiles` int, `face_gap` float, `critical_gap` float, `critical_pitch` float, `topple_margin` float, `max_face_gap` float, `gate_count` int, `gate_width_slots` int, `gate_margin` float, `min_inner_gap` float, `max_turn_deg` float, `max_contact_offset` float, `path_length` float, `used_length` float
+- **Calls**: connector `robot.describe_workspace`
+- **Scripts**: [`plan_layout`](skills/planning-a-domino-layout/scripts/plan_layout.py)
+- **Exits**:
+  - `planned`: Every slot passes every check; `slots` / `slot_poses` (path order, slot 0 is the trigger tile), `build_steps` (placing order with each step's arm, standing neighbours and tiles at risk), `gates` (in closing order) and the margins are filled. `problems` lists what was dropped or is outside what has been seen to work (an automatic gate with no clear spot, a pitch over 1.0 h, slots placed between two standing tiles).
+  - `too_tight`: The tiles are too close for the hand or the physics - a pitch under what the open fingers need beside a neighbour (19.8 mm for a 7.5 mm tile), a pitch at which a slow trigger push stalls, footprints overlapping at an inner corner or where the path comes back on itself, a curve so sharp that a falling tile's top lands off the next tile's face, or a build step whose open fingers would touch a standing tile; `detail` names the slots.
+  - `too_loose`: A pair of slots is farther apart than the toppling wave can cross, less `topple_margin_min` (the critical gap is 47.8 mm face to face for a 48 x 24 x 7.5 mm tile, a 55.3 mm pitch); `detail` names the pair.
+  - `too_short`: The path (or `length`) holds fewer than two tiles, or not `n_tiles` at the pitch.
+  - `out_of_reach`: A slot is outside every arm's tool-centre box or reach, off the `table`, or the placing skill's lead-in leg at a slot would leave the box.
+  - `blocked`: An obstacle is where the open hand goes over a slot, a given gate cannot stop the wave or cannot be closed without the arm reaching past standing tiles, or no order places every slot without reaching past standing tiles.
+  - `invalid_input`: The path or tile size cannot be read (also the route of a raised error).
 
 ### planning-articulation-opening
 

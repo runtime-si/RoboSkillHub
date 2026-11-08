@@ -387,3 +387,16 @@ include/Lego.hpp, commit 9bc91654e708e4d8428ecfa76840103cacb2a19a), MIT License
 (its LICENSE.md carries the MIT text under the line "Copyright (c) 2011-2023
 GitHub Inc."); the file's header lists the changes, and the license is
 skills/computing-brick-pose-from-stud-grid/LICENSE.icl.
+skills/planning-a-domino-layout/scripts/topple_physics.py adapts two works.
+Its GapChain is adapted from domino-fall-simulation
+(https://github.com/maxencelaunayquerre/domino-fall-simulation, commit
+f6147f635b2a4a3f3f7ca0589284f45dda6aa309: src/simulation.py, src/analysis.py,
+scripts/spacing_threshold.py), MIT License, Copyright (c) 2026 Maxence Launay
+Querre; the license is
+skills/planning-a-domino-layout/LICENSE.domino-fall-simulation. Its
+StackedLine is adapted from "domino-simulation" by Matthew Chapman
+(https://github.com/eigenmatt/domino-simulation, commit
+09169dbd605e78afcb71d122f0c113eba2896161: domino-simulation.py), licensed
+under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); it was
+modified (module globals turned into a class, RK4 only, stall detection,
+returns hit times instead of plotting). The file's header lists all changes.
