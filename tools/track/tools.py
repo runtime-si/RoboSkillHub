@@ -90,7 +90,7 @@ MODEL_SIZE = 256
 #: Support points co-tracked around each query and then dropped. tapnet's
 #: VOTSp2026 tracker (tapnet/tapnextpp/votsp2026/tracker.py) uses 64 in a
 #: 32 px radius of its 512 px input, i.e. 1/16 of the frame on each axis.
-DEFAULT_SUPPORT_POINTS = 64
+DEFAULT_SUPPORT_POINTS = 0
 SUPPORT_RADIUS_FRACTION = 32.0 / 512.0
 MAX_SUPPORT_POINTS = 256
 #: Radius (model px) of the window ``tracker_certainty`` sums the coordinate

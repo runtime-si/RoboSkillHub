@@ -50,7 +50,7 @@ to a square). Pixels in and out: OpenCV `[u, v]` of the frames as given.
 
 | tool | use |
 | --- | --- |
-| `track.points(frames, query_points, query_frame=0, support_points=64, min_confidence=None)` | a recorded clip at once; queries on any frame (frames before it are tracked backwards) |
+| `track.points(frames, query_points, query_frame=0, support_points=0, min_confidence=None)` | a recorded clip at once; queries on any frame (frames before it are tracked backwards) |
 | `track.start(frame, query_points, ...)` -> `session_id` | open a live session on the current frame |
 | `track.update(session_id, frame)` | one more frame of the same camera: each query's pixel, `visible`, `confidence` |
 | `track.stop(session_id)` | free the session's GPU state (at most 4 stay open; a fifth evicts the least recently used) |
@@ -96,11 +96,16 @@ gives forwards (measured: 0.0 px apart).
   resolution. Its pixel `i` is centred at `i + 0.5` (soft-argmax + 0.5,
   `grid_sample(align_corners=False)`); the mapping shifts by half a pixel
   each way, which upstream's `display_to_model` omits (~0.5 px at 640 px).
-- `support_points` (default 64, upstream's VOTSp2026 setting) extra points on a
-  grid within 1/16 of the frame around each query are tracked with it and
+- `support_points` (default 0; upstream's VOTSp2026 setting is 64) extra points
+  on a grid within 1/16 of the frame around each query are tracked with it and
   dropped from the output (co-tracked through shared attention, upstream's
-  tracker.py). Here they cut the p90 error a little on the shake clip
-  (0.51 vs 0.60-0.69 px) for 15-30 % more time per frame.
+  tracker.py). They cut the p90 error a little on the whole-frame shake clip
+  (0.51 vs 0.60-0.69 px) for 15-30 % more time per frame, but on a small part
+  that moves against a static background (sim: 30 mm cube pushed 33 mm, then
+  swept over by the hand) the grid lands on the table and drags the track:
+  median 0.59 vs 0.47 px visible, 1.71 vs 0.62 px while hidden with the 512
+  checkpoint, worst error during the sweep 4.6 vs 0.9 px with 256. Turn them on
+  only for a query on a large surface that moves as one.
 - `query_frame > 0`: the clip from the query frame on is tracked forwards and
   the clip up to it reversed, both from the queries.
 - The model loads on the first call (module singleton); importing the module
