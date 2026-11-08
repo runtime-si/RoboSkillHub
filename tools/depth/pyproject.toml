@@ -1,0 +1,49 @@
+[project]
+name = "depth-tool-bundle"
+version = "0.1.0.dev0"
+description = "LingBot-Depth v0.5 RGB-D depth completion and denoising. Runs out-of-process via gap_core.rpc.server (needs GPU)."
+readme = "SKILL.md"
+requires-python = ">=3.11,<3.13"
+license = { text = "Apache-2.0" }
+
+# lingbot-depth's `mdm` package at the commit the bundle was checked with
+# (2026-11-07). Its model path imports only torch and huggingface_hub; torch /
+# torchvision as tools/track pins them (CUDA 12.8 wheels).
+dependencies = [
+  "graph-as-policy-core",
+  "mdm",
+  "torch==2.9.1",
+  "torchvision==0.24.1",
+  "huggingface_hub",
+  "numpy",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.uv]
+# mdm pins torch==2.6.0 and xformers 0.0.29.post2 and lists its demo / IO
+# dependencies as base requirements. The model path runs on torch 2.9 with
+# PyTorch's SDPA (tools.py calls enable_pytorch_native_sdpa) and imports none
+# of the rest; an unsatisfiable marker keeps them out of the environment.
+override-dependencies = [
+  "torch==2.9.1",
+  "xformers; sys_platform == 'never'",
+  "opencv-python; sys_platform == 'never'",
+  "matplotlib; sys_platform == 'never'",
+  "trimesh; sys_platform == 'never'",
+  "scipy; sys_platform == 'never'",
+]
+
+# The engine commit sources.yaml pins, by URL, so the bundle resolves the same
+# wherever its checkout sits (a dev clone, a robot's `roboskillhub fetch`).
+[tool.uv.sources]
+graph-as-policy-core = { git = "https://github.com/graph-robots/graph-as-policy.git", rev = "09e45f8de27bc1a29629382ed7c2b9b4b384b3d6", subdirectory = "gap-core" }
+mdm = { git = "https://github.com/Robbyant/lingbot-depth.git", rev = "f3a237e434ae987bc38281476d6cfb5df3e4d739" }
