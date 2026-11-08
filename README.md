@@ -102,6 +102,11 @@ the robot.
 
 ## What is in the library
 
+Browse it at **[runtime-si.github.io/RoboSkillHub](https://runtime-si.github.io/RoboSkillHub/)**: every bundle
+searchable by task, stage and robot, with a page each saying what goes in and comes out, what each exit means and
+what it calls. The site is generated from this repository by `roboskillhub site --out _site` and rebuilt from main
+on every push.
+
 | Kind | Lives in | What it is | Example |
 | --- | --- | --- | --- |
 | tool | `tools/<name>/` | typed Python functions, in-process or in their own environment over RPC | `predicates`, `sam3`, `curobo` |
@@ -163,6 +168,7 @@ tools/ skills/ policies/   every bundle, one directory each
 recipes/ papers/    task templates and paper cards
 evals/              eval records; they set maturity
 CATALOG.md          every bundle on one page, written by `roboskillhub catalog`
+.github/workflows/  the website: `roboskillhub site` rebuilds it from main on every push
 tests/              the hub's tests; tests/bundles/ holds the bundles' own
 templates/          what `roboskillhub new` copies
 src/roboskillhub/   the `roboskillhub` command
