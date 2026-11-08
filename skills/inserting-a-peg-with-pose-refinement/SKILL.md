@@ -46,10 +46,11 @@ gap:
     correction: float
     depth: float
     tip_position: Vec3
+    deflection: float
   exit_conditions:
     aligned: (align_pre_insert run on its own, e.g. before a re-registration) The tip is within the tolerances of the pre-insert pose on the hole's axis; in the example subgraph this route goes on to the push and never leaves.
     inserted: The push took the tip, as held, at least min_depth (10 mm) past the mouth; the hand stays at the end of the push, closed on the peg.
-    stopped_short: The push stopped with the tip short of min_depth past the mouth (rim, a hole off its estimate, a jam), or the hold leaves no room to push that far with the fingers clear; the hand backed off to the pre-insert pose, still holding.
+    stopped_short: The push stopped (contact, stall, or the hand shoved deflection_stop off its line) with the tip short of min_depth past the mouth (rim, a hole off its estimate, a jam), or the hold leaves no room to push that far with the fingers clear; the hand backed off to the pre-insert pose, still holding.
     misaligned: After the refinements the tip is still more than lateral_tolerance off the axis (or axial / angle tolerance), or the correction grew past its cap; the hand is at the last pre-insert pose and nothing was pushed.
     unreachable: The pre-insert pose or the end of the push is out of reach by the IK preview, a move was refused, or the hand's pose could not be read; nothing was pushed.
   canonical_scripts:
@@ -81,8 +82,8 @@ millimetres off - is measured and taken out before anything touches.
   `axial_tolerance` (5 mm), `angle_tolerance_deg` (3), `fine_tolerance`
   (1.5 mm; 0 leaves the connector's default), `check_reach`, `arm_id`.
 - Push: `pre_insert_pose` (from align), `insert_depth` (50 mm), `min_depth`
-  (10 mm), `finger_clear` (15 mm), `push_step` (5 mm), `back_off` (true),
-  `check_reach`, `arm_id`.
+  (10 mm), `finger_clear` (15 mm), `push_step` (5 mm), `deflection_stop`
+  (1 mm; 0 turns it off), `back_off` (true), `check_reach`, `arm_id`.
   `arm_id` is passed to the robot tools only when nonzero.
 
 ## The motion
@@ -120,7 +121,10 @@ millimetres off - is measured and taken out before anything touches.
    its share of the travel (a step that lands short inside a connector's
    arrival ball does not shorten the next). A contact or stall outcome, or a
    station's "did not reach its target" error, ends the push; a refusal with
-   the hand unmoved is `unreachable`.
+   the hand unmoved is `unreachable`. So does a touch that neither stalls nor
+   raises: the hand read back more than `deflection_stop` (1 mm) further
+   across the axis from its command than after the first step (`deflection`
+   is the largest such shift).
 4. Judge from the hand read back: the tip, as held, at least `min_depth` past
    the mouth is `inserted`; otherwise `stopped_short` and the hand backs off to
    `pre_insert_pose`.
@@ -176,7 +180,9 @@ align_pre_insert ── aligned ──> push_insert ── inserted ──> veri
   to the unrefined insert pose plus 5 cm with a velocity-limited planner. Here
   the push starts from the refined command (the arm's steady landing error is
   still there), goes in 5 mm stop-on-contact steps (one fast push wedged the
-  peg in the twin, see below), is capped by the fingers, and is judged by the
+  peg in the twin, see below), ends on a sideways shove of the hand as well as
+  on contact (in the twin the steps never reported contact while the peg slid
+  in the fingers), is capped by the fingers, and is judged by the
   tip's depth *as held*: a peg that slid back in the fingers reads deeper
   than it is.
 - The grasp (ManiSkill's off-centre grasp, so the peg protrudes) is left to a
@@ -196,7 +202,9 @@ align_pre_insert ── aligned ──> push_insert ── inserted ──> veri
   plus a couple of millimetres for a blind hole), `MIN_DEPTH = 10 mm` (a real
   YAM threading station's "through" test), `FINGER_CLEAR = 15 mm` (closed
   linear_4310 fingertips reach 10.2 mm past the tool centre, plus 5 mm),
-  `PUSH_STEP = 5 mm` (measured below).
+  `PUSH_STEP = 5 mm`, `DEFLECTION_STOP = 1 mm` (both measured below: a touch
+  shoved the hand 1.4-2.6 mm across the axis, free travel stayed within
+  0.6 mm).
 
 ## Checked in simulation
 
@@ -213,6 +221,8 @@ aligned again with the fresh registration (the re-registration loop above),
 pushed (`insert_depth` 32 mm), then ran `verifying-insertion-by-probe-push`
 (10 mm down) after `inserted` or `searching-insertion-spiral` after
 `stopped_short`. Truth is the peg's pose from the simulator. One run per row.
+First with `insert_depth` 32 mm (the hole's depth plus 2 mm), before the
+deflection stop existed:
 
 | run | hole (radial clearance) | mouth estimate | align / align again | push | true tip depth, off-axis | peg slid in the fingers |
 |---|---|---|---|---|---|---|
@@ -240,15 +250,42 @@ pushed (`insert_depth` 32 mm), then ran `verifying-insertion-by-probe-push`
   in 3 mm fine steps the same peg went to the floor without slipping; in 5 mm
   steps (the rows above) it reached the floor or within 1 mm of it, slipping
   0.5-0.6 mm, and the as-held depth agreed with the truth to 0.1-0.4 mm.
-- **What fails: a peg that slides in the fingers.** With the mouth 4 mm off
+- **What failed: a peg that slides in the fingers.** With the mouth 4 mm off
   (r24 err) the tip landed on the rim and the twin's weak pinch let the peg
   slide 27.5 mm up the fingers while the arm kept moving, so no step stalled
-  and the hand's travel read `inserted`. `stopped_short` and the spiral
-  search were therefore never reached in the twin; they are covered by unit
-  tests only. Judging from the hand cannot see this; on a real YAM the pads
-  pinch harder than the twin's (see threading-a-cable-tip-through-a-ring),
-  but check the result with a camera (e.g. detecting-subtask-success) where a
-  slip is possible.
+  and the hand's travel read `inserted`. With the default `insert_depth`
+  (50 mm, capped at 44 mm by the fingers) the same happened in all three
+  24 mm runs below without the deflection stop, even with the mouth exact.
+
+Then with the defaults (`insert_depth` 50 mm, no hint of the hole's depth),
+before and after `DEFLECTION_STOP` (one run per row; truth after the push):
+
+| run | hole | mouth estimate | push without the deflection stop | push with it (1 mm) | after it |
+|---|---|---|---|---|---|
+| 24 | 24 mm | exact | **inserted (wrong)**, 41.0 mm as held; tip on the rim, tilted 20 deg, slid 39 mm | stopped_short on the rim (contact + 2.4 mm shove), backed off | spiral: **inserted (wrong)**, tip 0.7 mm under the mouth |
+| 24 again | 24 mm | exact | - | inserted, 30.6 mm as held (1.9 mm shove at the floor); truth 30.0 mm, slid 0.8 mm | probe push: not_seated (wrong) |
+| 24 err 2 | 24 mm | 2 mm off | **inserted (wrong)**, 41.1 mm; on the rim, slid 40 mm | stopped_short at 2.2 mm (1.7 mm shove), backed off | spiral: **inserted (wrong)**, on the rim |
+| 24 err 4 | 24 mm | 4 mm off | **inserted (wrong)**, 40.4 mm; on the rim, slid 40 mm | stopped_short at 0.6 mm (1.7 mm shove), backed off | spiral: **inserted (wrong)**, on the rim |
+| 30 | 30 mm | exact | inserted, 43.0 mm; truth ~30 mm (floor), slid 13 mm | inserted, 30.6 mm (2.6 mm shove at the floor); truth 30.0 mm, slid 0.6 mm | probe push: not_seated (wrong) |
+| 22 tight | 22 mm (1 mm), tolerances 1 / 0.7 mm | exact | inserted, 40.9 mm; truth 30 mm, slid 11 mm | inserted, 30.7 mm (2.0 mm shove); truth 30.0 mm, slid 0.7 mm | probe push: not_seated (wrong) |
+
+- **The deflection stop.** Every step in the twin reported `reached`, also
+  while the peg slid tens of millimetres up the fingers; the first touch
+  showed only as the hand shoved 1.4-2.6 mm across the axis (free travel
+  stayed within 0.6 mm). Stopping there, the push's verdict was right in 6 of
+  6 runs (3 of 5 wrong without it), and on the floor the as-held depth agreed
+  with the truth to 0.6-0.8 mm instead of 11-13 mm too deep. Whether a real
+  YAM's hand is shoved the same way is not measured; there a contact raises
+  "did not reach its target" (read as a stop), and `deflection_stop = 0`
+  turns the check off.
+- **The hand-offs after it fail in this twin.** `searching-insertion-spiral`
+  after `stopped_short` said `inserted` at its first probe in all three runs
+  while the tip sat on the rim: it reads the tool centre's depth, and the peg
+  slid about 11 mm up the fingers. The probe push after `inserted` said
+  `not_seated` every time (below). Judging from the hand cannot see a slip;
+  on a real YAM the pads pinch harder than the twin's (see
+  threading-a-cable-tip-through-a-ring), but check the result with a camera
+  (e.g. detecting-subtask-success) where a slip is possible.
 - **The probe push after `inserted`** said `not_seated` in all four runs: the
   hand went 6.5-6.6 mm further, the peg sliding 5.3-6.2 mm up in the fingers
   against the floor. Right for r24 err (the peg was on the rim), wrong for the

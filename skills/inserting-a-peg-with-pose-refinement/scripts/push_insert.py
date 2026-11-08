@@ -43,6 +43,15 @@ one 60 mm push (25 control steps) wedged a 20 mm peg 8.5 mm into a 24 mm hole
 in 5 mm steps it reached the 30 mm floor or within 1 mm of it, slipping
 0.5-0.6 mm."""
 
+DEFLECTION_STOP = 0.001
+"""Sideways shift of the hand off the push line [m], measured from where the
+first step put it, that ends the push as a contact; 0 turns it off. In a YAM
+station twin every step of the push reported "reached" (never "contact"); the
+first touch, on the rim or on the hole's floor, showed as a 1.4-2.6 mm jump of
+the hand across the axis, after which the peg slid up to 40 mm up the fingers
+while the hand kept going. Before the touch the hand stayed within 0.6 mm of
+where the first step put it (11 pushes, 22-30 mm holes, mouth estimate 0-4 mm off)."""
+
 
 class Output(TypedDict):
     route: str
@@ -50,6 +59,7 @@ class Output(TypedDict):
     depth: float
     lateral_error: float
     tip_position: dict[str, float]
+    deflection: float
 
 
 def _pose(reply: Any) -> dict[str, Any]:
@@ -102,6 +112,7 @@ def run(
     min_depth: float = MIN_DEPTH,
     finger_clear: float = FINGER_CLEAR,
     push_step: float = PUSH_STEP,
+    deflection_stop: float = DEFLECTION_STOP,
     back_off: bool = True,
     check_reach: bool = True,
     arm_id: int = 0,
@@ -120,6 +131,7 @@ def run(
         "depth": 0.0,
         "lateral_error": 0.0,
         "tip_position": _vec(centre),
+        "deflection": 0.0,
     }
 
     def hand() -> np.ndarray | None:
@@ -183,8 +195,13 @@ def run(
     # peg wedges on the hole's wall and slides up in the fingers. Each step's
     # target is the refined start plus its share of the travel, so a step that
     # lands short (inside a connector's arrival ball) does not shorten the next.
+    # A touch that neither stalls the arm nor raises shows as the hand pushed off
+    # the line: its offset across the axis from the command, against the first
+    # step's (the steady landing error the refinement compensated).
     n = max(1, math.ceil(float(np.linalg.norm(travel)) / max(float(push_step), 1.0e-4)))
     end = start
+    base: np.ndarray | None = None
+    deflected = False
     for k in range(1, n + 1):
         command = begin.copy()
         command[:3, 3] += travel * k / n
@@ -207,8 +224,22 @@ def run(
         if why and float(np.linalg.norm(end[:3, 3] - start[:3, 3])) < MOVED:
             out["detail"] = f"push: {why}"
             return out
+        off = end[:3, 3] - command[:3, 3]
+        off -= float(off @ axis) * axis
+        if base is None:
+            base = off
+        shift = float(np.linalg.norm(off - base))
+        out["deflection"] = max(out["deflection"], shift)
         if why or stopped:
             break
+        if float(deflection_stop) > 0.0 and shift > float(deflection_stop):
+            deflected = True
+            break
+    if deflected:
+        note += (
+            f"; the push ended where the hand was pushed {out['deflection'] * 1e3:.1f} mm "
+            "off its line (a touch)"
+        )
     reached, lateral, tip = tip_depth(end)
     out.update(depth=reached, lateral_error=lateral, tip_position=_vec(tip))
     if reached >= float(min_depth):

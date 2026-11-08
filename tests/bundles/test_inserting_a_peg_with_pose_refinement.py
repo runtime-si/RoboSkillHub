@@ -467,6 +467,88 @@ def test_a_step_that_lands_short_does_not_shorten_the_next(align, push):
     assert p["route"] == "inserted" and p["depth"] == pytest.approx(0.047)
 
 
+def _slipping(arm, touch_at, bias=(0.0, 0.0, 0.0)):
+    """A push that always reports "reached": the hand lands at the command plus ``bias``,
+    shoved 1.5 mm across the axis once the commanded tip is ``touch_at`` past the mouth
+    (the peg then slides in the fingers, which the read-back cannot see)."""
+    targets = []
+
+    def probe(pose, **kw):
+        target = _m(pose)
+        targets.append(target[:3, 3].copy())
+        target[:3, 3] += np.asarray(bias, dtype=float)
+        if float((arm.tip(_m(pose)) - arm.mouth) @ arm.axis) > touch_at:
+            target[:3, 3] += [0.0015, 0.0, 0.0]
+        arm.H = target
+        return {"reached": True, "outcome": "reached"}
+
+    return probe, targets
+
+
+def test_a_touch_on_the_rim_that_only_shoves_the_hand_stops_short(align, push):
+    peg = peg_straight()
+    arm = Arm(peg)
+    a = align.run(arm.ctx(), peg_in_tcp=peg, **_hole())
+    probe, targets = _slipping(arm, touch_at=0.0)
+    p = push.run(
+        arm.ctx(**{"robot.move_cartesian_until_contact": probe}),
+        peg_in_tcp=peg,
+        pre_insert_pose=a["pre_insert_pose"],
+        **_hole(),
+    )
+    assert p["route"] == "stopped_short"
+    assert p["deflection"] == pytest.approx(0.0015)
+    assert "pushed 1.5 mm off its line" in p["detail"] and "backed off" in p["detail"]
+    # 30 mm standoff in 5 mm steps: the 7th step is the first past the mouth.
+    assert len(targets) == 7
+
+
+def test_a_touch_on_the_floor_ends_the_push_inserted(align, push):
+    peg = peg_straight()
+    arm = Arm(peg)
+    a = align.run(arm.ctx(), peg_in_tcp=peg, **_hole())
+    probe, targets = _slipping(arm, touch_at=0.03)
+    p = push.run(
+        arm.ctx(**{"robot.move_cartesian_until_contact": probe}),
+        peg_in_tcp=peg,
+        pre_insert_pose=a["pre_insert_pose"],
+        **_hole(),
+    )
+    assert p["route"] == "inserted" and p["depth"] == pytest.approx(0.035)
+    assert len(targets) == 13
+
+
+def test_a_steady_landing_offset_is_not_a_touch(align, push):
+    peg = peg_straight()
+    arm = Arm(peg)
+    a = align.run(arm.ctx(), peg_in_tcp=peg, **_hole())
+    probe, targets = _slipping(arm, touch_at=1.0, bias=(0.003, -0.002, 0.0))
+    p = push.run(
+        arm.ctx(**{"robot.move_cartesian_until_contact": probe}),
+        peg_in_tcp=peg,
+        pre_insert_pose=a["pre_insert_pose"],
+        **_hole(),
+    )
+    assert p["route"] == "inserted" and p["deflection"] < 1e-9
+    assert len(targets) == 16
+
+
+def test_deflection_stop_zero_pushes_through_a_touch(align, push):
+    peg = peg_straight()
+    arm = Arm(peg)
+    a = align.run(arm.ctx(), peg_in_tcp=peg, **_hole())
+    probe, targets = _slipping(arm, touch_at=0.0)
+    p = push.run(
+        arm.ctx(**{"robot.move_cartesian_until_contact": probe}),
+        peg_in_tcp=peg,
+        pre_insert_pose=a["pre_insert_pose"],
+        deflection_stop=0.0,
+        **_hole(),
+    )
+    assert len(targets) == 16
+    assert p["route"] == "inserted" and p["deflection"] == pytest.approx(0.0015)
+
+
 def test_the_push_moves_along_the_axis_only(align, push):
     peg = peg_straight()
     arm = Arm(peg)

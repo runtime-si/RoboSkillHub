@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-12 tools, 73 skills, 2 policies, 1 recipe and 1 paper.
+12 tools, 74 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -870,13 +870,13 @@ execute · robots: any · tasks: insertion · Apache-2.0 · v0.1.0 · [`SKILL.md
 Inserts a held peg into a perceived hole in three stages - carries it to a pre-insert pose with the tip a few centimetres in front of the mouth on the hole's axis, refines that pose up to three times from the residual between the peg as observed (hand read back times the registered tip-in-hand transform) and the axis, then pushes straight in along the axis with a stop-on-contact move and judges how far the tip went. Use when the hand already holds a peg, pin, plug or shaft whose tip is registered in the hand (registering-held-objects), the hole's mouth and inward axis are measured (perceiving-functional-features), and the arm does not land exactly where it is sent; any axis direction (side or top insertion).
 
 - **In**: `hole_centre` Vec3, `hole_axis` Vec3, `peg_in_tcp` Se3Pose
-- **Out**: `pre_insert_pose` Se3Pose, `tcp_at_mouth` Vec3, `lateral_error` float, `axial_error` float, `angle_error_deg` float, `refinements` int, `correction` float, `depth` float, `tip_position` Vec3
+- **Out**: `pre_insert_pose` Se3Pose, `tcp_at_mouth` Vec3, `lateral_error` float, `axial_error` float, `angle_error_deg` float, `refinements` int, `correction` float, `depth` float, `tip_position` Vec3, `deflection` float
 - **Calls**: connector `robot.get_ee_pose`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.move_cartesian_until_contact`, `robot.solve_ik`
 - **Scripts**: [`align_pre_insert`](skills/inserting-a-peg-with-pose-refinement/scripts/align_pre_insert.py), [`push_insert`](skills/inserting-a-peg-with-pose-refinement/scripts/push_insert.py)
 - **Exits**:
   - `aligned`: (align_pre_insert run on its own, e.g. before a re-registration) The tip is within the tolerances of the pre-insert pose on the hole's axis; in the example subgraph this route goes on to the push and never leaves.
   - `inserted`: The push took the tip, as held, at least min_depth (10 mm) past the mouth; the hand stays at the end of the push, closed on the peg.
-  - `stopped_short`: The push stopped with the tip short of min_depth past the mouth (rim, a hole off its estimate, a jam), or the hold leaves no room to push that far with the fingers clear; the hand backed off to the pre-insert pose, still holding.
+  - `stopped_short`: The push stopped (contact, stall, or the hand shoved deflection_stop off its line) with the tip short of min_depth past the mouth (rim, a hole off its estimate, a jam), or the hold leaves no room to push that far with the fingers clear; the hand backed off to the pre-insert pose, still holding.
   - `misaligned`: After the refinements the tip is still more than lateral_tolerance off the axis (or axial / angle tolerance), or the correction grew past its cap; the hand is at the last pre-insert pose and nothing was pushed.
   - `unreachable`: The pre-insert pose or the end of the push is out of reach by the IK preview, a move was refused, or the hand's pose could not be read; nothing was pushed.
 
