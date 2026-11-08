@@ -21,7 +21,7 @@ metadata:
   hub:
     stage: perceive
     embodiments: [any]
-    version: 0.1.0
+    version: 0.1.1
     tasks: [assembly, lego]
     provenance:
       authors: [runtime-si]
@@ -125,10 +125,14 @@ the stud counts along x / y (ICL's `plate_w` / `plate_h`).
    `robot.grasp_frame`'s rotations turned to look down, an IK preview, a rise
    in place, `robot.go_to_pose`, arrival read back (15 mm) and a settle wait.
    Without `look`, the wrist frame where the arm already is.
-3. **Plate plane**: close-up depth within 15 mm of the coarse plane and over
+3. **Plate plane**: close-up depth within 35 mm of the coarse plane and over
    the plate, RANSAC (band 0.35 x stud height); when a plane lower by over
    60 % of a brick holds a quarter of the points, it is taken instead (brick
-   tops covering the view are not the plate).
+   tops covering the view are not the plate). A marker pose's origin is then
+   slid along the marker camera's ray onto this plane: PnP on small, far
+   markers errs mostly in range, which an oblique overhead camera turns into
+   a sideways error too (on the YAM twin 5-24 mm low and 2-10 mm sideways,
+   along the ray).
 4. **Studs**, in the plane frame: depth points splatted into a height map at
    pitch / 32; blobs at the stud top's height, of a stud's area and shape;
    HoughCircles at the stud's metric radius on the RGB rectified onto the
@@ -175,7 +179,7 @@ the side test.
   `reach_tolerance` (0.015 m); `arm_id`, `tolerance`, `max_steps` passed on
   only when set.
 - Gates: `min_studs` (12), `max_residual` (1/8 pitch), `snap_tolerance`
-  (0.35), `max_yaw_correction_deg` (10), `plane_window` (0.015 m); `seed`.
+  (0.35), `max_yaw_correction_deg` (10), `plane_window` (0.035 m); `seed`.
 
 ## Outputs (calibrate_plate)
 
@@ -184,8 +188,9 @@ the side test.
 `yaw_ambiguity_deg`, `lattice_status` (`ok`, `not_requested`,
 `no_wrist_camera`, `unreachable`, `no_plane`, `too_few_studs`,
 `high_residual`, `yaw_off`, `ambiguous`), `correction` (x, y, z, yaw_deg,
-tilt_deg, lateral of the refined pose in the coarse frame, and at_view_x / y,
-the correction where the studs were seen), `residual_mm`, `max_residual_mm`,
+tilt_deg, lateral of the refined pose in the coarse frame, at_view_x / y,
+the correction where the studs were seen, and ray_slide, how far a marker
+pose was slid along its camera's ray [m]), `residual_mm`, `max_residual_mm`,
 `studs_used`, `studs_detected`, `snap_margin`, `plate_studs`, `system`,
 `stud_pitch`, `apex_plate`, `views` (view point, range, view pose),
 `camera_name`.
@@ -193,7 +198,7 @@ the correction where the studs were seen), `residual_mm`, `max_residual_mm`,
 ## Checks
 
 CPU only (no GPU, no simulator). Unit tests
-(`tests/bundles/test_calibrating_baseplate_stud_grid.py`, 41) on ray-cast
+(`tests/bundles/test_calibrating_baseplate_stud_grid.py`, 43) on ray-cast
 RGB-D renders (`tests/bundles/_plate_render.py`: plate, stud cylinders with
 bevelled tops, seated bricks with studs, markers printed on the table,
 Lambertian RGB, D405 depth noise sigma = z^2 * 0.08 / (f * 18 mm) partly
@@ -204,10 +209,43 @@ YAM-like arm (camera 86 mm behind and 75 mm above the tool, 45 deg forward;
 the view checked on the plate normal at 0.20 m), IK refusals, routed and
 raised refusals, a 3 cm short move, two view points pooled, connector knobs;
 read_studs on 1x1 to 2x6 LEGO and DUPLO bricks, a brick cut by the image
-border, a brick half covered by another, a bare table, unposed frames.
+border, a brick half covered by another, a bare table, unposed frames; a
+marker pose 1.4 % too far along the overhead ray (the twin's error, below)
+slid back onto the close-up plane.
+
+**Simulation check** (YAM station twin, left arm, run on an RTX 4090 D; the
+harness is not in the hub). The twin has no LEGO, so the harness adds a
+DUPLO 8 x 8 and a LEGO 16 x 16 baseplate (solid stud cylinders, 128 mm
+square) as free bodies, each with two 50 mm DICT_4X4_50 markers printed as
+textures on flanges beside the studs, seen by the station's calibrated
+overhead camera (640 x 480, ~1 m, ~60 deg down; 22-26 px markers) and the
+real left D405's calibration on the wrist. Each trial puts the plate at a
+known pose, runs the skill closed loop with the default inputs
+(`camera_range` 0.20, `look`), and compares `plate_pose` with the plate's
+true pose. The wrist view was reached first time in every trial (hand
+~60-86 mm over the plate), a few studs hidden by the open fingers.
+
+| run | plates | routes | `plate_pose` lateral (mm) | z (mm) | yaw (deg) | tilt (deg) | studs used | RMS (mm) |
+|---|---|---|---|---|---|---|---|---|
+| 0.1.1, markers | DUPLO, 5 poses (yaw -25..35 deg) | calibrated 5 | 0.04-0.10 | 0.014-0.019 | <= 0.04 | <= 0.012 | 54-57 of 64 | 0.11-0.30 |
+| 0.1.1, markers | LEGO, 5 poses | calibrated 5 | 0.03-0.09 | 0.004-0.005 | <= 0.006 | <= 0.004 | 221-240 of 256 | 0.10-0.15 |
+| 0.1.1, given coarse | DUPLO 5 mm / 3 deg off; LEGO 2.5 mm / 2 deg off | calibrated 2 | 0.10; 0.08 | 0.02; 0.006 | 0.009; 0.000 | 0.015; 0.005 | 53; 224 | 0.09; 0.10 |
+| 0.1.0 (before), markers | DUPLO and LEGO, 4 poses each | calibrated 4, no_lattice 4 | 0.04-0.10 when calibrated | | | | | |
+
+The marker poses themselves were off 2-10 mm sideways, 5-24 mm low, up to
+6.4 deg in tilt and 1.2 deg in yaw (0.33-0.72 px RMS), almost all of it
+along the camera's ray: the rendered corners lie ~0.4 px inside the true
+ones, so PnP puts the plate ~1.5 % too far. Version 0.1.0 used the marker
+pose as it was and failed half the marker trials: `ambiguous` twice (4.9 mm
+on LEGO, 6.3 mm on DUPLO: past the snap tolerance), `no_plane` (24 mm low,
+outside the 15 mm window) and `high_residual` (19 mm low: the window cut
+the plate to 16 studs). This version slides the marker pose along the ray
+onto the close-up plane (5-27 mm slides), which left it 0.01-0.09 pitch
+from the nearest stud row in every trial, and widens the window to 35 mm.
+No trial in either version returned a wrong stud row as `calibrated`.
 
 **Accuracy** (`python -m tests.bundles._plate_calib_eval --trials 20
---studs 40 --real`, seed 0, 1680 s): a plate at a random yaw and up to 2 deg
+--studs 40 --real`, seed 0, 809 s): a plate at a random yaw and up to 2 deg
 tilt, 0-14 random bricks, two 40 mm ArUco markers beside it seen by an
 overhead camera at 0.85-0.95 m; the wrist frame from 0.18-0.25 m, up to
 25 deg off vertical, over a random point of the plate. Errors of
@@ -216,17 +254,18 @@ overhead camera at 0.85-0.95 m; the wrist frame from 0.18-0.25 m, up to
 | system | step | routes (of 20) | lateral (mm) | z (mm) | yaw (deg) | tilt (deg) | studs used | RMS (mm) |
 |---|---|---|---|---|---|---|---|---|
 | LEGO 32x32 | markers, coarse | coarse_only 20 | 1.14 / 2.35 / 3.16 | 1.07 / 1.96 / 2.67 | 0.45 / 0.92 / 1.18 | 3.4 / 4.6 / 6.7 | - | - |
-| LEGO 32x32 | markers + lattice | calibrated 19, no_lattice 1 | 0.09 / 0.19 / (3.16) | 0.06 / 0.18 / (0.66) | 0.00 / 0.01 / (1.18) | 0.07 / 0.10 / (6.7) | 842 | 0.41 |
-| LEGO 32x32 | given coarse (0-2.5 mm, 0-2 deg off) + lattice | calibrated 20 | 0.10 / 0.16 / 0.25 | 0.12 / 0.29 / 0.43 | 0.01 / 0.01 / 0.03 | 0.07 / 0.13 / 0.20 | 814 | 0.41 |
-| LEGO 32x32 | same, wrist pose off 0.5 mm / 0.2 deg | calibrated 20 | 0.62 / 1.06 / 1.12 | 0.24 / 0.42 / 0.64 | 0.09 / 0.18 / 0.19 | 0.16 / 0.21 / 0.27 | 830 | 0.43 |
+| LEGO 32x32 | markers + lattice | calibrated 19, no_lattice 1 | 0.09 / 0.17 / (3.16) | 0.07 / 0.19 / (0.66) | 0.01 / 0.02 / (1.18) | 0.07 / 0.17 / (6.7) | 838 | 0.42 |
+| LEGO 32x32 | given coarse (0-2.5 mm, 0-2 deg off) + lattice | calibrated 20 | 0.10 / 0.16 / 0.25 | 0.13 / 0.28 / 0.43 | 0.01 / 0.01 / 0.03 | 0.06 / 0.12 / 0.16 | 819 | 0.41 |
+| LEGO 32x32 | same, wrist pose off 0.5 mm / 0.2 deg | calibrated 20 | 0.62 / 1.06 / 1.12 | 0.25 / 0.42 / 0.64 | 0.09 / 0.18 / 0.19 | 0.16 / 0.21 / 0.27 | 832 | 0.43 |
 | DUPLO 16x16 | markers, coarse | coarse_only 20 | 1.48 / 2.58 / 3.09 | 1.24 / 1.86 / 2.08 | 0.51 / 0.95 / 1.20 | 4.1 / 6.0 / 6.3 | - | - |
-| DUPLO 16x16 | markers + lattice | calibrated 20 | 0.06 / 0.15 / 0.16 | 0.04 / 0.07 / 0.09 | 0.01 / 0.04 / 0.06 | 0.02 / 0.02 / 0.03 | 187 | 0.61 |
-| DUPLO 16x16 | given coarse + lattice | calibrated 20 | 0.06 / 0.16 / 0.17 | 0.04 / 0.07 / 0.10 | 0.01 / 0.04 / 0.06 | 0.01 / 0.02 / 0.06 | 186 | 0.61 |
-| DUPLO 16x16 | same, wrist pose off 0.5 mm / 0.2 deg | calibrated 20 | 0.56 / 1.00 / 1.11 | 0.32 / 0.47 / 0.63 | 0.12 / 0.18 / 0.19 | 0.17 / 0.19 / 0.20 | 187 | 0.62 |
+| DUPLO 16x16 | markers + lattice | calibrated 20 | 0.07 / 0.14 / 0.15 | 0.05 / 0.06 / 0.10 | 0.02 / 0.04 / 0.07 | 0.02 / 0.03 / 0.05 | 187 | 0.60 |
+| DUPLO 16x16 | given coarse + lattice | calibrated 20 | 0.06 / 0.15 / 0.16 | 0.05 / 0.06 / 0.07 | 0.01 / 0.04 / 0.06 | 0.02 / 0.02 / 0.04 | 186 | 0.62 |
+| DUPLO 16x16 | same, wrist pose off 0.5 mm / 0.2 deg | calibrated 20 | 0.56 / 0.99 / 1.12 | 0.32 / 0.45 / 0.64 | 0.11 / 0.18 / 0.19 | 0.18 / 0.19 / 0.20 | 186 | 0.62 |
 
 The one LEGO `no_lattice` is `ambiguous`: its marker pose was 3.16 mm off,
-over the 2.8 mm snap tolerance; its row keeps the coarse pose (the bracketed
-maxima). No trial returned a wrong stud row as `calibrated`. The hand-eye row
+over the 2.8 mm snap tolerance, and in these renders the error is not along
+the camera's ray (the PnP range is good to ~1 mm), so sliding onto the plane
+does not save it; its row keeps the coarse pose (the bracketed maxima). No trial returned a wrong stud row as `calibrated`. The hand-eye row
 is the point of the last limit below: a 0.2 deg camera rotation at 0.2 m
 moves the plate ~0.7 mm and the fit's RMS does not change. A single 50 mm
 AprilTag at 0.85 m (unit test) gives ~1 cm and ~4 deg: use two markers or
@@ -252,17 +291,27 @@ another surface, 0 holes. No real frame was used for calibrate_plate.
 
 ## Limits
 
-- **Sim check pending: needs a GPU host.** The skill moves the arm (the
-  look-down view); its motion is covered by FakeContext tests only (an arm that
-  lands where commanded, refusals raised and routed, short moves). The view
-  logic is refining-target-from-wrist-closeup's, which was checked on the YAM
-  twin; this skill's own closed loop has not run on a twin or a real arm.
+- **Checked on a twin, not on a real arm.** The YAM twin's run (Checks)
+  covers the look-down move and the whole loop, but its plates are ideal:
+  solid, flat-topped studs with no logo or wear (real DUPLO baseplate studs
+  are hollow), perfect depth (no D405 noise, no flying pixels), the wrist
+  camera's pose exact, the plate flat on the table, no bricks on it, 50 mm
+  markers in plain view. The hand-eye and depth-noise limits below are
+  measured on renders only. The view was never refused, so the fallback
+  ranges and second rotation did not run in the twin.
+- Marker poses can be off by over a pitch along the overhead camera's ray
+  (24 mm low on the twin): the slide onto the close-up plane removes that
+  part; what remains across the ray (yaw, in-plane offset) must still be
+  under the snap tolerance. A camera looking at the plate within ~12 deg of
+  its plane gets no slide.
 - The world pose is only as good as the wrist camera's pose (hand-eye
   calibration and arm kinematics): their error adds one to one to
   `plate_pose`. The fit's residual does not see it.
 - The coarse pose must be within about a third of a pitch at the studs seen
-  (2.8 mm LEGO, 5.6 mm DUPLO). Two 40 mm markers at 0.9 m did that 19 times
-  in 20 for LEGO (the 20th was `ambiguous`, not wrong); one marker does not.
+  (2.8 mm LEGO, 5.6 mm DUPLO), after a marker pose's slide. Two 40 mm
+  markers at 0.9 m did that 19 times in 20 for LEGO in the renders (the 20th
+  was `ambiguous`, not wrong), two 50 mm markers at ~1 m 10 times in 10 on
+  the twin; one marker does not.
   A plate mask did it in the unit test's render, but a real overhead mask
   (5.4 mm RMS on the station) will often not for LEGO.
 - Not measured on real LEGO / DUPLO: no such frames exist yet; the RGB circle
@@ -293,7 +342,10 @@ another surface, 0 holes. No real frame was used for calibrate_plate.
   the most level of those within 2x the best RMS. OpenCV 5's general IPPE gave
   flipped poses (22 px RMS) for corners off the z = 0 plane; a depth plane in
   the marker quads (tried) tilted the plate 8 deg at 0.9 m, so it is not used.
-- **`PLANE_WINDOW = 15 mm`** over the coarse z; `STEP_PLANE_SHARE = 0.25`.
+- **`PLANE_WINDOW = 35 mm`** over the coarse z: the twin's marker poses were
+  5-24 mm low (the earlier 15 mm lost two plates of eight), plus tilt;
+  `STEP_PLANE_SHARE = 0.25`. `MIN_RAY_PLANE_COS = 0.2`: no slide along a ray
+  within ~12 deg of the plate plane.
 
 ## Provenance
 

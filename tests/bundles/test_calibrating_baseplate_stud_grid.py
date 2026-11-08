@@ -248,6 +248,48 @@ def test_markers_give_the_coarse_pose_and_the_lattice_refines_it(cal):
     assert xyz.max() < 0.3 and yaw < 0.1 and tilt < 0.2
 
 
+def test_slide_onto_plane_meets_the_plane_on_the_ray(cal):
+    eye = np.array([-0.25, -0.1, 0.9])
+    n = np.array([0.0, 0.0, 1.0])
+    p = cal._slide_onto_plane(n, -0.013, eye)
+    assert p[2] == pytest.approx(0.013)
+    assert np.allclose(np.cross(p - eye, -eye), 0.0, atol=1e-12)
+    assert cal._slide_onto_plane(n, 0.0, np.array([1.0, 0.0, 0.1])) is None
+
+
+def test_a_marker_pose_off_along_the_overhead_ray_is_slid_onto_the_close_up_plane(cal, monkeypatch):
+    # The YAM twin's overhead camera put two 50 mm markers' plate 1.4 % too far
+    # along its ray at 1 m (13 mm low, 4.5 mm sideways): one stud row's snap
+    # tolerance is 2.8 mm on LEGO, so the fit was ambiguous.
+    obs = _obs()
+    eye = _m(obs["cameras"][0]["pose"])[:3, 3]
+    far = TW_P.copy()
+    far[:3, 3] = eye + 1.014 * (TW_P[:3, 3] - eye)
+    lateral = np.linalg.norm((np.linalg.inv(TW_P) @ far)[:2, 3])
+    assert lateral > 0.35 * 0.008
+
+    def found(cams, layout, dictionary):
+        return {
+            "pose": far,
+            "camera": "top",
+            "camera_position": eye,
+            "ids": [3, 7],
+            "reprojection_px": 0.5,
+        }
+
+    monkeypatch.setattr(cal, "_coarse_from_markers", found)
+    out = cal.run(_ctx(obs), [32, 32], "lego", markers=_layout(), look=False)
+    assert out["route"] == "calibrated" and out["lattice_status"] == "ok"
+    xyz, yaw, tilt = _err(out["plate_pose"])
+    assert xyz.max() < 0.3 and yaw < 0.1 and tilt < 0.2
+    assert out["correction"]["ray_slide"] == pytest.approx(
+        0.014 * np.linalg.norm(TW_P[:3, 3] - eye), rel=0.1
+    )
+    assert "slid" in out["detail"]
+    given = cal.run(_ctx(obs), [32, 32], "lego", coarse_plate_pose=_se3(far), look=False)
+    assert given["route"] == "no_lattice" and given["lattice_status"] == "ambiguous"
+
+
 def test_an_apriltag_dictionary_is_detected(cal):
     scene = _scene(markers=False)
     scene.markers = [R.Marker(11, 0.05, 0.165, 0.02, -0.0032)]
