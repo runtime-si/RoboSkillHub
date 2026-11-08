@@ -54,10 +54,16 @@ SETTLE_ANGLE_DEG = 0.1
 MAX_MOVES = 4
 """Most view moves per view point before it is given up."""
 
-PLANE_WINDOW = 0.015
+PLANE_WINDOW = 0.035
 """Close-up points within this distance of the coarse plate plane [m] feed the
-plane fit. The coarse z must be better than this (markers with the depth plane:
-a few mm)."""
+plane fit. The coarse z must be better than this: two 50 mm markers at ~1 m put
+it 5-24 mm low on the YAM twin's rendered overhead camera (15 mm, the gate
+before, lost 2 of 8 plates), plus up to 6 deg of tilt over the plate's
+half-width."""
+
+MIN_RAY_PLANE_COS = 0.2
+"""The marker camera's ray must meet the plate plane steeper than ~12 deg for
+the coarse origin to be slid along it (see _slide_onto_plane)."""
 
 MIN_STUDS = 12
 """Fewest lattice inliers for `calibrated`: 12 studs over a few pitches fix the
@@ -324,9 +330,27 @@ def _coarse_from_markers(
     return {
         "pose": t_world_cam @ t_cam_plate,
         "camera": str(cam.get("name", "")),
+        "camera_position": t_world_cam[:3, 3].copy(),
         "ids": sorted(i for _, i in hits),
         "reprojection_px": reproj,
     }
+
+
+def _slide_onto_plane(n: np.ndarray, d: float, eye: np.ndarray) -> np.ndarray | None:
+    """Where the ray from ``eye`` through the origin meets the plane n . p + d = 0
+    (all in the coarse plate frame), or None for a ray nearly along the plane.
+
+    Small markers far away give PnP its largest error in range: their corners
+    were found ~0.4 px inside the true ones on a YAM twin's rendered overhead
+    camera, which put the plate 13 mm too far down the ray at 1 m. At the
+    station's ~70 deg look-down that is 13 mm in z and 4-5 mm sideways, over a
+    LEGO stud row's snap tolerance. The close-up plane fixes the height, and the
+    plate lies on the same ray, so the origin slides along it to the plane."""
+    u = -eye / max(float(np.linalg.norm(eye)), 1.0e-9)
+    along = float(n @ u)
+    if abs(along) < MIN_RAY_PLANE_COS:
+        return None
+    return eye - (float(n @ eye) + d) / along * u
 
 
 def _coarse_from_mask(
@@ -571,10 +595,12 @@ def run(
     else:
         coarse_cams = cams
     t_coarse = None
+    marker_eye = None
     if layout:
         found = _coarse_from_markers(coarse_cams, layout, marker_dictionary)
         if found is not None:
             t_coarse = found["pose"]
+            marker_eye = found["camera_position"]
             out["coarse_source"] = "markers"
             out["markers_used"] = found["ids"]
             out["marker_reprojection_px"] = found["reprojection_px"]
@@ -715,7 +741,18 @@ def run(
             f"({len(pts_all)} depth points)",
         )
     n, d, inl = plane
-    t_c_b = lat.plane_frame(n, d, np.array([1.0, 0.0, 0.0]), np.zeros(3))
+    origin = np.zeros(3)
+    ray_slide = 0.0
+    if marker_eye is not None:
+        slid = _slide_onto_plane(n, d, (inv_coarse @ np.append(marker_eye, 1.0))[:3])
+        if slid is not None:
+            origin = slid
+            ray_slide = float(np.linalg.norm(slid))
+            notes.append(
+                f"the marker pose slid {ray_slide * 1e3:.1f} mm along the overhead camera's ray "
+                "onto the close-up plane"
+            )
+    t_c_b = lat.plane_frame(n, d, np.array([1.0, 0.0, 0.0]), origin)
     inv_b = np.linalg.inv(t_c_b)
 
     # 4. Stud candidates in each frame, pooled in the plane frame.
@@ -773,6 +810,7 @@ def run(
         "lateral": float(math.hypot(t_corr[0, 3], t_corr[1, 3])),
         "at_view_x": float(corr[0]),
         "at_view_y": float(corr[1]),
+        "ray_slide": ray_slide,
     }
     summary = (
         f"{fit['n_inliers']} of {len(q)} stud candidates on the lattice "

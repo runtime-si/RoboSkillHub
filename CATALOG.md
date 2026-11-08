@@ -400,7 +400,7 @@ Geometric yes/no judgments over poses and boxes the graph already holds -- is a 
 
 ### calibrating-baseplate-stud-grid
 
-perceive · robots: any · tasks: assembly, lego · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/calibrating-baseplate-stud-grid/SKILL.md) · [upstream](https://github.com/intelligent-control-lab/APEX-MR/blob/6b5a17f1133c3f739caf50fa0fff6c478ef73b7a/config/lego_tasks/plate_calibration.json)
+perceive · robots: any · tasks: assembly, lego · Apache-2.0 · v0.1.1 · [`SKILL.md`](skills/calibrating-baseplate-stud-grid/SKILL.md) · [upstream](https://github.com/intelligent-control-lab/APEX-MR/blob/6b5a17f1133c3f739caf50fa0fff6c478ef73b7a/config/lego_tasks/plate_calibration.json)
 
 Estimates a LEGO or DUPLO baseplate's pose (the plate frame computing-brick-pose-from-stud-grid takes, and APEX-MR's x, y, z, roll, pitch, yaw, width, height) in two steps - a coarse pose from ArUco / AprilTag markers at known places on or beside the plate (OpenCV aruco + solvePnP), a given pose, or a plate mask and its depth plane; then a sub-millimetre refinement from a wrist RGB-D close-up, where the stud tops are found in depth and as circles in the plate-rectified image and an 8 mm (16 mm DUPLO) lattice is fitted by RANSAC (yaw + offset, the coarse pose picking the period) - with the residual and the number of studs used. A second script reads a brick's own studs - footprint (A x B), top pose and stud pixels from a close-up and a mask. Use when bricks will be placed or picked by grid cell and the plate's pose must be known to well under a pitch, or a brick's size and pose must be read from its studs.
 
