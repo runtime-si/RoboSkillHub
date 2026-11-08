@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-13 tools, 77 skills, 2 policies, 1 recipe and 1 paper.
+13 tools, 78 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -57,6 +57,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grasping-concave-contour`](#grasping-concave-contour) | propose | Grasp an awkward rigid part by the waists in its own silhouette. | any |
 | [`proposing-short-axis-grasps`](#proposing-short-axis-grasps) | propose | Propose top-down grasps whose jaws close ACROSS an elongated object's short axis, derived from its oriented box. | any, **sim only** |
 | [`proposing-side-grasps`](#proposing-side-grasps) | propose | Propose horizontal (side-entry) grasps swept around an object's oriented box — twelve azimuths ranked by jaw margin. | any, **sim only** |
+| [`matching-a-piece-to-placed-neighbours`](#matching-a-piece-to-placed-neighbours) | select | Picks which of several loose jigsaw pieces fits an empty slot, and how far to turn it, by the shape of its sides alone. | any |
 | [`selecting-free-placement-spots`](#selecting-free-placement-spots) | select | Picks world-frame spots on a named surface where a held object can be set down. | any, *tuned on* yam-station-overhead-rgbd |
 | [`selecting-reachable-grasp`](#selecting-reachable-grasp) | select | Walk a ranked list of candidate grasp poses and take the first the arm can actually reach. | any, **sim only** |
 | [`selecting-safe-cable-grasp-segments`](#selecting-safe-cable-grasp-segments) | select | Ranks top-down grasp points along a cable's fitted centreline that keep the fingers off its ends (a larger margin at… | any, *tuned on* yam-station-overhead-rgbd |
@@ -645,6 +646,20 @@ Propose horizontal (side-entry) grasps swept around an object's oriented box —
 - **Exits**:
   - `proposed`: One or more horizontal approaches, widest jaw margin first.
   - `declined`: No azimuth leaves a width the hand can span.
+
+### matching-a-piece-to-placed-neighbours
+
+select · robots: any · tasks: jigsaw · MIT · v0.1.0 · [`SKILL.md`](skills/matching-a-piece-to-placed-neighbours/SKILL.md) · [upstream](https://github.com/Kawaboongawa/Zolver/blob/master/Img/filters.py)
+
+Picks which of several loose jigsaw pieces fits an empty slot, and how far to turn it, by the shape of its sides alone - each piece's mask is split at its 4 corners into sides typed flat / tab / blank (Zolver's turning-angle signature), then every piece in each of its 4 rotations is fitted rigidly to the sides the already-placed neighbours leave at the slot and ranked by how closely the outlines meet. Also returns each piece's class (corner / edge / interior) and its grip point (the inner point farthest from the outline), in board metres for the winner. Use for low-texture regions where the box picture cannot place a piece (white snow, black cloth, blurred background), or to pick between a picture match's candidates; needs top-down piece masks (e.g. wrist-camera crops) and at least one placed neighbour or a border side at the slot.
+
+- **In**: -
+- **Out**: `best_id` string, `best_rotation_deg` float, `best_score` float, `margin` float, `piece_class` string
+- **Scripts**: [`match_piece`](skills/matching-a-piece-to-placed-neighbours/scripts/match_piece.py)
+- **Exits**:
+  - `fits`: One candidate fits clearly - its side types agree with the slot, its score is under max_fit (0.06) and the next candidate scores at least min_margin times worse (1.25; 1.6 with a single neighbour). best_id, best_rotation_deg and grip_point_board are the answer. With no neighbour, the only candidate whose side types fit the border sides.
+  - `ambiguous`: The best fit does not stand out from the next candidate (or, with no neighbour, several candidates' side types fit); `ranked` lists them best first for another cue (the box picture, a test placement).
+  - `no_fit`: No candidate's side types agree with the slot, the best score is over max_fit, or no candidate mask could be split into 4 sides (`pieces` says why per candidate); bad slot sides also land here.
 
 ### selecting-free-placement-spots
 

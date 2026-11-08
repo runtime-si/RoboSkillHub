@@ -1,0 +1,34 @@
+{
+  "skill": "matching-a-piece-to-placed-neighbours",
+  "inputs": {
+    "candidates": "Any",
+    "neighbour_sides": "dict",
+    "border_sides": "Any",
+    "cell_size": "Any"
+  },
+  "outputs": {
+    "best_id": {"$ref": "match.best_id"},
+    "best_rotation_deg": {"$ref": "match.best_rotation_deg"},
+    "best_score": {"$ref": "match.best_score"},
+    "margin": {"$ref": "match.margin"},
+    "piece_class": {"$ref": "match.piece_class"},
+    "grip_point_board": {"$ref": "match.grip_point_board"},
+    "ranked": {"$ref": "match.ranked"}
+  },
+  "nodes": {
+    "match": {
+      "type": "script",
+      "script": "scripts/match_piece.py",
+      "inputs": {
+        "candidates": {"$ref": "in.candidates"},
+        "neighbour_sides": {"$ref": "in.neighbour_sides"},
+        "border_sides": {"$ref": "in.border_sides"},
+        "cell_size": {"$ref": "in.cell_size"},
+        "top_k": 5
+      }
+    }
+  },
+  "edges": [["START", "match"], ["match", "END"]],
+  "exit": {"router_field": "route", "success_values": ["fits", "ambiguous"]},
+  "on_error": "no_fit"
+}

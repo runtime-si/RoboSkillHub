@@ -272,3 +272,9 @@ is adapted from deformable-ravens
 commit 73982748bdfe756e04553e28698948facccecb41: Task.oracle's cable-ring and
 cable-shape branches and Task.params_no_rots), Apache-2.0, Copyright (c)
 Daniel Seita and the Ravens authors; the file's header lists the changes.
+skills/matching-a-piece-to-placed-neighbours/scripts/match_piece.py is adapted
+from Zolver (https://github.com/Kawaboongawa/Zolver, Img/filters.py,
+Img/peak_detect.py, Puzzle/Edge.py, Puzzle/Mover.py, Puzzle/Distance.py and
+Puzzle/Puzzle.py), MIT License, Copyright (c) 2018 Kawaboongawa and co; the
+file's header lists the changes, and the license is
+skills/matching-a-piece-to-placed-neighbours/LICENSE.zolver.
