@@ -40,9 +40,11 @@ TOLERANCE = 0.010
 its 5 mm beads, "2 * radius is too strict"); 3.5 radii of a 3.5 mm cable is
 6 mm, under a real overhead fit's end error (7-9 mm, issue #10), so 10 mm."""
 
-MAX_ITERS = 8
+MAX_ITERS = 12
 """Most pick-and-place corrections [-]. Upstream's cable-shape episodes stop at
-21 actions for 24 beads; a YAM pick-and-place takes about 20 s."""
+21 actions for 24 beads; a YAM pick-and-place takes about 20 s. In a YAM
+station twin a 26 cm cable bent 52 mm off its line took 9 corrections to come
+within 6 mm (case C in the SKILL.md)."""
 
 SPACING = 0.010
 """Node spacing of both resampled curves [m]: about upstream's (24 beads 14 mm
@@ -98,8 +100,11 @@ PICK_GAP = 0.03
 MAX_MISSES = 2
 """Grasps in a row that close on nothing before the skill gives up [-]."""
 
-STALL_ITERS = 3
-"""Corrections without a better max error (by STALL_GAIN) before the skill stops."""
+STALL_ITERS = 4
+"""Corrections without a better max error (by STALL_GAIN) before the skill stops.
+In a YAM station twin the max error went 25 -> 36 -> 29 -> 44 -> 18 mm (case C)
+and 25 -> 26 -> 25 -> 25 -> 22 mm (case B) on the way to the line: 3 would have
+stopped both."""
 
 STALL_GAIN = 0.002
 """Improvement of the best max error that counts as progress [m]."""

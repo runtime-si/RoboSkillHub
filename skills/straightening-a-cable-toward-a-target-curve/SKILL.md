@@ -64,7 +64,7 @@ gap:
   exit_conditions:
     shaped: The latest look put every matched node within tolerance (10 mm) of the target in plan; the hand is open and stands retreat (5 cm) over the last place, or has not moved if the cable was already there.
     corrected: No cable_description was given, so after one pick-and-place the cable was not looked at again; fit its centreline and call again. The hand is open over the place.
-    not_converged: max_iters (8) corrections were made, or the best max error did not improve by 2 mm in 3 corrections, and some node is still further than the tolerance; the cable lies on the table, the hand is open.
+    not_converged: max_iters (12) corrections were made, or the best max error did not improve by 2 mm in 4 corrections, and some node is still further than the tolerance; the cable lies on the table, the hand is open.
     grasp_failed: Two grasps in a row (one without a camera) closed on nothing; the hand is open over the cable.
     lost_cable: The cable was not found by the camera, its fit was empty, or the cable seen is shorter than min_coverage (80 %) of the target in plan (part of it hidden or out of view).
     unreachable: No pick among the PICK_TRIES (3) largest discrepancies was reachable (grasping-a-cable-lying-flat routed unreachable for each), or the carry to the place was refused; after a refused carry the cable was set down where the hand stood and released. `detail` says which.
@@ -102,8 +102,8 @@ moving the point that is furthest from where it should be.
    node with the largest distance is the one to move.
 3. **Stop?** Every node within `tolerance` (10 mm): `shaped`. Cable seen
    shorter than `min_coverage` (80 %) of the target: `lost_cable`.
-   `max_iters` (8) corrections made, or no 2 mm gain in the best max error
-   over 3: `not_converged`.
+   `max_iters` (12) corrections made, or no 2 mm gain in the best max error
+   over 4: `not_converged`.
 4. **Pull, not push.** The move is that node's correction, applied where the
    fingers can hold it (`end_margin`, 15 mm, in from an end). A move within
    30 deg of the cable's own way is kept only at an end and outward (it
@@ -183,7 +183,7 @@ run for every pick, through this skill's context.
   with the next discrepancy tried if the arm cannot reach the first.
 - **Stopping.** Upstream judges success by every bead within 3.5 radii of any
   target and stops after 21 actions; here the max matched error against
-  `tolerance`, a cap of 8, and a stall check, with routed exits.
+  `tolerance`, a cap of 12, and a stall check, with routed exits.
 - **Overshoot** 1 cm: upstream uses 0 for the cable ring, 2 cm for bag rings
   and 3 cm for cloth. Here it is capped at half the move, so that a small
   correction of a node that does not spring back does not land it a full
@@ -199,24 +199,37 @@ run for every pick, through this skill's context.
 
 ## Simulation check
 
-YAM station twin on Brev (MuJoCo capsule cable, 37 nodes), target the cable's
-settled straight line from (0.52, 0.17) to (0.52, 0.43). The twin has no
-cameras, so the simulator's cable nodes stand in for the fitted centreline;
-the camera loop (sam3 + curve) is covered by the unit tests only. Every pick
-went through `grasping-a-cable-lying-flat`. Distances are the true plan
-distance of each node to the target line, max / mean in mm, at each look:
+YAM station twin on Brev (the threading twin's 3.5 mm cable: a 26 cm rod of
+37 capsules on VBD beside the MuJoCo arm), bent by the arm with
+grasping-a-cable-lying-flat, target the cable's settled straight line from
+(0.52, 0.17) to (0.52, 0.43). The twin has no cameras, so the simulator's
+cable nodes stand in for the fitted centreline; the camera loop (sam3 + curve)
+is covered by the unit tests only. The check graph called the skill without a
+`cable_description`, one correction per call (`corrected`), and looked again
+itself, at most 9 corrections. Every pick went through
+`grasping-a-cable-lying-flat`. Distances are the true plan distance of each
+node to the target line, max / mean in mm, at each look:
 
-| case | bend | looks | max / mean per look (mm) | end |
+| case | version | bend | max / mean per look (mm) | end |
 |---|---|---|---|---|
-| C | 4 cm at the middle | 10 | 51.9/22.1, 24.9/12.5, 35.6/15.0, 29.0/13.0, 44.3/19.7, 18.2/10.2, 24.3/8.7, 14.3/8.3, 15.5/5.5, 5.8/2.3 | all nodes within 6 mm after 9 corrections |
-| D | S, ±3 cm at 0.3 and 0.7 | 5 | 30.7/19.0, 28.0/13.1, 28.5/8.2, 24.1/9.3, 9.6/3.7 | `shaped` (tolerance 10 mm) after 4 corrections |
+| A | matched by order only, full overshoot | 4 cm at the middle | 52.3/22.3, 25.3/12.6, 43.9/18.8, 23.5/11.7, 17.7/4.8, 12.8/1.7, 30.6/9.1, 23.8/8.6, 15.2/4.1, 19.4/5.4 | 19.5 / 5.4 after 9 corrections |
+| B | measured across, pulled not pushed, overshoot capped | 4 cm at the middle | 53.6/22.9, 25.4/12.7, 25.6/10.3, 25.4/10.2, 25.3/8.4, 21.5/7.9, 18.7/7.4, 17.2/6.1, 12.2/5.7, 11.2/5.4 | 11.0 / 5.4 after 9 corrections |
+| C | as B, no overshoot near an end (this version) | 4 cm at the middle | 51.9/22.1, 24.9/12.5, 35.6/15.0, 29.0/13.0, 44.3/19.7, 18.2/10.2, 24.3/8.7, 14.3/8.3, 15.5/5.5, 5.8/2.3 | all nodes within 6 mm after 9 corrections |
+| D | this version | S, ±3 cm at 0.3 and 0.7 | 30.7/19.0, 28.0/13.1, 28.5/8.2, 24.1/9.3, 9.6/3.7 | `shaped` (tolerance 10 mm) after 4 corrections |
 
 All grasps succeeded and the cable never left the table (max lift 0.6 mm).
-Convergence is not monotone: a correction can push a neighbouring part of the
-cable out (C, look 5). An earlier version that matched nodes by order only
-pulled along the cable and buckled it (max 52 → 13 → 31 mm); the along-curve
-slack and pull-from-the-end rules above fixed that. Each correction took
-8-10 minutes of sim time on a shared GPU. Not run on a real YAM.
+In A, by order, a cable already within 1.7 mm (mean) of its line was pulled
+along itself and buckled (12.8 -> 30.6 mm). In B every move was across the
+line, but the ends whipped from side to side: an end 25 mm off, pulled 15 mm
+in from it with the 10 mm overshoot, swung to 17 mm off on the other side.
+Convergence is still not monotone in C (a correction can push a neighbouring
+part of the cable out, looks 3 and 5). Because the graph made one correction
+per call, the skill's own `max_iters` and stall rules did not act in the
+check; replayed on C's and B's series, the first defaults (8, and no 2 mm
+gain in 3) would have stopped both with `not_converged`, hence 12 and 4.
+One run per case, so these are examples, not rates. A run of 9 corrections
+took about 9 minutes on the L40S (A took 50, on a crowded GPU). Not run on a
+real YAM.
 
 ## Provenance
 
