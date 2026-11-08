@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 89 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 90 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -62,6 +62,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`parsing-ldraw-build-instructions`](#parsing-ldraw-build-instructions) | plan | Reads an LDraw .ldr / .mpd build file. | any |
 | [`planning-a-domino-layout`](#planning-a-domino-layout) | plan | Plans a domino line along a path on the table. | any |
 | [`planning-articulation-opening`](#planning-articulation-opening) | plan | Plans the hand's path that opens a drawer or a door it already holds by the handle. | any |
+| [`planning-brick-assembly-order`](#planning-brick-assembly-order) | plan | Orders the bricks of a stud-grid design for a robot that presses each one down from above. | any |
 | [`planning-held-object-motion`](#planning-held-object-motion) | plan | Plans the carry and engagement phases for an already-held rigid object. | any |
 | [`following-a-visual-plan`](#following-a-visual-plan) | propose | Follows a visual plan from robobrain.trace or molmo-motion.forecast (the shared visual-plan schema) the way those… | any |
 | [`grasping-concave-contour`](#grasping-concave-contour) | propose | Grasp an awkward rigid part by the waists in its own silhouette. | any |
@@ -741,6 +742,23 @@ Plans the hand's path that opens a drawer or a door it already holds by the hand
 - **Exits**:
   - `planned`: Every waypoint from the grasp to the full opening solved (or, with min_fraction under 1, the reachable prefix covers at least that share of the steps); `waypoints` and `joint_trajectory` hold the executable prefix.
   - `unreachable`: The grasp pose itself did not solve, or the reachable prefix falls short of min_fraction; `waypoints` holds whatever prefix did solve (possibly none), `reachable` marks every waypoint, and `detail` names the first failure.
+
+### planning-brick-assembly-order
+
+plan · robots: any · tasks: assembly, lego · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/planning-brick-assembly-order/SKILL.md) · [upstream](https://github.com/AvaLovelace1/BrickGPT/blob/9c53c7cb65f9de0df89562cc74b2d2e270fbcab4/src/mesh2brick/src/mesh2brick/planning.py)
+
+Orders the bricks of a stud-grid design for a robot that presses each one down from above - every brick rests on the baseplate or on studs of a brick already placed (bottom-up, connected), nothing placed covers its footprint, and a parallel gripper's fingers have room on two opposite sides of it (no flush neighbour at its height along the closing axis). Earlier LDraw STEPs go first unless a brick cannot go yet; ties go bottom layer first, then BrickGPT's (x, y) sweep, with a look-ahead that never walls in a brick still to come. Optionally splits the bricks between two arms by x (with per-arm reach) and checks an inventory. Use when a build (from parsing-ldraw-build-instructions or written by hand as cells, sizes and rotations) must become a placement sequence for computing-brick-pose-from-stud-grid and pressing-a-brick-onto-studs, or to find out before moving which bricks a gripper cannot place.
+
+- **In**: `steps_json` str
+- **Out**: `system` str, `n_bricks` int, `n_placed` int, `n_not_placed` int, `sequence_json` str
+- **Scripts**: [`plan_order`](skills/planning-brick-assembly-order/scripts/plan_order.py)
+- **Exits**:
+  - `sequence_ready`: Every brick is in `sequence`, each supported, uncovered and with a free pair of finger sides when its turn comes.
+  - `inventory_short`: Some bricks are left out because the inventory has no more of their part / size; `not_placed` lists them and the bricks that then had nothing to stand on. `sequence` holds the rest.
+  - `unreachable_step`: Some bricks lie outside every arm's reach (`reach`); listed in `not_placed`, the rest ordered.
+  - `finger_blocked`: Some bricks never had two opposite sides free for the fingers (flush neighbours on both axes, e.g. the last brick of a closed ring, or wider than the jaws open both ways); `not_placed` says which brick took the last side. Bricks that would have stood on them are listed too.
+  - `not_buildable`: Some bricks have nothing under them to press onto (hanging, on a tile, on a part not in the list), were covered before they could go, overlap another brick, or wait on a step that cannot finish (strict); listed in `not_placed`.
+  - `invalid_input`: No bricks, a brick without cell or size, a rotation not a multiple of 90, bricks of two systems, more than two arms, or an unknown option; `detail` says which.
 
 ### planning-held-object-motion
 
