@@ -1,0 +1,36 @@
+{
+  "skill": "checking-design-connectivity-and-collisions",
+  "inputs": {"ldraw": "string"},
+  "outputs": {
+    "n_bricks": {"$ref": "check.n_bricks"},
+    "stability_max": {"$ref": "check.stability_max"},
+    "detail": {"$ref": "check.detail"}
+  },
+  "nodes": {
+    "check": {
+      "type": "script",
+      "script": "scripts/check_design.py",
+      "inputs": {
+        "ldraw": {"$ref": "in.ldraw"},
+        "plate_size": "32x32",
+        "ldraw_fit": true,
+        "stability": "steps"
+      }
+    }
+  },
+  "edges": [["START", "check"], ["check", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "valid",
+      "out_of_plate",
+      "collision",
+      "floating",
+      "step_unsupported",
+      "step_blocked",
+      "weakly_connected",
+      "unstable"
+    ]
+  },
+  "on_error": "invalid_input"
+}

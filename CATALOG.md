@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 85 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 86 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -55,6 +55,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`refining-target-from-wrist-closeup`](#refining-target-from-wrist-closeup) | perceive | Refines a coarse world-frame target (an overhead perception's OBB or point) by aiming the wrist RGB-D camera at it… | any |
 | [`registering-held-objects`](#registering-held-objects) | perceive | Reobserves a grasped rigid object from the wrist cameras, estimates its functional feature in the TCP frame, and fits… | any |
 | [`tracking-objects`](#tracking-objects) | perceive | Long-running skill that drives the SAM3 tracker from the graph-scoped observation stream. | any |
+| [`checking-design-connectivity-and-collisions`](#checking-design-connectivity-and-collisions) | plan | Checks a brick design on a stud grid before the arms build it. | any |
 | [`computing-feature-mating-poses`](#computing-feature-mating-poses) | plan | Computes approach, engaged, and mate TCP poses from a held feature in the hand and a fixture feature, resolving free… | any |
 | [`executing-keypoint-motion`](#executing-keypoint-motion) | plan | Plans and executes a one-step manipulation from a language instruction with MOKA's mark-based visual prompting. | any |
 | [`planning-articulation-opening`](#planning-articulation-opening) | plan | Plans the hand's path that opens a drawer or a door it already holds by the handle. | any |
@@ -618,6 +619,26 @@ Long-running skill that drives the SAM3 tracker from the graph-scoped observatio
 - **Calls**: [`sam3`](#sam3)
 - **Functions**:
   - `tracking-objects.track`: Run the SAM3 tracker loop over the observation stream; returns the final mask/box/confidence.
+
+### checking-design-connectivity-and-collisions
+
+plan · robots: any · tasks: assembly, lego · MIT · v0.1.0 · [`SKILL.md`](skills/checking-design-connectivity-and-collisions/SKILL.md) · [upstream](https://github.com/AvaLovelace1/BrickGPT/blob/9c53c7cb65f9de0df89562cc74b2d2e270fbcab4/src/brickgpt/data/brick_structure.py)
+
+Checks a brick design on a stud grid before the arms build it - BrickGPT's rules for bricks off the plate, overlapping bricks and bricks not connected to the plate through stud connections (a ground-connected component of the brick graph), plus a per-step check that every brick is held by what is already built and is not slid under a brick already placed, single-stud joints that carry an overhang, and a stud-clutch stability score from a linear program - and routes valid / out_of_plate / collision / floating / step_unsupported / step_blocked / weakly_connected / unstable. Use when a build instruction (a brick list in stud-grid cells or an LDraw step file) or a generated design must be accepted or rejected, or a planned build order checked step by step, before any brick is picked.
+
+- **In**: -
+- **Out**: `detail` string, `n_bricks` int, `n_steps` int, `stability_max` float, `worst_brick` int, `unstable_step` int, `elapsed_s` float
+- **Scripts**: [`check_design`](skills/checking-design-connectivity-and-collisions/scripts/check_design.py)
+- **Exits**:
+  - `valid`: Every brick is on the plate, none overlap, all are connected to the plate through studs, each is connected and reachable from above when its step comes, no single-stud joint carries an overhang (unless allow_weak), and the stability score is under 1 (each prefix too with stability 'steps').
+  - `invalid_input`: No bricks, a size / rotation / brick_id that cannot be read, an LDraw part that is not a one-layer basic brick, an LDraw position off the stud grid or a rotation that is not an upright quarter turn; `detail` says which.
+  - `out_of_plate`: A brick leaves the plate_size grid or the layers 0 .. max_layers - 1; `out_of_plate` lists them.
+  - `collision`: Two bricks share a cell; `collisions` lists the pairs.
+  - `floating`: A brick is not connected to the plate through a chain of stud connections (above or below); `floating` lists them, `isolated` the ones touching no brick at all.
+  - `step_unsupported`: The design is connected, but some brick is not connected to the plate through the bricks before it in the step order when its turn comes; `step_unsupported` lists them.
+  - `step_blocked`: Some brick is placed under (anywhere in a higher layer over its footprint) a brick already placed, so it cannot be pressed on from above; `step_blocked` lists [brick, blocker] pairs.
+  - `weakly_connected`: A joint of a single stud carries bricks that reach past that stud (removing it would cut them off the plate); `weak_joints` lists [lower, upper] (-1 = the plate), `weak_bricks` what hangs on them.
+  - `unstable`: Holding the design (or, with stability 'steps', one of its partial builds) up needs more than the stud clutch (clutch_n, 0.98 N) at some stud; `stability_max` is the utilisation, `worst_brick` / `unstable_step` say where.
 
 ### computing-feature-mating-poses
 
