@@ -1,0 +1,30 @@
+{
+  "skill": "estimating-cut-grid-from-pieces",
+  "inputs": {
+    "piece_count": "int",
+    "board_width": "float",
+    "board_height": "float"
+  },
+  "outputs": {
+    "grid_cols": {"$ref": "estimate.grid_cols"},
+    "grid_rows": {"$ref": "estimate.grid_rows"},
+    "cell_width": {"$ref": "estimate.cell_width"},
+    "cell_height": {"$ref": "estimate.cell_height"},
+    "confidence": {"$ref": "estimate.confidence"}
+  },
+  "nodes": {
+    "estimate": {
+      "type": "script",
+      "script": "scripts/estimate_grid.py",
+      "inputs": {
+        "piece_count": {"$ref": "in.piece_count"},
+        "board_width": {"$ref": "in.board_width"},
+        "board_height": {"$ref": "in.board_height"},
+        "measure_view": true
+      }
+    }
+  },
+  "edges": [["START", "estimate"], ["estimate", "END"]],
+  "exit": {"router_field": "route", "success_values": ["estimated", "ambiguous"]},
+  "on_error": "insufficient_pieces"
+}
