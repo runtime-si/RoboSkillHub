@@ -85,7 +85,7 @@ def test_tools_registered_with_their_schemas(tool_registry):
         "support_points",
         "min_confidence",
     }
-    assert points.inputs["support_points"].default == 64
+    assert points.inputs["support_points"].default == 0
     assert {"found", "tracks", "num_frames", "query_frame", "timing"} <= set(points.outputs)
     assert set(tool_registry.get("track.update").schema.inputs) == {
         "session_id",
