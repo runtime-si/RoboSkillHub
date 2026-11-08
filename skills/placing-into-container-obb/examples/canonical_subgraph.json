@@ -1,0 +1,60 @@
+{
+  "skill": "placing-into-container-obb",
+  "inputs": {
+    "container_description": "string",
+    "held_obb": "OrientedBoundingBox"
+  },
+  "outputs": {
+    "aperture_center": {
+      "$ref": "place.aperture_center"
+    },
+    "rim_z": {
+      "$ref": "place.rim_z"
+    },
+    "floor_z": {
+      "$ref": "place.floor_z"
+    },
+    "container_obb": {
+      "$ref": "place.container_obb"
+    },
+    "release_position": {
+      "$ref": "place.release_position"
+    }
+  },
+  "nodes": {
+    "place": {
+      "type": "script",
+      "script": "scripts/place_into_container.py",
+      "inputs": {
+        "container_description": {
+          "$ref": "in.container_description"
+        },
+        "held_obb": {
+          "$ref": "in.held_obb"
+        },
+        "camera_name": "overhead"
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "place"
+    ],
+    [
+      "place",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "placed",
+      "no_room",
+      "container_not_found",
+      "not_holding",
+      "not_released"
+    ]
+  },
+  "on_error": "unreachable"
+}

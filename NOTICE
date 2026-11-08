@@ -45,6 +45,13 @@ is adapted from RoboRSI (https://github.com/nssmd/RoboRSI,
 roborsi/embodied/skills/base/place_held_in_held_container/robotwin/policy.py),
 Apache-2.0; the file's header lists the changes.
 
+skills/placing-into-container-obb/scripts/place_into_container.py is adapted
+from RoboRSI (https://github.com/nssmd/RoboRSI,
+roborsi/embodied/skills/base/place_obb/robotwin/policy.py and
+roborsi/embodied/skills/base/_lib/robotwin/_perception.py, object_mask,
+container_opening and container_drop_target), Apache-2.0; the file's header
+lists the changes.
+
 skills/centering-a-part-with-the-gripper/scripts/center_with_gripper.py is
 adapted from o2ac-ur (https://github.com/o2ac/o2ac-ur,
 catkin_ws/src/o2ac_routines/src/o2ac_routines/common.py, center_with_gripper
