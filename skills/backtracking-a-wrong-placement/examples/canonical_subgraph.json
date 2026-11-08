@@ -1,0 +1,38 @@
+{
+  "skill": "backtracking-a-wrong-placement",
+  "inputs": {
+    "failure": "dict",
+    "placements": "Any",
+    "pieces": "Any",
+    "grid_cols": "int",
+    "grid_rows": "int",
+    "ledger_path": "string"
+  },
+  "outputs": {
+    "culprit_piece": {"$ref": "backtrack.culprit_piece"},
+    "culprit_p_wrong": {"$ref": "backtrack.culprit_p_wrong"},
+    "n_actions": {"$ref": "backtrack.n_actions"},
+    "actions": {"$ref": "backtrack.actions"},
+    "assignment": {"$ref": "backtrack.assignment"}
+  },
+  "nodes": {
+    "backtrack": {
+      "type": "script",
+      "script": "scripts/backtrack.py",
+      "inputs": {
+        "failure": {"$ref": "in.failure"},
+        "placements": {"$ref": "in.placements"},
+        "pieces": {"$ref": "in.pieces"},
+        "grid_cols": {"$ref": "in.grid_cols"},
+        "grid_rows": {"$ref": "in.grid_rows"},
+        "ledger_path": {"$ref": "in.ledger_path"}
+      }
+    }
+  },
+  "edges": [["START", "backtrack"], ["backtrack", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["reassigned", "remove_neighbour", "retry_seat", "no_alternative"]
+  },
+  "on_error": "give_up"
+}
