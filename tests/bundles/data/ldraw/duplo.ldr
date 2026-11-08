@@ -1,0 +1,13 @@
+0 DUPLO: a 2x4 and a 2x2 on a 16x16 DUPLO baseplate, a 2x4 across them and a 2x4 plate
+0 Name: duplo.ldr
+0 Author: runtime-si (hand-written test file)
+0 !LICENSE Apache-2.0
+1 2 0 0 0 1 0 0 0 1 0 0 0 1 5930.dat
+1 4 -240 -48 -240 1 0 0 0 1 0 0 0 1 3011.dat
+1 1 -280 -48 -160 1 0 0 0 1 0 0 0 1 3437.dat
+0 STEP
+1 14 -280 -96 -200 0 0 1 0 1 0 -1 0 0 3011.dat
+1 15 -160 -72 -240 1 0 0 0 1 0 0 0 1 40666.dat
+0 STEP
+1 4 0 -24 0 1 0 0 0 1 0 0 0 1 3001.dat
+0 STEP

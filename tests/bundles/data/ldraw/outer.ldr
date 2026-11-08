@@ -1,0 +1,9 @@
+0 Outer: places an external sub-file twice and a missing one once
+0 Name: outer.ldr
+0 Author: runtime-si (hand-written test file)
+0 !LICENSE Apache-2.0
+1 4 0 0 0 1 0 0 0 1 0 0 0 1 inner.ldr
+0 STEP
+1 1 0 -24 0 1 0 0 0 1 0 0 0 1 inner.ldr
+1 1 0 0 200 1 0 0 0 1 0 0 0 1 missing.ldr
+0 STEP

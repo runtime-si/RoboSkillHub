@@ -1,0 +1,12 @@
+0 Two steps: a 2x4 brick and a 1x2 plate, then a 2x2 brick across both
+0 Name: two_steps.ldr
+0 Author: runtime-si (hand-written test file)
+0 !LICENSE Apache-2.0
+
+1 4 0 -24 0 1 0 0 0 1 0 0 0 1 3001.dat
+1 1 50 -8 0 0 0 1 0 1 0 -1 0 0 3023.dat
+0 STEP
+0 // a comment between steps
+1 14 40 -48 0 0 0 -1 0 1 0 1 0 0 3003.DAT
+0 STEP
+0 STEP

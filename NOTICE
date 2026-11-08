@@ -400,3 +400,19 @@ StackedLine is adapted from "domino-simulation" by Matthew Chapman
 under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); it was
 modified (module globals turned into a class, RK4 only, stall detection,
 returns hit times instead of plotting). The file's header lists all changes.
+skills/parsing-ldraw-build-instructions/scripts/parse_ldraw.py is adapted from
+ldraw-py (https://github.com/michaelgale/ldraw-py, ldrawpy/ldrmodel.py, commit
+d650ab0a9c2a774e1ba6f206aa2cd3b1925478e3), MIT License, Copyright (c) 2019
+Michael Gale, and from BrickGPT (https://github.com/AvaLovelace1/BrickGPT,
+src/brickgpt/data/brick_structure.py Brick.from_ldr, commit
+9c53c7cb65f9de0df89562cc74b2d2e270fbcab4), MIT License, Copyright (c) 2025 Ava
+Pun; the file's header lists the changes, and the licenses are
+skills/parsing-ldraw-build-instructions/LICENSE.ldraw-py and LICENSE.brickgpt.
+Its part table was checked against, and its colour names are from, the LDraw.org
+parts library and colour table LDConfig.ldr (complete.zip, 2026-11-08),
+licensed under CC BY 2.0 / CC BY 4.0 per the LDraw Contributor Agreement;
+attribution: LDraw.org. The test models tests/bundles/data/ldraw/pyramid.ldr and
+car.ldr (James Jessiman, from the LDraw.org complete library) and 1869-1.mpd
+("1869 - South African Flag", Merlijn Wissink, from the LDraw.org Official Model
+Repository, marked "Redistributable under CCAL version 2.0") are redistributed
+under CC BY 2.0; attribution: LDraw.org and the authors named.

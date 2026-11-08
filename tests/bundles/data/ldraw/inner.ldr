@@ -1,0 +1,5 @@
+0 Inner: one 2x2 brick
+0 Name: inner.ldr
+0 Author: runtime-si (hand-written test file)
+0 !LICENSE Apache-2.0
+1 16 0 -24 0 1 0 0 0 1 0 0 0 1 3003.dat

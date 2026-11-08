@@ -1,0 +1,4 @@
+0 FILE a.ldr
+1 4 0 0 0 1 0 0 0 1 0 0 0 1 b.ldr
+0 FILE b.ldr
+1 4 0 -24 0 1 0 0 0 1 0 0 0 1 a.ldr
