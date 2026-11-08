@@ -413,8 +413,8 @@ def test_not_converged_when_the_error_stalls(script):
     world = World(bent(0.04), stuck=True)  # the cable does not move
     out, _ = run(script, world, cable_description="cable", max_iters=10)
     assert out["route"] == "not_converged", out["detail"]
-    assert "no better for 3" in out["detail"]
-    assert out["corrections"] == 3
+    assert "no better for 4" in out["detail"]
+    assert out["corrections"] == 4
 
 
 def test_lost_cable_when_not_seen_after_a_correction(script):

@@ -1184,7 +1184,7 @@ Pulls a cable lying flat on a table toward a target curve, one correction at a t
 - **Exits**:
   - `shaped`: The latest look put every matched node within tolerance (10 mm) of the target in plan; the hand is open and stands retreat (5 cm) over the last place, or has not moved if the cable was already there.
   - `corrected`: No cable_description was given, so after one pick-and-place the cable was not looked at again; fit its centreline and call again. The hand is open over the place.
-  - `not_converged`: max_iters (8) corrections were made, or the best max error did not improve by 2 mm in 3 corrections, and some node is still further than the tolerance; the cable lies on the table, the hand is open.
+  - `not_converged`: max_iters (12) corrections were made, or the best max error did not improve by 2 mm in 4 corrections, and some node is still further than the tolerance; the cable lies on the table, the hand is open.
   - `grasp_failed`: Two grasps in a row (one without a camera) closed on nothing; the hand is open over the cable.
   - `lost_cable`: The cable was not found by the camera, its fit was empty, or the cable seen is shorter than min_coverage (80 %) of the target in plan (part of it hidden or out of view).
   - `unreachable`: No pick among the PICK_TRIES (3) largest discrepancies was reachable (grasping-a-cable-lying-flat routed unreachable for each), or the carry to the place was refused; after a refused carry the cable was set down where the hand stood and released. `detail` says which.
