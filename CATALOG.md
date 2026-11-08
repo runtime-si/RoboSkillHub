@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 97 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 98 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -62,6 +62,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`computing-feature-mating-poses`](#computing-feature-mating-poses) | plan | Computes approach, engaged, and mate TCP poses from a held feature in the hand and a fixture feature, resolving free… | any |
 | [`executing-keypoint-motion`](#executing-keypoint-motion) | plan | Plans and executes a one-step manipulation from a language instruction with MOKA's mark-based visual prompting. | any |
 | [`parsing-ldraw-build-instructions`](#parsing-ldraw-build-instructions) | plan | Reads an LDraw .ldr / .mpd build file. | any |
+| [`planning-a-brick-mosaic-from-an-image`](#planning-a-brick-mosaic-from-an-image) | plan | Turns an image into a one-layer LEGO mosaic on a baseplate of a given stud size. | any |
 | [`planning-a-domino-layout`](#planning-a-domino-layout) | plan | Plans a domino line along a path on the table. | any |
 | [`planning-articulation-opening`](#planning-articulation-opening) | plan | Plans the hand's path that opens a drawer or a door it already holds by the handle. | any |
 | [`planning-brick-assembly-order`](#planning-brick-assembly-order) | plan | Orders the bricks of a stud-grid design for a robot that presses each one down from above. | any |
@@ -747,6 +748,22 @@ Reads an LDraw .ldr / .mpd build file - submodels, STEP and ROTSTEP meta command
   - `unsupported_part`: Some parts are not in the basic-brick table (slopes, Technic, minifigures, a missing sub-file, the other system's bricks); they are in `unsupported` with the line and step, and `steps` holds the rest. A plan that needs them must be changed or finished by hand.
   - `off_grid`: Some table parts are tilted, upside down, mirrored, turned by other than a multiple of 90 deg, or sit off the stud or plate grid (a half-stud jumper offset); they are in `off_grid` with the reason. Takes precedence over unsupported_part.
   - `invalid_file`: No file or text, an unreadable file, no parts at all, a submodel that includes itself, or a bad argument; `detail` says which.
+
+### planning-a-brick-mosaic-from-an-image
+
+plan · robots: any · tasks: assembly, lego · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/planning-a-brick-mosaic-from-an-image/SKILL.md) · [upstream](https://github.com/merschformann/brickmos/blob/4a7e956720d347d198f931edc38852c9f3bf4060/brickmos/brickify.py)
+
+Turns an image into a one-layer LEGO mosaic on a baseplate of a given stud size - brickmos' pipeline (pixelate to one cell per stud, nearest palette colour per cell, bill of materials, BrickLink wanted list) with CIEDE2000 matching in CIELAB, optional Floyd-Steinberg dithering, per-colour part counts respected (an optimal assignment when stock is short, with the substitutions reported), runs of one colour merged into 1x2 / 2x2 / ... plates to cut placements, a preview image, and an ordered placement list in the hub's stud-grid convention (cell [x, y, layer], layer 1 on the plate, size 'AxB', rotation, colour) that checking-design-connectivity-and-collisions, planning-brick-assembly-order and computing-brick-pose-from-stud-grid read. Use when a picture, logo or pattern must become a flat brick mosaic the arms can build from the parts in the bins, or to find out before building which colours are short.
+
+- **In**: -
+- **Out**: `detail` string, `n_cells` int, `n_placements` int, `n_empty` int, `n_substituted` int, `n_colours` int, `mean_delta_e` float, `p95_delta_e` float, `max_delta_e` float, `mean_delta_e_blurred` float, `ideal_mean_delta_e` float, `placements_json` string, `steps_json` string, `bom_json` string, `bricklink_xml` string, `preview_path` string, `pixelated_path` string, `elapsed_s` float
+- **Scripts**: [`plan_mosaic`](skills/planning-a-brick-mosaic-from-an-image/scripts/plan_mosaic.py)
+- **Exits**:
+  - `planned`: Every cell of the mosaic has a part in the colour nearest to the image there (to the dithered target with dithering) and the inventory, if given, covers every part.
+  - `planned_with_substitutions`: Every cell has a part, but some cells use another colour because their nearest colour ran out (or had no part of the size needed); `substitutions` lists wanted -&gt; used, how many cells and the extra CIEDE2000.
+  - `inventory_short`: The inventory has fewer studs than the mosaic has cells (or no 1x1 left in any colour for a cell no larger part fits); `empty_cells` lists the uncovered cells, `placements` covers the rest.
+  - `invalid_image`: The image is missing, unreadable, empty, not [H, W], [H, W, 3] or [H, W, 4], or has NaN / infinite values.
+  - `invalid_input`: An option cannot be read - unknown palette / fit / resample / dither / order / part_kind / system, a mosaic off the plate or over 128 x 128, sizes without 1x1, an inventory colour not in the palette or a negative count; `detail` says which.
 
 ### planning-a-domino-layout
 

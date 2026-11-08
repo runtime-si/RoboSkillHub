@@ -471,3 +471,15 @@ License, Copyright 2021 Aaron Walsman; the file's header lists the changes, and
 the license is skills/verifying-build-against-model/LICENSE.ltron (LTRON's
 LICENSE file, which also covers the LDraw parts library under CC BY 2.0; no
 LDraw parts are bundled with this skill).
+skills/planning-a-brick-mosaic-from-an-image/scripts/plan_mosaic.py is adapted
+from brickmos (https://github.com/merschformann/brickmos, commit
+4a7e956720d347d198f931edc38852c9f3bf4060: brickmos/brickify.py read_colors,
+closest_color, replace_with_brick_colors, add_grid, write_xml and main;
+brickmos/defaults.py, the colour table kept as the "brickmos" palette), MIT
+License, Copyright (c) 2020 Marius Merschformann; the file's header lists the
+changes, and the license is
+skills/planning-a-brick-mosaic-from-an-image/LICENSE.brickmos. Its
+scripts/mosaic_ciede2000.py is the hub colour tool's copy of scikit-image's
+deltaE_ciede2000 (BSD-3-Clause, the scikit-image team; license beside it as
+LICENSE.scikit-image). Its LEGO colour names and values come from LDraw.org's
+LDConfig.ldr (CCAL 2.0 / CC BY 2.0), attribution LDraw.org.
