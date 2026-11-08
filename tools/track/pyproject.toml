@@ -1,0 +1,55 @@
+[project]
+name = "track-tool-bundle"
+version = "0.1.0.dev0"
+description = "TAPNext++ online any-point tracking through occlusion. Runs out-of-process via gap_core.rpc.server (needs GPU)."
+readme = "SKILL.md"
+requires-python = ">=3.11,<3.13"
+license = { text = "Apache-2.0" }
+
+# tapnet at the commit the bundle was checked with (2026-11-07). Its PyTorch
+# TAPNext needs torch, torchvision (ViT encoder block) and einops, which
+# tapnet lists only under extras; torch / torchvision as molmo-motion pins
+# them (CUDA 12.8 wheels).
+dependencies = [
+  "graph-as-policy-core",
+  "tapnet",
+  "torch==2.9.1",
+  "torchvision==0.24.1",
+  "einops>=0.8",
+  "numpy",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.uv]
+# tapnet's base dependencies serve its JAX models, demos and notebooks; the
+# PyTorch TAPNext path imports none of them. An unsatisfiable marker keeps
+# them (and jaxlib's ~100 MB) out of the environment.
+override-dependencies = [
+  "chex; sys_platform == 'never'",
+  "jax; sys_platform == 'never'",
+  "jaxline; sys_platform == 'never'",
+  "optax; sys_platform == 'never'",
+  "dm-haiku; sys_platform == 'never'",
+  "dm-tree; sys_platform == 'never'",
+  "matplotlib; sys_platform == 'never'",
+  "mediapy; sys_platform == 'never'",
+  "opencv-python; sys_platform == 'never'",
+  "einshape; sys_platform == 'never'",
+  "ipympl; sys_platform == 'never'",
+  "tqdm; sys_platform == 'never'",
+]
+
+# The engine commit sources.yaml pins, by URL, so the bundle resolves the same
+# wherever its checkout sits (a dev clone, a robot's `roboskillhub fetch`).
+[tool.uv.sources]
+graph-as-policy-core = { git = "https://github.com/graph-robots/graph-as-policy.git", rev = "09e45f8de27bc1a29629382ed7c2b9b4b384b3d6", subdirectory = "gap-core" }
+tapnet = { git = "https://github.com/google-deepmind/tapnet.git", rev = "ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b" }

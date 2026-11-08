@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-12 tools, 75 skills, 2 policies, 1 recipe and 1 paper.
+13 tools, 75 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -23,6 +23,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`locate-anything`](#locate-anything) | perceive | NVIDIA LocateAnything-3B (non-commercial licence) run locally on a GPU. | any |
 | [`molmo`](#molmo) | perceive | Visual pointing and Q&A via the Molmo VLM served from a self-hosted vLLM endpoint (OpenAI-compatible API). | any |
 | [`sam3`](#sam3) | perceive | Segment Anything 3 — text-, point-, and box-prompted instance segmentation, plus a stateful streaming video tracker… | any |
+| [`track`](#track) | perceive | Google DeepMind TAPNext++ run locally on a GPU. | any |
 | [`vlm`](#vlm) | perceive | Free-form and yes/no visual question answering against a hosted vision-language model (OpenRouter API by default… | any |
 | [`curobo`](#curobo) | plan | NVIDIA cuRobo motion planning. | any, *tuned on* panda |
 | [`molmo-motion`](#molmo-motion) | propose | AllenAI MolmoMotion-4B run locally on a GPU. | any |
@@ -223,6 +224,20 @@ Segment Anything 3 — text-, point-, and box-prompted instance segmentation, pl
   - `sam3.tracker_init`: Open a tracker session seeded with one frame + a text/box/point prompt.
   - `sam3.tracker_update`: Advance a tracker session by one frame (mask, box, confidence).
   - `sam3.tracker_close`: Free a tracker session (idempotent).
+
+### track
+
+perceive · robots: any · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/track/SKILL.md) · [upstream](https://github.com/google-deepmind/tapnet/tree/ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b/tapnet/tapnextpp)
+
+Google DeepMind TAPNext++ run locally on a GPU -- follows chosen pixels (a cable tip, a plug, a small part, a cube corner) through a video, returning each one's pixel position and visibility per frame and keeping its position estimate through occlusions until it comes back. Use when a verify or recover stage needs where a point went across a clip, or a closed loop needs it frame by frame from a live wrist or overhead camera.
+
+- **Weights**: `https://storage.googleapis.com/gresearch/tapnextpp/tapnextpp_512.ckpt`
+- **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
+- **Functions**:
+  - `track.points`: Track query pixels through a clip; per-frame pixels, visibility and confidence (queries on any frame).
+  - `track.start`: Open an online tracking session on a live frame and query pixels.
+  - `track.update`: Advance a session by one frame; each query's pixel and visibility.
+  - `track.stop`: Close a session and free its GPU state.
 
 ### vlm
 

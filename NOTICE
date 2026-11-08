@@ -248,3 +248,13 @@ skills/inserting-a-peg-with-pose-refinement/scripts/align_pre_insert.py and
 push_insert.py are adapted from ManiSkill (https://github.com/haosulab/ManiSkill,
 mani_skill/examples/motionplanning/panda/solutions/peg_insertion_side.py),
 Apache-2.0; each file's header lists the changes.
+tools/track/tools.py runs Google DeepMind's TAPNext++ through the tapnet
+package (https://github.com/google-deepmind/tapnet, commit
+ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b), a dependency of the bundle's
+environment, with a checkpoint (tapnextpp_512.ckpt or tapnextpp_ckpt.pt)
+downloaded from DeepMind's bucket when a tool first runs and checked against
+its pinned SHA-256; the code and every released checkpoint are Apache-2.0
+(tapnet README, "License and Disclaimer"), Copyright 2022-2026 Google LLC.
+The file adapts the frame preprocessing of tapnet/tapnextpp/votsp2026/utils.py
+and the support-point layout of tapnet/tapnextpp/votsp2026/tracker.py; its
+header lists the changes.
