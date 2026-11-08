@@ -510,3 +510,19 @@ calls PuLP (https://github.com/coin-or/pulp, MIT) and the CBC solver
 Public License 1.0, or the cbcbox package under EPL-2.0) when installed, else
 HiGHS through SciPy's scipy.optimize.milp (MIT / BSD-3-Clause), as separate
 libraries or programs; no code of them is copied or distributed here.
+tools/grconvnet/tools.py is adapted from robotic-grasping
+(https://github.com/skumra/robotic-grasping, commit
+183c6f68c44c1c7ff0f07707e2db6fcfd6840d2d: inference/models/grconvnet3.py
+GenerativeResnet, inference/models/grasp_model.py ResidualBlock,
+utils/data/camera_data.py CameraData, utils/dataset_processing/image.py
+normalise, inference/post_process.py post_process_output and
+utils/dataset_processing/grasp.py detect_grasps), BSD-3-Clause License,
+Copyright (c) 2019 Sulabh Kumra, MABL, Rochester Institute of Technology and
+Copyright (c) 2018 Douglas Morrison, ACRV, Queensland University of
+Technology; the file's header lists the changes, and the license is
+tools/grconvnet/LICENSE.robotic-grasping. The bundle downloads the
+repository's released GR-ConvNet checkpoints (trained-models/, same license) at
+that commit on first use; none are stored here. They were trained on the
+Cornell grasping dataset (no license stated) and the Jacquard dataset (its
+EULA allows academic, non-commercial use only; annotations CC BY-NC-SA 3.0),
+which may bear on commercial use of the weights.
