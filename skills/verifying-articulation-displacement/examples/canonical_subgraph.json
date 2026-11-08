@@ -1,0 +1,65 @@
+{
+  "skill": "verifying-articulation-displacement",
+  "inputs": {
+    "handle_description": "string",
+    "joint_type": "string",
+    "expected_opening": "float",
+    "pull_direction": "Vec3",
+    "before_observation": "Observation"
+  },
+  "outputs": {
+    "measured": {
+      "$ref": "verify.measured"
+    },
+    "fraction": {
+      "$ref": "verify.fraction"
+    },
+    "handle_after": {
+      "$ref": "verify.handle_after"
+    }
+  },
+  "nodes": {
+    "verify": {
+      "type": "script",
+      "script": "scripts/verify_articulation.py",
+      "inputs": {
+        "handle_description": {
+          "$ref": "in.handle_description"
+        },
+        "joint_type": {
+          "$ref": "in.joint_type"
+        },
+        "expected_opening": {
+          "$ref": "in.expected_opening"
+        },
+        "pull_direction": {
+          "$ref": "in.pull_direction"
+        },
+        "before_observation": {
+          "$ref": "in.before_observation"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "verify"
+    ],
+    [
+      "verify",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "moved",
+      "moved_short",
+      "not_moved",
+      "moved_wrong_way",
+      "inconsistent"
+    ]
+  },
+  "on_error": "not_seen"
+}

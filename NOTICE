@@ -287,3 +287,9 @@ Img/peak_detect.py, Puzzle/Edge.py, Puzzle/Mover.py, Puzzle/Distance.py and
 Puzzle/Puzzle.py), MIT License, Copyright (c) 2018 Kawaboongawa and co; the
 file's header lists the changes, and the license is
 skills/matching-a-piece-to-placed-neighbours/LICENSE.zolver.
+
+skills/verifying-articulation-displacement/scripts/verify_articulation.py is
+adapted from RoboRSI (https://github.com/nssmd/RoboRSI,
+roborsi/embodied/skills/base/close_drawer/libero/policy.py and
+roborsi/embodied/skills/base/pull_drawer/libero/policy.py), Apache-2.0; the
+file's header lists the changes.
