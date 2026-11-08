@@ -1,0 +1,26 @@
+{
+  "skill": "calibrating-baseplate-stud-grid",
+  "inputs": {"brick_mask": "Mask"},
+  "outputs": {
+    "brick_size": {"$ref": "read.brick_size"},
+    "top_pose": {"$ref": "read.top_pose"},
+    "stud_px": {"$ref": "read.stud_px"},
+    "residual_mm": {"$ref": "read.residual_mm"}
+  },
+  "nodes": {
+    "read": {
+      "type": "script",
+      "script": "scripts/read_studs.py",
+      "inputs": {
+        "mask": {"$ref": "in.brick_mask"},
+        "system": "lego"
+      }
+    }
+  },
+  "edges": [["START", "read"], ["read", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["lattice_found", "occluded", "too_few_studs"]
+  },
+  "on_error": "too_few_studs"
+}

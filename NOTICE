@@ -429,3 +429,17 @@ test data tests/bundles/data/brick_plans/*.json are derived from the LDraw
 models pyramid.ldr and car.ldr (James Jessiman, LDraw.org complete library) and
 1869-1.mpd ("1869 - South African Flag", Merlijn Wissink, LDraw.org Official
 Model Repository), CC BY 2.0; attribution: LDraw.org and the authors named.
+
+skills/calibrating-baseplate-stud-grid/scripts/calibrate_plate.py writes its
+result in the plate format of APEX-MR
+(https://github.com/intelligent-control-lab/APEX-MR,
+config/lego_tasks/plate_calibration.json, commit
+6b5a17f1133c3f739caf50fa0fff6c478ef73b7a), MIT License, Copyright (c) 2025
+Intelligent Control Lab; the license is
+skills/calibrating-baseplate-stud-grid/LICENSE.apexmr. Its camera aiming is
+adapted from skills/refining-target-from-wrist-closeup (from RoboRSI,
+Apache-2.0). The marker and stud detection call OpenCV (aruco, solvePnP,
+HoughCircles; https://github.com/opencv/opencv), Apache-2.0. The stud-grid
+approach is informed by BrickScan (https://github.com/edrickchang13/BrickScan,
+ml/preprocessing/stud_detector.py), which has no license; none of its code is
+used.
