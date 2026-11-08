@@ -366,3 +366,16 @@ src/ros_nodes/lego_task_planning_node.cpp and config/user_config.json, commit
 the MIT text under the line "Copyright (c) 2011-2023 GitHub Inc."); the file's
 header lists the changes, and the licenses are
 skills/pressing-a-brick-onto-studs/LICENSE.bricksim and LICENSE.icl.
+
+skills/checking-design-connectivity-and-collisions/scripts/check_design.py is
+adapted from BrickGPT (https://github.com/AvaLovelace1/BrickGPT, commit
+9c53c7cb65f9de0df89562cc74b2d2e270fbcab4: src/brickgpt/data/brick_structure.py
+Brick, Brick.from_ldr, brick_in_bounds, has_collisions, brick_floats,
+is_connected; src/brickgpt/stability_analysis/connectivity_analysis.py
+connectivity_score, _connected, _connected_to_ground; the masses of
+src/brickgpt/data/brick_library.json), MIT License, Copyright (c) 2025 Ava Pun;
+the file's header lists the changes, and the license is
+skills/checking-design-connectivity-and-collisions/LICENSE.brickgpt. Its
+stability score takes only the idea of StableLego
+(https://github.com/intelligent-control-lab/StableLego, MIT); no StableLego code
+is copied.
