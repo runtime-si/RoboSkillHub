@@ -265,6 +265,15 @@ its pinned SHA-256; the code and every released checkpoint are Apache-2.0
 The file adapts the frame preprocessing of tapnet/tapnextpp/votsp2026/utils.py
 and the support-point layout of tapnet/tapnextpp/votsp2026/tracker.py; its
 header lists the changes.
+tools/depth/tools.py runs Robbyant's LingBot-Depth v0.5 through the mdm
+package (https://github.com/Robbyant/lingbot-depth, commit
+f3a237e434ae987bc38281476d6cfb5df3e4d739), a dependency of the bundle's
+environment, with the checkpoint robbyant/lingbot-depth-pretrain-vitl-14-v0.5
+(Hugging Face, commit 79204ed6b837f4fdd192cf563e59481fecfa0295) downloaded
+when the tool first runs; the code (LICENSE) and the weights (model card) are
+Apache-2.0, Copyright (c) Robbyant. No upstream code is copied; the file
+replaces one method of mdm's NestedTensorBlock at run time when xFormers is
+absent, as its header describes.
 
 skills/straightening-a-cable-toward-a-target-curve/scripts/straighten_cable.py
 is adapted from deformable-ravens

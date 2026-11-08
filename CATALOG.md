@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-13 tools, 78 skills, 2 policies, 1 recipe and 1 paper.
+14 tools, 78 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -17,6 +17,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | Tool | Stage | What it does | Robots |
 | --- | --- | --- | --- |
 | [`curve`](#curve) | perceive | Ordered centrelines of deformable linear objects. | any |
+| [`depth`](#depth) | perceive | Robbyant LingBot-Depth v0.5 run locally on a GPU. | any |
 | [`gemini-er`](#gemini-er) | perceive | Open-vocabulary 2D detection and pointing via the Gemini Robotics-ER API. | any |
 | [`geometry`](#geometry) | perceive | Pure-math 3D geometry toolbox. | any, *tuned on* panda |
 | [`grounding-dino`](#grounding-dino) | perceive | Grounding DINO zero-shot object detection — natural-language queries to labeled 2D bounding boxes with confidence scores. | any |
@@ -133,6 +134,17 @@ Ordered centrelines of deformable linear objects — skeletonises a cable, rope 
   - `curve.fit_centerline`: Fit an ordered, arc-length-parameterised 3D centreline to a deformable linear object from its mask and a depth frame.
   - `curve.track_centerline`: Advance a known centreline onto a new frame, imputing motion for occluded stretches from their visible neighbours.
   - `curve.endpoints`: Both ends of a centreline -- each end's position, outward direction and pixel -- and which end a pixel or point hint names.
+
+### depth
+
+perceive · robots: any · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/depth/SKILL.md) · [upstream](https://github.com/Robbyant/lingbot-depth/blob/f3a237e434ae987bc38281476d6cfb5df3e4d739/mdm/model/v2.py)
+
+Robbyant LingBot-Depth v0.5 run locally on a GPU -- fills the holes of a sensor depth image from its RGB frame (the overhead Orbbec's or the wrist D405's) and, on request, denoises it, returning metric depth of the same size, a validity mask and a mask of the filled pixels. Use before geometry, grasp or pose tools when raw depth has holes or speckle on dark, shiny, thin or small parts (a black board, a cube, a ring, a flat cable).
+
+- **Weights**: `hf://robbyant/lingbot-depth-pretrain-vitl-14-v0.5@79204ed6b837f4fdd192cf563e59481fecfa0295`
+- **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
+- **Functions**:
+  - `depth.refine`: Fill (default) or denoise an RGB-D frame's depth; same-size metric depth, validity and filled masks.
 
 ### gemini-er
 
