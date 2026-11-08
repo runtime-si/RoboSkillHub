@@ -1,0 +1,47 @@
+{
+  "skill": "planning-a-brick-mosaic-from-an-image",
+  "inputs": {"image_path": "str"},
+  "outputs": {
+    "placements": {"$ref": "plan.placements"},
+    "placements_json": {"$ref": "plan.placements_json"},
+    "steps_json": {"$ref": "plan.steps_json"},
+    "bill_of_materials": {"$ref": "plan.bill_of_materials"},
+    "substitutions": {"$ref": "plan.substitutions"},
+    "mean_delta_e": {"$ref": "plan.mean_delta_e"},
+    "preview_path": {"$ref": "plan.preview_path"}
+  },
+  "nodes": {
+    "plan": {
+      "type": "script",
+      "script": "scripts/plan_mosaic.py",
+      "inputs": {
+        "image_path": {"$ref": "in.image_path"},
+        "plate_studs": [32, 32],
+        "palette": "lego_basic",
+        "sizes": ["1x1", "1x2", "2x2"],
+        "inventory": {
+          "white": {"1x1": 300, "1x2": 100, "2x2": 60},
+          "black": {"1x1": 200, "1x2": 80, "2x2": 40},
+          "red": 150,
+          "light_bluish_grey": 200,
+          "dark_bluish_grey": 200,
+          "tan": 150,
+          "reddish_brown": 100,
+          "orange": 100
+        },
+        "dither": "none"
+      }
+    }
+  },
+  "edges": [["START", "plan"], ["plan", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "planned",
+      "planned_with_substitutions",
+      "inventory_short",
+      "invalid_image"
+    ]
+  },
+  "on_error": "invalid_input"
+}
