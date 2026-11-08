@@ -165,8 +165,8 @@ target and straight down to the goal, all with the chosen rotation. Every
 refused move (raised, or `reached: false` / an `outcome` other than
 `reached`) routes `unreachable` with its leg, except a servo `timeout` that
 left the hand within `reach_tolerance` of the leg's end (read back), which
-continues and is named in `detail` (the YAM twin's servo timed out 3.8 mm
-over the goal on some descents); arrival is judged from a fresh
+continues and is named in `detail` (the YAM twin's servo timed out 4-5 mm
+over the goal on 7 of 13 descents); arrival is judged from a fresh
 `robot.get_ee_pose` against `reach_tolerance` (15 mm, no tighter than a real
 station's 12 mm per move). `tolerance` / `max_steps` go to the free move only
 when set; `arm_id` only when nonzero.
@@ -198,7 +198,30 @@ when set; `arm_id` only when nonzero.
 
 ## Measured
 
-MEASURED_PLACEHOLDER
+**Simulation (2026-11-07, YAM station twin on a shared Brev L40S, left arm,
+rendered top-camera RGB-D at the calibrated pose).** The twin's camera puts
+the box floor 2 px and the cube 0.4 px from where the fit to the real frame
+saw them. Each of RoboBrain's 12 saved cube-to-box plans on the real frame
+(`tests/bundles/data/robobrain_traces_station.json`, both modes, with and
+without a start and depth anchor) went through both scripts with the default
+arguments, plus one run of the plan through the graph's own nodes (13 runs):
+
+| | result |
+| --- | --- |
+| proposed | 13/13; measured top 42.0-42.1 mm over the table (the box is 40 mm), travel 122 mm |
+| arrived | 13/13; 7 of them after a descent timeout 4.1-4.9 mm short, which the read-back accepts |
+| position error (skill's reading) | 1.7-4.9 mm, median 4.1 mm |
+| target from the box's centre | 8.4-48.9 mm, median 20.7 mm (the inner half-width is 47.7 mm) |
+| hand inside the walls (simulator truth) | 12/13: `cube0/end_effector/start` ended 0.9 mm past the inner wall, over the far wall, where its endpoint pixel is (3.7 px inside the box's far edge) |
+| hand over the rim | 33.3-36.5 mm (goal: measured top + 30 mm) |
+| rejections | an endpoint on the floor past the table's edge (616 mm under the table plane) and one off the image: `plan_rejected`, hand moved 0.0 mm |
+
+Before the timeout read-back was added, the same run routed 3 of its first 5
+descents `unreachable` with the hand 3.8-4.9 mm over the goal. The no-depth
+rejection was not exercised (the render had no invalid depth); it and the
+pointing cross-check are covered by the unit tests only. No planner model was
+called during the simulation: the plans are robobrain.trace's real answers on
+the real frame, replayed.
 
 ## Provenance
 
