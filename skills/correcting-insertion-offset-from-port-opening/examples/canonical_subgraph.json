@@ -1,0 +1,59 @@
+{
+  "skill": "correcting-insertion-offset-from-port-opening",
+  "inputs": {
+    "port_position": "Vec3",
+    "opening_size": "float"
+  },
+  "outputs": {
+    "hole_position": {
+      "$ref": "correct.hole_position"
+    },
+    "hole_offset": {
+      "$ref": "correct.hole_offset"
+    },
+    "correction": {
+      "$ref": "correct.correction"
+    },
+    "steps": {
+      "$ref": "correct.steps"
+    },
+    "views": {
+      "$ref": "correct.views"
+    }
+  },
+  "nodes": {
+    "correct": {
+      "type": "script",
+      "script": "scripts/correct_offset.py",
+      "inputs": {
+        "port_position": {
+          "$ref": "in.port_position"
+        },
+        "opening_size": {
+          "$ref": "in.opening_size"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "correct"
+    ],
+    [
+      "correct",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "centered",
+      "opening_not_found",
+      "views_disagree",
+      "offset_too_large",
+      "no_convergence"
+    ]
+  },
+  "on_error": "unreachable"
+}
