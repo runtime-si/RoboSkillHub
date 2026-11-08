@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-14 tools, 82 skills, 2 policies, 1 recipe and 1 paper.
+15 tools, 82 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -16,6 +16,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 
 | Tool | Stage | What it does | Robots |
 | --- | --- | --- | --- |
+| [`colour`](#colour) | perceive | What colour a segmented part is. | any, *tuned on* yam-station-orbbec-overhead |
 | [`curve`](#curve) | perceive | Ordered centrelines of deformable linear objects. | any |
 | [`depth`](#depth) | perceive | Robbyant LingBot-Depth v0.5 run locally on a GPU. | any |
 | [`gemini-er`](#gemini-er) | perceive | Open-vocabulary 2D detection and pointing via the Gemini Robotics-ER API. | any |
@@ -126,6 +127,20 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`pi05-libero`](#pi05-libero) | execute | Run the openpi π0.5 LIBERO checkpoint (pi05_libero) as a closed-loop VLA policy for the dexterous pick-and-place… | panda, **sim only** |
 
 ## Tool details
+
+### colour
+
+perceive · robots: any, *tuned on* yam-station-orbbec-overhead · tasks: sorting, pick-place, recognition · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/colour/SKILL.md) · [upstream](https://github.com/scikit-image/scikit-image/blob/5d91fed804ec8d9133118f02b3a785790df75934/src/skimage/color/delta_e.py)
+
+What colour a segmented part is — robust colour of a mask (boundary eroded, clipped highlights dropped, lightness tails trimmed, Lab median), nearest entry of a palette by CIEDE2000 with the margin to the runner-up and an ambiguous / unknown status, white balance from grey world or a white/grey reference region, and a mask's dominant colours. Built-in palettes are the LDraw LEGO/DUPLO colours and domino tile/pip colours; a per-camera palette learned from labelled parts is passed as a list. Use when a workflow must tell bricks, tiles or parts apart by colour (sorting, find-the-red-2x4, verifying a build), especially the pairs VLMs confuse -- black vs dark grey, tan vs yellow.
+
+- **Runs**: in its own environment over `stdio-msgpack`
+- **Note**: On the YAM station's overhead camera the LDraw values alone are not enough (58-65% on real frames); a palette measured on that camera (colour.measure) with a bench reference reached 91%. LDraw colour values CCAL 2.0 (CC BY 2.0), LDraw.org.
+- **Functions**:
+  - `colour.classify`: Name a segmented part's colour from a palette (LEGO, DUPLO, domino or custom) by CIEDE2000, with the margin to the runner-up and an ambiguous status.
+  - `colour.measure`: Robust colour of a mask (Lab and sRGB, highlights and shadows trimmed), to build a per-camera palette from labelled parts.
+  - `colour.white_balance`: Per-channel white-balance gains from grey world or from a white/grey reference region; optionally the balanced image.
+  - `colour.dominant_colours`: Cluster a mask into its dominant colours (k-means in Lab, near clusters merged), each with its share and optionally its palette name.
 
 ### curve
 
