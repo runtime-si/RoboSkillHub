@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-14 tools, 80 skills, 2 policies, 1 recipe and 1 paper.
+14 tools, 81 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -111,6 +111,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`verifying-insertion-by-probe-push`](#verifying-insertion-by-probe-push) | verify | Checks whether a held part is seated after an insertion by pushing it a few millimetres further along the insertion… | any |
 | [`verifying-placement`](#verifying-placement) | verify | Confirms from one RGB-D view that a released object went through an aperture, accepting either that it vanished into… | any |
 | [`centering-a-part-with-the-gripper`](#centering-a-part-with-the-gripper) | recover | Centres a loose part between the jaws without perceiving it. | any |
+| [`correcting-insertion-offset-from-port-opening`](#correcting-insertion-offset-from-port-opening) | recover | Re-centres a held part over a port before or after a failed insertion using cameras only. | any |
 | [`returning-to-a-recorded-pose`](#returning-to-a-recorded-pose) | recover | Opens the gripper and drives the arm back to a joint configuration recorded earlier in the episode, then checks from a… | any |
 | [`classifying-failure-type-vlm`](#classifying-failure-type-vlm) | judge | Classifies why a manipulation step failed from camera frames taken before, during (optional, a short video as frames)… | any |
 | [`detecting-subtask-success`](#detecting-subtask-success) | judge | Checks whether a subtask is done from the latest frame of every camera at one moment. | any |
@@ -1467,6 +1468,24 @@ Centres a loose part between the jaws without perceiving it - closes on it, open
   - `centered`: Both closes ended on something (the jaw gap above the closed stop by more than min_held_width, or unread), the wrist turn between them arrived, and the hand opened again (kept closed with release=false); `returned` says whether it turned back.
   - `nothing_caught`: A close ended within min_held_width of the closed stop, so nothing was between the pads; the hand is open and, after the turn, turned back when return_to_start.
   - `unreachable`: Neither quarter turn arrived, by pose or by the last joint (refused, or the read-back rotation more than rotation_tolerance_deg or the tool centre more than position_tolerance off); the hand is open and was sent back to its start rotation.
+
+### correcting-insertion-offset-from-port-opening
+
+recover · robots: any · tasks: insertion · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/correcting-insertion-offset-from-port-opening/SKILL.md) · [upstream](https://github.com/AMMistry18/aic/blob/fd27bbe875dbd656e381f72ae2b44efdfb243924/aic_model/aic_model/insertion/visual_gap_recovery.py)
+
+Re-centres a held part over a port before or after a failed insertion using cameras only - finds the dark opening near its projected mouth in every available view (hand and part masked out by depth), meets each view's ray with the port plane, keeps the views that agree within 3 mm, and steps the hand toward that consensus in moves of at most 1 mm (6 mm total, 8 steps) until the part's descent line is centred on the opening in at least two views. Use when an insertion stopped short or a camera's port estimate is only good to a few millimetres, the hand holds the part over the mouth, and two cameras see the opening (the inserting arm's wrist camera plus the other arm's parked wrist camera or the overhead camera); no force sensor.
+
+- **In**: `port_position` Vec3, `opening_size` float
+- **Out**: `hole_position` Vec3, `hole_offset` float, `correction` Vec3, `steps` int, `views` int
+- **Calls**: [`sam3`](#sam3); connector `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`
+- **Scripts**: [`correct_offset`](skills/correcting-insertion-offset-from-port-opening/scripts/correct_offset.py)
+- **Exits**:
+  - `centered`: The held part's descent line meets the port plane within the pixel tolerance of the opening's centre in at least min_views (2) views; the hand stays there, ready for the push. hole_position is the cameras' consensus of the opening's centre on the port plane.
+  - `opening_not_found`: Fewer than min_views cameras are usable or find the opening near its projected mouth (contrast, area and centre gates); nothing moved on this pass.
+  - `views_disagree`: The views found the opening but no pair puts it within max_view_disagreement (3 mm) on the port plane; a camera's calibration or the detection is off. Nothing moved on this pass.
+  - `offset_too_large`: The consensus lies more than max_port_offset (8 mm) from the estimate, or the next step would take the commanded correction past max_total (6 mm); re-perceive the port rather than correct. An opening near the bound can be measured short until the hand has stepped toward it, so the hand may have moved before this exit.
+  - `no_convergence`: After max_steps (8) moves the part is still not centred in min_views views; the hand is where the last step left it.
+  - `unreachable`: The hand's pose could not be read, or a step was refused or reported out of reach.
 
 ### returning-to-a-recorded-pose
 

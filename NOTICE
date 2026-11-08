@@ -300,3 +300,9 @@ and maestro/vlm.py SELECTION_PROMPT and select_points, at commit
 e60d326233a238ddc496bf7a08acb7a278e9e66d), MIT License, Copyright (c) 2026 The
 MAESTRO Authors; the file's header lists the changes, and the license is
 skills/sampling-labeled-points-in-mask/LICENSE.maestro.
+skills/correcting-insertion-offset-from-port-opening/scripts/correct_offset.py
+is adapted from AMMistry18/aic (https://github.com/AMMistry18/aic,
+aic_model/aic_model/insertion/visual_gap.py and
+aic_model/aic_model/insertion/visual_gap_recovery.py, commit
+fd27bbe875dbd656e381f72ae2b44efdfb243924), Apache-2.0; the file's header lists
+the changes.
