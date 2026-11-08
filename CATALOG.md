@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 84 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 85 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -93,6 +93,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`placing-with-contact-descent`](#placing-with-contact-descent) | execute | Places the object the hand holds by approaching a fixed height above its place point, coming straight down until the… | any |
 | [`plugging-a-cable-end`](#plugging-a-cable-end) | execute | Carries a cable's held free end into a terminal port after the last crossing. | any, 2 arms |
 | [`pouring-by-wrist-roll`](#pouring-by-wrist-roll) | execute | Pours from a held container into a target container by standing the hand above the target's box at a set height and… | any |
+| [`pressing-a-brick-onto-studs`](#pressing-a-brick-onto-studs) | execute | Presses a held LEGO or DUPLO brick onto the studs under it and checks by height that it seated. | any |
 | [`pushing-objects`](#pushing-objects) | execute | Pushes a loose object across its support toward a goal point with a closed hand, never grasping it. | any |
 | [`reaching-with-lag-correction`](#reaching-with-lag-correction) | execute | Moves the tool to a target pose, waits for the arm to settle, reads the tool pose back and, if the arm stopped short… | any |
 | [`searching-insertion-spiral`](#searching-insertion-spiral) | execute | Finds an opening the held part or the closed fingertips can enter by probing straight down over a hexagonal grid… | any |
@@ -1188,6 +1189,24 @@ Pours from a held container into a target container by standing the hand above t
   - `unreachable`: The move to the pour pose above the target was refused or ended more than reach_tolerance from it; nothing was rolled.
   - `joint_limit`: The asked roll does not fit between the last joint's reading and its limits (less a 0.05 rad margin) in the chosen direction; the hand stands at the pour pose, unrolled.
   - `roll_refused`: A roll step was refused, the last joint lagged its step's target by more than track_tolerance, the tool centre drifted past drift_tolerance, or the roll back failed or ended off; the skill rolled back as far as it could, and `detail` says which.
+
+### pressing-a-brick-onto-studs
+
+execute · robots: any · tasks: assembly, lego · MIT · v0.1.0 · [`SKILL.md`](skills/pressing-a-brick-onto-studs/SKILL.md) · [upstream](https://github.com/intelligent-control-lab/BrickSim/blob/cbd5de3238e6ac12f44ef699e1507a9f16bdafc3/python/bricksim/envs/assemble_brick/expert.py)
+
+Presses a held LEGO or DUPLO brick onto the studs under it and checks by height that it seated - BrickSim's scripted press (hover 4 cm over the seat, fold the lateral error in, press until the command leads the stopped hand by 3 mm) with tracking lag and joint effort standing in for a force sensor, and, as strategy 'tilt', ICL's edge-first placement (the brick tilted about its leading bottom edge, that edge lowered beside the stud row and pulled back until its wall catches the row, then rotated level and pressed). After the release the wrist depth camera reads the brick's top (a brick resting on the stud tops sits a whole stud height high (1.7 mm LEGO, 4.5 mm DUPLO) or tilted). Use when a grasped brick must be fitted onto a baseplate or another brick at a seat known from perception, with stud pitch and heights given or taken from the 'lego' / 'duplo' presets.
+
+- **In**: `seat_position` Vec3
+- **Out**: `released` bool, `seat_height_error` float, `seat_tilt` float, `contact_height` float, `lead_correction` float, `lateral_correction` float, `yaw_turn` float, `samples` int, `verified_by` str, `seated_position` Vec3
+- **Calls**: connector `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.move_cartesian_until_contact`, `robot.move_to_joints`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`press_brick`](skills/pressing-a-brick-onto-studs/scripts/press_brick.py)
+- **Exits**:
+  - `seated`: Released, and the wrist depth reads the brick's top within 0.35 stud heights of the seated height (0.6 mm LEGO, 1.6 mm DUPLO) with a spread under half a stud height.
+  - `not_seated`: Released, and the top reads higher than that but under 0.6 stud heights and flat - partly pressed (a real clutch the press could not push through).
+  - `misaligned`: The held brick is more than yaw_tolerance_deg off the seat's heading (nothing moved); or the press, the tilted edge or the hook stopped on the stud tops / met no stud row / the rotation to level was held up (kept and lifted back, released false); or, released, the top reads 0.6 stud heights or more high, or tilted.
+  - `not_holding`: The jaws read at their stop before anything moved, or after the release the wrist depth finds no brick top at the seat.
+  - `unverified`: Released, but the height was not read (no wrist camera with a pose, no reachable view, fewer than 3 depth readings on the top, or verify false); detail says how far the press went.
+  - `unreachable`: The seated (or tilted) hand pose failed the IK preview, or a move was refused; detail says which, and whether the brick is still held.
 
 ### pushing-objects
 

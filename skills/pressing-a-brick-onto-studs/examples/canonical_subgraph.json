@@ -1,0 +1,27 @@
+{
+  "skill": "pressing-a-brick-onto-studs",
+  "inputs": {"seat_position": "Vec3", "held_obb": "OrientedBoundingBox"},
+  "outputs": {
+    "released": {"$ref": "press.released"},
+    "seat_height_error": {"$ref": "press.seat_height_error"},
+    "seated_position": {"$ref": "press.seated_position"}
+  },
+  "nodes": {
+    "press": {
+      "type": "script",
+      "script": "scripts/press_brick.py",
+      "inputs": {
+        "seat_position": {"$ref": "in.seat_position"},
+        "held_obb": {"$ref": "in.held_obb"},
+        "system": "duplo",
+        "strategy": "straight"
+      }
+    }
+  },
+  "edges": [["START", "press"], ["press", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["seated", "not_seated", "misaligned", "not_holding", "unverified"]
+  },
+  "on_error": "unreachable"
+}
