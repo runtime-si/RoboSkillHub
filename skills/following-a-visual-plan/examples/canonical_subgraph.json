@@ -1,0 +1,70 @@
+{
+  "skill": "following-a-visual-plan",
+  "inputs": {
+    "instruction": "str"
+  },
+  "outputs": {
+    "target_point": {
+      "$ref": "propose.target_point"
+    },
+    "goal_pose": {
+      "$ref": "propose.goal_pose"
+    },
+    "final_position": {
+      "$ref": "follow.final_position"
+    },
+    "position_error": {
+      "$ref": "follow.position_error"
+    }
+  },
+  "nodes": {
+    "propose": {
+      "type": "script",
+      "script": "scripts/propose_target_from_plan.py",
+      "inputs": {
+        "instruction": {
+          "$ref": "in.instruction"
+        },
+        "replan": true
+      }
+    },
+    "follow": {
+      "type": "script",
+      "script": "scripts/follow_proposal.py",
+      "inputs": {
+        "proposal": {
+          "$ref": "propose.proposal"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "propose"
+    ],
+    [
+      "follow",
+      "END"
+    ]
+  ],
+  "conditional_edges": {
+    "propose": {
+      "router_field": "route",
+      "mapping": {
+        "proposed": "follow",
+        "plan_rejected": "END",
+        "no_plan": "END"
+      }
+    }
+  },
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "arrived",
+      "plan_rejected",
+      "no_plan"
+    ]
+  },
+  "on_error": "unreachable"
+}
