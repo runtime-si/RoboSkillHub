@@ -129,6 +129,12 @@ without moving, when they do).
   constants), `finger_width` (20 mm), `hand_radius` (10 mm).
 - `push_step` (0.04 m), `max_pushes` (3), `standoff` (0.02 m),
   `hover_clearance` (0.08 m), `reach_tolerance` (0.02 m).
+- `min_contact_height` (0.015 m): the lowest tool-centre height over the
+  support during the push. The default keeps a station that refuses a tool
+  centre under 14 mm over its table happy, but its fingertips then pass
+  ~5 mm over the support, above any object thinner than that (a 2 mm jigsaw
+  piece). Lower it only when the support height has just been measured
+  (e.g. a touch-off) and the station's floor allows it.
 - `workspace` (none): `{x_min, x_max, y_min, y_max}`; the target stays inside
   and its edge counts as an obstacle for the free-space heading (VPG clamps
   its push end to the workspace limits).

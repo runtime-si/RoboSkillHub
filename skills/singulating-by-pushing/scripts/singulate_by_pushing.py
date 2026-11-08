@@ -471,6 +471,7 @@ def run(
     hover_clearance: float = HOVER_CLEARANCE,
     reach_tolerance: float = REACH_TOLERANCE,
     workspace: dict[str, float] | None = None,
+    min_contact_height: float = MIN_CONTACT_HEIGHT,
 ) -> Output:
     hand = _hand(ctx, opening, finger_thickness, finger_width, hand_radius)
     target = footprint(target_obb)
@@ -526,7 +527,7 @@ def run(
         )
 
     height = 2.0 * float(target_obb["extent"]["z"])
-    push_z = centre3[2] - height / 2.0 + max(CONTACT_FRACTION * height, MIN_CONTACT_HEIGHT)
+    push_z = centre3[2] - height / 2.0 + max(CONTACT_FRACTION * height, float(min_contact_height))
 
     def move(tool: str, position: np.ndarray, rotation: dict[str, float]) -> str:
         try:
