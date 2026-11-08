@@ -306,3 +306,9 @@ aic_model/aic_model/insertion/visual_gap.py and
 aic_model/aic_model/insertion/visual_gap_recovery.py, commit
 fd27bbe875dbd656e381f72ae2b44efdfb243924), Apache-2.0; the file's header lists
 the changes.
+skills/framing-a-target-by-mask-edge-steering/scripts/frame_target.py is
+adapted from AMMistry18/aic (https://github.com/AMMistry18/aic, commit
+fd27bbe875dbd656e381f72ae2b44efdfb243924:
+flowstate/aic_perception/aic_perception/board_visibility.py and
+flowstate/aic_perception/move_to_board_skill.py), Apache-2.0, Copyright (c)
+the aic authors; the file's header lists the changes.

@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-14 tools, 81 skills, 2 policies, 1 recipe and 1 paper.
+14 tools, 82 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -36,6 +36,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | Skill | Stage | What it does | Robots |
 | --- | --- | --- | --- |
 | [`detecting-contact-from-joint-effort`](#detecting-contact-from-joint-effort) | perceive | Feels for contact without a force sensor. | any |
+| [`framing-a-target-by-mask-edge-steering`](#framing-a-target-by-mask-edge-steering) | perceive | Moves the wrist camera until a named target lies wholly inside its image with a margin. | any |
 | [`localizing-a-piece-in-a-reference-image`](#localizing-a-piece-in-a-reference-image) | perceive | Finds which grid cell of a jigsaw's box picture one piece belongs to, and how far the piece is turned, from a close-up… | any |
 | [`perceiving-deformable-linear-objects`](#perceiving-deformable-linear-objects) | perceive | Read a cable's ordered 3D centreline from one RGB-D frame and keep it current across a task. | any |
 | [`perceiving-functional-features`](#perceiving-functional-features) | perceive | Locates a language-described functional part of a rigid object or fixture from calibrated RGB-D and fits a typed loop… | any |
@@ -342,6 +343,22 @@ Feels for contact without a force sensor - steps the hand along a short straight
   - `free`: The hand reached the line's end (or the tool-centre floor) with every step tracking as in free motion; it stays there.
   - `no_signal`: Nothing usable to decide with - signal=effort with an observation that carries no efforts (nothing moved), the line too short for two free-motion samples, or the free-motion lag jumping more than lag_threshold from step to step; `detail` says which.
   - `blocked`: The line is too long (over 150 mm), has no length, starts under the floor or ends out of reach (IK preview), the start was not reached, or a step was refused; `detail` says which.
+
+### framing-a-target-by-mask-edge-steering
+
+perceive · robots: any · tasks: pick-place, insertion, cable-routing, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/framing-a-target-by-mask-edge-steering/SKILL.md) · [upstream](https://github.com/AMMistry18/aic/blob/fd27bbe875dbd656e381f72ae2b44efdfb243924/flowstate/aic_perception/aic_perception/board_visibility.py)
+
+Moves the wrist camera until a named target lies wholly inside its image with a margin - segments the target in the wrist frame (sam3.segment_text), reads which image edges its mask comes within the margin of and by how much, and steps the camera away from those edges in its image plane (or backs it off along its optical axis when opposite edges are clipped or an edge persists, or approaches when the target is too small), re-segmenting after each step, until the mask is inside every edge. Use when a part, ring, fixture or cable end is only partly in the wrist camera's view (after a coarse approach, a grasp, or a refined close-up that left it at the image border) and the next step needs all of it in one wrist frame, with no world estimate required.
+
+- **In**: `object_name` str
+- **Out**: `target_point` Vec3, `view_pose` Se3Pose, `area_frac` float, `depth` float, `moves` int, `travel` float
+- **Calls**: [`sam3`](#sam3); connector `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`
+- **Scripts**: [`frame_target`](skills/framing-a-target-by-mask-edge-steering/scripts/frame_target.py)
+- **Exits**:
+  - `framed`: A fresh wrist frame's mask of the target is inside every image edge by the margin (max(margin_px, 0.1 x its larger side)) and covers at least min_area_frac of the image - or covers less, but the camera is already min_range from it. The hand stays at that view; target_point is the per-axis median of the masked pixels back-projected with the wrist depth (a rough point on the visible surface).
+  - `not_seen`: There is no wrist camera, the segmenter failed or found no mask scoring min_score in the first frame, or the target was lost after a step and not found again back at the last view that saw it (the hand is left there); `detail` says which.
+  - `step_limit`: max_moves steps were taken and the mask still comes within the margin of an edge; `edges` names them. The hand stays at the last view.
+  - `unreachable`: A step was refused (raised or routed) or ended more than reach_tolerance off at full and at half length, or the next step would bring the tool centre within 50 mm of the target or back the camera past max_range; `detail` says which.
 
 ### localizing-a-piece-in-a-reference-image
 
