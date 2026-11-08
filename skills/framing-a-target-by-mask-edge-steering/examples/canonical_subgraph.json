@@ -1,0 +1,47 @@
+{
+  "skill": "framing-a-target-by-mask-edge-steering",
+  "inputs": {
+    "object_name": "str"
+  },
+  "outputs": {
+    "target_point": {
+      "$ref": "frame.target_point"
+    },
+    "view_pose": {
+      "$ref": "frame.view_pose"
+    },
+    "edges": {
+      "$ref": "frame.edges"
+    }
+  },
+  "nodes": {
+    "frame": {
+      "type": "script",
+      "script": "scripts/frame_target.py",
+      "inputs": {
+        "object_name": {
+          "$ref": "in.object_name"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "frame"
+    ],
+    [
+      "frame",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "framed",
+      "not_seen",
+      "step_limit"
+    ]
+  },
+  "on_error": "unreachable"
+}
