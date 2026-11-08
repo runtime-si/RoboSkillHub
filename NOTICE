@@ -293,3 +293,10 @@ adapted from RoboRSI (https://github.com/nssmd/RoboRSI,
 roborsi/embodied/skills/base/close_drawer/libero/policy.py and
 roborsi/embodied/skills/base/pull_drawer/libero/policy.py), Apache-2.0; the
 file's header lists the changes.
+skills/sampling-labeled-points-in-mask/scripts/sample_labeled_points.py is
+adapted from MAESTRO (https://github.com/penn-pal-lab/maestro, maestro/api.py
+generate_best_grid_from_mask, _sample_points_from_mask and locate_object_part,
+and maestro/vlm.py SELECTION_PROMPT and select_points, at commit
+e60d326233a238ddc496bf7a08acb7a278e9e66d), MIT License, Copyright (c) 2026 The
+MAESTRO Authors; the file's header lists the changes, and the license is
+skills/sampling-labeled-points-in-mask/LICENSE.maestro.

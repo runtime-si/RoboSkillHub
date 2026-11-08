@@ -1,0 +1,24 @@
+{
+  "skill": "sampling-labeled-points-in-mask",
+  "inputs": {"observation": "Observation", "instruction": "str", "object_name": "str"},
+  "outputs": {
+    "point": {"$ref": "select.point"},
+    "points": {"$ref": "select.points"},
+    "pixel": {"$ref": "select.pixel"},
+    "marker_count": {"$ref": "select.marker_count"}
+  },
+  "nodes": {
+    "select": {
+      "type": "script",
+      "script": "scripts/sample_labeled_points.py",
+      "inputs": {
+        "observation": {"$ref": "in.observation"},
+        "instruction": {"$ref": "in.instruction"},
+        "object_name": {"$ref": "in.object_name"}
+      }
+    }
+  },
+  "edges": [["START", "select"], ["select", "END"]],
+  "exit": {"router_field": "route", "success_values": ["selected", "none_suitable"]},
+  "on_error": "not_seen"
+}

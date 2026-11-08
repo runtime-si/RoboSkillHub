@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-14 tools, 79 skills, 2 policies, 1 recipe and 1 paper.
+14 tools, 80 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -59,6 +59,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`proposing-short-axis-grasps`](#proposing-short-axis-grasps) | propose | Propose top-down grasps whose jaws close ACROSS an elongated object's short axis, derived from its oriented box. | any, **sim only** |
 | [`proposing-side-grasps`](#proposing-side-grasps) | propose | Propose horizontal (side-entry) grasps swept around an object's oriented box — twelve azimuths ranked by jaw margin. | any, **sim only** |
 | [`matching-a-piece-to-placed-neighbours`](#matching-a-piece-to-placed-neighbours) | select | Picks which of several loose jigsaw pieces fits an empty slot, and how far to turn it, by the shape of its sides alone. | any |
+| [`sampling-labeled-points-in-mask`](#sampling-labeled-points-in-mask) | select | Picks the point on (or in) an object that a language instruction asks for. | any, *tuned on* yam-station-overhead-rgbd |
 | [`selecting-free-placement-spots`](#selecting-free-placement-spots) | select | Picks world-frame spots on a named surface where a held object can be set down. | any, *tuned on* yam-station-overhead-rgbd |
 | [`selecting-reachable-grasp`](#selecting-reachable-grasp) | select | Walk a ranked list of candidate grasp poses and take the first the arm can actually reach. | any, **sim only** |
 | [`selecting-safe-cable-grasp-segments`](#selecting-safe-cable-grasp-segments) | select | Ranks top-down grasp points along a cable's fitted centreline that keep the fingers off its ends (a larger margin at… | any, *tuned on* yam-station-overhead-rgbd |
@@ -673,6 +674,21 @@ Picks which of several loose jigsaw pieces fits an empty slot, and how far to tu
   - `fits`: One candidate fits clearly - its side types agree with the slot, its score is under max_fit (0.06) and the next candidate scores at least min_margin times worse (1.25; 1.6 with a single neighbour). best_id, best_rotation_deg and grip_point_board are the answer. With no neighbour, the only candidate whose side types fit the border sides.
   - `ambiguous`: The best fit does not stand out from the next candidate (or, with no neighbour, several candidates' side types fit); `ranked` lists them best first for another cue (the box picture, a test placement).
   - `no_fit`: No candidate's side types agree with the slot, the best score is over max_fit, or no candidate mask could be split into 4 sides (`pieces` says why per candidate); bad slot sides also land here.
+
+### sampling-labeled-points-in-mask
+
+select · robots: any, *tuned on* yam-station-overhead-rgbd · tasks: pick-place, cable-routing · MIT · v0.1.0 · [`SKILL.md`](skills/sampling-labeled-points-in-mask/SKILL.md) · [upstream](https://github.com/penn-pal-lab/maestro/blob/e60d326233a238ddc496bf7a08acb7a278e9e66d/maestro/api.py)
+
+Picks the point on (or in) an object that a language instruction asks for - lays an evenly spaced grid of numbered markers inside the object's mask (the largest stride that leaves 35-45 inside, plus markers along its outline), draws them on an upscaled crop, asks a VLM which number(s) fit, and back-projects the chosen marker through depth to a world point. Use when a grasp, contact or placement point is a named part or region of one object ("where to grasp the mug handle", "the plug end of the cable", "a free spot on the tray") and a perception step already has, or sam3 can make, the object's mask in a calibrated RGB-D frame.
+
+- **In**: `observation` Observation, `instruction` str
+- **Out**: `point` Vec3, `marker_count` int
+- **Calls**: [`geometry`](#geometry), [`sam3`](#sam3), [`vlm`](#vlm)
+- **Scripts**: [`sample_labeled_points`](skills/sampling-labeled-points-in-mask/scripts/sample_labeled_points.py)
+- **Exits**:
+  - `selected`: The VLM named offered marker(s); `point` is the first one's world point (near-side depth inside the mask), `points` / `selected` all of them in the VLM's order with index, label and pixel.
+  - `none_suitable`: The markers were drawn but the VLM answered [] (no marker fits), its replies (up to `attempts`) held no usable list or named numbers not offered, or no marker had depth; `detail` says which. `marked_image` shows what it was offered.
+  - `not_seen`: No mask - the given one is empty or under 20 px, or sam3.segment_text found no instance of `object_name` scoring 0.3 or more.
 
 ### selecting-free-placement-spots
 
