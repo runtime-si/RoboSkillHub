@@ -1,0 +1,24 @@
+{
+  "skill": "reading-domino-pips-and-orientation",
+  "inputs": {},
+  "outputs": {
+    "value": {"$ref": "read.value"},
+    "value_ab": {"$ref": "read.value_ab"},
+    "state": {"$ref": "read.state"},
+    "axis_world": {"$ref": "read.axis_world"},
+    "ends_world": {"$ref": "read.ends_world"},
+    "closeup_targets": {"$ref": "read.closeup_targets"}
+  },
+  "nodes": {
+    "read": {
+      "type": "script",
+      "script": "scripts/read_dominoes.py",
+      "inputs": {
+        "query": "domino"
+      }
+    }
+  },
+  "edges": [["START", "read"], ["read", "END"]],
+  "exit": {"router_field": "route", "success_values": ["read", "ambiguous", "needs_closeup"]},
+  "on_error": "not_seen"
+}

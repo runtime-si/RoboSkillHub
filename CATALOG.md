@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 82 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 83 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -50,6 +50,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`perceiving-relational-correspondences`](#perceiving-relational-correspondences) | perceive | Perceives multiple source and destination instances and resolves language-conditioned one-to-one or many-to-one… | any |
 | [`perceiving-routing-fixtures`](#perceiving-routing-fixtures) | perceive | Survey a cable-routing bench from one overhead RGB-D frame. | any |
 | [`perceiving-sorting-pairs`](#perceiving-sorting-pairs) | perceive | Discovers a labelled four-compartment destination from RGB-D and repeatedly perceives one remaining source object with… | any |
+| [`reading-domino-pips-and-orientation`](#reading-domino-pips-and-orientation) | perceive | Reads each domino's two pip values, which end is which, its long axis and whether it lies flat, stands or has fallen… | any |
 | [`reconstructing-collision-worlds`](#reconstructing-collision-worlds) | perceive | Reconstructs a planner collision world from calibrated RGB-D views alone, excluding the grasp target, the robot, and a… | any |
 | [`refining-target-from-wrist-closeup`](#refining-target-from-wrist-closeup) | perceive | Refines a coarse world-frame target (an overhead perception's OBB or point) by aiming the wrist RGB-D camera at it… | any |
 | [`registering-held-objects`](#registering-held-objects) | perceive | Reobserves a grasped rigid object from the wrist cameras, estimates its functional feature in the TCP frame, and fits… | any |
@@ -544,6 +545,22 @@ Discovers a labelled four-compartment destination from RGB-D and repeatedly perc
   - `found`: An object and matching region were selected.
   - `ambiguous`: Identity or association needs another view.
   - `finished`: No unsorted object remains.
+
+### reading-domino-pips-and-orientation
+
+perceive · robots: any · tasks: domino · MIT · v0.1.0 · [`SKILL.md`](skills/reading-domino-pips-and-orientation/SKILL.md) · [upstream](https://github.com/SponTanious/Domino-Arm/blob/master/Functions/Domino_Detection.m)
+
+Reads each domino's two pip values, which end is which, its long axis and whether it lies flat, stands or has fallen, from above. Per tile mask (sam3.segment_text, or upstream masks) it finds the centre divider (an elongated dark MSER region, as Domino-Arm did), scores the pips, splits them into the halves and decodes each against the seven double-six layouts, and lifts the tile with the depth (geometry.mask_to_world_points) to its world centre, ends, long axis and resting state (flat / upright / fallen, from its height over the table). Returns (a, b) with a at end a, end and half-centre pixels and world points, pip scores and layout margins. Pips are ~2 px from the station's overhead camera, so a tile under 30 px wide routes needs_closeup with its world centre - read it from a wrist D405 close-up (refining-target-from-wrist-closeup / framing-a-target-by-mask-edge-steering first). Use when a domino task needs a tile's value, ends, pose or whether it still stands (game play, sorting, a toppled chain).
+
+- **In**: -
+- **Out**: `state` str, `center_world` Vec3, `axis_world` Vec3, `camera_name` str
+- **Calls**: [`geometry`](#geometry), [`sam3`](#sam3); connector `robot.get_observation`
+- **Scripts**: [`read_dominoes`](skills/reading-domino-pips-and-orientation/scripts/read_dominoes.py)
+- **Exits**:
+  - `read`: Every judged tile (the one nearest target_point if given, else all) lies flat face up, its mask is one 2:1 tile, its divider was found and both halves decoded with a layout margin of at least 0.3 (glare-covered positions left out) and no strong pip left unexplained; value / value_ab / ends carry the (first) tile.
+  - `ambiguous`: Tiles were segmented but at least one judged tile was not read, its status says why - `not_flat` (standing or fallen; state, axis and ends are still given), `face_down` (no divider and no pips), or `ambiguous` (a small layout margin, glare over a deciding position, an unexplained pip, no divider, or a mask that is not one tile).
+  - `needs_closeup`: A judged flat tile is narrower than min_tile_width_px (30 px) in this frame and none failed otherwise; `closeup_targets` lists their world centres for refining-target-from-wrist-closeup, then run this skill again on the wrist frame.
+  - `not_seen`: No camera frame, the segmenter failed or returned no mask scoring min_score and 40 px.
 
 ### reconstructing-collision-worlds
 
