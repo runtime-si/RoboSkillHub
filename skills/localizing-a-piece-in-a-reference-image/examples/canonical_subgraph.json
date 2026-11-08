@@ -1,0 +1,37 @@
+{
+  "skill": "localizing-a-piece-in-a-reference-image",
+  "inputs": {
+    "camera": "CameraFrame",
+    "piece_mask": "Mask",
+    "reference": "string",
+    "grid_cols": "int",
+    "grid_rows": "int",
+    "board_width": "float",
+    "board_height": "float"
+  },
+  "outputs": {
+    "col": {"$ref": "locate.col"},
+    "row": {"$ref": "locate.row"},
+    "angle_deg": {"$ref": "locate.angle_deg"},
+    "score": {"$ref": "locate.score"},
+    "margin": {"$ref": "locate.margin"}
+  },
+  "nodes": {
+    "locate": {
+      "type": "script",
+      "script": "scripts/locate_piece.py",
+      "inputs": {
+        "camera": {"$ref": "in.camera"},
+        "piece_mask": {"$ref": "in.piece_mask"},
+        "reference": {"$ref": "in.reference"},
+        "grid_cols": {"$ref": "in.grid_cols"},
+        "grid_rows": {"$ref": "in.grid_rows"},
+        "board_width": {"$ref": "in.board_width"},
+        "board_height": {"$ref": "in.board_height"}
+      }
+    }
+  },
+  "edges": [["START", "locate"], ["locate", "END"]],
+  "exit": {"router_field": "route", "success_values": ["located", "ambiguous"]},
+  "on_error": "not_found"
+}

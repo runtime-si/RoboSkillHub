@@ -98,6 +98,7 @@ FAMILY_WORDS: dict[str, tuple[str, ...]] = {
         "门",
         "盖",
     ),
+    "jigsaw": ("jigsaw", "puzzle", "拼图"),
 }
 """Instruction words that name a task family. An instruction says "put the block
 in the bowl"; a skill says "move an object into a container". The family is the

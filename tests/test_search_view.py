@@ -23,6 +23,7 @@ def test_stems_agree_across_inflections():
         ("route the cable through both clips", "cable-routing"),
         ("hang the mug on the hook", "insertion"),
         ("flip the crate upright", "reorientation"),
+        ("assemble the jigsaw puzzle", "jigsaw"),
     ],
 )
 def test_task_family_is_inferred_from_the_instruction(query, family):
