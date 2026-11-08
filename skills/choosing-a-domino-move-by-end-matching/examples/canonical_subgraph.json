@@ -1,0 +1,47 @@
+{
+  "skill": "choosing-a-domino-move-by-end-matching",
+  "inputs": {
+    "hand": "Any",
+    "board": "Any",
+    "player": "string",
+    "rules": "string",
+    "boneyard_count": "int",
+    "opponent_counts": "Any",
+    "played": "Any",
+    "opponent_missing": "Any",
+    "passes_in_a_row": "int"
+  },
+  "outputs": {
+    "tile": {"$ref": "choose.tile"},
+    "hand_index": {"$ref": "choose.hand_index"},
+    "end": {"$ref": "choose.end"},
+    "layout": {"$ref": "choose.layout"},
+    "place_pose": {"$ref": "choose.place_pose"},
+    "target_ends_world": {"$ref": "choose.target_ends_world"},
+    "new_ends": {"$ref": "choose.new_ends"},
+    "new_footprint": {"$ref": "choose.new_footprint"}
+  },
+  "nodes": {
+    "choose": {
+      "type": "script",
+      "script": "scripts/choose_move.py",
+      "inputs": {
+        "hand": {"$ref": "in.hand"},
+        "board": {"$ref": "in.board"},
+        "player": {"$ref": "in.player"},
+        "rules": {"$ref": "in.rules"},
+        "boneyard_count": {"$ref": "in.boneyard_count"},
+        "opponent_counts": {"$ref": "in.opponent_counts"},
+        "played": {"$ref": "in.played"},
+        "opponent_missing": {"$ref": "in.opponent_missing"},
+        "passes_in_a_row": {"$ref": "in.passes_in_a_row"}
+      }
+    }
+  },
+  "edges": [["START", "choose"], ["choose", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["play", "draw", "pass", "game_over", "no_room"]
+  },
+  "on_error": "invalid_input"
+}
