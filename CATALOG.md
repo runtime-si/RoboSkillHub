@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 83 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 84 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -86,6 +86,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`lifting-with-both-arms`](#lifting-with-both-arms) | execute | Lifts an elongated object (a bar, a tray, a pot by its handles) with both arms. | any, 2 arms |
 | [`moving-both-arms-together`](#moving-both-arms-together) | execute | Moves both hands to their target poses as one coordinated motion. | any, 2 arms |
 | [`picking-and-placing-two-objects`](#picking-and-placing-two-objects) | execute | Picks two objects with two arms, one each, and places both. | any, 2 arms |
+| [`placing-an-upright-domino-beside-neighbours`](#placing-an-upright-domino-beside-neighbours) | execute | Picks a standing domino top-down and sets it upright at a slot in a row without touching the tiles already standing… | any |
 | [`placing-held-feature`](#placing-held-feature) | execute | Move a held object so one of its declared features lands on a target point. | any, **sim only** |
 | [`placing-into-container-held-by-other-arm`](#placing-into-container-held-by-other-arm) | execute | Puts the object one arm holds into an open container the other arm holds. | any, 2 arms |
 | [`placing-into-container-obb`](#placing-into-container-obb) | execute | Puts the object the hand holds into an open bin, box or tray the camera sees. | any |
@@ -1076,6 +1077,24 @@ Picks two objects with two arms, one each, and places both - each object goes to
   - `one_placed`: One arm placed its object, the other did not; failed_arms names it and outcome_a / outcome_b say why (grasp_missed, dropped, move_refused, clearance).
   - `none_placed`: Neither arm placed its object; failed_arms names both, outcome_a / outcome_b say why.
   - `unreachable`: No assignment of the two objects to the two arms has an IK preview reaching every pose of both plans, the arm ids are equal, or the connector reports no separate second arm; failed_arms names the arm(s) without a plan and nothing moved.
+
+### placing-an-upright-domino-beside-neighbours
+
+execute · robots: any · tasks: pick-place, domino · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/placing-an-upright-domino-beside-neighbours/SKILL.md) · [upstream](https://github.com/BasisResearch/predicators/blob/afb6f2918091f5ca372a75b9a335aea317a8a209/predicators/ground_truth_models/domino/options.py)
+
+Picks a standing domino top-down and sets it upright at a slot in a row without touching the tiles already standing there - the jaws close across the tile's width so the fingers stay beside the row, open only a few millimetres wider than the tile, the hand crosses above every standing tile, comes in along the row from its free end, descends vertically, opens just enough and retreats straight up; the jaw heading is read back and finished on the last joint. Then checks from depth that the tile stands at the slot and that every neighbour still stands. Use when building a domino line or curve one tile at a time, with the slot poses planned and the tile to pick standing upright.
+
+- **In**: `slot` Se3Pose, `tile` Se3Pose, `table_z` float
+- **Out**: `released` bool, `picked` bool, `grasp_height` float, `grip_width` float, `held_width` float, `jaw_error_deg` float, `wrist_turn_deg` float, `release_position` Vec3, `verified` bool, `tile_top` float, `placement_offset` float, `neighbours_standing` int
+- **Calls**: connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`, `robot.set_grip`, `robot.solve_ik`
+- **Scripts**: [`place_domino`](skills/placing-an-upright-domino-beside-neighbours/scripts/place_domino.py)
+- **Exits**:
+  - `placed`: Released at the slot and retreated, and the depth check sees a tile standing there (its top within 10 mm of the tile's height and within 8 mm of the slot) with every seen neighbour standing; with verify=false, what the hand did only.
+  - `knocked_neighbour`: Released, but a neighbour that stood before the place (or was not seen then) no longer stands at its pose; `neighbours_knocked` lists which, `detail` says whether the placed tile stands.
+  - `fell`: Released, the neighbours stand, but the placed tile does not stand at the slot - its top is low (lying, leaning hard), more than 8 mm off the slot (leaning, misplaced), or nothing is there.
+  - `unverified`: Released and retreated, but no camera saw the slot whole and unoccluded (the hand in the way, no depth, outside every image).
+  - `unreachable`: Nothing was released - the slot is so close to a neighbour that an open finger would touch it, the grasp height is outside what the fingertips can do, a grasp or release pose failed the IK preview, a move was refused, the jaws stayed turned off the tile, or the descent to the slot stopped high (lifted back); `detail` says whether the tile is still held. Also a refused retreat after the release (`released` true).
+  - `not_holding`: The grasp closed on nothing or not across the tile, the descent to the tile stopped on it, or the jaws read empty over the slot (dropped in transit); nothing was placed.
 
 ### placing-held-feature
 

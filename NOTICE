@@ -346,3 +346,12 @@ Functions/Domino_Detection.m and Class/Domino.m), MIT License, Copyright (c)
 2016 Samuel Comerford, Cameron Gear, Lachlan Gear, Daniel Tanious, McKay
 Wight; the file's header lists the changes, and the license is
 skills/reading-domino-pips-and-orientation/LICENSE.domino-arm.
+skills/placing-an-upright-domino-beside-neighbours/scripts/place_domino.py is
+adapted from predicators (https://github.com/BasisResearch/predicators, commit
+afb6f2918091f5ca372a75b9a335aea317a8a209:
+predicators/ground_truth_models/domino/options.py,
+predicators/ground_truth_models/skill_factories/pick.py and place.py,
+predicators/envs/pybullet_domino/components/domino_component.py), MIT License,
+Copyright (c) 2022 Rohan Chitnis and Tom Silver; the file's header lists the
+changes, and the license is
+skills/placing-an-upright-domino-beside-neighbours/LICENSE.predicators.
