@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 92 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 93 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -69,6 +69,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grasping-concave-contour`](#grasping-concave-contour) | propose | Grasp an awkward rigid part by the waists in its own silhouette. | any |
 | [`proposing-short-axis-grasps`](#proposing-short-axis-grasps) | propose | Propose top-down grasps whose jaws close ACROSS an elongated object's short axis, derived from its oriented box. | any, **sim only** |
 | [`proposing-side-grasps`](#proposing-side-grasps) | propose | Propose horizontal (side-entry) grasps swept around an object's oriented box — twelve azimuths ranked by jaw margin. | any, **sim only** |
+| [`choosing-next-piece-and-slot`](#choosing-next-piece-and-slot) | select | Chooses the next jigsaw placement (which loose piece, which grid cell, which turn) from the board as believed, the… | any |
 | [`matching-a-piece-to-placed-neighbours`](#matching-a-piece-to-placed-neighbours) | select | Picks which of several loose jigsaw pieces fits an empty slot, and how far to turn it, by the shape of its sides alone. | any |
 | [`sampling-labeled-points-in-mask`](#sampling-labeled-points-in-mask) | select | Picks the point on (or in) an object that a language instruction asks for. | any, *tuned on* yam-station-overhead-rgbd |
 | [`selecting-free-placement-spots`](#selecting-free-placement-spots) | select | Picks world-frame spots on a named surface where a held object can be set down. | any, *tuned on* yam-station-overhead-rgbd |
@@ -849,6 +850,23 @@ Propose horizontal (side-entry) grasps swept around an object's oriented box —
 - **Exits**:
   - `proposed`: One or more horizontal approaches, widest jaw margin first.
   - `declined`: No azimuth leaves a width the hand can span.
+
+### choosing-next-piece-and-slot
+
+select · robots: any · tasks: jigsaw · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/choosing-next-piece-and-slot/SKILL.md) · [upstream](https://github.com/scipy/scipy/blob/main/scipy/optimize/_lsap.py)
+
+Chooses the next jigsaw placement (which loose piece, which grid cell, which turn) from the board as believed, the pieces' localization candidates and backtracking-a-wrong-placement's ledger. Loose pieces are assigned to free cells with SciPy's linear_sum_assignment on -log P(piece belongs in cell), and the confident pairs are ranked by a stage plan - frame before interior, cells with the most placed neighbours, then confidence - skipping forbidden pairs and deferred cells and respecting corner / edge / interior classes. With two arms each job stays inside one free arm's reach and clear of the other's work, and each arm gets a short separated queue. When nothing is confident it names the best-supported slot and candidates for a shape match, the pieces to photograph again, or asks for more pieces. Use when a jigsaw-assembly loop needs its next pick, after localizing-a- piece-in-a-reference-image and after any backtrack; planning only, milliseconds on CPU.
+
+- **In**: `grid_cols` int, `grid_rows` int
+- **Out**: `piece` string, `col` int, `row` int, `angle_deg` float, `prob` float, `n_neighbours` int, `arm` string
+- **Scripts**: [`choose_next`](skills/choosing-next-piece-and-slot/scripts/choose_next.py)
+- **Exits**:
+  - `chosen`: A confident pair (P &gt;= min_confidence, 0.5) was assigned and is reachable; piece, col, row, angle_deg (the localizer's, so turn the piece by -angle_deg) and arm are the next placement, `queue` the next few per free arm.
+  - `need_shape_match`: No pair is confident; `slot` is the open cell with the most placed neighbours (frame first on ties) and `shape_candidates` the pieces listing it, likeliest first, then the orphans (loose pieces with no confident cell). Run matching-a-piece-to-placed-neighbours on them and place its `fits` answer.
+  - `need_relocalize`: No confident pair and no slot a shape match could use; `relocalize` lists the loose pieces with no confident cell that were not re-photographed max_relocalize (1) times yet.
+  - `need_more_pieces`: The known loose pieces fit none of the open cells (or there are none); find and localize more pieces, or hand over.
+  - `unreachable`: Confident jobs exist but none can be done by a free arm with the whole pick-to-place path in its reach and clear of a busy arm (or every arm is busy); `unreachable` lists them with each arm's reason. Move those pieces to a buffer both arms reach.
+  - `done`: Every cell is placed.
 
 ### matching-a-piece-to-placed-neighbours
 

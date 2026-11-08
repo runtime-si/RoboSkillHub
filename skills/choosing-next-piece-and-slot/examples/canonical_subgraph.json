@@ -1,0 +1,47 @@
+{
+  "skill": "choosing-next-piece-and-slot",
+  "inputs": {
+    "grid_cols": "int",
+    "grid_rows": "int",
+    "placements": "Any",
+    "pieces": "Any",
+    "ledger_path": "string"
+  },
+  "outputs": {
+    "piece": {"$ref": "choose.piece"},
+    "col": {"$ref": "choose.col"},
+    "row": {"$ref": "choose.row"},
+    "angle_deg": {"$ref": "choose.angle_deg"},
+    "prob": {"$ref": "choose.prob"},
+    "queue": {"$ref": "choose.queue"},
+    "slot": {"$ref": "choose.slot"},
+    "shape_candidates": {"$ref": "choose.shape_candidates"},
+    "relocalize": {"$ref": "choose.relocalize"}
+  },
+  "nodes": {
+    "choose": {
+      "type": "script",
+      "script": "scripts/choose_next.py",
+      "inputs": {
+        "grid_cols": {"$ref": "in.grid_cols"},
+        "grid_rows": {"$ref": "in.grid_rows"},
+        "placements": {"$ref": "in.placements"},
+        "pieces": {"$ref": "in.pieces"},
+        "ledger_path": {"$ref": "in.ledger_path"}
+      }
+    }
+  },
+  "edges": [["START", "choose"], ["choose", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "chosen",
+      "need_shape_match",
+      "need_relocalize",
+      "need_more_pieces",
+      "unreachable",
+      "done"
+    ]
+  },
+  "on_error": "invalid_input"
+}
