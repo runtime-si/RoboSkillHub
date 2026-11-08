@@ -170,12 +170,14 @@ real calibration to 0.03 mm.
 
 | pointer | coarse error (mm) | refined error in the plane (mm) | z error (mm) |
 |---|---|---|---|
-| projected truth (geometry floor) | 0 / 25.0 / 26.9 / 29.2 | 1.73 / 0.24 / 0.07 / 1.61 | <= 0.03 |
-| gemini-er.point, live gemini-robotics-er-2-preview | 0 / 25.0 / 26.9 / 29.2 | 0.16 / 0.69 / 0.55 / 1.86 | <= 0.02 |
+| projected truth (geometry floor) | 0 / 25.0 / 26.9 / 29.2 | 1.05 / 0.20 / 0.06 / 1.07 | <= 0.03 |
+| gemini-er.point, live gemini-robotics-er-2-preview | 0 / 25.0 / 26.9 / 29.2 | 0.59 / 0.70 / 1.04 / 0.56 | <= 0.02 |
 
-8/8 `refined`. The 1.6-1.7 mm floor trials were the projected truth read a
-moment after the frame while the arm was still settling (3.6 px apart);
-that run predates the settle wait in step 5. On a real D405 frame from the
+8/8 `refined`. The ~1 mm floor trials are the harness's: the true top is
+projected with the camera pose read a moment after the frame, and the
+twin's arm still drifts by a pixel or two. An earlier run without the
+settle wait in step 5 gave 1.73 / 0.24 / 0.07 / 1.61 mm (truth) and
+0.16 / 0.69 / 0.55 / 1.86 mm (gemini), also 8/8. On a real D405 frame from the
 station's folded rest pose, live gemini-er.point put "the centre of the top
 face of the grey cube" on the cube's top face 3/3 times (2-5 s a call) and
 returned no point 3/3 times for a red cube that was not there (the
