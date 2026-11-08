@@ -55,6 +55,14 @@ def cmd_index(args) -> int:
     return 0
 
 
+def cmd_site(args) -> int:
+    from .site import write
+
+    n = write(_catalog(args), Path(args.out), args.repo)
+    print(f"wrote {n} pages to {args.out}")
+    return 0
+
+
 def cmd_catalog(args) -> int:
     from .catalog_page import PAGE, render
 
@@ -258,6 +266,15 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("catalog", help="write CATALOG.md, every bundle on one page")
     p.add_argument("--check", action="store_true", help="fail if CATALOG.md is out of date")
     p.set_defaults(fn=cmd_catalog)
+
+    p = sub.add_parser(
+        "site", help="write the library as a static website (what GitHub Pages serves)"
+    )
+    p.add_argument("--out", default="_site")
+    p.add_argument(
+        "--repo", default="runtime-si/RoboSkillHub", help="owner/name, for the links back to GitHub"
+    )
+    p.set_defaults(fn=cmd_site)
 
     p = sub.add_parser("search", help="rank the catalog against a task")
     _selection_args(p)
