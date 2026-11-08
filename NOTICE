@@ -265,3 +265,10 @@ its pinned SHA-256; the code and every released checkpoint are Apache-2.0
 The file adapts the frame preprocessing of tapnet/tapnextpp/votsp2026/utils.py
 and the support-point layout of tapnet/tapnextpp/votsp2026/tracker.py; its
 header lists the changes.
+
+skills/straightening-a-cable-toward-a-target-curve/scripts/straighten_cable.py
+is adapted from deformable-ravens
+(https://github.com/DanielTakeshi/deformable-ravens, ravens/tasks/task.py at
+commit 73982748bdfe756e04553e28698948facccecb41: Task.oracle's cable-ring and
+cable-shape branches and Task.params_no_rots), Apache-2.0, Copyright (c)
+Daniel Seita and the Ravens authors; the file's header lists the changes.

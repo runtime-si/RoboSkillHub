@@ -1,0 +1,30 @@
+{
+  "skill": "straightening-a-cable-toward-a-target-curve",
+  "inputs": {"target": "Centerline", "table_z": "float"},
+  "outputs": {
+    "max_error": {"$ref": "straighten.max_error"},
+    "initial_max_error": {"$ref": "straighten.initial_max_error"},
+    "corrections": {"$ref": "straighten.corrections"},
+    "centerline": {"$ref": "straighten.centerline"}
+  },
+  "nodes": {
+    "straighten": {
+      "type": "script",
+      "script": "scripts/straighten_cable.py",
+      "inputs": {
+        "target": {"$ref": "in.target"},
+        "table_z": {"$ref": "in.table_z"},
+        "cable_description": "the white cable",
+        "camera": "overhead",
+        "tolerance": 0.01,
+        "max_iters": 8
+      }
+    }
+  },
+  "edges": [["START", "straighten"], ["straighten", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["shaped", "corrected", "not_converged", "grasp_failed", "lost_cable"]
+  },
+  "on_error": "unreachable"
+}
