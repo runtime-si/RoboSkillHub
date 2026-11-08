@@ -1,0 +1,42 @@
+{
+  "skill": "checkpointing-assembly-state-for-resume",
+  "inputs": {
+    "checkpoint_dir": "string",
+    "task_id": "string",
+    "step_index": "int",
+    "placements": "Any",
+    "pending": "Any",
+    "ledger_path": "string",
+    "grid": "Any",
+    "arms": "Any"
+  },
+  "outputs": {
+    "checkpoint_path": {"$ref": "save.checkpoint_path"},
+    "seq": {"$ref": "save.seq"},
+    "sha256": {"$ref": "save.sha256"}
+  },
+  "nodes": {
+    "save": {
+      "type": "script",
+      "script": "scripts/save_checkpoint.py",
+      "inputs": {
+        "checkpoint_dir": {"$ref": "in.checkpoint_dir"},
+        "task_id": {"$ref": "in.task_id"},
+        "step_index": {"$ref": "in.step_index"},
+        "placements": {"$ref": "in.placements"},
+        "pending": {"$ref": "in.pending"},
+        "ledger_path": {"$ref": "in.ledger_path"},
+        "grid": {"$ref": "in.grid"},
+        "arms": {"$ref": "in.arms"},
+        "snapshot_now": true,
+        "camera_name": "overhead"
+      }
+    }
+  },
+  "edges": [["START", "save"], ["save", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["saved"]
+  },
+  "on_error": "save_failed"
+}

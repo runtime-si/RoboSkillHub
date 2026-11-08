@@ -489,3 +489,10 @@ scripts/mosaic_ciede2000.py is the hub colour tool's copy of scikit-image's
 deltaE_ciede2000 (BSD-3-Clause, the scikit-image team; license beside it as
 LICENSE.scikit-image). Its LEGO colour names and values come from LDraw.org's
 LDConfig.ldr (CCAL 2.0 / CC BY 2.0), attribution LDraw.org.
+skills/checkpointing-assembly-state-for-resume/scripts/checkpoint_store.py adapts
+the activity stream of py_trees (https://github.com/splintered-reality/py_trees,
+py_trees/blackboard.py ActivityType, ActivityItem, ActivityStream and
+Blackboard.absolute_name, commit 49bcffd069afa2b7bd9ca7b0e7312f5cbb3640bd),
+BSD-3-Clause License, Copyright (c) 2020 Daniel Stonier; the file's header lists
+the changes, and the license is
+skills/checkpointing-assembly-state-for-resume/LICENSE.py_trees.
