@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 93 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 94 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -38,6 +38,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 
 | Skill | Stage | What it does | Robots |
 | --- | --- | --- | --- |
+| [`calibrating-baseplate-stud-grid`](#calibrating-baseplate-stud-grid) | perceive | Estimates a LEGO or DUPLO baseplate's pose (the plate frame computing-brick-pose-from-stud-grid takes, and APEX-MR's… | any |
 | [`detecting-contact-from-joint-effort`](#detecting-contact-from-joint-effort) | perceive | Feels for contact without a force sensor. | any |
 | [`estimating-cut-grid-from-pieces`](#estimating-cut-grid-from-pieces) | perceive | Estimates a jigsaw's real cut grid (cols x rows) and cell size from the piece count printed on the box, the board's… | any |
 | [`framing-a-target-by-mask-edge-steering`](#framing-a-target-by-mask-edge-steering) | perceive | Moves the wrist camera until a named target lies wholly inside its image with a margin. | any |
@@ -377,6 +378,22 @@ Geometric yes/no judgments over poses and boxes the graph already holds -- is a 
   - `predicates.upright`: Whether a body's local axis points up, within a tilt bound.
 
 ## Skill details
+
+### calibrating-baseplate-stud-grid
+
+perceive · robots: any · tasks: assembly, lego · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/calibrating-baseplate-stud-grid/SKILL.md) · [upstream](https://github.com/intelligent-control-lab/APEX-MR/blob/6b5a17f1133c3f739caf50fa0fff6c478ef73b7a/config/lego_tasks/plate_calibration.json)
+
+Estimates a LEGO or DUPLO baseplate's pose (the plate frame computing-brick-pose-from-stud-grid takes, and APEX-MR's x, y, z, roll, pitch, yaw, width, height) in two steps - a coarse pose from ArUco / AprilTag markers at known places on or beside the plate (OpenCV aruco + solvePnP), a given pose, or a plate mask and its depth plane; then a sub-millimetre refinement from a wrist RGB-D close-up, where the stud tops are found in depth and as circles in the plate-rectified image and an 8 mm (16 mm DUPLO) lattice is fitted by RANSAC (yaw + offset, the coarse pose picking the period) - with the residual and the number of studs used. A second script reads a brick's own studs - footprint (A x B), top pose and stud pixels from a close-up and a mask. Use when bricks will be placed or picked by grid cell and the plate's pose must be known to well under a pitch, or a brick's size and pose must be read from its studs.
+
+- **In**: -
+- **Out**: `plate_pose` Se3Pose, `coarse_plate_pose` Se3Pose, `coarse_source` string, `lattice_status` string, `residual_mm` float, `max_residual_mm` float, `studs_used` int, `studs_detected` int, `snap_margin` float, `marker_reprojection_px` float, `yaw_ambiguity_deg` float, `system` string, `stud_pitch` float, `camera_name` string
+- **Calls**: [`sam3`](#sam3); connector `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.grasp_frame`, `robot.solve_ik`
+- **Scripts**: [`calibrate_plate`](skills/calibrating-baseplate-stud-grid/scripts/calibrate_plate.py), [`read_studs`](skills/calibrating-baseplate-stud-grid/scripts/read_studs.py)
+- **Exits**:
+  - `calibrated`: A coarse pose was found, a wrist close-up was taken, at least min_studs (12) stud tops lie on the lattice with an RMS residual under max_residual (1/8 pitch - 1.0 mm LEGO, 2.0 mm DUPLO), the yaw correction is under 10 deg and the coarse pose is within snap_tolerance (0.35 pitch) of the nearest stud row along both axes; plate_pose is the refined pose.
+  - `coarse_only`: A coarse pose was found but no close-up was used - refine off, no wrist camera with a pose (and depth), or no view pose reached (IK preview, refused or short moves); plate_pose is the coarse pose and lattice_status says which.
+  - `no_lattice`: A close-up was taken but the lattice is not trusted - no plate plane near the coarse one (no_plane), too few studs (too_few_studs), residual over max_residual (high_residual), yaw correction over 10 deg (yaw_off) or the coarse pose about half a pitch off (ambiguous); plate_pose stays the coarse pose, the fit's numbers are filled in.
+  - `no_markers`: No coarse pose - none of the listed markers seen, no coarse_plate_pose, no usable plate mask; plate_pose is empty.
 
 ### detecting-contact-from-joint-effort
 

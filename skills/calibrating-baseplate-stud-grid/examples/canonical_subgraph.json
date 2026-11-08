@@ -1,0 +1,32 @@
+{
+  "skill": "calibrating-baseplate-stud-grid",
+  "inputs": {},
+  "outputs": {
+    "plate_pose": {"$ref": "calibrate.plate_pose"},
+    "residual_mm": {"$ref": "calibrate.residual_mm"},
+    "studs_used": {"$ref": "calibrate.studs_used"},
+    "apex_plate": {"$ref": "calibrate.apex_plate"}
+  },
+  "nodes": {
+    "calibrate": {
+      "type": "script",
+      "script": "scripts/calibrate_plate.py",
+      "inputs": {
+        "plate_studs": [32, 32],
+        "system": "lego",
+        "markers": [
+          {"id": 3, "size": 0.04, "position": [0.163, 0.0, -0.0032]},
+          {"id": 7, "size": 0.04, "position": [-0.163, 0.05, -0.0032], "yaw_deg": 30.0}
+        ],
+        "marker_dictionary": "DICT_4X4_50",
+        "camera_range": 0.2
+      }
+    }
+  },
+  "edges": [["START", "calibrate"], ["calibrate", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["calibrated", "coarse_only", "no_lattice", "no_markers"]
+  },
+  "on_error": "no_markers"
+}
