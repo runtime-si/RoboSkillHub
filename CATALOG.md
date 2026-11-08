@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-14 tools, 78 skills, 2 policies, 1 recipe and 1 paper.
+14 tools, 79 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -105,6 +105,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`classifying-failure-from-proprioception`](#classifying-failure-from-proprioception) | verify | Classifies the last moments of a manipulation step from proprioception alone. | any |
 | [`previewing-target-overlay`](#previewing-target-overlay) | verify | Checks a target gripper pose before the arm moves. | any |
 | [`verifying-a-cable-route`](#verifying-a-cable-route) | verify | Judge a finished cable route from a camera rather than from an evaluator. | any |
+| [`verifying-articulation-displacement`](#verifying-articulation-displacement) | verify | Checks from the camera whether a drawer or a door really moved as asked. | any |
 | [`verifying-grasps`](#verifying-grasps) | verify | Three independent checks on one grasp attempt. | any |
 | [`verifying-insertion-by-probe-push`](#verifying-insertion-by-probe-push) | verify | Checks whether a held part is seated after an insertion by pushing it a few millimetres further along the insertion… | any |
 | [`verifying-placement`](#verifying-placement) | verify | Confirms from one RGB-D view that a released object went through an aperture, accepting either that it vanished into… | any |
@@ -1369,6 +1370,24 @@ Judge a finished cable route from a camera rather than from an evaluator — re-
 - **Exits**:
   - `woven`: Every station has rod on its owed side within the seat's reach, and the hand is clear of the rod.
   - `short`: At least one station is unseated (no rod abreast of it, on the wrong side, or outside the box), the hand is still on the rod, or no rod could be read at all; `detail` says which.
+
+### verifying-articulation-displacement
+
+verify · robots: any · tasks: articulated · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/verifying-articulation-displacement/SKILL.md) · [upstream](https://github.com/nssmd/RoboRSI/blob/main/roborsi/embodied/skills/base/close_drawer/libero/policy.py)
+
+Checks from the camera whether a drawer or a door really moved as asked - re-finds its handle in a fresh RGB-D frame (pointing model, SAM, then the handle's front proud of the fitted face plane), checks the face normal is the one expected, and measures the handle's travel along the articulation (prismatic - metres along the pull; revolute - the angle about the hinge), routing moved, moved_short, not_moved, moved_wrong_way, inconsistent or not_seen. Use after any skill that opens or closes an articulated object (a drawer pull or push, a door swing, the waypoints of planning-articulation-opening), once the hand has let go and moved clear, before the graph relies on the drawer or door being open or shut.
+
+- **In**: `handle_description` string, `joint_type` string, `expected_opening` float
+- **Out**: `seen` bool, `measured` float, `fraction` float, `transverse` float, `normal_dot` float, `handle_after` Vec3, `face_normal_after` Vec3
+- **Calls**: [`gemini-er`](#gemini-er), [`molmo`](#molmo), [`sam3`](#sam3), [`vlm`](#vlm); connector `robot.get_observation`
+- **Scripts**: [`verify_articulation`](skills/verifying-articulation-displacement/scripts/verify_articulation.py)
+- **Exits**:
+  - `moved`: The handle travelled at least min_fraction (70%) of expected_opening in its sign, the face normal is the one expected and the handle stayed within 70 mm of the articulation.
+  - `moved_short`: It travelled the right way by at least 30 mm of handle travel (a door - that arc at the handle's radius), but less than min_fraction of what was expected; stuck, or the hand slipped part way.
+  - `not_moved`: It travelled less than 30 mm (that arc for a door) either way.
+  - `moved_wrong_way`: It travelled at least 30 mm against the expected sense (a close that opened it).
+  - `inconsistent`: The handle was found, but the face normal is not the one expected (cosine under 0.9), the handle drifted more than 70 mm off the articulation, or a drawer moved more than 250 mm; most likely another handle or face was found, or the cabinet itself moved.
+  - `not_seen`: The pointer found no handle, or no vertical face plane or nothing proud of it was found round the pointed pixel, in the frame after (or before) actuation; the hand may still hide it.
 
 ### verifying-grasps
 
