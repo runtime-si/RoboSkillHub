@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-12 tools, 74 skills, 2 policies, 1 recipe and 1 paper.
+12 tools, 75 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -45,6 +45,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`perceiving-routing-fixtures`](#perceiving-routing-fixtures) | perceive | Survey a cable-routing bench from one overhead RGB-D frame. | any |
 | [`perceiving-sorting-pairs`](#perceiving-sorting-pairs) | perceive | Discovers a labelled four-compartment destination from RGB-D and repeatedly perceives one remaining source object with… | any |
 | [`reconstructing-collision-worlds`](#reconstructing-collision-worlds) | perceive | Reconstructs a planner collision world from calibrated RGB-D views alone, excluding the grasp target, the robot, and a… | any |
+| [`refining-target-from-wrist-closeup`](#refining-target-from-wrist-closeup) | perceive | Refines a coarse world-frame target (an overhead perception's OBB or point) by aiming the wrist RGB-D camera at it… | any |
 | [`registering-held-objects`](#registering-held-objects) | perceive | Reobserves a grasped rigid object from the wrist cameras, estimates its functional feature in the TCP frame, and fits… | any |
 | [`tracking-objects`](#tracking-objects) | perceive | Long-running skill that drives the SAM3 tracker from the graph-scoped observation stream. | any |
 | [`computing-feature-mating-poses`](#computing-feature-mating-poses) | plan | Computes approach, engaged, and mate TCP poses from a held feature in the hand and a fixture feature, resolving free… | any |
@@ -468,6 +469,21 @@ Reconstructs a planner collision world from calibrated RGB-D views alone, exclud
 - **Exits**:
   - `built`: A scene mesh set with the goal's free space carved was produced.
   - `failed`: No camera was selected or the reconstruction produced no scene mesh (raised).
+
+### refining-target-from-wrist-closeup
+
+perceive · robots: any · tasks: pick-place, insertion, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/refining-target-from-wrist-closeup/SKILL.md) · [upstream](https://github.com/nssmd/RoboRSI/tree/main/roborsi/embodied/skills/base/find_object_via_wrist/robotwin)
+
+Refines a coarse world-frame target (an overhead perception's OBB or point) by aiming the wrist RGB-D camera at it from 0.15-0.3 m - the hand is placed so the camera's optical axis passes through the target, looking straight down when the arm reaches that - then re-pointing the object in the close-up frame with a pointing model (gemini-er.point or molmo.point_prompt) and back-projecting the pointed pixel with the wrist depth and the camera's pose to a refined world point and a shifted OBB. Use when an overhead detection is too coarse for the next step (a small part, a grasp that missed by 1-3 cm, a target the overhead camera sees at a few pixels) and the arm carrying the wrist camera is free.
+
+- **In**: `object_name` str
+- **Out**: `refined_point` Vec3, `refined_obb` OrientedBoundingBox, `coarse_point` Vec3, `drift` float, `depth` float, `camera_range` float, `view_pose` Se3Pose
+- **Calls**: [`gemini-er`](#gemini-er), [`molmo`](#molmo); connector `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.grasp_frame`, `robot.solve_ik`
+- **Scripts**: [`refine_from_wrist`](skills/refining-target-from-wrist-closeup/scripts/refine_from_wrist.py)
+- **Exits**:
+  - `refined`: The wrist camera saw the coarse target from camera_range (0.15-0.30 m), the pointer found the object, the wrist depth round the pointed pixel was valid, and the back-projected point lies within the object's half-diagonal + 30 mm of the coarse estimate in the plane; refined_point and refined_obb carry it. The hand stays at the view pose.
+  - `not_seen`: There is no wrist camera in the observation, or the pointer found nothing (or failed), or fewer than 3 depth readings in 7-50 cm lay round the pointed pixel, or the pointed point lies further from the coarse estimate than allowed (another object); `detail` says which. The hand stays at the view pose if it moved.
+  - `unreachable`: No view pose passed the IK preview and the clearance floor, or three view moves were refused, ended more than reach_tolerance off, or left the target outside the wrist image; `detail` lists each attempt.
 
 ### registering-held-objects
 

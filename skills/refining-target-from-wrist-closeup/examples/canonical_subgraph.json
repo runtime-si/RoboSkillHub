@@ -1,0 +1,47 @@
+{
+  "skill": "refining-target-from-wrist-closeup",
+  "inputs": {
+    "target_obb": "OrientedBoundingBox"
+  },
+  "outputs": {
+    "refined_point": {
+      "$ref": "refine.refined_point"
+    },
+    "refined_obb": {
+      "$ref": "refine.refined_obb"
+    },
+    "drift": {
+      "$ref": "refine.drift"
+    }
+  },
+  "nodes": {
+    "refine": {
+      "type": "script",
+      "script": "scripts/refine_from_wrist.py",
+      "inputs": {
+        "target_obb": {
+          "$ref": "in.target_obb"
+        },
+        "object_name": "red cube"
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "refine"
+    ],
+    [
+      "refine",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "refined",
+      "not_seen"
+    ]
+  },
+  "on_error": "unreachable"
+}
