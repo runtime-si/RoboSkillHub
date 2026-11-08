@@ -1,0 +1,41 @@
+{
+  "skill": "computing-brick-pose-from-stud-grid",
+  "inputs": {"plate_pose": "Se3Pose", "cell": "object"},
+  "outputs": {
+    "seat_position": {"$ref": "grid.seat_position"},
+    "seat_yaw_deg": {"$ref": "grid.seat_yaw_deg"},
+    "brick_studs": {"$ref": "grid.brick_studs"},
+    "grasp_pose": {"$ref": "grid.grasp_pose"},
+    "approach_pose": {"$ref": "grid.approach_pose"},
+    "brick_pose": {"$ref": "grid.brick_pose"},
+    "pose6d_mesh": {"$ref": "grid.pose6d_mesh"},
+    "cells": {"$ref": "grid.cells"}
+  },
+  "nodes": {
+    "grid": {
+      "type": "script",
+      "script": "scripts/brick_pose.py",
+      "inputs": {
+        "plate_pose": {"$ref": "in.plate_pose"},
+        "cell": {"$ref": "in.cell"},
+        "plate_studs": [16, 16],
+        "brick_size": "2x4",
+        "system": "duplo"
+      }
+    }
+  },
+  "edges": [["START", "grid"], ["grid", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "computed",
+      "off_grid",
+      "out_of_plate",
+      "collides",
+      "unsupported",
+      "ungraspable",
+      "unreachable"
+    ]
+  },
+  "on_error": "invalid"
+}
