@@ -239,3 +239,7 @@ catkin_ws/src/o2ac_routines/src/o2ac_routines/common.py,
 insert_motor_cables_without_tools_normal), MIT License, Copyright (c) 2020
 Team O2AC; the file's header lists the changes, and the license is
 skills/sliding-along-a-cable/LICENSE.o2ac.
+skills/inserting-a-peg-with-pose-refinement/scripts/align_pre_insert.py and
+push_insert.py are adapted from ManiSkill (https://github.com/haosulab/ManiSkill,
+mani_skill/examples/motionplanning/panda/solutions/peg_insertion_side.py),
+Apache-2.0; each file's header lists the changes.

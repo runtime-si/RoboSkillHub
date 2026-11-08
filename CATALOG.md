@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-12 tools, 73 skills, 2 policies, 1 recipe and 1 paper.
+12 tools, 74 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -72,6 +72,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grasping-with-planner`](#grasping-with-planner) | execute | Top-down grasping via a fast axis-locked linear descend with a collision-aware cuRobo fallback. | any, *tuned on* panda |
 | [`handing-over-between-arms`](#handing-over-between-arms) | execute | Hands the object one arm holds to the other arm. | any, 2 arms |
 | [`holding-steady-while-other-arm-acts`](#holding-steady-while-other-arm-acts) | execute | One arm holds an object still. | any, 2 arms |
+| [`inserting-a-peg-with-pose-refinement`](#inserting-a-peg-with-pose-refinement) | execute | Inserts a held peg into a perceived hole in three stages. | any |
 | [`lifting-with-both-arms`](#lifting-with-both-arms) | execute | Lifts an elongated object (a bar, a tray, a pot by its handles) with both arms. | any, 2 arms |
 | [`moving-both-arms-together`](#moving-both-arms-together) | execute | Moves both hands to their target poses as one coordinated motion. | any, 2 arms |
 | [`picking-and-placing-two-objects`](#picking-and-placing-two-objects) | execute | Picks two objects with two arms, one each, and places both. | any, 2 arms |
@@ -861,6 +862,23 @@ One arm holds an object still - a top-down grasp, or its closed hand pressed dow
   - `held_and_released`: The holder held (jaws above the stop, or a press that stopped on the object), the other arm's step ended `acted`, and at release the holder's tool centre was within pose_tolerance and angle_tolerance_deg of the hold pose and (grip) its jaw opening within grip_tolerance of the one at the hold; it then opened and backed out to its stand-off.
   - `hold_lost`: The holder's jaws closed to the stop at the hold (missed), its press went down to the target (nothing under it), or at release its pose or jaw opening had changed past the tolerances (or a re-perceived object box had moved); the holder has let go and backed out.
   - `unreachable`: The holder could not reach above the object or down onto it, the connector does not report a separate second arm, the other arm could not reach its start or a waypoint (move mode, or the press target failed the IK preview), or the holder could not back out after letting go; `detail` says which. After a failed step the hold is still checked and released.
+
+### inserting-a-peg-with-pose-refinement
+
+execute · robots: any · tasks: insertion · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/inserting-a-peg-with-pose-refinement/SKILL.md) · [upstream](https://github.com/haosulab/ManiSkill/blob/main/mani_skill/examples/motionplanning/panda/solutions/peg_insertion_side.py)
+
+Inserts a held peg into a perceived hole in three stages - carries it to a pre-insert pose with the tip a few centimetres in front of the mouth on the hole's axis, refines that pose up to three times from the residual between the peg as observed (hand read back times the registered tip-in-hand transform) and the axis, then pushes straight in along the axis with a stop-on-contact move and judges how far the tip went. Use when the hand already holds a peg, pin, plug or shaft whose tip is registered in the hand (registering-held-objects), the hole's mouth and inward axis are measured (perceiving-functional-features), and the arm does not land exactly where it is sent; any axis direction (side or top insertion).
+
+- **In**: `hole_centre` Vec3, `hole_axis` Vec3, `peg_in_tcp` Se3Pose
+- **Out**: `pre_insert_pose` Se3Pose, `tcp_at_mouth` Vec3, `lateral_error` float, `axial_error` float, `angle_error_deg` float, `refinements` int, `correction` float, `depth` float, `tip_position` Vec3, `deflection` float
+- **Calls**: connector `robot.get_ee_pose`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.move_cartesian_until_contact`, `robot.solve_ik`
+- **Scripts**: [`align_pre_insert`](skills/inserting-a-peg-with-pose-refinement/scripts/align_pre_insert.py), [`push_insert`](skills/inserting-a-peg-with-pose-refinement/scripts/push_insert.py)
+- **Exits**:
+  - `aligned`: (align_pre_insert run on its own, e.g. before a re-registration) The tip is within the tolerances of the pre-insert pose on the hole's axis; in the example subgraph this route goes on to the push and never leaves.
+  - `inserted`: The push took the tip, as held, at least min_depth (10 mm) past the mouth; the hand stays at the end of the push, closed on the peg.
+  - `stopped_short`: The push stopped (contact, stall, or the hand shoved deflection_stop off its line) with the tip short of min_depth past the mouth (rim, a hole off its estimate, a jam), or the hold leaves no room to push that far with the fingers clear; the hand backed off to the pre-insert pose, still holding.
+  - `misaligned`: After the refinements the tip is still more than lateral_tolerance off the axis (or axial / angle tolerance), or the correction grew past its cap; the hand is at the last pre-insert pose and nothing was pushed.
+  - `unreachable`: The pre-insert pose or the end of the push is out of reach by the IK preview, a move was refused, or the hand's pose could not be read; nothing was pushed.
 
 ### lifting-with-both-arms
 

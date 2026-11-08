@@ -1,0 +1,86 @@
+{
+  "skill": "inserting-a-peg-with-pose-refinement",
+  "inputs": {
+    "hole_centre": "Vec3",
+    "hole_axis": "Vec3",
+    "peg_in_tcp": "Se3Pose"
+  },
+  "outputs": {
+    "pre_insert_pose": {
+      "$ref": "align.pre_insert_pose"
+    },
+    "tcp_at_mouth": {
+      "$ref": "align.tcp_at_mouth"
+    },
+    "lateral_error": {
+      "$ref": "align.lateral_error"
+    },
+    "depth": {
+      "$ref": "push.depth"
+    }
+  },
+  "nodes": {
+    "align": {
+      "type": "script",
+      "script": "scripts/align_pre_insert.py",
+      "inputs": {
+        "hole_centre": {
+          "$ref": "in.hole_centre"
+        },
+        "hole_axis": {
+          "$ref": "in.hole_axis"
+        },
+        "peg_in_tcp": {
+          "$ref": "in.peg_in_tcp"
+        }
+      }
+    },
+    "push": {
+      "type": "script",
+      "script": "scripts/push_insert.py",
+      "inputs": {
+        "hole_centre": {
+          "$ref": "in.hole_centre"
+        },
+        "hole_axis": {
+          "$ref": "in.hole_axis"
+        },
+        "peg_in_tcp": {
+          "$ref": "in.peg_in_tcp"
+        },
+        "pre_insert_pose": {
+          "$ref": "align.pre_insert_pose"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "align"
+    ],
+    [
+      "push",
+      "END"
+    ]
+  ],
+  "conditional_edges": {
+    "align": {
+      "router_field": "route",
+      "mapping": {
+        "aligned": "push",
+        "misaligned": "END",
+        "unreachable": "END"
+      }
+    }
+  },
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "inserted",
+      "stopped_short",
+      "misaligned"
+    ]
+  },
+  "on_error": "unreachable"
+}
