@@ -443,3 +443,13 @@ HoughCircles; https://github.com/opencv/opencv), Apache-2.0. The stud-grid
 approach is informed by BrickScan (https://github.com/edrickchang13/BrickScan,
 ml/preprocessing/stud_detector.py), which has no license; none of its code is
 used.
+skills/detecting-disturbed-pieces-by-snapshot-diff/scripts/diff_snapshots.py adapts
+the structural similarity map of scikit-image
+(https://github.com/scikit-image/scikit-image,
+src/skimage/metrics/_structural_similarity.py structural_similarity with
+gaussian_weights=True and full=True, commit
+e098ebbb684788df60b42e3bde112c014d0d9517), BSD-3-Clause License, Copyright (c)
+2009-2022 the scikit-image team; the file's header lists the changes, and the
+license is skills/detecting-disturbed-pieces-by-snapshot-diff/LICENSE.scikit-image.
+It calls OpenCV's findTransformECC / findTransformECCWithMask (Apache-2.0) and
+copies none of it.

@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-17 tools, 94 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 95 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -119,6 +119,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`checking-dual-arm-clearance`](#checking-dual-arm-clearance) | verify | Predicts, before a move is sent, the minimum clearance between the two arms along the planned path. | any, 2 arms |
 | [`checking-spatial-relations`](#checking-spatial-relations) | verify | Decides from one RGB-D view whether a spatial relation holds between two seen objects. | any |
 | [`classifying-failure-from-proprioception`](#classifying-failure-from-proprioception) | verify | Classifies the last moments of a manipulation step from proprioception alone. | any |
+| [`detecting-disturbed-pieces-by-snapshot-diff`](#detecting-disturbed-pieces-by-snapshot-diff) | verify | Checks whether anything already placed was knocked since the last verified step. | any |
 | [`previewing-target-overlay`](#previewing-target-overlay) | verify | Checks a target gripper pose before the arm moves. | any |
 | [`verifying-a-cable-route`](#verifying-a-cable-route) | verify | Judge a finished cable route from a camera rather than from an evaluator. | any |
 | [`verifying-articulation-displacement`](#verifying-articulation-displacement) | verify | Checks from the camera whether a drawer or a door really moved as asked. | any |
@@ -1617,6 +1618,23 @@ Classifies the last moments of a manipulation step from proprioception alone - t
   - `drop`: The hand opened while the tool centre was more than 60 mm over table level, or a held object's jaw closed to its stop with the hand still shut above carrying height (a slip).
   - `stuck_mid_air`: The hand is closed on something above carrying height but the arm is frozen short of its commanded target.
   - `unknown`: The arm could not be read, there were fewer than two samples, or no surface height was given or described; nothing was classified.
+
+### detecting-disturbed-pieces-by-snapshot-diff
+
+verify · robots: any · tasks: jigsaw, pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/detecting-disturbed-pieces-by-snapshot-diff/SKILL.md) · [upstream](https://github.com/scikit-image/scikit-image/blob/e098ebbb684788df60b42e3bde112c014d0d9517/src/skimage/metrics/_structural_similarity.py)
+
+Checks whether anything already placed was knocked since the last verified step - registers a new RGB(-D) snapshot onto the reference taken after that step (ORB + RANSAC homography refined by masked ECC on the static background; the camera may have moved a little), divides out lighting drift, maps colour/SSIM and depth change, and re-finds every known item (jigsaw pieces, placed bricks, standing dominoes - given as masks, pixel polygons, world boxes or grid cells) by a local rigid registration, reporting which moved, by how many mm and degrees, and how much their depth changed; changes no item explains become occluders (a hand or the arm, masked from its pose) or unexpected objects. Routes unchanged, disturbed, unexpected_object, occluded or unregistrable. Use when a place, press or push has just happened near items already placed and the next step will build on them; camera-only, no motion.
+
+- **In**: `reference` Observation
+- **Out**: `n_disturbed` int, `n_unexpected` int, `max_shift_mm` float, `camera_shift_px` float, `changed_fraction` float
+- **Calls**: connector `robot.get_observation`
+- **Scripts**: [`diff_snapshots`](skills/detecting-disturbed-pieces-by-snapshot-diff/scripts/diff_snapshots.py)
+- **Exits**:
+  - `disturbed`: At least one item not listed as expected moved (translated at least max(1 mm, 0.6 px at its scale), turned at least 2 degrees and 0.8 px at its rim, or changed depth by 5 mm, each standing out of the noise for its texture) or is lost (not found as it looked within 25 mm); `disturbed` lists them and `items` says by how much.
+  - `unexpected_object`: No item moved, but a change inside the region that no item explains is at least 80 mm^2 (30 px without a scale) and does not enter from the frame edge or the arm; `unexpected` locates it (kind appeared / vacated with depth).
+  - `occluded`: Nothing moved and nothing unexpected, but at least one item is less than 60 % visible (under the arm, a hand, an ignore mask, or outside the registered view); it could not be checked.
+  - `unchanged`: Every judged item is where it was and nothing unexplained changed in the region.
+  - `unregistrable`: The background does not correlate (median tile correlation under 0.8 after registration) or the camera moved more than 8 % of the frame diagonal; the views cannot be compared pixel by pixel - re-take the reference.
 
 ### previewing-target-overlay
 

@@ -1,0 +1,35 @@
+{
+  "skill": "detecting-disturbed-pieces-by-snapshot-diff",
+  "inputs": {
+    "reference": "Observation",
+    "items": "Any",
+    "region": "Any",
+    "expected_ids": "Any"
+  },
+  "outputs": {
+    "disturbed": {"$ref": "diff.disturbed"},
+    "n_disturbed": {"$ref": "diff.n_disturbed"},
+    "n_unexpected": {"$ref": "diff.n_unexpected"},
+    "max_shift_mm": {"$ref": "diff.max_shift_mm"},
+    "items": {"$ref": "diff.items"},
+    "unexpected": {"$ref": "diff.unexpected"}
+  },
+  "nodes": {
+    "diff": {
+      "type": "script",
+      "script": "scripts/diff_snapshots.py",
+      "inputs": {
+        "reference": {"$ref": "in.reference"},
+        "items": {"$ref": "in.items"},
+        "region": {"$ref": "in.region"},
+        "expected_ids": {"$ref": "in.expected_ids"}
+      }
+    }
+  },
+  "edges": [["START", "diff"], ["diff", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["unchanged", "disturbed", "unexpected_object", "occluded"]
+  },
+  "on_error": "unregistrable"
+}
