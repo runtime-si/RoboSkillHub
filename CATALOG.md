@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-16 tools, 82 skills, 2 policies, 1 recipe and 1 paper.
+17 tools, 82 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -25,6 +25,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`locate-anything`](#locate-anything) | perceive | NVIDIA LocateAnything-3B (non-commercial licence) run locally on a GPU. | any |
 | [`molmo`](#molmo) | perceive | Visual pointing and Q&A via the Molmo VLM served from a self-hosted vLLM endpoint (OpenAI-compatible API). | any |
 | [`pose6d`](#pose6d) | perceive | 6D pose of a known rigid part from depth. | any |
+| [`sahi`](#sahi) | perceive | Slicing-aided detection (SAHI) of small parts. | any |
 | [`sam3`](#sam3) | perceive | Segment Anything 3 — text-, point-, and box-prompted instance segmentation, plus a stateful streaming video tracker… | any |
 | [`track`](#track) | perceive | Google DeepMind TAPNext++ run locally on a GPU. | any |
 | [`vlm`](#vlm) | perceive | Free-form and yes/no visual question answering against a hosted vision-language model (OpenRouter API by default… | any |
@@ -255,6 +256,17 @@ perceive · robots: any · tasks: pick-place, insertion, reorientation, sorting 
 - **Functions**:
   - `pose6d.register_mesh`: 6D pose of a known part (box / cube / cylinder primitive or mesh file) from its point cloud, with fitness, RMSE, coverage and its symmetric equivalents.
   - `pose6d.register_mask`: 6D pose of a known part from its segmentation mask and a depth frame (camera centre used as the viewpoint); world pose when a camera pose is given.
+
+### sahi
+
+perceive · robots: any · tasks: pick-place, sorting · MIT · v0.1.0 · [`SKILL.md`](tools/sahi/SKILL.md) · [upstream](https://github.com/obss/sahi/blob/10061afd5fa076e00f8eda55e2ee290f9d72f3c1/sahi/predict.py)
+
+Slicing-aided detection (SAHI) of small parts -- cuts the camera frame into overlapping slices, runs one of the hub's detectors (grounding-dino, sam3, locate-anything) on every slice and on the whole frame, and merges the boxes with SAHI's postprocess, returning boxes, labels, scores and (sam3) masks in frame pixels. Use when the parts are 10-30 px in the overhead camera (2-3 cm bricks, dominoes, jigsaw pieces, a plug at ~1 m) and a single detector call on the whole frame misses them.
+
+- **Functions**:
+  - `sahi.detect_sliced`: Detect small parts by running a detector on overlapping slices and merging the boxes (SAHI).
+  - `sahi.slice_windows`: The overlapping slice windows SAHI cuts an image (or a region of it) into.
+  - `sahi.merge`: Merge overlapping detections from several slices with SAHI's postprocess.
 
 ### sam3
 
