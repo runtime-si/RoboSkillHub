@@ -1,0 +1,52 @@
+{
+  "skill": "checking-pick-by-scene-diff",
+  "inputs": {
+    "before": "Observation",
+    "expected_change": "string"
+  },
+  "outputs": {
+    "changed": {
+      "$ref": "check.changed"
+    },
+    "matches_expectation": {
+      "$ref": "check.matches_expectation"
+    },
+    "reason": {
+      "$ref": "check.reason"
+    }
+  },
+  "nodes": {
+    "check": {
+      "type": "script",
+      "script": "scripts/check_scene_diff.py",
+      "inputs": {
+        "before": {
+          "$ref": "in.before"
+        },
+        "expected_change": {
+          "$ref": "in.expected_change"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "check"
+    ],
+    [
+      "check",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "changed_as_expected",
+      "changed_otherwise",
+      "unchanged",
+      "uncertain"
+    ]
+  },
+  "on_error": "no_verdict"
+}

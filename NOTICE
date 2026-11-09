@@ -754,3 +754,8 @@ re-expresses the PullUp skill of CMU MFI's vibro_tactile_toolbox
 (https://github.com/cmu-mfi/vibro_tactile_toolbox, src/skill/common_skills.py
 and scripts/fts_detector.py), which declares MIT only in its package.xml and
 ships no LICENSE file; none of its code is used.
+
+skills/checking-pick-by-scene-diff/scripts/check_scene_diff.py is adapted from
+RoboRSI (https://github.com/nssmd/RoboRSI,
+roborsi/embodied/skills/base/visual_diff/robotwin/policy.py), Apache-2.0; the
+file's header lists the changes.
