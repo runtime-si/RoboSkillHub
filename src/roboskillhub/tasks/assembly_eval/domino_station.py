@@ -13,8 +13,9 @@ runtime builds ``move_waypoints``, ``set_gripper(open|close|release)`` and
 
 - objects: every tile with position, quaternion, ``source: "simulation_truth"``,
   ``privileged: true``; plus ``"table"`` (class ``support``, top-surface centre).
-- ``gripper.holding`` comes from contacts (both pads touching the same tile), never from
-  the command; ``width_m`` is the measured pad gap.
+- ``gripper.holding`` comes from measurements, never from the command: both pads in contact
+  with the same tile and the measured pad gap at most the tile width + 2 mm; ``width_m`` is
+  the measured pad gap.
 - Clock: physics only advances inside this object, so ``get_state`` first advances the
   simulation by the wall time elapsed since the last step (at most ``max_catch_up_s``) with
   the last command held; every state is stamped with ``time.time()`` at the read and carries
@@ -295,6 +296,10 @@ class DominoPhysicsStation:
         return self.physics.truth().get("contacts") or {}
 
     def _held_tile(self) -> str | None:
+        """Both pads touch the same tile and the measured jaw gap is closed onto it (at most
+        the tile's width + 2 mm): a fallen tile lying across open jaws is not held."""
+        if self._measured_open() > self.spec.tile.width + 0.002:
+            return None
         for tid, touching in self._contacts().items():
             if all(p in touching for p in GRIPPER):
                 return tid
@@ -337,7 +342,7 @@ class DominoPhysicsStation:
                 pos[1] += 0.03  # only pieces still in the rack
             objs[tid] = {
                 "position_m": pos,
-                "quaternion_xyzw": list(o["quaternion_xyzw"]),
+                "quaternion_xyzw": list(o["quat_xyzw"]),
                 "frame_id": "world",
                 "timestamp_s": stamp,
                 "sim_time_s": self.sim_t,
