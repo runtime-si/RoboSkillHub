@@ -9,7 +9,7 @@ tile's state: no welds, no equality constraints, no pose setters.
 
 from __future__ import annotations
 
-from .domino_geometry import wxyz_to_xyzw
+from .domino_mujoco_truth import mujoco_truth
 from .domino_scene import DominoSceneSpec
 
 
@@ -127,8 +127,6 @@ class MujocoBackend:
         self._dt_ctrl = 1.0 / spec.physics.control_hz
         self._sub = self._substeps or max(1, round(self._dt_ctrl / self.m.opt.timestep))
         self._steps = 0
-        self._geom_body = {i: self.m.body(self.m.geom_bodyid[i]).name for i in range(self.m.ngeom)}
-        self._geom_name = {i: self.m.geom(i).name for i in range(self.m.ngeom)}
 
     @property
     def control_dt(self) -> float:
@@ -154,24 +152,5 @@ class MujocoBackend:
         )
 
     def truth(self) -> dict:
-        objs = {}
-        for k in range(self.spec.n_tiles):
-            b = self.d.body(f"tile_{k}")
-            objs[f"tile_{k}"] = {
-                "position": [float(v) for v in b.xpos],
-                "quat_xyzw": [float(v) for v in wxyz_to_xyzw(b.xquat)],
-            }
-        contacts: dict[str, set] = {f"tile_{k}": set() for k in range(self.spec.n_tiles)}
-        for i in range(self.d.ncon):
-            c = self.d.contact[i]
-            if c.dist > 0.0005:  # within margin but not touching
-                continue
-            a, b = self._geom_name[c.geom1], self._geom_name[c.geom2]
-            for u, v in ((a, b), (b, a)):
-                if u in contacts:
-                    contacts[u].add(v if not v.startswith("feeder_sep") else "feeder")
-        return {
-            "t": float(self.d.time),
-            "objects": objs,
-            "contacts": {k: sorted(v) for k, v in contacts.items()},
-        }
+        tiles = {f"tile_{k}": f"tile_{k}" for k in range(self.spec.n_tiles)}
+        return mujoco_truth(self.m, self.d, tiles)

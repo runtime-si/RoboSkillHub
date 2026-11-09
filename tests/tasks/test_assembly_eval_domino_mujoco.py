@@ -62,3 +62,28 @@ def test_physics_negatives_fail_although_executor_finished(spec, tmp_path, fault
 def test_frozen_observer_is_unverified(spec, tmp_path):
     rec = run_episode(MujocoBackend(), spec, 2, tmp_path, fault="stale_observation")
     assert rec["status"] == "unverified"
+
+
+def test_truth_adapter_frame_and_aliases(spec):
+    import math
+
+    from roboskillhub.tasks.assembly_eval.domino_geometry import quat_from_yaw, tilt_deg
+    from roboskillhub.tasks.assembly_eval.domino_mujoco_truth import mujoco_truth
+    from roboskillhub.tasks.assembly_eval.domino_runner import feeder_poses_for_seed
+
+    b = MujocoBackend()
+    b.reset(spec, feeder_poses_for_seed(spec, 0))
+    for _ in range(20):
+        b.step((0.0, 0.0, spec.transit_tcp_z(), 0.0), 0.04)
+    tiles = {"tile_0": "tile_0"}
+    world = mujoco_truth(b.m, b.d, tiles, geom_alias={"table": "bench"})
+    assert world["contacts"]["tile_0"] == ["bench"]
+    # table frame 1 m along +x and turned 90 deg in world
+    shifted = mujoco_truth(
+        b.m, b.d, tiles, T_world_table=((1.0, 0.0, 0.0), quat_from_yaw(math.pi / 2))
+    )
+    pw, pt = world["objects"]["tile_0"]["position"], shifted["objects"]["tile_0"]["position"]
+    assert pt[0] == pytest.approx(pw[1], abs=1e-9)
+    assert pt[1] == pytest.approx(-(pw[0] - 1.0), abs=1e-9)
+    assert pt[2] == pytest.approx(pw[2], abs=1e-9)
+    assert tilt_deg(shifted["objects"]["tile_0"]["quat_xyzw"]) == pytest.approx(0.0, abs=1e-3)
