@@ -114,6 +114,7 @@ adapted from ACT (https://github.com/tonyzhaozh/act, scripted_policy.py,
 InsertionPolicy), MIT, Copyright (c) 2023 Tony Z. Zhao; the file's header
 lists the changes, and the license is
 skills/inserting-mid-air-between-two-held-parts/LICENSE.act.
+
 skills/lifting-with-both-arms/scripts/lift_with_both_arms.py is adapted from
 RoboTwin (https://github.com/robotwin-Platform/RoboTwin, envs/lift_pot.py),
 MIT, Copyright (c) 2025 Tianxing Chen; the file's header lists the changes,
