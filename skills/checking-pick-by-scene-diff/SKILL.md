@@ -153,17 +153,46 @@ overhead camera.
   filled 3.74, 15 % between 2 % and 43 %. The sim "picked" pair's 0.77 is high
   because the next block was dropped on nearly the same spot; a bare table
   gives ~0.2 (the real case).
-- **The only real "picked" pair is synthetic** (the plate inpainted out of a
-  real frame): no real pick before/after pair was available. The arm-moving
-  sim pick check (a cube really picked and a deliberate miss in the station
-  twin) is **pending: no GPU host** (all AutoDL hosts unreachable on
-  2026-11-09).
+- **The only real-camera "picked" pair is synthetic** (the plate inpainted
+  out of a real frame): no real pick before/after pair was available. Real
+  picks were checked in the twin instead (below).
 - Flash said `CHANGED: YES` for two re-renders of the same scene (pixel share
   0.0), so `changed_otherwise` can mean "the VLM imagined a change"; ER-2
   said NO. The routing never turns that into a pick.
 - Judge after the hand has moved clear of the source, as for
   judging-step-with-before-now-vlm: a hand over the spot reads as "changed
   otherwise" or `uncertain`.
+
+### Real picks and misses in the station twin
+
+The arm really picked (or missed) a 25 mm red cube in a YAM station twin
+(the tracking-gripper-opening-stall sim run on the GCP pool): overhead frames
+before the approach, after an 8 cm lift (hand over the spot) and after moving
+12 cm aside; truth from the cube's simulated pose. Source box 23 x 23 px
+around the cube (~15 px wide). 8 pairs x 2 repeats per model:
+
+| pair | truth | flash (2 runs) | ER-2 (2 runs) | src changed | contrast ratio |
+|---|---|---|---|---|---|
+| pick, hand moved aside | picked | as_expected x2 | as_expected x2 | 0.82 | 0.03 |
+| second pick, hand aside | picked | as_expected x2 | as_expected x2 | 0.86 | 0.02 |
+| a "miss" 40 mm off that grasped the cube anyway (lifted 91 mm), hand aside | picked | as_expected x2 | as_expected x2 | 0.90 | 0.66 |
+| pick, hand still over the spot | picked | as_expected x2 | as_expected x2 | 0.77 | 0.28 |
+| pick whose BEFORE frame has the cube hidden by the parked hand | picked | otherwise x2 | otherwise x2 | 1.00 | 0.13 |
+| miss (cube nudged ~6 px by a finger), hand aside | not picked | otherwise x2 | otherwise x2 | 0.82 | 0.68 |
+| miss, hand over the spot | not picked | otherwise x2 | otherwise x2 | 0.78 | 0.63 |
+| two BEFORE frames of separate trials | not picked | otherwise x2 | otherwise x2 | 0.37 | 1.26 |
+
+14/16 per model, **no false `changed_as_expected`**; both misses were caught
+by the VLM. The two "wrong" verdicts are the pair whose BEFORE frame does not
+show the cube (0 red pixels: the parked hand hides it), so neither model could
+see a pick; capture BEFORE with the object in view.
+
+**The contrast ratio is a coarse veto, not a vacancy test.** On these small
+boxes the misses scored 0.63-0.68 (the nudged cube left part of the box) and
+one true pick 0.66, so no threshold separates them; here the VLM did all the
+work and the region check neither vetoed nor was needed. Its use is the
+first set's: a region that got busier (ratio well above 1: a hand covering
+the spot, another object landing there) blocks a VLM "yes".
 
 Azure OpenAI was not checked: its variables were not set on the porting
 machine.

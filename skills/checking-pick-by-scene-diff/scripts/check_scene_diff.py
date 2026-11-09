@@ -36,7 +36,9 @@ did (real overhead camera with both arms moving elsewhere: 0.021)."""
 VACATED_MAX_RATIO = 0.85
 """Region contrast after / before at or under which the region counts as vacated. Live
 check: 0.22 (real plate removed), 0.77 (sim block picked, another dropped beside its
-spot), against 1.00 static, 1.65 hand hovering over the object, 2.17 object appeared."""
+spot), against 1.00 static, 1.65 hand hovering over the object, 2.17 object appeared.
+A veto for regions that got busier, not a vacancy test: in the twin pick runs a cube
+nudged out of part of a small box scored 0.63-0.68, like a pick (SKILL.md)."""
 
 FILLED_MIN_RATIO = 1.5
 """Region contrast after / before at or over which the region counts as filled (a place).
