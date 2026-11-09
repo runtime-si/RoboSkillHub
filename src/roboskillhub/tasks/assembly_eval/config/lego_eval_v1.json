@@ -1,0 +1,115 @@
+{
+  "config_id": "lego_eval_v1",
+  "version": "1.0.0",
+  "units": "metres, seconds, radians unless the key says _deg or _steps",
+  "simulator": {
+    "isaacsim": "5.1.0",
+    "isaaclab": "2.3.2.post1",
+    "bricksim": "0.1.0.dev570+g7681525",
+    "roco_brickassembly": "8e7ad4dae651fd96cad5b8aa145f3fe81d3a48f3",
+    "physics_dt_s": 0.016666666666666666,
+    "source": "RoCo_BrickAssembly@8e7ad4da config/system_config.json (FPS 60)"
+  },
+  "clutch_model": {
+    "source": "BrickSim@76815250 native/modules/bricksim/physx/assembly.cppm (AssemblyThresholds) as set by RoCo config/system_config.json",
+    "assembly": {
+      "distance_tolerance_m": 0.001,
+      "max_penetration_m": 0.005,
+      "z_angle_tolerance_deg": 5.0,
+      "required_force_n": 1.0,
+      "yaw_tolerance_deg": 5.0,
+      "position_tolerance_m": 0.002
+    },
+    "breakage": {
+      "source": "BrickSim@76815250 native/modules/bricksim/physx/breakage.cppm BreakageThresholds defaults; RoCo does not override them",
+      "friction_coefficient": 0.2,
+      "preloaded_force_n": 3.5,
+      "breakage_cooldown_time_s": 0.05
+    },
+    "geometry": {
+      "stud_pitch_m": 0.008,
+      "plate_height_m": 0.0032,
+      "brick_height_m": 0.0096,
+      "stud_height_m": 0.0017
+    }
+  },
+  "postconditions": {
+    "source": "chosen for this evaluator; not calibrated against real bricks",
+    "seated_xy_tol_m": 0.001,
+    "seated_z_tol_m": 0.0008,
+    "seated_tilt_tol_deg": 2.0,
+    "seated_yaw_tol_deg": 2.0,
+    "lifted_z_m": 0.003,
+    "structure_move_tol_m": 0.0015,
+    "settle_steps": 60,
+    "probe": {
+      "enabled": true,
+      "weight_ratio": 1.5,
+      "steps": 4,
+      "observe_steps": 12,
+      "lift_tol_m": 0.0005,
+      "note": "upward force of weight_ratio x the brick's own weight (physics:mass authored by BrickSim) for `steps` physics steps after release, retreat and settling; the largest rise over steps+observe_steps is compared with lift_tol_m. An unwelded brick rises ~10 mm and falls back; a welded one does not move."
+    },
+    "grasp_min_lift_m": 0.01
+  },
+  "baseline": {
+    "policy": "privileged waypoint FSM derived from rocobrick.policy.NaivePolicy (MIT); exact brick poses from the simulator; goal_fsm picks the arm and the symmetric goal turn by IK residual and re-aims the place waypoints with the brick's measured pose in the gripper",
+    "privileged": true,
+    "max_joint_step_rad": 0.005,
+    "pregrasp_z_units": 4.0,
+    "grasp_z_units": 0.97,
+    "preplace_z_units": 3.0,
+    "press_depth_units": 0.3,
+    "gripper_open": 0.2,
+    "gripper_closed": 0.0,
+    "max_steps_per_brick": 6000,
+    "inhand_correction": true,
+    "press_depth_note": "RoCo NaivePolicy presses 0.12 u (1.15 mm) past the seat; with the in-hand pose corrected that peaked at 0.86 N, below BrickSim's 1 N trigger (it only worked uncorrected because the brick sags ~0.8 mm in the gripper)",
+    "reach_tol_m": 0.005,
+    "reach_tol_rad": 0.05,
+    "stop_on_engagement": true,
+    "stop_on_engagement_note": "goal_fsm stops the press at the first BrickSim 'assembled' event for the placed brick (privileged engine signal; press_depth_units is then only the travel limit). Without it the arm keeps pushing the already welded structure 2.9 mm into the table and PhysX pushes the free baseplate sideways.",
+    "fingertip": {
+      "release_above_seat_m": 0.002,
+      "lift_m": 0.008,
+      "press_below_release_m": 0.006,
+      "max_joint_step_rad": 0.002,
+      "note": "--press-mode fingertip: release 2 mm above the seat (brick drops onto the stud tops), lift 8 mm, close the empty fingers, drive the TCP 6 mm below the release height (stopping at BrickSim's assembled event), lift 8 mm, retreat. The push goes through the arm joints, not through finger friction."
+    }
+  },
+  "faults": {
+    "lateral_offset": {
+      "dx_m": 0.003,
+      "dy_m": 0.0
+    },
+    "angle_error": {
+      "yaw_deg": 9.0
+    },
+    "partial_engagement": {
+      "shift_studs": [
+        1,
+        0
+      ]
+    },
+    "not_fully_pressed": {
+      "hover_above_seat_m": 0.0012
+    },
+    "insufficient_support": {
+      "skip_parts": "parents of the faulted part"
+    },
+    "lifted_on_release": {
+      "keep_closed": true
+    },
+    "damaging_build": {
+      "towards_part": "1",
+      "distance_m": 0.03,
+      "height_units": 0.5
+    }
+  },
+  "randomization": {
+    "note": "v1 uses no physics randomization; seeds only drive numpy/random and the storage arrangement order",
+    "friction": null,
+    "mass": null,
+    "calibration_error": null
+  }
+}
