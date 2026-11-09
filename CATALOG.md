@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-20 tools, 127 skills, 2 policies, 1 recipe and 1 paper.
+21 tools, 127 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -24,6 +24,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grounding-dino`](#grounding-dino) | perceive | Grounding DINO zero-shot object detection — natural-language queries to labeled 2D bounding boxes with confidence scores. | any |
 | [`locate-anything`](#locate-anything) | perceive | NVIDIA LocateAnything-3B (non-commercial licence) run locally on a GPU. | any |
 | [`molmo`](#molmo) | perceive | Visual pointing and Q&A via the Molmo VLM served from a self-hosted vLLM endpoint (OpenAI-compatible API). | any |
+| [`omdet-turbo`](#omdet-turbo) | perceive | OmDet-Turbo fast open-vocabulary detection (omlab/omdet-turbo-swin-tiny-hf, Apache-2.0). | any, *tuned on* yam-station-orbbec-overhead |
 | [`owlv2`](#owlv2) | perceive | OWLv2 open-vocabulary detection (google/owlv2-*, Apache-2.0) in two modes. | any |
 | [`pose6d`](#pose6d) | perceive | 6D pose of a known rigid part from depth. | any |
 | [`sahi`](#sahi) | perceive | Slicing-aided detection (SAHI) of small parts. | any |
@@ -293,6 +294,17 @@ Visual pointing and Q&A via the Molmo VLM served from a self-hosted vLLM endpoin
   - `molmo.point_prompt`: Point at a named object in an image; returns pixel coordinates.
   - `molmo.query`: Free-form visual question answering via Molmo.
   - `molmo.query_yes_no`: Yes/no visual question answering via Molmo; coerces the reply to a bool.
+
+### omdet-turbo
+
+perceive · robots: any, *tuned on* yam-station-orbbec-overhead · tasks: pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/omdet-turbo/SKILL.md) · [upstream](https://github.com/huggingface/transformers/tree/b39d97c836e8d9f0ee6035a87c7a3ce5eaea43a8/src/transformers/models/omdet_turbo)
+
+OmDet-Turbo fast open-vocabulary detection (omlab/omdet-turbo-swin-tiny-hf, Apache-2.0) -- text prompts to labelled boxes in grounding-dino's shape at ~0.02 s a 640 x 480 frame and 0.6 GB of GPU memory, about 10x faster than owlv2 and grounding-dino. Use for video-rate re-detection of table-scale objects (an open box, a tray, a bin, a board, a held part) in closed loops or as a cheap sahi backend; on 15-30 px parts at ~1 m (cubes, plugs, bricks) it finds fewer than owlv2, so use owlv2 there.
+
+- **Weights**: `hf://omlab/omdet-turbo-swin-tiny-hf@7fe93cecfb770c4d76cf71163956221249cab566`
+- **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
+- **Functions**:
+  - `omdet-turbo.detect`: Fast open-vocabulary detection from text prompts (labelled boxes + scores, grounding-dino's shape).
 
 ### owlv2
 
