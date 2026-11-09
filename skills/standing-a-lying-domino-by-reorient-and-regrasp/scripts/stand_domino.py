@@ -2003,12 +2003,85 @@ def run(
             )
         out["facing_deg"] = 0.0
 
-        # --- pick (this arm, top-down across the width near one end), lift.
+        # --- the helper first, empty: short of the handover point along its approach, its jaws squared across a
+        # flat tile's thickness, the way round (they are symmetric) that leaves its last joint the most room for
+        # the quarter roll in either direction. Done before the pick: this arm's pinch is a stiff hinge, and the
+        # tile sagged in it 7 to 25 deg while it waited at the handover point.
+        n_flat = np.array([0.0, 0.0, -1.0])
+        rb = _frame(w_dir, n_flat, b_approach, b_close)
+        pre_b = hp - (tw / 2.0 - float(helper_bite)) * w_dir - 2.0 * float(retreat) * w_dir
+        b_start, _ = hand_b.pose()
+        why = hand_b.grip(tt + 2.0 * float(grip_clearance))
+        if not why:
+            why = hand_b.go(pre_b, rb)
+        rate_b = hand_b.roll_rate(b_approach) if not why else 1.0
+        for _ in range(TURN_TRIES):
+            if why:
+                break
+            _, rb_now = hand_b.pose()
+            err = wrap(turn_about(rb_now @ b_approach, rb_now @ b_close, n_flat), True)
+            if abs(err) <= float(roll_tolerance_deg):
+                break
+            qb = hand_b.q()
+            if qb.size == 0:
+                why = "no joint reading for the helper"
+                break
+            last_b = qb.size - 1
+
+            def room(o: float, qb: np.ndarray = qb, last_b: int = last_b) -> float:
+                ends = [qb[last_b] + math.radians(o + u) / rate_b for u in (-90.0, 90.0)]
+                return max(
+                    min(e - float(hand_b.lower[last_b]), float(hand_b.upper[last_b]) - e)
+                    for e in ends
+                )
+
+            ways = [err + m * 180.0 for m in (-2, -1, 0, 1, 2)]
+            ways = [o for o in ways if hand_b.fits(last_b, qb[last_b] + math.radians(o) / rate_b)]
+            if not ways:
+                why = "the helper's last joint has no room to square its jaws"
+                break
+            why = hand_b.roll(max(ways, key=room), float(pitch_step_deg), b_approach)
+        else:
+            why = why or "the helper's jaws stayed off square"
+        if not why:
+            p_now, rb_now = hand_b.pose()
+            if float(np.linalg.norm(p_now - pre_b)) > CENTRE_TOLERANCE:
+                why = hand_b.line(pre_b, rb_now)
+        if why:
+            return finish("unreachable", f"the helper to the handover point: {why}; nothing picked")
+        _, rb_now = hand_b.pose()
+        qb = hand_b.q()
+        last_b = qb.size - 1
+        # Which way the tile's far end (the helper's) must point so the roll that brings it up fits.
+        side = np.cross(z_up, w_dir)
+        fits_up = []
+        for f_dir in (side, -side):
+            up = turn_about(rb_now @ b_approach, f_dir, z_up)
+            end_q = qb[last_b] + math.radians(up) / rate_b if qb.size else 0.0
+            if not qb.size or hand_b.fits(last_b, end_q):
+                margin = (
+                    min(end_q - float(hand_b.lower[last_b]), float(hand_b.upper[last_b]) - end_q)
+                    if qb.size
+                    else 0.0
+                )
+                fits_up.append((margin, f_dir))
+        if not fits_up:
+            return finish(
+                "unreachable",
+                "the helper's last joint has no room for the quarter roll; nothing picked",
+            )
+        e_target = -max(fits_up, key=lambda mf: mf[0])[
+            1
+        ]  # this arm's end of the tile, after the turn
+
+        # --- pick (this arm, top-down across the width near one end): the end whose turn onto e_target is
+        # shortest; lift.
         cur = rot_now()
         order = sorted(grasp_rots, key=lambda g: abs(jaw_error(cur, g)))
-        e_n = heading(theta)
-        if float(e_n @ np.array([*(hp[:2] - center[:2]), 0.0])) < 0.0:
-            e_n = -e_n
+        e_n = min(
+            (heading(theta), heading(theta + 180.0)),
+            key=lambda e: abs(turn_about(z_up, e, e_target)),
+        )
         s_h = max(0.0, min(float(handover_grip_offset), tl / 2.0))
         grasp_point = np.array([*(center[:2] + s_h * e_n[:2]), table_z + gh])
         g_rot = next(
@@ -2020,18 +2093,21 @@ def run(
         if why is not None:
             return why
         g_meas, e_local = held["g"], held["e"]
-        r_now = turn_last(
-            lambda r: wrap(turn_about(r @ local_approach, r @ local_close, w_dir), True),
-            _xyz(here()),
-            "yaw_turn_deg",
-            period=180.0,
-            step_deg=float(pitch_step_deg),
-        )
-        err = wrap(turn_about(r_now @ local_approach, r_now @ local_close, w_dir), True)
+
+        def square_to_target(at: np.ndarray) -> float:
+            r = turn_last(
+                lambda r: turn_about(r @ local_approach, r @ e_local, e_target),
+                at,
+                "yaw_turn_deg",
+                step_deg=float(pitch_step_deg),
+            )
+            return turn_about(r @ local_approach, r @ e_local, e_target)
+
+        err = square_to_target(_xyz(here()))
         if abs(err) > float(roll_tolerance_deg):
             return finish(
                 "unreachable",
-                f"the held tile's width stayed {err:+.0f} deg off the helper's approach; still holding",
+                f"the held tile stayed {err:+.0f} deg off its heading for the handover; still holding",
             )
 
         # --- this arm to the handover point: the tile's centre at hp.
@@ -2044,69 +2120,25 @@ def run(
         why = hand_a.line(_xyz(here()) + (hp - c_now), r_a)
         if why:
             return finish("unreachable", f"to the handover point: {why}; still holding")
-        # The chained steps leave the roll free: square the held tile's width along the helper's approach again
-        # (in a station twin it had drifted 35 deg, and the helper's quarter roll then stood it at 55 deg).
-        r_now = turn_last(
-            lambda r: wrap(turn_about(r @ local_approach, r @ local_close, w_dir), True),
-            _xyz(here()),
-            "yaw_turn_deg",
-            period=180.0,
-            step_deg=float(pitch_step_deg),
-        )
-        err = wrap(turn_about(r_now @ local_approach, r_now @ local_close, w_dir), True)
+        # The chained steps leave the roll free: square the held tile again (in a station twin its width had drifted
+        # 35 deg off the helper's approach, and the helper's quarter roll then stood it at 55 deg).
+        err = square_to_target(_xyz(here()))
         if abs(err) > float(roll_tolerance_deg):
             return finish(
                 "unreachable",
-                f"at the handover point the held tile's width stayed {err:+.0f} deg off the helper's approach; "
-                "still holding",
+                f"at the handover point the held tile stayed {err:+.0f} deg off its heading; still holding",
             )
         why = holding(width())
         if why:
             return finish("dropped", f"at the handover point: {why}")
 
-        # --- the helper: level approach along w_dir, jaws closing across the thickness (vertical), at the far end.
+        # --- the helper in: from where it waits, straight along its approach to the far end, and close.
         c_now, e_now, r_a = tile_from_a()
         n_t = r_a @ local_approach  # the tile's thickness axis (down while it lies)
         n_t = n_t / (np.linalg.norm(n_t) or 1.0)
-        rb = _frame(w_dir, n_t, b_approach, b_close)
         g_b = c_now - float(helper_offset) * e_now - (tw / 2.0 - float(helper_bite)) * w_dir
-        pre_b = g_b - float(retreat) * 2.0 * w_dir
-        b_start, _ = hand_b.pose()
-        why = hand_b.grip(tt + 2.0 * float(grip_clearance))
-        if not why:
-            why = hand_b.go(pre_b, rb)
-        if not why:
-            # The solver may leave the roll free: read the jaws back and square them across the thickness, the
-            # way round (the jaws are symmetric) that leaves the last joint room for the quarter roll upright.
-            rate_b = hand_b.roll_rate(b_approach)
-            up_roll = turn_about(w_dir, -e_now, z_up)
-            for _ in range(TURN_TRIES):
-                _, rb_now = hand_b.pose()
-                err = wrap(turn_about(rb_now @ b_approach, rb_now @ b_close, n_t), True)
-                if abs(err) <= float(roll_tolerance_deg):
-                    break
-                qb = hand_b.q()
-                last_b = qb.size - 1
-                ways = sorted((err + m * 180.0 for m in (-2, -1, 0, 1, 2)), key=abs)
-                roomy = [
-                    o
-                    for o in ways
-                    if qb.size
-                    and hand_b.fits(last_b, qb[last_b] + math.radians(o) / rate_b)
-                    and hand_b.fits(last_b, qb[last_b] + math.radians(o + up_roll) / rate_b)
-                ]
-                if not roomy:
-                    why = f"the helper's last joint has no room to square its jaws and roll {up_roll:+.0f} deg"
-                    break
-                why = hand_b.roll(roomy[0], float(pitch_step_deg), b_approach)
-                if why:
-                    break
-            else:
-                why = f"the helper's jaws stayed {err:+.0f} deg off the tile's thickness"
-        if not why:
-            p_now, rb_now = hand_b.pose()
-            if float(np.linalg.norm(p_now - pre_b)) > CENTRE_TOLERANCE:
-                why = hand_b.line(pre_b, rb_now)
+        _, rb_now = hand_b.pose()
+        why = hand_b.line(g_b - 2.0 * float(retreat) * w_dir, rb_now)
         if not why:
             why = hand_b.line(g_b, rb_now)
         if why:
