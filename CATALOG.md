@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-24 tools, 131 skills, 2 policies, 1 recipe and 1 paper.
+24 tools, 132 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -159,6 +159,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`previewing-target-overlay`](#previewing-target-overlay) | verify | Checks a target gripper pose before the arm moves. | any |
 | [`registering-assembled-board-to-reference`](#registering-assembled-board-to-reference) | verify | Aligns a top-down view of the part-built jigsaw (overhead frame, rectified view or wrist mosaic) to the box picture… | any |
 | [`simulating-a-domino-layout-before-building`](#simulating-a-domino-layout-before-building) | verify | Checks a planned domino line or curve in a rigid-body simulation before the arm builds it. | any |
+| [`verifying-a-brick-connection-by-pull-up`](#verifying-a-brick-connection-by-pull-up) | verify | Checks that a brick just pressed onto studs is clutched by lifting it a few millimetres, still gripped, in 0.5 mm… | any |
 | [`verifying-a-cable-route`](#verifying-a-cable-route) | verify | Judge a finished cable route from a camera rather than from an evaluator. | any |
 | [`verifying-a-domino-cascade-from-video`](#verifying-a-domino-cascade-from-video) | verify | Decides from a short RGB(-D) clip of the overhead or a wrist camera which tiles of a planned domino line fell and… | any |
 | [`verifying-articulation-displacement`](#verifying-articulation-displacement) | verify | Checks from the camera whether a drawer or a door really moved as asked. | any |
@@ -2299,6 +2300,22 @@ Checks a planned domino line or curve in a rigid-body simulation before the arm 
   - `push_failed`: The first tile did not fall. Either the trigger stroke would end within 6 mm of slot 1, so the trigger skill would not push a line this tight (try the `kick` trigger), or the stroke or kick did not carry the tile past 10 deg.
   - `sim_unavailable`: The physics engine is not installed or rejected the model; nothing was judged.
   - `invalid_input`: Fewer than two slots, a slot without a facing, two neighbouring slots overlapping, no table height, a target that is not after slot 0, a tile size that is not height &gt; width &gt; thickness, an unknown trigger, or a non-positive speed, timestep or mass (also the route of a raised error).
+
+### verifying-a-brick-connection-by-pull-up
+
+verify · robots: any · tasks: assembly, lego, insertion · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/verifying-a-brick-connection-by-pull-up/SKILL.md) · [upstream](https://github.com/cmu-mfi/vibro_tactile_toolbox/blob/30fb15bb05a91606dfd4725f1f37352207f0299f/src/skill/common_skills.py)
+
+Checks that a brick just pressed onto studs is clutched by lifting it a few millimetres, still gripped, in 0.5 mm steps and watching the arm - a clutched brick holds the hand below its command (tracking lag, or joint effort where published) and the lift stops there and puts it back down before the clutch lets go; a loose brick comes up with the hand and is put back on its seat, still held, for another press. CMU MFI's PullUp skill (vibro_tactile_toolbox) with proprioception standing in for its wrist force-torque sensor. Use when a brick (or a press-fit, snap-fit or peg) has just been pressed and the hand still grips it - right after pressing-a-brick-onto-studs or pressing-in-with-guarded-push - and a wrist depth read cannot tell a seated brick from one resting on stud tops, or the hold must be confirmed before letting go.
+
+- **In**: -
+- **Out**: `connected` bool, `rise` float, `lag_over_baseline` float, `effort_ratio` float, `steps` int, `signal` str, `efforts_available` bool, `released` bool, `jaw_width` float
+- **Calls**: connector `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`pull_up_check`](skills/verifying-a-brick-connection-by-pull-up/scripts/pull_up_check.py)
+- **Exits**:
+  - `connected`: A lift step left the hand more than hold_lag (1.5 mm) below its command beyond the start's lag, or a joint effort residual over effort_threshold; the hand was put back down at once, then (release, default) opened and rose `retreat`. `signal` says which fired.
+  - `not_connected`: The whole lift (lift_height, 3 mm) ran with the hand following its command and the jaws still holding something; the brick came up with the hand (or the jaws slid on it). It is put back at the start, still held (put_back), ready for another press.
+  - `not_holding`: The jaws read at their stop before the lift (nothing moved), or after a free lift (the brick slipped out).
+  - `blocked`: The top of the lift is out of reach (IK preview - a stall there would read as connected), a move was refused, or signal=effort without published efforts; `detail` says which.
 
 ### verifying-a-cable-route
 
