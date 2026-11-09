@@ -248,11 +248,15 @@ class YamDominoStation:
                 try:
                     self._drive(side - self.offset, R, speed=0.03, timeout_s=timeout_s)
                 except Refused as exc:
-                    self.command_log.append({"wall_s": time.time(), "fault_motion_refused": str(exc)})
+                    self.command_log.append(
+                        {"wall_s": time.time(), "fault_motion_refused": str(exc)}
+                    )
         off1 = self._offset_target if self._offset_target is not None else self.offset
         self._offset_target = None
         try:
-            ok = self._drive(goal_p, goal_R, speed=max(1e-3, speed_m_s), timeout_s=timeout_s, offset_to=off1)
+            ok = self._drive(
+                goal_p, goal_R, speed=max(1e-3, speed_m_s), timeout_s=timeout_s, offset_to=off1
+            )
         except Refused as exc:
             return self._refuse("move_pose", target, str(exc))
         self.command_log.append(
@@ -277,9 +281,14 @@ class YamDominoStation:
         except Refused as exc:
             return self._refuse("move_joints", {"points": len(path)}, str(exc))
         qs = [self.q_cmd.copy(), *path]
-        durs = [max(np.abs(b - a).max() / max(speed_rad_s, 1e-4), self.physics.control_dt) for a, b in zip(qs, qs[1:])]
+        durs = [
+            max(np.abs(b - a).max() / max(speed_rad_s, 1e-4), self.physics.control_dt)
+            for a, b in zip(qs, qs[1:], strict=False)
+        ]
         ok = self._run(qs, durs, timeout_s=timeout_s)
-        self.command_log.append({"wall_s": time.time(), "sim_s": self.sim_t, "move_joints": len(path), "ok": ok})
+        self.command_log.append(
+            {"wall_s": time.time(), "sim_s": self.sim_t, "move_joints": len(path), "ok": ok}
+        )
         return {"ok": True} if ok else {"ok": False, "error": "timeout before arrival"}
 
     def set_gripper(self, width_m: float, *, timeout_s: float) -> dict:
@@ -293,7 +302,12 @@ class YamDominoStation:
             self._on_release(holding_tile)
             if self.fault == "stuck_jaws" and self.releases - 1 == self.fault_index:
                 self.command_log.append(
-                    {"wall_s": time.time(), "sim_s": self.sim_t, "grip": width_m, "ignored": "stuck_jaws"}
+                    {
+                        "wall_s": time.time(),
+                        "sim_s": self.sim_t,
+                        "grip": width_m,
+                        "ignored": "stuck_jaws",
+                    }
                 )
                 self._advance(0.5)
                 return {"ok": True}
@@ -309,7 +323,9 @@ class YamDominoStation:
                         settle=False,
                     )
                 except Refused as exc:
-                    self.command_log.append({"wall_s": time.time(), "fault_motion_refused": str(exc)})
+                    self.command_log.append(
+                        {"wall_s": time.time(), "fault_motion_refused": str(exc)}
+                    )
         elif width_m < self.spec.tile.thickness + 0.001:
             self._on_close()
         self._ramp_gripper(self.grip_cmd, target_cmd, dur)
@@ -341,8 +357,13 @@ class YamDominoStation:
                 f"{what}: tool centre {p[2] - self.calibrated_table_z:.4f} m over the table is under "
                 f"the station's {self.tcp_floor_m:.3f} m floor"
             )
-        if any(v < lo - 1e-6 or v > hi + 1e-6 for v, lo, hi in zip(p, self.box_min, self.box_max)):
-            raise Refused(f"{what}: tool centre {np.round(p, 4).tolist()} outside the station's tool box")
+        if any(
+            v < lo - 1e-6 or v > hi + 1e-6
+            for v, lo, hi in zip(p, self.box_min, self.box_max, strict=False)
+        ):
+            raise Refused(
+                f"{what}: tool centre {np.round(p, 4).tolist()} outside the station's tool box"
+            )
 
     def _cmd_tcp(self):
         """Commanded TCP as reported (FK of the commanded joints minus the calibration offset)."""
@@ -395,13 +416,17 @@ class YamDominoStation:
             q = q_i
         return qs, segs, (off0, off1)
 
-    def _drive(self, goal_p, goal_R, *, speed, timeout_s, offset_to=None, grip_to=None, settle=True) -> bool:
+    def _drive(
+        self, goal_p, goal_R, *, speed, timeout_s, offset_to=None, grip_to=None, settle=True
+    ) -> bool:
         qs, segs, (off0, off1) = self.plan(goal_p, goal_R, offset_to=offset_to)
         durs = [
             max(d / speed, a / self.angular_rate, j / self.joint_rate, self.physics.control_dt)
             for d, a, j in segs
         ]
-        return self._run(qs, durs, timeout_s=timeout_s, offsets=(off0, off1), grip_to=grip_to, settle=settle)
+        return self._run(
+            qs, durs, timeout_s=timeout_s, offsets=(off0, off1), grip_to=grip_to, settle=settle
+        )
 
     def _run(self, qs, durs, *, timeout_s, offsets=None, grip_to=None, settle=True) -> bool:
         dt = self.physics.control_dt
@@ -436,8 +461,21 @@ class YamDominoStation:
         return True
 
     def _refuse(self, what: str, request, reason: str) -> dict:
-        self.refusals.append({"wall_s": time.time(), "sim_s": self.sim_t, "call": what, "request": request, "reason": reason})
-        return {"ok": False, "error": reason, "failure_type": "unreachable", "refused_before_motion": True}
+        self.refusals.append(
+            {
+                "wall_s": time.time(),
+                "sim_s": self.sim_t,
+                "call": what,
+                "request": request,
+                "reason": reason,
+            }
+        )
+        return {
+            "ok": False,
+            "error": reason,
+            "failure_type": "unreachable",
+            "refused_before_motion": True,
+        }
 
     # ---- internals ---------------------------------------------------------
     @staticmethod
@@ -484,7 +522,9 @@ class YamDominoStation:
 
     def _on_close(self) -> None:
         self.closes += 1
-        self.events.append({"event": "close", "sim_s": self.sim_t, "wall_s": time.time(), "index": self.closes - 1})
+        self.events.append(
+            {"event": "close", "sim_s": self.sim_t, "wall_s": time.time(), "index": self.closes - 1}
+        )
 
     def _on_release(self, tile: str) -> None:
         self.releases += 1

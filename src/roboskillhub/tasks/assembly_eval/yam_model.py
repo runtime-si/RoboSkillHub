@@ -197,12 +197,15 @@ def _fmt(v) -> str:
 
 
 def build_mjcf(
-    spec: DominoSceneSpec, cfg: YamPhysicsConfig = YamPhysicsConfig(), base_table_z: float | None = None
+    spec: DominoSceneSpec,
+    cfg: YamPhysicsConfig | None = None,
+    base_table_z: float | None = None,
 ) -> tuple[str, dict]:
     """The domino scene (same table, rack and tiles as ``domino_mujoco.build_mjcf``) with one
     YAM arm instead of the floating hand. The base stands ``base_over_table_m`` over
     ``base_table_z`` (the calibrated table; default the scene's), so a table built higher than
     its calibration does not lift the arm. Returns (xml, provenance)."""
+    cfg = cfg or YamPhysicsConfig()
     src = Path(cfg.asset_xml) if cfg.asset_xml else default_asset_xml()
     shipped = _shipped_xml(src)
     boxes = finger_boxes(shipped)
@@ -216,7 +219,7 @@ def build_mjcf(
         arm,
     )
     # every arm geom: collides with the scene (contype 2 & conaffinity 1), never with the arm
-    arm = re.sub(r'<geom (?![^>]*contype)', '<geom contype="2" conaffinity="1" ', arm)
+    arm = re.sub(r"<geom (?![^>]*contype)", '<geom contype="2" conaffinity="1" ', arm)
     for tip in ("tip_left", "tip_right"):
         # tip meshes: visual only; explicit pad and root boxes instead
         arm = re.sub(
@@ -407,11 +410,11 @@ class YamDominoPhysics:
 
     name = "mujoco-yam"
 
-    def __init__(self, cfg: YamPhysicsConfig = YamPhysicsConfig(), substeps: int | None = None):
+    def __init__(self, cfg: YamPhysicsConfig | None = None, substeps: int | None = None):
         import mujoco
 
         self._mj = mujoco
-        self.cfg = cfg
+        self.cfg = cfg or YamPhysicsConfig()
         self._substeps = substeps
         self._steps = 0
 
