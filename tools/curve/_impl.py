@@ -626,12 +626,30 @@ def _respace(Y: np.ndarray, target_len: float) -> np.ndarray:
     partly-observed cloud bunch into the visible stretch. Rescaling to the
     length the rod had is the cheapest statement of that constraint, and the one
     that keeps an occluded tip where the material says it must be.
+
+    THE LENGTH IS RESTORED ALONG THE CURVE, NOT BY SCALING IT. Scaling the
+    polyline about a node is a homothety: it multiplies every radius of
+    curvature by the same factor and moves each node off the rod in proportion
+    to its distance from the fixed one. Measured on a 380 mm quarter arc whose
+    update came back 1 % short, scaling about node 0 left the far end 4.7 mm off
+    the arc it had just been fitted to, the error growing node by node. Instead
+    the shape is kept and the missing (or surplus) length is added at (or
+    trimmed from) both ends, half each, along the end segments' own tangents.
     """
-    seg = np.linalg.norm(np.diff(Y, axis=0), axis=1)
-    total = float(seg.sum())
+    keep = np.concatenate([[True], np.linalg.norm(np.diff(Y, axis=0), axis=1) > 1.0e-12])
+    P = Y[keep]
+    if len(P) < 2:
+        return Y
+    s = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))])
+    total = float(s[-1])
     if total < 1.0e-9:
         return Y
-    Y = Y[0] + (Y - Y[0]) * (target_len / total)
-    s = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(Y, axis=0), axis=1))])
-    want = np.linspace(0.0, s[-1], len(Y))
-    return np.stack([np.interp(want, s, Y[:, k]) for k in range(3)], axis=1)
+    half = 0.5 * (float(target_len) - total)
+    want = np.linspace(-half, total + half, len(Y))
+    out = np.stack([np.interp(want, s, P[:, k]) for k in range(3)], axis=1)
+    head = (P[1] - P[0]) / (s[1] - s[0])
+    tail = (P[-1] - P[-2]) / (s[-1] - s[-2])
+    before, after = want < 0.0, want > total
+    out[before] = P[0] + want[before, None] * head
+    out[after] = P[-1] + (want[after, None] - total) * tail
+    return out
