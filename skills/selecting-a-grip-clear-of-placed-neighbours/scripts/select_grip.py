@@ -23,12 +23,14 @@ from gap import NodeContext
 RES_M = 0.0002
 """Raster resolution [m]: 0.2 mm, a tenth of a 2 mm fingertip margin."""
 
-FINGER_WIDTH_M = 0.008
-FINGER_THICKNESS_M = 0.004
+FINGER_WIDTH_M = 0.0155
+FINGER_THICKNESS_M = 0.0039
 """Fingertip footprint on the table: width along the jaw (across the closing direction) and
-thickness along the closing direction. Assumed for the YAM linear_4310 tapered tips (the
-same 4 mm half-width segmenting-and-picking-pieces-classical assumes); measure the real tips
-and pass them."""
+thickness along the closing direction. Measured on the YAM station model's linear_4310 blade
+meshes (tip_left.stl / tip_right.stl placed by the station MJCF, gripper frame, finger
+command 0 and 10 mm): the bottom 1 mm of each blade spans 14.2 x 3.5-3.6 mm, the bottom 3 mm
+15.5 x 3.9 mm; the blade bottom is 10 mm below the grasp site. The real tips (rubber, wear)
+are not measured."""
 
 RELEASE_TRAVEL_M = 0.001
 """Outward travel of each fingertip to let go of the piece before lifting."""

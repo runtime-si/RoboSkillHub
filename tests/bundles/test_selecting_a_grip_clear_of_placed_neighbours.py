@@ -14,6 +14,8 @@ from .jigsaw_cut import make_puzzle
 BUNDLE = "selecting-a-grip-clear-of-placed-neighbours"
 CELL = 0.0225
 NB = {"west": (0, 1), "east": (2, 1), "south": (1, 0), "north": (1, 2)}
+NARROW = {"finger_width": 0.008, "finger_thickness": 0.004}
+"""Narrow 8 x 4 mm tips for the geometry tests (the station model's blades are 15.5 x 3.9 mm)."""
 
 
 @pytest.fixture(scope="module")
@@ -69,7 +71,7 @@ def test_a_lone_piece_is_gripped_through_its_centre(script, puzzle):
 def test_the_fingertips_stay_clear_of_one_or_two_neighbours(script, puzzle, sides):
     neighbours = [puzzle.outline(*NB[d]) for d in sides]
     out = script.run(
-        FakeContext(), target_outline=puzzle.outline(1, 1), neighbour_outlines=neighbours
+        FakeContext(), target_outline=puzzle.outline(1, 1), neighbour_outlines=neighbours, **NARROW
     )
     assert out["route"] == "grip_found", out["detail"]
     assert out["clearance_m"] >= 0.0005
@@ -124,6 +126,7 @@ def test_occupied_cells_stand_in_for_outlines(script, puzzle):
         occupied_cells=[[0, 1]],
         cell_size=[CELL, CELL],
         board_origin=[0.0, 0.0],
+        **NARROW,
     )
     assert out["route"] == "grip_found", out["detail"]
     assert _footprint_clearance(out, [puzzle.outline(0, 1)]) >= 0.0005
@@ -162,6 +165,7 @@ def test_a_mask_turned_into_its_slot_gives_the_pick_grip(script, puzzle):
         rotation_deg=-lying,
         slot_center=slot.tolist(),
         neighbour_outlines=neighbours,
+        **NARROW,
     )
     assert out["route"] == "grip_found", out["detail"]
     u, v = out["pick_grip_pixel"]
@@ -187,3 +191,14 @@ def test_gripper_limits_and_bad_inputs(script, puzzle):
     empty = np.zeros((20, 20), np.uint8)
     out = script.run(FakeContext(), piece_mask=empty, metres_per_pixel=0.001, slot_center=[0, 0])
     assert out["route"] == "no_clear_grip"
+
+
+def test_the_station_blades_need_an_offset_beside_two_neighbours(script, puzzle):
+    # Default tips are the station model's 15.5 x 3.9 mm blades: beside west and south
+    # neighbours no tangent grip clears, so the piece is set down offset and pushed in.
+    neighbours = [puzzle.outline(*NB[d]) for d in ("west", "south")]
+    out = script.run(
+        FakeContext(), target_outline=puzzle.outline(1, 1), neighbour_outlines=neighbours
+    )
+    assert out["route"] == "only_offset_place", out["detail"]
+    assert _footprint_clearance(out, neighbours, fw=0.0155, ft=0.0039) >= 0.0004

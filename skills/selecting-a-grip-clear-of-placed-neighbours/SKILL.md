@@ -13,7 +13,7 @@ description: Chooses where a two-finger gripper should hold a jigsaw piece, and
   grip on the piece as it lies (pixel and closing yaw) for the pick. Use when
   a jigsaw piece is about to be picked for a known slot with a parallel
   gripper (suction robots never meet this), after the slot and turn are
-  known; planning only, under 0.1 s on CPU (0.8 s with the offset search).
+  known; planning only, under 0.1 s on CPU (up to 1.5 s with the offset search).
 license: Apache-2.0
 compatibility: requires gap>=0.1
 metadata:
@@ -97,8 +97,9 @@ have to close diagonally, across a tab, or along the free row.
   `slot_center` (+ `image_yaw_deg`, `corners_px`).
 - `neighbour_outlines`, or `occupied_cells` + `cell_size` + `board_origin`
   (+ `tab_reach`).
-- Gripper: `finger_width` (8 mm), `finger_thickness` (4 mm), both assumed for
-  the YAM linear_4310 tapered tips - measure and pass them; `release_travel`
+- Gripper: `finger_width` (15.5 mm), `finger_thickness` (3.9 mm), measured on
+  the YAM station model's linear_4310 blade meshes (the real tips are not
+  measured); `release_travel`
   (1 mm), `max_opening` (94 mm), `min_grip` (6 mm), `min_clearance` (0.5 mm).
 - `allow_offset` (true), `top_k` (5).
 
@@ -120,36 +121,33 @@ have to close diagonally, across a tab, or along the free row.
 - **Board:** 10 x 10 generated cuts (22.5 mm cells), in the classic style and the random-cut style.
 - **Fill orders:** row by row from a corner (each new piece has its west and south neighbours); frame first, then rows; random.
 - **Each placement:** the skill is asked with the placed pieces round the slot as exact outlines, and again as occupied cells only.
-- **Fingertips:** 8 x 4 mm.
+- **Fingertips:** 15.5 x 3.9 mm (the station model's blades).
 
 | cut / order | grip_found | only_offset_place | no_clear_grip | median clearance |
 |---|---|---|---|---|
-| classic / rows | 79 | 21 | 0 | 3.6 mm |
-| classic / frame first | 81 | 4 | 15 | 6.0 mm |
-| classic / random | 59 | 9 | 32 | 5.6 mm |
-| random-cut / rows | 68 | 29 | 3 | 3.0 mm |
-| random-cut / frame first | 71 | 13 | 16 | 4.6 mm |
-| random-cut / random | 56 | 4 | 40 | 5.1 mm |
+| classic / rows | 19 | 81 | 0 | 3.5 mm |
+| classic / frame first | 36 | 49 | 15 | 4.0 mm |
+| classic / random | 50 | 12 | 38 | 3.0 mm |
+| random-cut / rows | 19 | 76 | 5 | 2.6 mm |
+| random-cut / frame first | 36 | 45 | 19 | 3.0 mm |
+| random-cut / random | 51 | 7 | 42 | 3.2 mm |
 
 **By sides placed round the slot**, over all six runs:
 
-- 0-1 sides: always `grip_found` (198 / 198).
-- 2 sides: 216 `grip_found`, 80 `only_offset_place`, 9 `no_clear_grip` (of 305). With the west and south neighbours placed, a tangent grip has to close along the free row or column across a knob, or diagonally between two knobs.
+- 0-1 sides: 196 `grip_found`, 2 `only_offset_place` (of 198).
+- 2 sides: 15 `grip_found`, 268 `only_offset_place`, 22 `no_clear_grip` (of 305). A 15.5 mm blade beside two placed neighbours almost never finds a tangent grip over free table; the piece is set down offset and pushed in.
 - 3 or 4 sides: 0 / 97. Every one is `no_clear_grip`: no tangent antipodal grip has both fingertips over free table, and an offset placement is blocked by the neighbours' knobs.
 
-A row-by-row order never makes a 3-sided slot, so it suits a parallel gripper; a frame-first order makes the last piece of each row 3-sided.
-
-**Before the tangency rule** (any contact counted), the same runs found 99-100 % `grip_found` in row order. Many of those grips pressed two sides inclined at 45 degrees to the pads, which would not hold.
+A row-by-row order never makes a 3-sided slot, so it suits a parallel gripper; with these blades most of its placements are offset-and-push.
 
 **Occupied cells only** (no outlines; cells grown by 0.33 cell):
 
-- grips found (`grip_found` or `only_offset_place`) in 37-48 % of placements, against 60-100 % with outlines;
-- every grip checked against the true outlines: 0 / 248 touched a neighbour, classic and random cuts.
-- With cells grown by only 0.28 cell, and before the tangency rule, 9 grips over the six runs touched a neighbour. Random-cut knobs reach up to 0.51 cell past their cell (classic: 0.30).
+- grips found in 25-38 % of placements, against 58-100 % with outlines;
+- every grip checked against the true outlines: 0 / 94 touched a neighbour on the classic cut, 2 / 104 on the random cut, whose knobs reach up to 0.51 cell past their cell (classic: 0.30).
 
 Give outlines (the placed pieces' masks from the wrist camera, put at their slot).
 
-Time: median 0.05 s; up to 0.8 s when the offset search runs.
+Time: median 0.08-0.48 s per placement, max 1.5 s; the offset search, which runs on most 2-sided slots with these blades, is most of it.
 
 **Fingertip size** (classic cut; counts are grip_found / only_offset_place / no_clear_grip):
 
@@ -158,8 +156,9 @@ Time: median 0.05 s; up to 0.8 s when the offset search runs.
 | 6 x 3 mm | 93 / 7 / 0 | 85 / 0 / 15 | 63 / 5 / 32 |
 | 8 x 4 mm | 79 / 21 / 0 | 81 / 4 / 15 | 59 / 9 / 32 |
 | 10 x 5 mm | 52 / 48 / 0 | 57 / 28 / 15 | 55 / 11 / 34 |
+| 15.5 x 3.9 mm (station model) | 19 / 81 / 0 | 36 / 49 / 15 | 50 / 12 / 38 |
 
-Narrower tips grip more pieces in place; 3 and 4-sided slots stay out of reach at every size.
+Narrower tips grip more pieces in place; 3 and 4-sided slots stay out of reach at every size. Trimming the blades narrower (or fitting narrow pads) is the cheapest way to more in-place grips.
 
 ## Limits
 
@@ -167,7 +166,8 @@ Narrower tips grip more pieces in place; 3 and 4-sided slots stay out of reach a
   piece's outline comes from a wrist-camera mask (about 0.3 mm per px) and
   the placed pieces' outlines from where they were put, which can be off by
   the arm's placement error: raise `min_clearance` to cover it.
-- **The fingertip footprint is a rectangle on the table** at the piece's
+- **The fingertip footprint is a rectangle on the table**, sized from the
+  station model's meshes, not the real blades, at the piece's
   level. A tapered tip narrower at the bottom has more room than this; a tip
   that holds the piece above its bottom edge may clear neighbours that are
   lower than its bottom. Neither is modelled.
@@ -183,8 +183,8 @@ Narrower tips grip more pieces in place; 3 and 4-sided slots stay out of reach a
 ## The constants, and why
 
 Each constant in `scripts/select_grip.py` carries its source: `RES_M` 0.2 mm,
-`FINGER_WIDTH_M` 8 mm and `FINGER_THICKNESS_M` 4 mm (assumed, as in
-segmenting-and-picking-pieces-classical), `RELEASE_TRAVEL_M` 1 mm,
+`FINGER_WIDTH_M` 15.5 mm and `FINGER_THICKNESS_M` 3.9 mm (the station model's
+blade meshes), `RELEASE_TRAVEL_M` 1 mm,
 `MIN_CLEARANCE_M` 0.5 mm, `MAX_OPENING_M` 94 mm (linear_4310 width_fit),
 `APPROACH_MARGIN_M` 3 mm, `MIN_GRIP_M` 6 mm, `ANGLE_STEP_DEG` 5,
 `OFFSET_STEP_M` 1 mm, `PAD_EDGE_M` 1 mm, `TAB_REACH` 0.33 (measured knob reach), the offset search

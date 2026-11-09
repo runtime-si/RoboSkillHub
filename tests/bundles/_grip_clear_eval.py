@@ -93,7 +93,7 @@ def main():
     ap.add_argument("--size", type=int, default=10)
     ap.add_argument("--orders", default="rows,frame,random")
     ap.add_argument("--styles", default="classic,wavy")
-    ap.add_argument("--finger", default="0.008,0.004", help="width,thickness in m")
+    ap.add_argument("--finger", default="0.0155,0.0039", help="width,thickness in m")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--cells-only", action="store_true", help="skip the exact-outline runs")
     ap.add_argument("--json", default="")
