@@ -69,6 +69,13 @@ def _now(ctx) -> float:
     return ctx.now() if ctx is not None else time.time()
 
 
+def _max_age(ctx) -> float:
+    """The station's trusted ``max_state_age_s`` when the context carries limits
+    (rsh-task/1.1), else this module's config."""
+    limits = getattr(ctx, "limits", None) or {}
+    return float(limits.get("max_state_age_s", CONFIG["max_observation_age_s"]))
+
+
 def _privileged_ok(ctx) -> bool:
     return bool(ctx is not None and ctx.privileged_allowed)
 
@@ -101,9 +108,7 @@ def _observation(skill, ctx, request: dict, key: str = "observation"):
     geom = d.get("geometry") or request.get("geometry")
     spec = spec_for(d.get("class") or request.get("class"), geom, request.get("studs"))
     obs = ObjectObservation.from_v1(d, spec.size_m)
-    ok, why, ftype = obs.check_usable(
-        _now(ctx), CONFIG["max_observation_age_s"], _privileged_ok(ctx)
-    )
+    ok, why, ftype = obs.check_usable(_now(ctx), _max_age(ctx), _privileged_ok(ctx))
     if not ok:
         return None, spec, _result(
             skill, ctx, "rejected", phase="validate", failure_type=ftype,
@@ -226,9 +231,7 @@ class EstimateHeldPose:
         spec = spec_for(h.get("class"), h.get("collision_geometry"), request.get("studs"))
         held = HeldObject.from_v1(h, spec)
         now = _now(ctx)
-        held, ev = check_held(
-            held, now, request.get("gripper_width_m"), CONFIG["max_observation_age_s"]
-        )
+        held, ev = check_held(held, now, request.get("gripper_width_m"), _max_age(ctx))
         obs_list = []
         if held.valid and "observation" in request:
             if "tcp_pose" not in request or "tcp_timestamp_s" not in request:
@@ -239,7 +242,7 @@ class EstimateHeldPose:
             T_tcp = pose_to_T(request["tcp_pose"], obs.frame_id)
             held, ev2 = estimate_from_observation(
                 held, obs, T_tcp, float(request["tcp_timestamp_s"]), now,
-                max_age_s=CONFIG["max_observation_age_s"], allow_privileged=_privileged_ok(ctx),
+                max_age_s=_max_age(ctx), allow_privileged=_privileged_ok(ctx),
             )  # fmt: skip
             ev.update(ev2)
             obs_list = [o]
@@ -303,7 +306,7 @@ class PlanReorientOrRegrasp:
             )
         r = plan_reorient_or_regrasp(
             obs, spec, from_contract_frame(pose_to_T(request["goal_pose"], obs.frame_id), spec.object_class), _workcell(request, obs.frame_id),
-            now_s=_now(ctx), max_age_s=CONFIG["max_observation_age_s"], allow_privileged=_privileged_ok(ctx),
+            now_s=_now(ctx), max_age_s=_max_age(ctx), allow_privileged=_privileged_ok(ctx),
             max_path_evals=min(int(request.get("max_path_evals", 120)), CONFIG["max_path_evals_cap"]),
             allow_staging=bool(request.get("allow_staging", True)),
         )  # fmt: skip
@@ -374,7 +377,7 @@ class ReorientOrRegrasp:
         wc = _workcell(request, obs.frame_id)
         budget = min(int(request.get("max_path_evals", 120)), CONFIG["max_path_evals_cap"])
         plan = plan_reorient_or_regrasp(
-            obs, spec, T_goal, wc, now_s=ctx.now(), max_age_s=CONFIG["max_observation_age_s"],
+            obs, spec, T_goal, wc, now_s=ctx.now(), max_age_s=_max_age(ctx),
             allow_privileged=ctx.privileged_allowed, max_path_evals=budget,
             allow_staging=bool(request.get("allow_staging", True)),
         )  # fmt: skip
@@ -388,7 +391,7 @@ class ReorientOrRegrasp:
             if t > 0:
                 # Replan the remaining transfer from what the camera saw after the put-down.
                 plan = plan_reorient_or_regrasp(
-                    obs, spec, T_goal, wc, now_s=ctx.now(), max_age_s=CONFIG["max_observation_age_s"],
+                    obs, spec, T_goal, wc, now_s=ctx.now(), max_age_s=_max_age(ctx),
                     allow_privileged=ctx.privileged_allowed, max_path_evals=budget, allow_staging=False,
                 )  # fmt: skip
                 if plan["status"] != "succeeded":

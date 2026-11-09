@@ -22,7 +22,6 @@ SOURCES = {
     "pose6d_synth": "tools/pose6d/_synth.py",
     "domino_reader": "skills/reading-domino-pips-and-orientation/scripts/read_dominoes.py",
     "brick_pose": "skills/computing-brick-pose-from-stud-grid/scripts/brick_pose.py",
-    "stud_lattice": "skills/calibrating-baseplate-stud-grid/scripts/stud_lattice.py",
     "yam_chain": "skills/checking-dual-arm-clearance/scripts/check_clearance.py",
 }
 
