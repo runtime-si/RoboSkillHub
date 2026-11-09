@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 from conftest import write
@@ -140,6 +141,40 @@ def test_failure_search_ranks_only_the_asked_stages_and_offers_no_recipe(hub):
     ranked = [p for p in selection.picks if p.score > 0]
     assert ranked and all(p.bundle.stage == "execute" for p in ranked)
     assert "peeking-at-sim" not in selection.names
+
+
+@pytest.mark.parametrize(
+    ("query", "expected"), [("拉抽屉", "pulling-drawer"), ("推物", "pushing-on-plane")]
+)
+def test_task_search_does_not_fill_missing_verify_stage_with_cable_skill(query, expected):
+    root = Path(__file__).resolve().parents[1]
+    result = select(load_catalog(root), query, embodiment="yam_i2rt", arms=1)
+    assert expected in result.names
+    assert "verifying-a-cable-route" not in result.names
+    assert all(
+        pick.score > 0 or pick.reason.startswith(("called by ", "used by recipe "))
+        for pick in result.picks
+    )
+
+
+@pytest.mark.parametrize("query", ["quuxzzzxk998877", ""])
+def test_unmatched_query_does_not_recommend_arbitrary_stage_fillers(hub, query):
+    result = select(load_catalog(hub), query, tier="full")
+    assert result.picks == []
+    assert result.recipes == []
+
+
+def test_explicit_recipe_and_tool_dependencies_can_have_zero_relevance(hub):
+    catalog = load_catalog(hub)
+    dependency = catalog.bundles["peeking-at-sim"]
+    dependency.frontmatter["description"] = "Measurements."
+    dependency.hub["tasks"] = []
+    result = select(catalog, "pick up the block", tier="full")
+    dependency_pick = next(p for p in result.picks if p.bundle.name == "peeking-at-sim")
+    assert dependency_pick.score == 0
+    assert dependency_pick.reason == "used by recipe peek-and-grab"
+    tool_pick = next(p for p in result.picks if p.bundle.name == "judge")
+    assert tool_pick.score == 0 and tool_pick.reason == "called by grabbing-things"
 
 
 def test_view_links_bundles_and_writes_recipes(hub, tmp_path):

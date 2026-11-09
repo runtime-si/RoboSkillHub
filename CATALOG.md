@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-19 tools, 109 skills, 2 policies, 1 recipe and 1 paper.
+20 tools, 114 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -34,6 +34,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grconvnet`](#grconvnet) | propose | Proposes ranked top-down parallel-jaw grasps from one RGB-D frame with GR-ConvNet (skumra/robotic-grasping), on CPU… | any |
 | [`molmo-motion`](#molmo-motion) | propose | AllenAI MolmoMotion-4B run locally on a GPU. | any |
 | [`robobrain`](#robobrain) | propose | BAAI RoboBrain 2.5-4B run locally on a GPU. | any |
+| [`workcell`](#workcell) | execute | Typed JSON boundary for RoboSkillHub workcell capabilities and station descriptions. | yam_i2rt |
 | [`predicates`](#predicates) | judge | Geometric yes/no judgments over poses and boxes the graph already holds. | any |
 
 ## Skills
@@ -60,6 +61,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`registering-held-objects`](#registering-held-objects) | perceive | Reobserves a grasped rigid object from the wrist cameras, estimates its functional feature in the TCP frame, and fits… | any |
 | [`segmenting-and-picking-pieces-classical`](#segmenting-and-picking-pieces-classical) | perceive | Finds the loose jigsaw pieces lying on a staging mat in one top-down RGB(-D) frame without a learned model. | any |
 | [`tracking-objects`](#tracking-objects) | perceive | Long-running skill that drives the SAM3 tracker from the graph-scoped observation stream. | any |
+| [`tracking-points`](#tracking-points) | perceive | Tracks selected image points through the configured workcell tracking backend and reports visibility evidence. | yam_i2rt |
 | [`checking-design-connectivity-and-collisions`](#checking-design-connectivity-and-collisions) | plan | Checks a brick design on a stud grid before the arms build it. | any |
 | [`choosing-a-domino-move-by-end-matching`](#choosing-a-domino-move-by-end-matching) | plan | Chooses the robot's move in a game of dominoes and where the tile goes on the table. | any |
 | [`computing-brick-pose-from-stud-grid`](#computing-brick-pose-from-stud-grid) | plan | Converts between a cell on a LEGO or DUPLO baseplate's stud grid (x, y, layer, brick size such as 2x4, rotation… | any |
@@ -97,6 +99,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grasping-flat-objects`](#grasping-flat-objects) | execute | Grasps an object lying flat on a surface that is too thin for a normal top-down pinch at its box centre (a card, a… | any |
 | [`grasping-linear-feature`](#grasping-linear-feature) | execute | Fit the full 3D axis of an elongated segmented feature and grasp it with a perpendicular, inclination-aware… | any |
 | [`grasping-short-axis`](#grasping-short-axis) | execute | Deterministic short-axis-aligned grasp with CuRobo. | any, *tuned on* panda |
+| [`grasping-with-feedback`](#grasping-with-feedback) | execute | Approaches a supplied grasp pose, closes the gripper and checks available grasp evidence through a configured workcell… | yam_i2rt |
 | [`grasping-with-planner`](#grasping-with-planner) | execute | Top-down grasping via a fast axis-locked linear descend with a collision-aware cuRobo fallback. | any, *tuned on* panda |
 | [`handing-over-between-arms`](#handing-over-between-arms) | execute | Hands the object one arm holds to the other arm. | any, 2 arms |
 | [`holding-steady-while-other-arm-acts`](#holding-steady-while-other-arm-acts) | execute | One arm holds an object still. | any, 2 arms |
@@ -104,6 +107,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`inserting-mid-air-between-two-held-parts`](#inserting-mid-air-between-two-held-parts) | execute | Inserts the part one arm holds into (or presses it onto) the part the other arm holds, both in the air. | any, 2 arms |
 | [`lifting-with-both-arms`](#lifting-with-both-arms) | execute | Lifts an elongated object (a bar, a tray, a pot by its handles) with both arms. | any, 2 arms |
 | [`moving-both-arms-together`](#moving-both-arms-together) | execute | Moves both hands to their target poses as one coordinated motion. | any, 2 arms |
+| [`moving-to-pose`](#moving-to-pose) | execute | Moves the measured tool pose through the configured YAM or Isaac workcell adapter. | yam_i2rt |
 | [`picking-and-placing-two-objects`](#picking-and-placing-two-objects) | execute | Picks two objects with two arms, one each, and places both. | any, 2 arms |
 | [`placing-an-upright-domino-beside-neighbours`](#placing-an-upright-domino-beside-neighbours) | execute | Picks a standing domino top-down and sets it upright at a slot in a row without touching the tiles already standing… | any |
 | [`placing-held-feature`](#placing-held-feature) | execute | Move a held object so one of its declared features lands on a target point. | any, **sim only** |
@@ -113,7 +117,9 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`plugging-a-cable-end`](#plugging-a-cable-end) | execute | Carries a cable's held free end into a terminal port after the last crossing. | any, 2 arms |
 | [`pouring-by-wrist-roll`](#pouring-by-wrist-roll) | execute | Pours from a held container into a target container by standing the hand above the target's box at a set height and… | any |
 | [`pressing-a-brick-onto-studs`](#pressing-a-brick-onto-studs) | execute | Presses a held LEGO or DUPLO brick onto the studs under it and checks by height that it seated. | any |
+| [`pulling-drawer`](#pulling-drawer) | execute | Executes a bounded pull along a drawer axis using handle-grasp and opening evidence. | yam_i2rt |
 | [`pushing-objects`](#pushing-objects) | execute | Pushes a loose object across its support toward a goal point with a closed hand, never grasping it. | any |
+| [`pushing-on-plane`](#pushing-on-plane) | execute | Executes a bounded planar pushing segment and checks measured target displacement. | yam_i2rt |
 | [`reaching-with-lag-correction`](#reaching-with-lag-correction) | execute | Moves the tool to a target pose, waits for the arm to settle, reads the tool pose back and, if the arm stopped short… | any |
 | [`searching-insertion-spiral`](#searching-insertion-spiral) | execute | Finds an opening the held part or the closed fingertips can enter by probing straight down over a hexagonal grid… | any |
 | [`seating-a-cable-crossing`](#seating-a-cable-crossing) | execute | Streams one planned crossing leg of a cable onto a routing station, lets the rod settle, then LOOKS. | any |
@@ -405,6 +411,17 @@ BAAI RoboBrain 2.5-4B run locally on a GPU -- an ordered keypoint trajectory for
   - `robobrain.trace`: Ordered keypoint trajectory for an instruction from one frame (visual-plan schema; pixels, camera/world points with intrinsics).
   - `robobrain.point`: Pixel points for what a phrase names; drop-in for gemini-er.point.
   - `robobrain.progress`: Task progress 0..1 of the current frame against the task's start frame.
+
+### workcell
+
+execute · robots: yam_i2rt · tasks: motion, grasp, point-tracking, pushing, drawer · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/workcell/SKILL.md)
+
+Typed JSON boundary for RoboSkillHub workcell capabilities and station descriptions. Use when an agent or graph must call an adapted YAM or Isaac capability through one interface and retain its measured result.
+
+- **Note**: A station-bound adapter boundary; source availability and interface tests do not imply sim/real verification.
+- **Functions**:
+  - `workcell.describe`: Describe the configured station and capability interface without issuing motion.
+  - `workcell.invoke`: Invoke one named capability with a JSON object request and return its JSON result.
 
 ### predicates
 
@@ -714,6 +731,23 @@ Long-running skill that drives the SAM3 tracker from the graph-scoped observatio
 - **Calls**: [`sam3`](#sam3)
 - **Functions**:
   - `tracking-objects.track`: Run the SAM3 tracker loop over the observation stream; returns the final mask/box/confidence.
+
+### tracking-points
+
+perceive · robots: yam_i2rt · tasks: point-tracking · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/tracking-points/SKILL.md)
+
+Tracks selected image points through the configured workcell tracking backend and reports visibility evidence. Use when an agent needs point correspondences for motion observation without moving the robot.
+
+- **In**: `request_json` string
+- **Out**: `result_json` string, `status` string
+- **Calls**: [`workcell`](#workcell)
+- **Scripts**: [`main`](skills/tracking-points/scripts/main.py)
+- **Note**: Adapter-backed implementation; station setup and task-specific validation are required. No sim/real verification is claimed.
+- **Exits**:
+  - `succeeded`: The capability-specific postcondition is supported by the returned measurements.
+  - `failed`: The attempted operation or tracking update did not meet its required condition.
+  - `unverified`: Available evidence is insufficient to establish the requested physical postcondition.
+  - `rejected`: The request, station configuration or required backend capability is not accepted.
 
 ### checking-design-connectivity-and-collisions
 
@@ -1295,6 +1329,23 @@ Deterministic short-axis-aligned grasp with CuRobo. The grasp pose is computed g
   - `grasped`: Object held in the gripper after `close`.
   - `failed`: Any failure during the grasp attempt — collision-aware planning failure or trajectory execution error (a raise propagating to `on_error`). Coordinator routes to abort.
 
+### grasping-with-feedback
+
+execute · robots: yam_i2rt · tasks: grasp, pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/grasping-with-feedback/SKILL.md)
+
+Approaches a supplied grasp pose, closes the gripper and checks available grasp evidence through a configured workcell adapter. Use when an agent needs a local grasp with explicit feedback rather than an unchecked gripper command.
+
+- **In**: `request_json` string
+- **Out**: `result_json` string, `status` string
+- **Calls**: [`workcell`](#workcell)
+- **Scripts**: [`main`](skills/grasping-with-feedback/scripts/main.py)
+- **Note**: Adapter-backed implementation; station setup and task-specific validation are required. No sim/real verification is claimed.
+- **Exits**:
+  - `succeeded`: The capability-specific postcondition is supported by the returned measurements.
+  - `failed`: The attempted operation or tracking update did not meet its required condition.
+  - `unverified`: Available evidence is insufficient to establish the requested physical postcondition.
+  - `rejected`: The request, station configuration or required backend capability is not accepted.
+
 ### grasping-with-planner
 
 execute · robots: any, *tuned on* panda · tasks: pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/grasping-with-planner/SKILL.md) · [upstream](https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/skills/grasping-with-planner)
@@ -1405,6 +1456,23 @@ Moves both hands to their target poses as one coordinated motion - both straight
   - `reached`: Both hands arrived at every waypoint within reach_tolerance (read back from each arm), the last being their targets; with keep_relative the hands' relative pose stayed within the bound at every segment end.
   - `diverged`: One hand stopped more than reach_tolerance from a waypoint (refused, raised, stalled), or with keep_relative the hands' relative pose left the bound at a segment end, after at least one hand had moved; both arms stop where they are, `detail` says which and where.
   - `unreachable`: Nothing moved - a waypoint failed the IK preview, the planned tool centres come closer than min_hand_distance, the targets break the kept relative pose, the move needs more than max_segments, the first move was refused in place, both arm ids name one arm, or the connector reports no separate second arm.
+
+### moving-to-pose
+
+execute · robots: yam_i2rt · tasks: motion · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/moving-to-pose/SKILL.md)
+
+Moves the measured tool pose through the configured YAM or Isaac workcell adapter. Use when an agent has a target pose and needs bounded motion with measured arrival verification.
+
+- **In**: `request_json` string
+- **Out**: `result_json` string, `status` string
+- **Calls**: [`workcell`](#workcell)
+- **Scripts**: [`main`](skills/moving-to-pose/scripts/main.py)
+- **Note**: Adapter-backed implementation; station setup and task-specific validation are required. No sim/real verification is claimed.
+- **Exits**:
+  - `succeeded`: The capability-specific postcondition is supported by the returned measurements.
+  - `failed`: The attempted operation or tracking update did not meet its required condition.
+  - `unverified`: Available evidence is insufficient to establish the requested physical postcondition.
+  - `rejected`: The request, station configuration or required backend capability is not accepted.
 
 ### picking-and-placing-two-objects
 
@@ -1551,6 +1619,23 @@ Presses a held LEGO or DUPLO brick onto the studs under it and checks by height 
   - `unverified`: Released, but the height was not read (no wrist camera with a pose, no reachable view, fewer than 3 depth readings on the top, or verify false); detail says how far the press went.
   - `unreachable`: The seated (or tilted) hand pose failed the IK preview, or a move was refused; detail says which, and whether the brick is still held.
 
+### pulling-drawer
+
+execute · robots: yam_i2rt · tasks: drawer · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/pulling-drawer/SKILL.md)
+
+Executes a bounded pull along a drawer axis using handle-grasp and opening evidence. Use when an agent has a drawer handle pose and a prismatic opening direction in a configured workcell.
+
+- **In**: `request_json` string
+- **Out**: `result_json` string, `status` string
+- **Calls**: [`workcell`](#workcell)
+- **Scripts**: [`main`](skills/pulling-drawer/scripts/main.py)
+- **Note**: Adapter-backed implementation; station setup and task-specific validation are required. No sim/real verification is claimed.
+- **Exits**:
+  - `succeeded`: The capability-specific postcondition is supported by the returned measurements.
+  - `failed`: The attempted operation or tracking update did not meet its required condition.
+  - `unverified`: Available evidence is insufficient to establish the requested physical postcondition.
+  - `rejected`: The request, station configuration or required backend capability is not accepted.
+
 ### pushing-objects
 
 execute · robots: any · tasks: pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/pushing-objects/SKILL.md) · [upstream](https://github.com/nssmd/RoboRSI/tree/main/roborsi/embodied/skills/base/push_object/libero)
@@ -1565,6 +1650,23 @@ Pushes a loose object across its support toward a goal point with a closed hand,
   - `pushed`: The hand travelled past the contact point toward the goal by at least min(80 mm, 0.75 x the asked push), lifted away and opened; the object should now sit near expected_center.
   - `not_pushed`: The goal was under 30 mm from the object's centre, or the push ran but the hand travelled short (blocked, or the move refused part way), or the retract failed; `detail` says which.
   - `unreachable`: The hover above and behind the object was refused or ended off with every rotation tried, or the descent stopped more than reach_tolerance from the contact height; nothing was pushed.
+
+### pushing-on-plane
+
+execute · robots: yam_i2rt · tasks: pushing · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/pushing-on-plane/SKILL.md)
+
+Executes a bounded planar pushing segment and checks measured target displacement. Use when an agent has a contact pose and a push direction in a configured single-arm workcell.
+
+- **In**: `request_json` string
+- **Out**: `result_json` string, `status` string
+- **Calls**: [`workcell`](#workcell)
+- **Scripts**: [`main`](skills/pushing-on-plane/scripts/main.py)
+- **Note**: Adapter-backed implementation; station setup and task-specific validation are required. No sim/real verification is claimed.
+- **Exits**:
+  - `succeeded`: The capability-specific postcondition is supported by the returned measurements.
+  - `failed`: The attempted operation or tracking update did not meet its required condition.
+  - `unverified`: Available evidence is insufficient to establish the requested physical postcondition.
+  - `rejected`: The request, station configuration or required backend capability is not accepted.
 
 ### reaching-with-lag-correction
 

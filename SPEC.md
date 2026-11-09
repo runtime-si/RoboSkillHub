@@ -1,7 +1,18 @@
 # RoboSkillHub formats, version 1
 
+The separate [candidate intake format](candidates/README.md#candidate-format)
+records reviewed upstream material. It does not change bundle loading, `gap:`
+contracts, runtime views or deployment locks. Validate it with
+`roboskillhub check-candidates`; use `discover` for source discovery.
+
 Every file format the library reads or writes. `roboskillhub check` enforces all
 of it.
+
+The station runtime's input schemas, callback contracts and config format are
+documented in [workcell-runtime.md](docs/workcell-runtime.md). Runtime requests
+are validated on invocation; `check` validates their bundle declarations, not a
+live workcell or its Python factory. Station/runtime digests supplement rather
+than replace `skills.lock`.
 
 ## Bundles
 
