@@ -12,7 +12,9 @@
   "experts-classic": 115,
   "policies": 100,
   "primitives-recipes": 79,
-  "backlog": 104
+  "backlog": 104,
+  "backlog-2": 136,
+  "integration-additions": 2
  },
  "dedup_merges": [
   {
@@ -1306,6 +1308,2462 @@
    "resolution": "primitives-recipes rejected lihuang3/ur5_ROS-Gazebo (Gazebo only, no licence); grasp-special kept it as a suction recipe with licence unresolved - kept, stays in the unresolved area"
   }
  ],
+ "additions": [
+  {
+   "id": "moveit-grasps-two-finger-grasp-generator",
+   "dedup_key": "moveit/moveit_grasps#two-finger-grasp-generator",
+   "source_url": "https://github.com/moveit/moveit_grasps/blob/e70b88f97ed223dbcaecd3343316b6900029dacd/src/two_finger_grasp_generator.cpp",
+   "reason": "moveit_grasps grasp generator and IK filter: grasp-parallel left them to motion, motion kept only GraspPlanner; neither shard indexed them."
+  },
+  {
+   "id": "moveit-grasps-grasp-filter",
+   "dedup_key": "moveit/moveit_grasps#grasp-filter",
+   "source_url": "https://github.com/moveit/moveit_grasps/blob/e70b88f97ed223dbcaecd3343316b6900029dacd/src/grasp_filter.cpp",
+   "reason": "moveit_grasps grasp generator and IK filter: grasp-parallel left them to motion, motion kept only GraspPlanner; neither shard indexed them."
+  }
+ ],
+ "overlays": {
+  "files": [
+   "upgrade-1.json",
+   "upgrade-2.json",
+   "upgrade-3.json",
+   "upgrade-4.json"
+  ],
+  "applied": [
+   {
+    "file": "upgrade-1.json",
+    "id": "pose-genpose2-genpose-plus-plus",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "openpi-pi05",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": [
+     {
+      "url": "https://github.com/huggingface/lerobot/blob/d490e472a5d1a207cfe0255caaaf74b6d66e4656/src/lerobot/policies/pi05/modeling_pi05.py",
+      "reason": "source evidence is not at the pinned source_revision"
+     }
+    ]
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "vima-bench-follow-motion-recipe",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "vima-bench-rearrange-then-restore-recipe",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "fcl-collision",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "ompl-constrained-planning",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "pose2-bop-toolkit-pose-error-metrics",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "pose2-flowbot3d-artflownet",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "pose2-opd",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "pose2-secondpose",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "ps-grounded-sam-2-grounded-sam2-image",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "ps-nids-net-nids-net-instance-detection",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "ps-sam2-sam2-image-predictor",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "ps-som-set-of-mark-prompting",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "lerobot-cosmos3",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "umi-policy",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "backlog-ariannagavioli-motion-planning-for-kuka-lbr",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "backlog-dagroup-pku-vigar",
+    "changed": [],
+    "review_level": "metadata-indexed",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "backlog-edirobotics-gr1-training",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "backlog-flagopen-robobrain",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "backlog-hri-eu-flow-matching",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "backlog-isri-aist-robomanipbaselines",
+    "changed": [],
+    "review_level": "metadata-indexed",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "backlog-lqts-dexrep-isaac",
+    "changed": [],
+    "review_level": "metadata-indexed",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "backlog-michaelyuancb-motiontrans",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "backlog-pauldanielml-mujoco-rl-ur5",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "backlog-royzry98-mole-vla-pytorch",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "backlog-sanmumumu-flowram",
+    "changed": [],
+    "review_level": "metadata-indexed",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "backlog-tigerdwgth-vggt-dp",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "backlog-vincent-xiao-ormpi",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "gensim-generated-pick-place-recipe-collection",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "robosuite-ik-controller",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "irvlutd-neuralgrasps-model",
+    "changed": [],
+    "review_level": "metadata-indexed",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "gs-arc-robot-vision-parallel-jaw-affordance-bin",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "gs-dexfuncgrasp-dexfuncgraspnet",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-1.json",
+    "id": "gs-unigrasp-unigrasp",
+    "changed": [],
+    "review_level": "metadata-indexed",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "pose-happypose-toolbox",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "pr-i2rt-yam-motor-chain-robot",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "vima-bench-follow-order-stacking-recipe",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "vima-bench-rearrange-to-scene-recipe",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "moveit2-attached-body",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "pose-genpose",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "pose2-cppf",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "pose2-glover",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "pose2-open-vocabulary-affordance-detection-in-3d-point-clouds-openad",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "ps-detic-detic-open-vocab-seg",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "ps-grounded-sam-2-grounded-sam2-video-tracking",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "ps-roborefer-roborefer-spatial-referring",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "ps-sam2-sam2-video-tracking",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "ps-tapnet-robotap-motion-clustering",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "lerobot-fineart-vla",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "vla-adapter",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "backlog-barisyazici-deep-rl-grasping",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "backlog-dimitris-anastasiou-rrt-motion-planning",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "backlog-falcondai-robot-grasp",
+    "changed": [],
+    "review_level": "metadata-indexed",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "backlog-fukangl-smg-multimodal-grasping",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "backlog-huetufemchopf-roboticgrasper",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "backlog-jiaxin-lu-ugg",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "backlog-luoyk1999-simvla",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "backlog-microsoft-vitra",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "backlog-pickxiguapi-embodied-r1",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "backlog-rstrudel-rlbc",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "backlog-showlab-dream-exe",
+    "changed": [],
+    "review_level": "metadata-indexed",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "backlog-tx-leo-grcnn-plane-robotic-grasping",
+    "changed": [],
+    "review_level": "metadata-indexed",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "backlog-yongchao98-autotamp",
+    "changed": [],
+    "review_level": "metadata-indexed",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "isaaclab-mimic-humanoid-pick-place-recipe",
+    "changed": [],
+    "review_level": "metadata-indexed",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "robosuite-placement-samplers",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "realmarco-roboticgraspingsimulation",
+    "changed": [],
+    "review_level": "metadata-indexed",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "gs-arc-robot-vision-suction-affordance",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "gs-dexgrasp-anything-dexgrasp-anything",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "genesis-inverse-kinematics",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "mpt-parallel-rrt-star",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "ramp-motion-planner",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "pose-6-pack",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "pose-ag-pose",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "pose-dualposenet",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "pose-gdr-net-gdrnet",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "pose-locate",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "pose-pogs",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "pose-snowflakenet",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "pose2-betapose",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "pose2-eegp-aae",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "pose2-monodiff9d",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-2.json",
+    "id": "pose2-radet",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "ps-molmo-molmo-pointing",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "backlog-cnjianliu-gencope",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "vima-bench-manipulate-old-neighbor-recipe",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "vima-bench-same-attribute-into-container-recipe",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "moveit2-fcl-collision-env",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "pose-gpv-pose",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "pose2-deepac",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "pose2-ist-net",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "pose2-ov9d",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "ps-eagle-locateanything-grounding",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "ps-lisa-lisa-reasoning-seg",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "ps-sahi-sahi-sliced-inference",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "ps-segment-anything-2-real-time-sam2-realtime-camera",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "pl-alexfrom0815-online-3d-bpp-pct",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "lerobot-multi-task-dit",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "pr-airo-robots-position-manipulator",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "backlog-benned-h-spot-skills",
+    "changed": [],
+    "review_level": "metadata-indexed",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "backlog-ebylmz-pnp-transformer",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "backlog-fanqi-lin-data-scaling-laws",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "backlog-geyan21-maniflow-policy",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "backlog-ilearn-lab-cvpr25-kstar-diffuser",
+    "changed": [],
+    "review_level": "metadata-indexed",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "backlog-jiayueru-video2act",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "backlog-lzgmatrix-cdpn-iccv2019-zhigangli",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "backlog-open-gigaai-giga-brain-0",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "backlog-pointw-sym-in-dp",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "backlog-runpeidong-hero",
+    "changed": [],
+    "review_level": "metadata-indexed",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "backlog-siddhanthaldar-point-policy",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "backlog-v1viswan-dexnet-rrt-planner-surreal-robosuite",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "backlog-zhourui9813-twinrl",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-3.json",
+    "id": "isaaclab-mimic-suction-stack-recipe",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "ps-transformers-owlv2-open-vocab-detection",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "backlog-markfzp-act-plus-plus",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "vima-bench-pick-in-order-then-restore-recipe",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "curobo-robot-collision-checker",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "mplib-attached-body",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "pose2-3dobjecttracking-m3t-multibody-tracker",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "pose2-ditto",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "pose2-ooal",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "pose2-pizza",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "ps-evf-sam-evf-sam-text-prompt",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "ps-moka-moka-mark-based-keypoints",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "ps-sam-hq-hq-sam",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "ps-segment-anything-sam-automatic-mask-generation",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "cosmos-policy",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "rdt2",
+    "changed": [
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "backlog-alibaba-damo-academy-rynnvla-001",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "backlog-cnjianliu-mh6d",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "backlog-edem-ai-agentchord",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "backlog-flagopen-robo-dopamine",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "backlog-gtoff-moveit-mcp-server",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "backlog-internrobotics-robo3r",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "backlog-leesweqq-ur5-reinforcement-learning-grasp-object",
+    "changed": [],
+    "review_level": "metadata-indexed",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "backlog-machines-in-motion-grasping-sim",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "backlog-openbmb-simplememvla",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "backlog-pzhren-surfer",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "backlog-salman-h-pick-place-robot",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "backlog-thkkk-manibox",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "backlog-vanhalen42-scarp",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "backlog-zhuoyangliu2005-mla",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "isaaclab-surface-gripper-suction",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "graspnet-rgb-matters",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "gs-adapsucknet-adapsucknet",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "gs-dexdiffuser-dexdiffuser",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "gs-omnidexgrasp-omnidexgrasp",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "klampt-ik-solver",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "openrave-kinematic-reachability",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "roboplan-oink-optimal-ik",
+    "changed": [
+     "entrypoints",
+     "evidence",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "pose-affordance-net-affordancenet",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "pose-coupled-iterative-refinement-cir",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "pose-freepose",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "pose-hs-pose",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "pose-pcn",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "pose-singleshotpose",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "pose-vi-net",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "pose2-disp-6d",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "pose2-iclr25-3d-adllm-3d-affordancellm",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "pose2-paris",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "pose2-rnnpose",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "pose2-ssd-6d",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "ps-ape-ape-open-vocab-det-seg",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "sim_truth",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "ps-efficientvit-efficientvit-sam",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "ps-locotrack-locotrack",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "ps-openseed-openseed-open-vocab-seg",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "ps-sa2va-sa2va-grounded-video-seg",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   },
+   {
+    "file": "upgrade-4.json",
+    "id": "ps-tapnet-tapir-point-tracking",
+    "changed": [
+     "entrypoints",
+     "failure_path",
+     "io",
+     "review_level",
+     "success_check",
+     "yam_fit"
+    ],
+    "review_level": "implementation-inspected",
+    "evidence_dropped": []
+   }
+  ],
+  "skipped": [],
+  "reverted": []
+ },
  "spot_check": {
   "method": "40 entries sampled with random.seed(20261108): 4 each from backlog, experts-classic, grasp-parallel, policies, 3 from each other shard. For each: GET the source file from raw.githubusercontent.com at the pinned commit, compare sha256 with evidence, count code lines (stub check); fetch the licence URL (or probe 17 common licence file names at the commit when the entry has none) and compare with license.status; then read flagged items by hand.",
   "sample": [
@@ -1689,110 +4147,118 @@
    "acceptance_rule": "1/40 (2.5%), fixed family-wide (15 entries folded)",
    "any_error": "1/40 (2.5%)"
   },
-  "whole_index_offline_checks": [
-   "source_url and license.url contain the pinned source_revision for every entry",
-   "source_url is under repository_url for every entry",
-   "every permissive/copyleft entry has an HTTP licence URL and a licence evidence item (one fixed: kunz-time-optimal-trajectories)",
-   "no null sha256 on any source evidence item",
-   "repository renames checked for all 760 repositories (24 renamed, recorded as repository_url_canonical; one rename collided with an indexed repository: PickNikRobotics/moveit_grasps)",
-   "fork/mirror flags checked for all 760 repositories via GitHub GraphQL (10 forks; 4 re-pointed to the original, 6 kept as distinct work)"
-  ]
+  "whole_index_offline_checks": {
+   "violations": {},
+   "repositories_checked_for_renames": 886,
+   "repositories_renamed": 23,
+   "repositories_flagged_fork": [
+    "https://github.com/MichalZawalski/embodied-CoT",
+    "https://github.com/Stanford-ILIAD/openvla-mini",
+    "https://github.com/TRI-ML/yam_openpi",
+    "https://github.com/moojink/openvla-oft",
+    "https://github.com/openvla/openvla",
+    "https://github.com/zt-yang/pybullet_planning"
+   ],
+   "repositories_archived": 15,
+   "notes": "renames from HTTP 301 / API full_name; forks from GitHub GraphQL isFork/parent. Same-commit forks were re-pointed to the original (fork_canonicalised); the listed forks are the ones kept (forks_kept) or already canonicalised."
+  }
  },
  "counts": {
-  "input_entries": 1088,
-  "distinct_entries": 1057,
-  "distinct_repositories": 757,
+  "input_entries": 1226,
+  "distinct_entries": 1195,
+  "distinct_repositories": 890,
   "dedup_merges": 30,
   "integration_drops": 1,
   "fork_canonicalised": 5,
-  "shard_rejections": 461,
-  "rejected_file_rows": 492,
+  "shard_rejections": 417,
+  "rejected_file_rows": 610,
   "by_license_status": {
-   "permissive": 783,
-   "unresolved": 171,
-   "research-only": 71,
-   "copyleft": 32
+   "permissive": 862,
+   "unresolved": 223,
+   "research-only": 73,
+   "copyleft": 37
   },
   "by_review_level": {
-   "implementation-inspected": 623,
-   "metadata-indexed": 434
+   "implementation-inspected": 786,
+   "metadata-indexed": 409
   },
   "license_x_review": {
-   "permissive / implementation-inspected": 494,
-   "permissive / metadata-indexed": 289,
-   "unresolved / metadata-indexed": 97,
-   "unresolved / implementation-inspected": 74,
+   "permissive / implementation-inspected": 653,
+   "permissive / metadata-indexed": 209,
+   "unresolved / metadata-indexed": 145,
+   "unresolved / implementation-inspected": 78,
    "research-only / implementation-inspected": 41,
-   "research-only / metadata-indexed": 30,
-   "copyleft / metadata-indexed": 18,
+   "research-only / metadata-indexed": 32,
+   "copyleft / metadata-indexed": 23,
    "copyleft / implementation-inspected": 14
   },
-  "permissive_and_implementation_inspected": 494,
+  "permissive_and_implementation_inspected": 653,
   "by_category": {
-   "pick-place-policy": 153,
-   "object-pose": 119,
-   "grasp-generation": 93,
-   "pick-place-recipe": 58,
-   "motion-planning": 57,
-   "pick-place-expert": 47,
-   "affordance": 46,
-   "outcome-verification": 45,
+   "pick-place-policy": 219,
+   "object-pose": 126,
+   "grasp-generation": 102,
+   "pick-place-recipe": 79,
+   "motion-planning": 66,
+   "affordance": 49,
+   "pick-place-expert": 48,
+   "outcome-verification": 46,
+   "dexterous-grasp": 45,
    "container-placement": 44,
-   "object-segmentation": 39,
-   "dexterous-grasp": 38,
-   "inverse-kinematics": 30,
+   "object-segmentation": 40,
+   "inverse-kinematics": 33,
    "placement-planning": 28,
    "task-oriented-grasp": 23,
    "primitive-library": 23,
+   "grasp-quality": 22,
    "rearrangement": 22,
+   "relational-placement": 22,
    "held-object-motion": 21,
-   "relational-placement": 21,
    "suction-grasp": 20,
-   "grasp-quality": 19,
    "clutter-grasp": 19,
    "target-tracking": 19,
-   "scene-representation": 16,
-   "object-detection": 15,
-   "collision-checking": 12,
+   "scene-representation": 18,
+   "object-detection": 16,
+   "collision-checking": 13,
+   "reachability": 11,
    "stable-placement": 11,
-   "stacking": 10,
-   "reachability": 9
+   "stacking": 10
   },
   "by_record_type": {
-   "implementation": 443,
-   "tool": 256,
-   "policy": 178,
-   "recipe": 92,
-   "task-expert": 88
+   "implementation": 487,
+   "tool": 258,
+   "policy": 248,
+   "recipe": 113,
+   "task-expert": 89
   },
   "by_hub_destination": {
-   "tool": 664,
-   "policy": 178,
-   "recipe": 150,
-   "skill": 65
+   "tool": 710,
+   "policy": 248,
+   "recipe": 171,
+   "skill": 66
   },
   "by_priority": {
-   "P3": 604,
-   "P2": 345,
+   "P3": 725,
+   "P2": 362,
    "P1": 108
   },
   "by_hardware_fit": {
-   "parallel-jaw-or-agnostic": 957,
-   "suction": 55,
-   "dexterous-hand": 45
+   "parallel-jaw-or-agnostic": 1085,
+   "dexterous-hand": 55,
+   "suction": 55
   },
   "by_hardware_fit_shard_recorded": {
    "(not recorded by shard)": 635,
-   "parallel-jaw-or-agnostic": 360,
-   "dexterous-hand": 41,
+   "parallel-jaw-or-agnostic": 488,
+   "dexterous-hand": 51,
    "suction": 21
   },
   "by_hardware_fit_basis": {
    "derived": 633,
-   "shard-recorded": 422,
+   "shard-recorded": 560,
    "integrator-override": 2
   },
   "by_shard_of_kept_record": {
+   "backlog-2": 136,
    "grasp-parallel": 106,
    "backlog": 101,
    "policies": 100,
@@ -1804,8 +4270,19 @@
    "perception-pose-2": 76,
    "perception-seg": 76,
    "primitives-recipes": 73,
-   "placement": 62
+   "placement": 62,
+   "integration": 2
   },
-  "multi_capability_repo_file_pairs": 10
+  "multi_capability_repo_file_pairs": 10,
+  "overlay_files": [
+   "upgrade-1.json",
+   "upgrade-2.json",
+   "upgrade-3.json",
+   "upgrade-4.json"
+  ],
+  "overlay_items_applied": 168,
+  "overlay_upgraded_to_inspected": 152,
+  "overlay_items_skipped": 0,
+  "overlay_items_reverted": 0
  }
 }
