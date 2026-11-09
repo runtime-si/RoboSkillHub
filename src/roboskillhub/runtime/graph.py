@@ -360,8 +360,16 @@ def run_graph(
                         result["graph_postcondition_failed"] = failed_post
                         scope["last"][node_id]["status"] = "failed"
                     else:
-                        for key, expression in node["assign"].items():
-                            _assign(scope["state"], key, resolve(expression, scope))
+                        try:
+                            values = {k: resolve(e, scope) for k, e in node["assign"].items()}
+                        except GraphError as exc:
+                            result["status"] = "failed"
+                            result["failure_type"] = "graph_error"
+                            result["graph_error"] = str(exc)
+                            scope["last"][node_id]["status"] = "failed"
+                        else:
+                            for key, value in values.items():
+                                _assign(scope["state"], key, value)
         privileged = privileged or bool(result.get("privileged_inputs"))
         status, failure = result["status"], result.get("failure_type")
         edges = node["on"]
