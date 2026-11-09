@@ -14,7 +14,8 @@
 # energy is an empty-tray ghost) with 4 re-settles before giving up, and after 4 edge rejects the
 # blob is taken whole even past the zone's edge; the bin label by priority colour > category >
 # unknown; the optional Brickognize upload of the padded crop (off by default here).
-# Changed: the conveyor is gone - the landing zone is a staging pad on the table, given in world
+# Changed: the exposure gain is a ratio of medians over the zone (a 2 cm part fills 5-15 % of a 10 cm
+# zone and pulled the mean) and is reused for the part's mask; the conveyor is gone - the landing zone is a staging pad on the table, given in world
 # metres (projected through the camera) or as frame fractions; frames come from robot.get_observation
 # and the loop ends when a part is captured or the wait runs out (no belt start / stop, no WaitClear:
 # the arm takes the part away); the comparison window is the zone itself (plus a margin) shrunk to at

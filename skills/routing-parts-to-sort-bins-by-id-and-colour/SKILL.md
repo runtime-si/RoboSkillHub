@@ -105,7 +105,8 @@ lego-sorter's conveyor cycle with the belt replaced by waiting:
    until its long side is at most 160 px.
 2. **Occupancy.** Each frame (`robot.get_observation`, camera `camera_name`)
    is turned grey, gain-matched to the `reference` (the empty pad, taken with
-   the arm out of the view) over the zone, and a pixel is changed when it moved
+   the arm out of the view) by the ratio of the zone's medians (lego-sorter:
+   means; a 2 cm part fills 5-15 % of a 10 cm zone), and a pixel is changed when it moved
    16 grey levels - or when both frames have depth and it came 8 mm nearer.
    Occupancy is the largest 4-connected changed blob inside the zone in percent
    of the zone (blobs under 8 px are noise).
@@ -113,7 +114,12 @@ lego-sorter's conveyor cycle with the belt replaced by waiting:
    `occupied_frames` (2) frames in a row. A drop back under it while settling is
    a false trigger (a hand, a shadow) and waiting resumes.
 4. **Settled.** The zone's mean absolute grey difference between consecutive
-   frames under `motion_threshold` (8) for `settle_s` (0.5 s).
+   frames under `motion_threshold` (8) for `settle_s` (0.5 s). This is
+   lego-sorter's coarse check: averaged over the zone, a 2 cm part sliding
+   under about its own width per frame reads as still (a 25 mm part moving
+   8 mm scored about 7 on a 10 cm zone in the tests); it is `settle_s` of
+   stillness that guards a rolling part, so raise it for round or rolling
+   parts.
 5. **Capture gates.** A second blob at least 0.35 x the largest and 12 px, more
    than 2 px from it, is another part: re-settle, and after 4 rejects
    `staging_not_clear`. A blob touching the zone's edge is still arriving:
