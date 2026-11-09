@@ -21,7 +21,11 @@ import math
 from typing import Any, TypedDict
 
 import numpy as np
-from gap import NodeContext
+
+try:
+    from gap import NodeContext
+except ImportError:  # annotation only; task modules import these functions without gap
+    NodeContext = Any
 
 logger = logging.getLogger(__name__)
 
