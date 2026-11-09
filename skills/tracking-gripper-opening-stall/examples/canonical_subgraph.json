@@ -1,0 +1,51 @@
+{
+  "skill": "tracking-gripper-opening-stall",
+  "inputs": {
+    "expected_width_m": "float"
+  },
+  "outputs": {
+    "object_width_m": {
+      "$ref": "track.object_width_m"
+    },
+    "width_error_m": {
+      "$ref": "track.width_error_m"
+    },
+    "actual_m": {
+      "$ref": "track.actual_m"
+    }
+  },
+  "nodes": {
+    "track": {
+      "type": "script",
+      "script": "scripts/track_opening.py",
+      "inputs": {
+        "close": true,
+        "expected_width_m": {
+          "$ref": "in.expected_width_m"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "track"
+    ],
+    [
+      "track",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "reached",
+      "stalled_on_object",
+      "unexpected_width",
+      "stalled_jammed",
+      "still_moving",
+      "refused"
+    ]
+  },
+  "on_error": "unknown"
+}

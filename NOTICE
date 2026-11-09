@@ -767,3 +767,9 @@ _rotation_to_align, and src/tsr/placement/stable_placer.py place_mesh's
 ordering, margin filter and surface fit), BSD-2-Clause, Copyright (c) 2025,
 Siddhartha Srinivasa and contributors to TSR; the file's header lists the
 changes, and the license is skills/computing-stable-placements/LICENSE.tsr.
+skills/tracking-gripper-opening-stall/scripts/track_opening.py is adapted from
+uni-robot-agent (https://github.com/Open-RUA/uni-robot-agent, commit
+a98934c6a1a16317821fed41a3b816b1d300b427: uni_robot_agent/tools/gripper/opening.py
+OpeningTracker and native_opening), MIT License, Copyright (c) 2026
+uni-robot-agent contributors; the file's header lists the changes, and the
+license is skills/tracking-gripper-opening-stall/LICENSE.uni-robot-agent.
