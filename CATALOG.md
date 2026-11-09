@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-24 tools, 136 skills, 2 policies, 1 recipe and 1 paper.
+24 tools, 137 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -156,6 +156,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`turning-by-wrist-ratchet`](#turning-by-wrist-ratchet) | execute | Tightens or loosens a screw lid or cap by wrist ratchet. | any |
 | [`wiping-a-region`](#wiping-a-region) | execute | Wipes a flat region of a surface with back-and-forth strokes. | any |
 | [`checking-dual-arm-clearance`](#checking-dual-arm-clearance) | verify | Predicts, before a move is sent, the minimum clearance between the two arms along the planned path. | any, 2 arms |
+| [`checking-pick-by-scene-diff`](#checking-pick-by-scene-diff) | verify | Checks whether a pick (or a place, a push, any intended change) happened by showing a VLM one panel. | any |
 | [`checking-spatial-relations`](#checking-spatial-relations) | verify | Decides from one RGB-D view whether a spatial relation holds between two seen objects. | any |
 | [`classifying-failure-from-proprioception`](#classifying-failure-from-proprioception) | verify | Classifies the last moments of a manipulation step from proprioception alone. | any |
 | [`detecting-disturbed-pieces-by-snapshot-diff`](#detecting-disturbed-pieces-by-snapshot-diff) | verify | Checks whether anything already placed was knocked since the last verified step. | any |
@@ -2254,6 +2255,23 @@ Predicts, before a move is sent, the minimum clearance between the two arms alon
   - `clear`: The capsule model's smallest cross-arm clearance over every sample of the planned motion is at least too_close_m (default 5 mm); min_clearance_m, closest_link_a / closest_link_b and at_fraction say where it is tightest.
   - `too_close`: Somewhere along the planned motion (or now, with no plan given) the capsules come within too_close_m or overlap (negative min_clearance_m); at_fraction and closest_link_a / closest_link_b say where and which links.
   - `unknown`: The check could not be made - a second arm is not reported or reads as the first, an arm has no joint reading or not 6 joints, the connector's forward kinematics disagrees with the YAM model by more than 5 mm, a pose waypoint has no IK solution within the servo's tolerance or the IK changed branch along a straight leg, or the inputs conflict; `detail` says which.
+
+### checking-pick-by-scene-diff
+
+verify · robots: any · tasks: pick-place, sorting, jigsaw, lego, domino · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/checking-pick-by-scene-diff/SKILL.md) · [upstream](https://github.com/nssmd/RoboRSI/blob/90c8569705bf4004a4f79e34e650c87ab7f075d4/roborsi/embodied/skills/base/visual_diff/robotwin/policy.py)
+
+Checks whether a pick (or a place, a push, any intended change) happened by showing a VLM one panel - the camera frame from before the step, the frame now, and a hot pixel-difference heatmap side by side - and asking whether anything changed and whether the expected change happened; when the graph knows where the object was (or should go), the pixels there must agree (changed, and emptied for a pick or filled for a place), else the verdict is uncertain. Routes changed_as_expected, changed_otherwise, unchanged, uncertain or no_verdict. Use when a pick (or place) has just run and the gripper width alone cannot tell held from empty (thin or small parts), so a source-side check is wanted, with a robot.get_observation captured before the step; camera-only, no motion.
+
+- **In**: `before` Observation, `expected_change` string
+- **Out**: `changed` bool, `matches_expectation` bool, `reason` string, `changed_fraction` float, `source_changed_fraction` float, `source_contrast_ratio` float
+- **Calls**: [`vlm`](#vlm); connector `robot.get_observation`
+- **Scripts**: [`check_scene_diff`](skills/checking-pick-by-scene-diff/scripts/check_scene_diff.py)
+- **Exits**:
+  - `changed_as_expected`: The VLM answered CHANGED yes and MATCH yes, and (when a source region is given) at least 15 % of its pixels changed and it emptied (vacated, contrast ratio &lt;= 0.85) or filled (filled, ratio &gt;= 1.5) as region_expect asks.
+  - `changed_otherwise`: The VLM saw a change (CHANGED yes) but not the expected one (MATCH no) - e.g. the hand moved over the object, or another object moved.
+  - `unchanged`: The VLM saw no change (CHANGED no, MATCH no) and the source region, if given, did not change either.
+  - `uncertain`: The VLM and the pixels disagree - MATCH yes but the region did not change, did not empty or did not fill as expected, MATCH yes with CHANGED no, or CHANGED no while the region changed; re-observe (move the hand clear) before trusting either.
+  - `no_verdict`: Nothing was judged - no camera has RGB in both observations, the frames differ in size, vlm.query raised, or the reply lacked a CHANGED or MATCH line.
 
 ### checking-spatial-relations
 
