@@ -57,7 +57,7 @@ gap:
     mover_pose: Se3Pose
     holder_pose: Se3Pose
   exit_conditions:
-    inserted: The moving tip, as the two hands' read-back poses and the in-hand offsets place it, went at least insert_depth less depth_tolerance past the holder's entry along the axis, at least one of four probes across the axis (half the clearance plus 1 mm each way) was stopped or carried the holder along (verify, default on), and both jaws still read a hold (with release=mover, the mover then opened and backed out and the holder's jaws still hold). Felt by the hands, not seen.
+    inserted: The moving tip, as the two hands' read-back poses and the in-hand offsets place it, went at least insert_depth less depth_tolerance past the holder's entry along the axis, at least one of four probes across the axis (half the clearance plus 1 mm each way) was stopped or carried the holder along (verify, default on), and both jaws still read a hold (with release=mover, the mover then opened and backed out and the holder's jaws still hold). Felt by the hands, not seen - a part turned in its jaws since it was measured can still read as inserted (simulation check).
     misaligned: Nothing went in - the tip could not be brought within half the clearance of the entry's line (after three corrections), the two parts' axes (each turned with its hand since it was measured) stood more than angle_tolerance_deg apart, or the push stopped (lag, holder pushed, effort) with the tip less than 2 mm past the entry (the rim); the mover backed off to its stand-off, both still hold their parts.
     stalled: The push stopped with the tip past the entry but short of insert_depth less depth_tolerance (a jam, a burr, a tilted part); the mover backed off 3 mm so it stops pushing, both still hold. Also routed when the mover's jaws did not open for release=mover.
     slipped: A hand's jaws read at the stop - before anything moved (nothing held), or after the push or the release (a part fell out); or the hands went the whole depth but no probe across the axis met a wall - the moving part sat on the receiving part's outside face and slid back along its jaw pads, which neither arm feels (both hands still hold, the parts are not joined).
@@ -234,7 +234,57 @@ call.
 
 ## Simulation check
 
-Pending.
+RoboSimStudio YAM station twin (`yam-station-20261103-gsota`, two i2rt YAM
+arms, MuJoCo-Warp at 500 Hz, RTX 4090 host), 2026-11-08. The twin has no
+parts, so the harness builds them from convex pieces: a 30 x 40 x 30 mm
+socket block with a blind 13 x 13 mm square hole 25 mm deep, and a peg
+(30 mm cube handle, 12 x 12 x 70 mm shaft): 1 mm diametral clearance, no
+chamfers, friction 0.8. The left arm (holder, 0) picks the socket, the right
+arm (mover, 1) the peg, each hand's last joint turns its part's axis onto
+world +y, then the skill runs with the true peg tip plus an injected in-hand
+error, the true socket mouth, `meet_position` 170 mm over the bench and
+`insert_depth` 20 mm. Truth from `sim.get_object_pose` after each trial; the
+peg is pulled back out, still held, between trials (no re-grasp). Minimum
+arm clearance measured from the two arms' collision meshes every 20 ms (the
+twin does not collide one arm with the other).
+
+| run | injected tip error | route | truth | peg moved in its hand | min arm clearance |
+|---|---|---|---|---|---|
+| without the probe | 0 | `inserted` | in: 21.4 mm deep, 0.56 mm off axis, 2.8 deg | 7.4 mm from the tool centre | 0.1 mm |
+| without the probe | 1.0 mm | `inserted` | **not in**: on the face (-0.1 mm), 4.7 mm off | slid to 22.5 mm | 0.0 mm |
+| with the probe | 0 | `slipped` (0 of 4 probes stopped) | not in: -0.4 mm, 3.8 mm off, 7 deg | slid to 28.5 mm | 0.3 mm |
+| with the probe | 1.0 mm | `slipped` (0 of 4) | not in, peg turned 30 deg in the jaws | 35.4 mm, jaw 0.15 | 0.1 mm |
+| with the probe | 0.5 mm (after the 30 deg turn above) | `inserted` (1 of 4) | **not in**: peg 85 deg off the socket's axis | 44.8 mm | 0.0 mm |
+
+What this shows, honestly:
+
+- **Success 1 of 3 clean attempts at zero injected error, 0 of 2 with
+  0.5-1 mm.** The read-back alignment brought the tip within 0.5 mm of the
+  entry's line before every push (by the hands and the offsets), but the
+  truth at the end was 0.6-5 mm off: a peg held by its handle tilts and
+  slides in the twin's jaws as the moves go on, so the offsets given at the
+  start are stale by the push. Re-register the tip in the hand
+  (`registering-held-objects`) just before the rendezvous.
+- **Neither arm feels a part sliding back along its jaw pads**: tracking lag
+  stayed within 0.13 mm of free motion and the holder moved 0.15-0.41 mm
+  (under its 2 mm threshold) in every trial, jam or not. The twin's
+  observation has no joint efforts, so effort was not checked.
+- **The seated probe** turned both slides of the second run into `slipped`
+  (the false `inserted` of the first run). It missed a peg already turned
+  85 deg in its hand by the trial before (one probe stopped against the
+  socket's outside): the skill compares the hands' rotations, not the parts',
+  so a part turned in its jaws is invisible to it - re-measure the part's
+  axis after anything that may have turned it.
+- **The two hands' fingertips came within 0.0-0.1 mm of each other** at full
+  depth (the twin lets them pass through): with a 70 mm shaft and grasps at
+  each part's middle, the jaws meet. On a real station grip the parts
+  further apart along the axis and check with `checking-dual-arm-clearance`.
+- One trial took 70-870 s of simulated servo time: `robot.go_to_pose` with a
+  0.3 mm `tolerance` runs to the twin's step cap on most alignment and probe
+  moves.
+- Not run: `mode: both_move`, `release: mover`. A DUPLO press (2 x 2 bricks
+  lying on their sides, 0.1 mm wall play) is in the harness (`PARTS=duplo`);
+  see the PR for its result.
 
 ## Provenance
 
