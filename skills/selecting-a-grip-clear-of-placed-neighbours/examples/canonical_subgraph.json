@@ -1,0 +1,28 @@
+{
+  "skill": "selecting-a-grip-clear-of-placed-neighbours",
+  "inputs": {
+    "target_outline": "Any",
+    "neighbour_outlines": "Any"
+  },
+  "outputs": {
+    "grip_point": {"$ref": "grip.grip_point"},
+    "closing_yaw_deg": {"$ref": "grip.closing_yaw_deg"},
+    "grip_width_m": {"$ref": "grip.grip_width_m"},
+    "clearance_m": {"$ref": "grip.clearance_m"},
+    "offset_m": {"$ref": "grip.offset_m"},
+    "candidates": {"$ref": "grip.candidates"}
+  },
+  "nodes": {
+    "grip": {
+      "type": "script",
+      "script": "scripts/select_grip.py",
+      "inputs": {
+        "target_outline": {"$ref": "in.target_outline"},
+        "neighbour_outlines": {"$ref": "in.neighbour_outlines"}
+      }
+    }
+  },
+  "edges": [["START", "grip"], ["grip", "END"]],
+  "exit": {"router_field": "route", "success_values": ["grip_found", "only_offset_place"]},
+  "on_error": "no_clear_grip"
+}

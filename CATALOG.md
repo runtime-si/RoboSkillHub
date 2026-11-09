@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-19 tools, 112 skills, 2 policies, 1 recipe and 1 paper.
+19 tools, 113 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -81,6 +81,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`matching-a-piece-to-placed-neighbours`](#matching-a-piece-to-placed-neighbours) | select | Picks which of several loose jigsaw pieces fits an empty slot, and how far to turn it, by the shape of its sides alone. | any |
 | [`proposing-parallel-grasps-in-tight-clusters`](#proposing-parallel-grasps-in-tight-clusters) | select | Proposes top-down parallel-jaw grasps on small flat parts packed close together (jigsaw pieces, LEGO bricks, dominoes… | any |
 | [`sampling-labeled-points-in-mask`](#sampling-labeled-points-in-mask) | select | Picks the point on (or in) an object that a language instruction asks for. | any, *tuned on* yam-station-overhead-rgbd |
+| [`selecting-a-grip-clear-of-placed-neighbours`](#selecting-a-grip-clear-of-placed-neighbours) | select | Chooses where a two-finger gripper should hold a jigsaw piece, and along which direction it should close, so that at… | any |
 | [`selecting-free-placement-spots`](#selecting-free-placement-spots) | select | Picks world-frame spots on a named surface where a held object can be set down. | any, *tuned on* yam-station-overhead-rgbd |
 | [`selecting-reachable-grasp`](#selecting-reachable-grasp) | select | Walk a ranked list of candidate grasp poses and take the first the arm can actually reach. | any, **sim only** |
 | [`selecting-safe-cable-grasp-segments`](#selecting-safe-cable-grasp-segments) | select | Ranks top-down grasp points along a cable's fitted centreline that keep the fingers off its ends (a larger margin at… | any, *tuned on* yam-station-overhead-rgbd |
@@ -1059,6 +1060,20 @@ Picks the point on (or in) an object that a language instruction asks for - lays
   - `selected`: The VLM named offered marker(s); `point` is the first one's world point (near-side depth inside the mask), `points` / `selected` all of them in the VLM's order with index, label and pixel.
   - `none_suitable`: The markers were drawn but the VLM answered [] (no marker fits), its replies (up to `attempts`) held no usable list or named numbers not offered, or no marker had depth; `detail` says which. `marked_image` shows what it was offered.
   - `not_seen`: No mask - the given one is empty or under 20 px, or sam3.segment_text found no instance of `object_name` scoring 0.3 or more.
+
+### selecting-a-grip-clear-of-placed-neighbours
+
+select · robots: any · tasks: jigsaw · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/selecting-a-grip-clear-of-placed-neighbours/SKILL.md)
+
+Chooses where a two-finger gripper should hold a jigsaw piece, and along which direction it should close, so that at the piece's slot neither fingertip (nor its outward travel on release) lands on an already-placed neighbour - the piece and its neighbours are rasterised at the slot, every closing direction (5 degree steps) and jaw offset (1 mm) is closed onto the piece's extreme points within the finger's width, and each fingertip footprint is checked against a distance transform of the neighbours; the clear grip nearest the piece's centre with the most contact and clearance wins. With no clear grip at the slot it searches the smallest offset at which the piece can be set down clear and pushed in. Also returns the same grip on the piece as it lies (pixel and closing yaw) for the pick. Use when a jigsaw piece is about to be picked for a known slot with a parallel gripper (suction robots never meet this), after the slot and turn are known; planning only, under 0.1 s on CPU (0.8 s with the offset search).
+
+- **In**: -
+- **Out**: `closing_yaw_deg` float, `grip_width_m` float, `clearance_m` float, `n_clear` int
+- **Scripts**: [`select_grip`](skills/selecting-a-grip-clear-of-placed-neighbours/scripts/select_grip.py)
+- **Exits**:
+  - `grip_found`: A grip at the slot keeps both fingertip footprints (plus release travel) at least min_clearance (0.5 mm) from every placed neighbour; grip_point, closing_yaw_deg, grip_width_m and contacts are in board metres at the slot.
+  - `only_offset_place`: No grip is clear at the slot, but the piece can be set down offset_m away (up to 0.6 cell) clear of the neighbours with a clear grip there, then pushed into the slot (seating-a-piece-by-wiggle-search's offset-push); the grip is given at the offset pose.
+  - `no_clear_grip`: No grip clears at the slot and no offset placement clears (typically three or four sides already placed), or no grip spans the piece within the gripper's opening, or the input could not be used; the least-bad grip is still returned for a release-above-and-press strategy.
 
 ### selecting-free-placement-spots
 
