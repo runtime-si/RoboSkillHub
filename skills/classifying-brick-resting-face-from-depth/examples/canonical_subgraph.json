@@ -1,0 +1,27 @@
+{
+  "skill": "classifying-brick-resting-face-from-depth",
+  "inputs": {"brick_position": "Vec3"},
+  "outputs": {
+    "vertical_axis": {"$ref": "classify.vertical_axis"},
+    "up_vector": {"$ref": "classify.up_vector"},
+    "yaw_deg": {"$ref": "classify.yaw_deg"},
+    "centre": {"$ref": "classify.centre"}
+  },
+  "nodes": {
+    "classify": {
+      "type": "script",
+      "script": "scripts/classify_face.py",
+      "inputs": {
+        "brick_position": {"$ref": "in.brick_position"},
+        "system": "duplo",
+        "brick_studs": [2, 4]
+      }
+    }
+  },
+  "edges": [["START", "classify"], ["classify", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["studs_up", "upside_down", "on_side", "unknown", "no_brick"]
+  },
+  "on_error": "unreachable"
+}
