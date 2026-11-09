@@ -222,6 +222,85 @@ def cmd_new(args) -> int:
     return 0
 
 
+def cmd_sources(args) -> int:
+    from .source_index import find_sources, load_source_index
+
+    data = load_source_index(args.root or find_root())
+    matches = find_sources(
+        data,
+        args.query,
+        category=args.category,
+        license_status=args.license_status,
+        review_level=args.review_level,
+    )
+    limit = args.limit if args.limit is not None else (None if args.json else 30)
+    rows = matches if limit is None else matches[:limit]
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "collection": data["collection"],
+                    "snapshot_date": data["snapshot_date"],
+                    "query": args.query,
+                    "invocable_in_hub": False,
+                    "matched_count": len(matches),
+                    "returned_count": len(rows),
+                    "entries": rows,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+    else:
+        print("Source index only; every entry is non-invocable and requires adaptation.")
+        print(
+            "All license statuses are included; code labels do not clear weights or dependencies."
+        )
+        for row in rows:
+            license_record = row["license"]
+            print(f"{row['priority']}  {row['id']}  [{row['category']}]  {row['name']}")
+            print(
+                f"    {row['review_level']}; code license: {license_record['status']} "
+                f"({license_record['spdx'] or 'unresolved'}); invocable: false"
+            )
+            print(f"    {row['source_url']}")
+        print(
+            f"{len(matches)} matched; showing {len(rows)} (--limit N; --json includes full metadata)"
+        )
+    return 0
+
+
+def cmd_check_sources(args) -> int:
+    from .source_index import LICENSE_STATUSES, REVIEW_LEVELS, load_source_index
+
+    data = load_source_index(args.root or find_root())
+    rows = data["entries"]
+    licenses = ", ".join(
+        f"{status}: {sum(row['license']['status'] == status for row in rows)}"
+        for status in LICENSE_STATUSES
+    )
+    reviews = ", ".join(
+        f"{level}: {sum(row['review_level'] == level for row in rows)}" for level in REVIEW_LEVELS
+    )
+    print(f"{len(rows)} {data['collection']} source entries: metadata valid")
+    print(f"    license: {licenses}")
+    print(f"    review:  {reviews}")
+    print(
+        "Metadata validation only; no upstream execution, license clearance or hardware validation."
+    )
+    return 0
+
+
+def _positive_limit(value: str) -> int:
+    try:
+        number = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("limit must be a positive integer") from exc
+    if number < 1:
+        raise argparse.ArgumentTypeError("limit must be a positive integer")
+    return number
+
+
 def _selection_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("query", help="the task instruction, in words")
     p.add_argument("--embodiment", help="robot id (rss.robot() name), e.g. yam_i2rt")
@@ -321,6 +400,22 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("kind", choices=("tool", "skill", "policy", "recipe", "paper"))
     p.add_argument("name")
     p.set_defaults(fn=cmd_new)
+
+    from .source_index import LICENSE_STATUSES, REVIEW_LEVELS
+
+    p = sub.add_parser("sources", help="find indexed upstream sources (never executable bundles)")
+    p.add_argument("query", nargs="?", default="", help="keywords; all terms must match")
+    p.add_argument("--category", help="exact category from candidates/pick-place-index.json")
+    p.add_argument("--license-status", choices=LICENSE_STATUSES)
+    p.add_argument("--review-level", choices=REVIEW_LEVELS)
+    p.add_argument(
+        "--limit", type=_positive_limit, help="maximum results; default 30 text, all JSON"
+    )
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(fn=cmd_sources)
+    sub.add_parser("check-sources", help="validate the separate source index").set_defaults(
+        fn=cmd_check_sources
+    )
     return parser
 
 
