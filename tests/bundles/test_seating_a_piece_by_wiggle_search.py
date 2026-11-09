@@ -253,6 +253,7 @@ class World:
     def _open(self, **kw):
         if self.held:
             b = self.piece()
+            b[2] = min(b[2], self.floor(b[:2], self.yaw()))  # let go, it falls to its floor
             self.top_z = (
                 b[2] + THICK if self.top_offset is None else SLOT[2] + THICK + self.top_offset
             )

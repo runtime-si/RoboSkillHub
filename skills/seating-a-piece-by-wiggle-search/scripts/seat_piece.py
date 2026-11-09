@@ -147,6 +147,12 @@ margin kept from it [rad]."""
 HOLD_S = 0.3
 """Pause at the seat before the jaws open [s]."""
 
+RELEASE_RISE = 0.0003
+"""The hand rises this much at the seat before the jaws open [m]: whatever load
+the stop left on the piece comes off it first (still 1.7 mm inside a 2 mm slot).
+In the YAM station twin, pieces released straight from the stop were thrown off
+the slot as the jaws opened in 2 of 6 trials."""
+
 SETTLE_QUIET = 0.0001
 SETTLE_PERIOD = 0.1
 SETTLE_TIMEOUT = 2.0
@@ -203,9 +209,9 @@ jammed [m]."""
 PUSH_DOWN_DEPTH = 0.0005
 """With push_down, after the release the closed fingertips push the piece's top
 until the command leads the stopped hand by this much [m] (puzzle_bot's last
-step: release, then push down). Off by default: on the YAM station twin the
-push (5 mm off the piece's centre) knocked a just-dropped piece back onto its
-neighbours in the one trial it ran."""
+step: release, then push down). Off by default: in the one YAM station twin
+trial it ran, the fingertips met the top 2.2 mm high (the piece was caught
+half in, tilted) and the push left it flat on its neighbours, not in."""
 
 APPROACHES = ("wiggle", "tilt_first", "offset_push")
 
@@ -1197,6 +1203,9 @@ def run(
 
     # -- release where it is and check the top
     p_seat = unpress()
+    _, r_seat = arm.read()
+    arm.move("robot.go_to_pose", p_seat + up * RELEASE_RISE, r_seat, fine=True)
+    p_seat = arm.still()[0]
     piece = piece_at(p_seat)
     out["seated_position"] = _vec(np.array([piece[0], piece[1], slot[2]]))
     out["stop_height"] = height(p_seat)
@@ -1266,6 +1275,11 @@ def _check(
         if check_reach and not _ik_ok(ctx, view, arm.on_arm):
             tries.append("a view out of reach (IK preview)")
             continue
+        here, r_here = arm.read()
+        if here[2] < view[2, 3] - 0.01:
+            # Straight up first: a hand swinging round to the view from just over
+            # the released piece clipped it in the twin and threw it off the slot.
+            arm.move("robot.go_to_pose_cartesian", np.array([here[0], here[1], view[2, 3]]), r_here)
         kind, why = arm.move("robot.go_to_pose", view[:3, 3], view[:3, :3])
         q, _ = arm.read()
         if kind == "refused" or float(np.linalg.norm(q - view[:3, 3])) > REACH_TOLERANCE:
