@@ -1,0 +1,30 @@
+{
+  "skill": "standing-a-lying-domino-by-reorient-and-regrasp",
+  "inputs": {"tile_center": "Vec3", "long_axis": "Vec3", "table_z": "float"},
+  "outputs": {
+    "picked": {"$ref": "stand.picked"},
+    "released": {"$ref": "stand.released"},
+    "verified": {"$ref": "stand.verified"},
+    "standing_tile": {"$ref": "stand.standing_tile"},
+    "facing_deg": {"$ref": "stand.facing_deg"},
+    "standing_offset": {"$ref": "stand.standing_offset"},
+    "detail": {"$ref": "stand.detail"}
+  },
+  "nodes": {
+    "stand": {
+      "type": "script",
+      "script": "scripts/stand_domino.py",
+      "inputs": {
+        "tile_center": {"$ref": "in.tile_center"},
+        "long_axis": {"$ref": "in.long_axis"},
+        "table_z": {"$ref": "in.table_z"}
+      }
+    }
+  },
+  "edges": [["START", "stand"], ["stand", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["standing", "fell", "unverified", "ungraspable", "dropped"]
+  },
+  "on_error": "unreachable"
+}
