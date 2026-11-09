@@ -56,7 +56,6 @@ def main() -> int:
     )
     ap.add_argument("--n-tiles", type=int, default=4)
     ap.add_argument("--scene", type=Path, help="scene spec JSON (default: built-in v1)")
-    ap.add_argument("--render-dir", type=Path, help="isaac only: save a few RGB frames per episode")
     args = ap.parse_args()
     spec = (
         DominoSceneSpec.from_dict(json.loads(args.scene.read_text()))
@@ -80,7 +79,7 @@ def main() -> int:
     else:
         from roboskillhub.tasks.assembly_eval.domino_isaac import IsaacBackend
 
-        backend = IsaacBackend(headless=True, render_dir=args.render_dir)
+        backend = IsaacBackend(headless=True)
     root = args.out / backend.name
     rows = []
     try:

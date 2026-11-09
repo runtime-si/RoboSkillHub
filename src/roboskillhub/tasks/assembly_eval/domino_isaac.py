@@ -23,42 +23,70 @@ from .domino_geometry import wxyz_to_xyzw
 from .domino_scene import DominoSceneSpec
 
 TOUCH_SEPARATION = 0.0005
+PHYSICS_KIT_NAME = "domino_physics_isaacsim51.kit"
+PHYSICS_KIT = """[package]
+description = "Physics-only Isaac Sim app for the domino evaluation (no RTX renderer, no viewport)"
+title = "Isaac Sim Domino Physics"
+version = "5.1.0"
+
+[dependencies]
+"isaacsim.simulation_app" = {{}}
+"isaacsim.core.api" = {{}}
+"isaacsim.core.prims" = {{}}
+"isaacsim.core.utils" = {{}}
+"isaacsim.core.simulation_manager" = {{}}
+"omni.physx" = {{}}
+"omni.kit.loop-isaac" = {{}}
+"omni.usd" = {{}}
+
+[settings.app]
+name = "Isaac-Sim Domino Physics"
+version = "5.1.0"
+settings.persistent = false
+vulkan = false
+enableDeveloperWarnings = false
+
+[settings.app.exts.folders]
+'++' = ["{pkg}/apps", "{pkg}/exts", "{pkg}/extscache", "{pkg}/extsDeprecated"]
+"""
+
+
+def write_physics_kit(pkg: Path) -> Path:
+    import tempfile
+
+    path = Path(tempfile.gettempdir()) / PHYSICS_KIT_NAME
+    path.write_text(PHYSICS_KIT.format(pkg=pkg))
+    return path
 
 
 class IsaacBackend:
     name = "isaac"
 
-    def __init__(
-        self, headless: bool = True, render_dir: Path | None = None, experience: str | None = None
-    ):
+    def __init__(self, headless: bool = True, experience: str | None = None):
         import os
 
         import isaacsim
         from isaacsim import SimulationApp
 
-        # The lean python experience loads far fewer extensions than the full one (RAM on a
-        # shared host); override with ISAAC_EXPERIENCE (a .kit path, or "" for the default).
+        pkg = Path(isaacsim.__file__).parent
+        # Default: a physics-only experience (no RTX renderer, no viewport). These episodes
+        # render nothing, and the RTX renderer of Kit 107.3 segfaults on hosts with NVIDIA
+        # driver 595. ISAAC_EXPERIENCE overrides with a .kit path ("" = Isaac's default).
         exp = os.environ.get("ISAAC_EXPERIENCE", experience)
         if exp is None:
-            lean = Path(isaacsim.__file__).parent / "apps" / "isaacsim.exp.base.python.kit"
-            exp = str(lean) if lean.exists() else ""
+            exp = str(write_physics_kit(pkg))
         self.experience = exp
-        self._app = SimulationApp(
-            {
-                "headless": headless,
-                "width": 640,
-                "height": 480,
-                "extra_args": ["--/app/settings/persistent=false"],
-            },
-            experience=exp,
-        )
+        self.physics_only = exp.endswith(PHYSICS_KIT_NAME)
+        config = {"headless": headless, "extra_args": ["--/app/settings/persistent=false"]}
+        if self.physics_only:
+            config.update(create_new_stage=False, disable_viewport_updates=True)
+        self._app = SimulationApp(config, experience=exp)
 
         self._version = (
             (Path(isaacsim.__file__).parent / "VERSION").read_text().strip()
             if (Path(isaacsim.__file__).parent / "VERSION").exists()
             else "unknown"
         )
-        self.render_dir = render_dir
         self._steps = 0
         self._world = None
         self.usd_sha256 = None
@@ -81,6 +109,7 @@ class IsaacBackend:
             "gpu": gpu,
             "usd_sha256": self.usd_sha256,
             "experience": self.experience,
+            "renderer": "none (physics-only kit)" if self.physics_only else "rtx",
             "hand": "fixed-base x/y/z prismatic + yaw revolute + 2 prismatic fingers (no arm)",
         }
 
