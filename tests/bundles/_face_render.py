@@ -128,9 +128,10 @@ def render_depth(
     t_table_cam: np.ndarray,
     bricks: list[tuple[str, int, int, np.ndarray, float | None]],
     size: tuple[int, int] = (640, 480),
+    boxes: list[tuple[tuple, tuple]] = (),
 ) -> np.ndarray:
-    """Clean depth (float32 metres, 0 = no reading) of the table and ``bricks``
-    (system, nx, ny, pose, brick height or None)."""
+    """Clean depth (float32 metres, 0 = no reading) of the table, ``bricks``
+    (system, nx, ny, pose, brick height or None) and axis-aligned ``boxes`` (lo, hi)."""
     w, h = size
     u, v = np.meshgrid(np.arange(w) + 0.0, np.arange(h) + 0.0)
     dc = np.stack([(u - k[0, 2]) / k[0, 0], (v - k[1, 2]) / k[1, 1], np.ones_like(u)], -1)
@@ -142,6 +143,9 @@ def render_depth(
     for system, nx, ny, pose, bh in bricks:
         bh = SYSTEMS[system]["brick_h"] if bh is None else bh
         t = np.minimum(t, _trace_brick(o, d, pose, system, nx, ny, bh))
+    for lo, hi in boxes:
+        tb, _ = _box(o, d, np.asarray(lo, float), np.asarray(hi, float))
+        t = np.minimum(t, tb)
     depth = t.reshape(h, w)
     return np.where(np.isfinite(depth), depth, 0.0).astype(np.float32)
 

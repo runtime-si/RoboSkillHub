@@ -83,6 +83,11 @@ GRID = 0.001
 OBJECT_FRACTION = 0.35
 """Points this fraction of the lowest possible brick height over the table are brick."""
 
+CEILING_MARGIN = 0.01
+"""Points more than this (or half a pitch) over the tallest face are not the brick: the
+gripper's own fingers stand in the wrist camera's view (the station twin's first run
+took them for a 183 mm part)."""
+
 SEARCH_MARGIN = 0.02
 """Points within the brick's half-diagonal plus this of brick_position are searched [m]."""
 
@@ -275,7 +280,14 @@ def measure(
         table_z = _lowest_level(pts[ring, 2], 0.002)
     out["table_height"] = float(table_z)
     h_min = min(f["height"] for f in hyp.values())
-    sel = (r < half_diag + SEARCH_MARGIN) & (pts[:, 2] > table_z + OBJECT_FRACTION * h_min)
+    h_max = max(f["height"] for f in hyp.values())
+    # Nothing taller than the brick's tallest face: the wrist camera sees its own fingers.
+    ceiling = table_z + h_max + max(CEILING_MARGIN, 0.5 * pitch)
+    sel = (
+        (r < half_diag + SEARCH_MARGIN)
+        & (pts[:, 2] > table_z + OBJECT_FRACTION * h_min)
+        & (pts[:, 2] < ceiling)
+    )
     cand = pts[sel]
     if len(cand) < MIN_POINTS:
         out["no_brick"] = True
@@ -356,8 +368,10 @@ def measure(
     perp = np.array([-long_dir[1], long_dir[0]])
     inset = INNER_FRACTION * pitch
     rel_all = pts[:, :2] - np.array([cx, cy])
-    inner = (np.abs(rel_all @ long_dir) <= long_side / 2 - inset) & (
-        np.abs(rel_all @ perp) <= short_side / 2 - inset
+    inner = (
+        (np.abs(rel_all @ long_dir) <= long_side / 2 - inset)
+        & (np.abs(rel_all @ perp) <= short_side / 2 - inset)
+        & (pts[:, 2] < ceiling)
     )
     depth_cut = max(DEEP_FRACTION * body_h, 1.5 * stud_h)
     if inner.sum() >= MIN_POINTS // 2:

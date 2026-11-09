@@ -92,7 +92,9 @@ brick's known size.
    around the search disc (or `table_height` if given). The source took the
    frame's farthest depth instead.
 4. **Brick**: points more than 0.35 of the brick's lowest possible height
-   over the table, within its half-diagonal + 2 cm of `brick_position`. They
+   over the table and under its tallest face + max(1 cm, half a pitch) (the
+   wrist camera sees its own fingers), within its half-diagonal + 2 cm of
+   `brick_position`. They
    are rasterised at 1 mm, closed, split into connected clusters, and the
    cluster nearest the position is kept. An upside-down brick splits into
    its walls and its tubes; the cluster whose hull encloses the nearest one
@@ -141,10 +143,28 @@ fits), a dict returned but not in `produces_outputs` (gap schema types only).
 
 ## Checked
 
-**Simulation check: pending (no GPU host).** None of the AutoDL hosts
-(autodl5, autodl6, autodl14) answered ssh during this port. The skill only
-moves the camera to a view; what still needs a twin run is a rendered
-station D405 frame of real brick meshes.
+**Station twin** (RoboSimStudio YAM station, GCP pool host, 2026-11-09):
+a free DUPLO 2 x 2 brick (pressing-a-brick-onto-studs' check brick: top,
+walls, central tube, studs) is put on the cloth 8 cm beside the baseplate
+(a harness tool) studs up, upside down or on a side, at yaws 0 / 30 / 70
+deg, and left to settle. The real station's calibrated left wrist D405
+renders depth. The skill gets the settled xy off by (4, -3) mm and moves the
+camera itself. Harness: `~/sim-wt/brick-camera-checks` (graph_classify).
+
+| placed | truth (brick +z after settling) | route | vertical axis | yaw read | up_vector |
+|---|---|---|---|---|---|
+| studs up, yaw 0 / 30 / 70 | up | studs_up x3 | z | -0.1 / 30.2 / -20.0 (70 mod 90) | (0, 0, 1) |
+| upside down, yaw 0 / 30 / 70 | down | upside_down x3 (77 % hollow) | z | -0.0 / 30.1 / -20.0 | (0, 0, -1) |
+| on a side, yaw 0 / 30 / 70 | horizontal | on_side x3 | x | -90.0 / -60.0 / -19.9 | stud direction named, equal to the truth in all 3 |
+
+9/9 routes, axes and stud directions match the truth. Two harness problems
+were found and fixed on the way:
+- The wrist camera sees the gripper's own fingers. The first run took them
+  for a 183 mm part, so points over the tallest face + 1 cm are now left out
+  (with a unit test).
+- The check brick's render mesh was a solid hull: an upside-down brick
+  showed no hollow and read studs_up, 0/3. The harness now renders the
+  collision pieces.
 
 **Synthetic depth** (`tests/bundles/_face_eval.py`, not a simulator):
 hollow bricks are ray-cast (walls, top, underside tubes or pins, studs; nominal
@@ -185,7 +205,7 @@ specular or dark plastic, no stereo shadowing, no chamfers.
   different readings, and a wrong size usually ends in `unknown`).
 - **Stud direction on a side** for LEGO is often unresolved (see Checked);
   a closer view (0.12-0.15 m) would help.
-- Not run on a real YAM; not run in the station twin (see Checked).
+- Not run on a real YAM; in the twin only a DUPLO 2x2 (see Checked).
 
 ## The constants, and why
 
@@ -196,7 +216,7 @@ specular or dark plastic, no stereo shadowing, no chamfers.
 - **`MARGIN = 1.5`**, **`UPSIDE_DOWN_SHARE = 0.25`**, **`STUDS_UP_SHARE =
   0.10`**, **`DEEP_FRACTION = 0.45`** (the middle of a cavity 0.9 brick
   heights deep: **`TOP_THICKNESS_FRACTION = 0.1`**), **`UPDOWN_MARGIN = 1 mm`**, **`INNER_FRACTION =
-  0.2`**, **`STUD_SIDE_FRACTION = 0.5`**, **`OBJECT_FRACTION = 0.35`**: set
+  0.2`**, **`STUD_SIDE_FRACTION = 0.5`**, **`OBJECT_FRACTION = 0.35`**, **`CEILING_MARGIN = 1 cm`**: set
   on the synthetic depth; the measured shares were 0.00-0.04 (studs up or
   side) and 0.70-0.85 (upside down).
 - **`VIEW_RANGES`**, **`MIN_VIEW_CLEARANCE`**: pressing-a-brick-onto-studs /

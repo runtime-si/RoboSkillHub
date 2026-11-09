@@ -106,6 +106,30 @@ def test_a_plate_lying_flat_is_not_judged_up_or_down(script):
     assert out["vertical_axis"] == "z"
 
 
+def _cloud_with_fingers(script, world, finger_z):
+    """The rendered wrist frame's points plus a finger-sized patch of points over the brick
+    (a camera beside the fingers sees them over the brick without them hiding it)."""
+    script.run(world.ctx(), brick_position=world.position(), system="duplo", brick_studs=[2, 4])
+    cam = world.observation()["cameras"][0]
+    pts = script.world_points(cam, np.asarray(cam["depth"], dtype=float))
+    c = np.array([world.position()[k] for k in "xyz"])
+    gx, gy = np.meshgrid(np.linspace(-0.01, 0.01, 30), np.linspace(-0.008, 0.008, 25))
+    finger = np.stack([c[0] + gx.ravel(), c[1] + gy.ravel(), np.full(gx.size, c[2] + finger_z)], 1)
+    return np.vstack([pts, finger]), c
+
+
+def test_the_grippers_own_fingers_over_the_brick_are_left_out(script, monkeypatch):
+    # The station twin's first run took the wrist camera's own fingers, 183 mm up, for part
+    # of a brick; points over the tallest face + 1 cm are not the brick.
+    pts, c = _cloud_with_fingers(script, World(studs=(2, 4)), 0.15)
+    m = script.measure(pts, c, 2, 4, 0.016, 0.0045, 0.0192)
+    assert m["height"] == pytest.approx(0.0237, abs=0.002)
+    assert min(m["scores"], key=m["scores"].get) == "z"
+    monkeypatch.setattr(script, "CEILING_MARGIN", 1.0)
+    m = script.measure(pts, c, 2, 4, 0.016, 0.0045, 0.0192)
+    assert m["height"] > 0.1  # without the ceiling the fingers are the top
+
+
 def test_touching_bricks_fit_no_face(script):
     w = World(others=[("duplo", 2, 2, "studs_up", 0.032, 0.0, 0.0)])
     out = classify(script, w)

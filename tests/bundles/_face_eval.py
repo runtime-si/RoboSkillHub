@@ -79,8 +79,10 @@ class World:
         ik_ok=True,
         refuse=None,
         seed=0,
+        boxes=(),
     ):
         self.system, self.studs, self.face, self.yaw = system, tuple(studs), face, yaw_deg
+        self.boxes = list(boxes)
         self.brick_height = brick_height
         self.bricks = []
         if brick:
@@ -120,7 +122,7 @@ class World:
         key = np.round(cam_world, 6).tobytes()
         if key not in self._cache:
             t_tc = np.linalg.inv(self.table) @ cam_world
-            self._cache[key] = FR.render_depth(K, t_tc, self.bricks)
+            self._cache[key] = FR.render_depth(K, t_tc, self.bricks, boxes=self.boxes)
         return FR.add_noise(self._cache[key], K, self.rng)
 
     def observation(self, **kw):
