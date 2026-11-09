@@ -55,10 +55,11 @@ YAM's lag noise is millimetres (detecting-contact-from-joint-effort's
 LAG_THRESHOLD = 3 mm), more than a piece's thickness; there the arm's stop
 cannot tell resting from seated and the wrist depth check decides."""
 
-PRESS_DEPTH = 0.0006
-"""How far the command may lead the stopped hand while pressing [m]: on a stiff
-position servo the lead is the force. Light, as puzzle_bot's slight-press scoot
-height (about 0.6 mm of its spring over the set height)."""
+PRESS_DEPTH = 0.0
+"""How far the command may lead the stopped hand past the first contact [m]; on
+a stiff position servo the lead is the force. 0: stop at the contact. On the
+YAM station twin a 0.6 mm lead (puzzle_bot's slight-press height) pushed the
+piece 0.6-0.8 mm up in the jaws, which then read on every later stop as height."""
 
 EFFORT_THRESHOLD = 0.5
 EFFORT_SIGMAS = 4.0
@@ -1000,7 +1001,7 @@ def run(
             raise _Done(
                 lift_back("unreachable", f"a step of {label} was refused: {res['refused']}")
             )
-        at = res["at"]
+        at = res.get("first", res["at"])
         state["yaw"] = _yaw_between(r0, arm.read()[1])
         h = height(at)
         if not res["contact"]:

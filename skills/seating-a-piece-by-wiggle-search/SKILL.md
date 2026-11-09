@@ -91,8 +91,13 @@ does with a spring-mounted head and a linear encoder.
    over the neighbours' tops, then down in 0.4 mm steps. After each step the
    hand is allowed to settle and its lag behind the command is compared with
    free motion (and joint efforts with their free-motion windows where the
-   observation carries them); on contact it presses on until the command leads
-   the stopped hand by `press_depth` (0.6 mm, a light press on a stiff servo).
+   observation carries them); it stops at the first contact (`press_depth` 0;
+   a light press can be asked for, but on the station twin a 0.6 mm press
+   pushed the piece 0.6-0.8 mm up in the jaws and every later height read
+   that much high). Positions use the wrist yaw read back after each move, and
+   a yaw that crept off on the way (the twin leaves the roll free) is turned
+   back before the descent: with the piece 9 mm from the tool centre, 3 deg of
+   creep put it 0.5 mm off.
    The stop gives the piece's bottom over the mat: under a quarter of the
    thickness is a drop; a whole descent through a thickness under the mat
    without contact means the piece is not in the hand.
@@ -139,7 +144,7 @@ the piece, not the hand, over its point.
 - `thickness` (2 mm), `sigma_xy` (1 mm), `sigma_yaw_deg` (2 deg),
   `search_radius` (2.5 mm), `pitch` (0.4 mm), `yaw_range_deg` (4),
   `yaw_step_deg` (1), `max_probes` (40), `max_time_s` (0: none), `scoot`
-  (true), `press_depth` (0.6 mm), `lag_threshold` (half a step), `approach_height`
+  (true), `press_depth` (0), `lag_threshold` (half a step), `approach_height`
   (15 mm), `contact_window` (4 mm), `release_when_not_seated` (false), `hold_s`,
   `verify` (true), `camera`, `top_radius` (5 mm), `roll_limits`, `check_reach`,
   `reach_tolerance`, `arm_id` (passed only when nonzero).
@@ -154,10 +159,10 @@ the piece, not the hand, over its point.
   within 25% (first 60%) on its encoder. An arm's stop is coarser than an
   encoder; a quarter (0.5 mm) is still a quarter of the 2 mm a resting piece
   stands up.
-- **`FEEL_STEP = 0.4 mm`, `LAG_FRACTION = 0.5`, `PRESS_DEPTH = 0.6 mm`**: a
+- **`FEEL_STEP = 0.4 mm`, `LAG_FRACTION = 0.5`, `PRESS_DEPTH = 0`**: a
   fifth of the thickness per step; pressing-a-brick-onto-studs' lag fraction,
-  tuned on the YAM station twin (servo within 0.2-0.3 mm); a press no harder
-  than a 0.6 mm lead.
+  tuned on the YAM station twin (servo within 0.2-0.3 mm); no press past the
+  contact (measured: a 0.6 mm press slid the piece up in the jaws).
 - **`PITCH = 0.4 mm`, `SEARCH_RADIUS = 2.5 mm`**: every point within 0.23 mm
   of a probe, about the clearance; puzzle_bot's grid steps 0.25 mm over
   +-2.5 mm.
