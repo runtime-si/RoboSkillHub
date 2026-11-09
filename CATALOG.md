@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-19 tools, 115 skills, 2 policies, 1 recipe and 1 paper.
+19 tools, 116 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -107,6 +107,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`lifting-with-both-arms`](#lifting-with-both-arms) | execute | Lifts an elongated object (a bar, a tray, a pot by its handles) with both arms. | any, 2 arms |
 | [`moving-both-arms-together`](#moving-both-arms-together) | execute | Moves both hands to their target poses as one coordinated motion. | any, 2 arms |
 | [`picking-and-placing-two-objects`](#picking-and-placing-two-objects) | execute | Picks two objects with two arms, one each, and places both. | any, 2 arms |
+| [`picking-upright-dominoes-from-a-loading-rack`](#picking-upright-dominoes-from-a-loading-rack) | execute | Takes the next domino out of a slotted loading rack, where tiles stand one per slot at a known pitch, instead of… | any |
 | [`placing-an-upright-domino-beside-neighbours`](#placing-an-upright-domino-beside-neighbours) | execute | Picks a standing domino top-down and sets it upright at a slot in a row without touching the tiles already standing… | any |
 | [`placing-held-feature`](#placing-held-feature) | execute | Move a held object so one of its declared features lands on a target point. | any, **sim only** |
 | [`placing-into-container-held-by-other-arm`](#placing-into-container-held-by-other-arm) | execute | Puts the object one arm holds into an open container the other arm holds. | any, 2 arms |
@@ -1457,6 +1458,27 @@ Picks two objects with two arms, one each, and places both - each object goes to
   - `one_placed`: One arm placed its object, the other did not; failed_arms names it and outcome_a / outcome_b say why (grasp_missed, dropped, move_refused, clearance).
   - `none_placed`: Neither arm placed its object; failed_arms names both, outcome_a / outcome_b say why.
   - `unreachable`: No assignment of the two objects to the two arms has an IK preview reaching every pose of both plans, the arm ids are equal, or the connector reports no separate second arm; failed_arms names the arm(s) without a plan and nothing moved.
+
+### picking-upright-dominoes-from-a-loading-rack
+
+execute · robots: any · tasks: pick-place, domino · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/picking-upright-dominoes-from-a-loading-rack/SKILL.md) · [upstream](https://github.com/BasisResearch/predicators/blob/afb6f2918091f5ca372a75b9a335aea317a8a209/predicators/ground_truth_models/skill_factories/pick.py)
+
+Takes the next domino out of a slotted loading rack, where tiles stand one per slot at a known pitch, instead of standing up each tile from lying. It reads every slot from the overhead depth as full, empty (only the walls' tops) or jammed (a top that is neither) and chooses the full slot nearest the hand. It picks top-down with the jaws across the tile's width at a height that keeps the fingertips over the rack's walls, lifts straight up until the tile clears them, and reads the jaw gap; a lift held short with the tile in the jaws is a jammed tile. Returns the held tile's grasp height for placing-an-upright-domino-beside-neighbours (tile None). Use when a domino build is fed from a rack filled by hand or by the other arm, as its supply step.
+
+- **In**: `table_z` float
+- **Out**: `slot_index` int, `picked` bool, `grasp_height` float, `grip_width` float, `jaw_error_deg` float, `wrist_turn_deg` float, `tile` Se3Pose, `full_count` int, `remaining` int, `lift_shortfall` float
+- **Calls**: connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.set_grip`, `robot.solve_ik`
+- **Scripts**: [`pick_from_rack`](skills/picking-upright-dominoes-from-a-loading-rack/scripts/pick_from_rack.py)
+- **Exits**:
+  - `picked`: A tile was taken from `slot_index`, lifted straight out and carried to transit height with the jaws reading its width; `grasp_height` is the measured tool-centre height over its bottom (pass it to placing-an-upright-domino-beside-neighbours with tile None), `tile` where it stood, `slot_states` every slot as read, `remaining` the full slots left.
+  - `slot_empty`: The requested `slot_index` is not full (empty or jammed); nothing moved.
+  - `rack_empty`: No slot reads full; `detail` lists the jammed and unseen ones (clear a jam by hand or with another skill).
+  - `grasp_failed`: The descent into the slot stopped high (a fingertip on the tile's top or a wall), the jaws closed on nothing or not across the tile, or the tile slipped out during the lift or the rise; the hand is open over the rack.
+  - `stuck`: The straight lift stopped more than 6 mm short with the tile still in the jaws (it is jammed in its slot); the jaws reopened and the hand rose.
+  - `hand_full`: The jaws already read a tile's width before anything moved (a tile from an earlier step still in the hand); nothing moved - place it or set it down first.
+  - `not_seen`: No full slot was seen and some slots were not (no camera saw them whole and unoccluded, also after `look_pose`), and no `occupied` list covers them.
+  - `unreachable`: Nothing was picked - every full slot has a standing neighbour where an open finger goes (a rack pitch under 19.8 mm for a 7.5 mm tile), no grasp height clears the walls and keeps 10 mm of tile above the fingertips, the grasp failed the IK preview for both wrist solutions, a move was refused, or the jaws stayed turned off the tile; also a refused rise after the pick (still holding).
+  - `invalid_input`: A rack without slots, a pitch or slot count that is not positive, a wall as high as the tile, an unknown order, an `occupied` list of the wrong length or a `slot_index` past the rack.
 
 ### placing-an-upright-domino-beside-neighbours
 
