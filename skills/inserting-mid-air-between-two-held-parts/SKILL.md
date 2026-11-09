@@ -1,0 +1,231 @@
+---
+name: inserting-mid-air-between-two-held-parts
+description: Inserts the part one arm holds into (or presses it onto) the part
+  the other arm holds, both in the air - ACT's scripted bimanual insertion (the
+  two parts brought to a shared meet point facing each other on one axis, a
+  stand-off apart, then the gap closed along that axis) with the parts' in-hand
+  offsets in place of simulator poses; the moving tip is aligned across the
+  axis on the holder's read-back entry before anything touches, then stepped in
+  while contact is felt on both arms without a force sensor (the pushing hand's
+  tracking lag beyond its free-motion lag, the holding hand pushed off its
+  pose, joint efforts where published). Use when a bimanual station must join
+  two parts that are each held by one arm - a peg into a socket, a pin into a
+  bore, a DUPLO brick onto a held sub-assembly - with both parts' contact points
+  measured in the hands (registering-held-objects or perception) and both arms
+  addressable by arm_id.
+license: MIT
+compatibility: requires gap>=0.1
+metadata:
+  category: manipulation
+  tags: [bimanual, insertion, peg-in-hole, assembly, mid-air, proprioception]
+  hub:
+    stage: execute
+    embodiments: [any]
+    arms: 2
+    version: 0.1.0
+    tasks: [insertion, bimanual]
+    provenance:
+      authors: [runtime-si]
+      code: https://github.com/tonyzhaozh/act/blob/main/scripted_policy.py
+      upstream_license: MIT
+      paper: arXiv:2304.13705
+gap:
+  allowed_tools:
+    - robot.get_ee_pose
+    - robot.get_gripper
+    - robot.get_observation
+    - robot.go_to_pose
+    - robot.go_to_pose_cartesian
+    - robot.move_to_joints
+    - robot.open_gripper
+  required_inputs:
+    moving_tip: Vec3
+    receiving_entry: Vec3
+  produces_outputs:
+    depth: float
+    lateral_error: float
+    lag_over_baseline: float
+    holder_shift: float
+    contact_signal: str
+    steps: int
+    roll_turns: int
+    efforts_available: bool
+    entry_position: Vec3
+    tip_position: Vec3
+    mover_pose: Se3Pose
+    holder_pose: Se3Pose
+  exit_conditions:
+    inserted: The moving tip, as the two hands' read-back poses and the in-hand offsets place it, went at least insert_depth less depth_tolerance past the holder's entry along the axis, and both jaws still read a hold (with release=mover, the mover then opened and backed out and the holder's jaws still hold). What the hands did, not a sighting of the part in the hole; a part that slid in its jaws reads as inserted.
+    misaligned: Nothing went in - the tip could not be brought within half the clearance of the entry's line (after align_tries corrections), a hand ended turned more than angle_tolerance_deg from the rotation its part was measured in, or the push stopped (lag, holder pushed, effort) with the tip less than 2 mm past the entry (the rim); the mover backed off to its stand-off, both still hold their parts.
+    stalled: The push stopped with the tip past the entry but short of insert_depth less depth_tolerance (a jam, a burr, a tilted part); the mover backed off 3 mm so it stops pushing, both still hold. Also routed when the mover's jaws did not open for release=mover.
+    slipped: A hand's jaws read at the stop - before anything moved (nothing held), or after the push or the release (a part fell out).
+    unreachable: The two arm ids are equal or the connector reports no separate second arm, the holder could not reach the meet point or the mover its stand-off (free moves read back beyond reach_tolerance or refused), a wrist roll could not be turned back, a step was refused, or signal=effort with no efforts published; detail says which and what each hand still holds.
+  canonical_scripts:
+    - insert_mid_air: scripts/insert_mid_air.py
+  examples:
+    - title: Insert the part arm 1 holds into the part arm 0 holds
+      path: examples/canonical_subgraph.json
+---
+
+# inserting-mid-air-between-two-held-parts
+
+Join two parts that are each in one hand, without putting either down. The
+holder (`holder_arm`, 0) holds the receiving part (a socket, a bore, a brick
+whose studs face out); the mover (`mover_arm`, 1) holds the moving part (a
+peg, a pin, a brick whose sockets face out) and pushes it in along the
+insertion axis. Every robot call names its arm (`arm_id`); one arm moves per
+call.
+
+## How it composes
+
+- **Before it**: each arm grasps its part; the part's contact feature is
+  measured in the hand - `registering-held-objects` (`feature_in_tcp`, pass
+  its position as `moving_tip_in_tcp` / `receiving_entry_in_tcp`) or a
+  perceived world point with that arm unmoved since (`moving_tip`,
+  `receiving_entry`). Turn each hand so its part's axis lies along the
+  insertion axis (both parts face each other) with `moving-both-arms-together`
+  or single-arm moves; this skill only translates the hands (ACT keeps fixed
+  hand quaternions throughout). Check the approach with
+  `checking-dual-arm-clearance` (the connectors do not collide one arm
+  against the other).
+- **After it**: `inserted` with `release: none` leaves both hands on the
+  assembly: hand it over (`handing-over-between-arms`), let one go, or carry
+  it with both (`moving-both-arms-together`, `keep_relative`). `misaligned`
+  can go back to registration (a fresh in-hand offset) or to a search
+  (`searching-insertion-spiral` with the holder still, as in
+  `holding-steady-while-other-arm-acts`).
+
+## The motion
+
+1. **Two arms, both holding.** Refuse (`unreachable`) if the arm ids are
+   equal or the holder's pose reads as the mover's (within 1 mm) or as no
+   pose. A jaw opening at the stop on either arm is `slipped`.
+2. **In-hand offsets.** The moving tip and the receiving entry are taken into
+   each hand's tool frame (from world points and the hands' poses read now,
+   or directly from `*_in_tcp`); from here on both are placed by the hands'
+   read-back poses, rotation included. The axis is `insertion_axis`, or from
+   the tip toward the entry.
+3. **Rendezvous** (ACT's meet point). With `meet_position` the holder carries
+   its entry there (keeping its rotation); without it the holder stays where
+   it is and the entry is the meet point. The mover goes to its stand-off: the
+   tip `standoff` (50 mm) back from the entry along the axis. `mode:
+   both_move` is ACT's two-sided closing: the holder first stops `standoff/2`
+   beyond the meet point, the mover `standoff/2` short of it, then the holder
+   brings its part in to the meet point and holds still. After each free move
+   a wrist roll more than 1 deg off the hand's rotation is turned back on the
+   last joint (`robot.move_to_joints`, read back; PORTING lesson 10) and the
+   hand re-centred.
+4. **Align on the holder's actual entry.** Both hands are read back, the tip
+   and the entry placed from them; the tip's offset across the axis must be
+   within half the diametral `clearance` (1 mm: 0.5 mm). Up to three
+   straight corrections of the mover (`tolerance` `fine_tolerance` 0.3 mm
+   passed to the connector), else `misaligned`. Either hand turned more than
+   `angle_tolerance_deg` (2 deg) from its measured rotation is `misaligned`.
+5. **Approach.** One straight move to 5 mm short of the entry, re-aligned
+   there the same way.
+6. **Step in** `step` (2.5 mm) at a time with `robot.go_to_pose`, the
+   commanded line holding the last lateral correction, to `insert_depth`
+   past the entry. After each step (the mover read until it stands still):
+   - **lag**: commanded minus measured tool centre along the axis, against
+     the median of the last three free steps; over `lag_threshold` (3 mm) is
+     contact;
+   - **holder**: the holder's tool centre more than
+     `holder_shift_threshold` (2 mm) from where it stood when the steps
+     began (the push reached it through the parts);
+   - **effort**: when the observation carries both arms' joint efforts, a
+     joint's residual against the mean of the free windows over
+     `effort_threshold` (0.5 N.m) or four sigma.
+7. **Decide.** Tip within `depth_tolerance` (3 mm) of `insert_depth`:
+   `inserted` (a contact there is the bottom; the mover backs off 3 mm).
+   Stopped with the tip under 2 mm past the entry: `misaligned` (the rim),
+   the mover goes back to its stand-off. Stopped further in: `stalled`, the
+   mover backs off 3 mm. With `release: mover` an inserted mover opens and
+   backs out `retreat` (50 mm) along its own approach, and the holder's jaws
+   are read again.
+
+## Inputs
+
+- `moving_tip` / `moving_tip_in_tcp`: the moving part's leading point (peg
+  tip centre, brick's socket-face centre), world with the mover unmoved since
+  it was measured, or in the mover's tool frame.
+- `receiving_entry` / `receiving_entry_in_tcp`: the receiving part's entry
+  centre (hole mouth, stud-top face centre), likewise for the holder.
+- `insertion_axis` (none: tip toward entry), `insert_depth` (0.02 m past the
+  entry), `meet_position` (none: the holder stays), `mode` (`holder_still` |
+  `both_move`), `mover_arm` (1), `holder_arm` (0).
+- `clearance` (0.001 m, diametral), `standoff`, `step`, `signal` (`auto` |
+  `lag` | `effort`), `lag_threshold`, `holder_shift_threshold`,
+  `effort_threshold`, `depth_tolerance`, `fine_tolerance`,
+  `step_max_steps` (0: the connector's), `reach_tolerance` (0.02 m),
+  `angle_tolerance_deg`, `fix_roll` (true), `release` (`none` | `mover`),
+  `retreat`, `empty_fraction` (0.04), `settle_period` (0.3 s; 0 reads once).
+
+## Required end states
+
+- `inserted`: both hands hold (or the holder holds the assembly and the
+  mover is backed out); the depth is the hands' and the offsets', not a
+  sighting. Re-perceive (`verifying-placement`, a wrist close-up) when it
+  matters.
+- `misaligned`: nothing went in; the mover is at its stand-off with its part.
+- `stalled`: the tip is partly in, the mover 3 mm back from where it
+  stopped, both hold.
+- `slipped`: see `detail`; a part may be on the table.
+- `unreachable`: see `detail`.
+
+## The constants, and why
+
+- **`STANDOFF = 0.05` m**: ACT's InsertionPolicy approaches the meet point
+  at +-0.10 m and inserts to +-0.05 m: 0.05 m of closing per arm.
+- **`STEP = 0.0025` m, `LAG_THRESHOLD = 0.003` m, `EFFORT_THRESHOLD = 0.5`
+  N.m, `BASELINE_WINDOW = 3`**: detecting-contact-from-joint-effort's (the
+  real YAM threading station's SETTLE_STEP / SETTLE_CONTACT, i2rt's clog
+  threshold).
+- **`CLEARANCE = 0.001` m**: the task this was checked on (a peg 1 mm under
+  its hole); the lateral bound is half of it, floored at 0.2 mm.
+- **`FINE_TOLERANCE = 0.0003` m**: passed as the connector's `tolerance` on
+  alignment moves and steps; a simulator servo's default 4 mm ball is four
+  times the whole clearance.
+- **`HOLDER_SHIFT_THRESHOLD = 0.002` m**: a choice (see the simulation
+  check for what the holder read while the other arm stepped in free air).
+- **`ENTRY_MARGIN = 0.002` m, `DEPTH_TOLERANCE = 0.003` m, `BACKOFF =
+  0.003` m, `CONTACT_MARGIN = 0.005` m**: a stop within 2 mm of the mouth is
+  the rim; a hand short by less than the lag threshold is in; backing off
+  one lag stops the push; the straight approach ends beyond a servo's 4 mm
+  ball from the rim.
+- **`ANGLE_TOLERANCE_DEG = 2`, `ROLL_TOLERANCE_DEG = 1`**: 2 deg tilts a 1 mm
+  clearance part by 0.7 mm across a 20 mm depth; 1 deg of free wrist roll
+  swings a tip held 50 mm off the tool axis by 0.9 mm.
+- **`REACH_TOLERANCE = 0.02` m, `EMPTY_FRACTION = 0.04`**: as
+  handing-over-between-arms.
+
+## Connectors and arm_id
+
+- RoboSimStudio: every robot verb used here takes `arm_id` (0 = work arm,
+  1 = support arm; an id past the last arm is clamped to it, hence step 1);
+  `robot.go_to_pose` takes `tolerance` / `max_steps`, passed only when set;
+  the observation carries joint positions, no efforts, so it decides by lag
+  and by the holder's displacement.
+- The real YAM station bridge (`yam_real.py`, 2026-11-06) drives the left arm
+  whatever `arm_id` says and reads no second arm's pose: this skill refuses
+  there (`unreachable`, "no separate arm"). On a dual-arm bridge the
+  alignment is only as good as the two arms' base calibration against each
+  other (a few mm on the YAM station today), far over a 1 mm clearance:
+  register the parts against each other (both in one wrist view) before
+  trusting it.
+
+## Simulation check
+
+Pending.
+
+## Provenance
+
+Adapted from ACT's scripted `InsertionPolicy`
+(https://github.com/tonyzhaozh/act/blob/main/scripted_policy.py, MIT): the
+two-hand meet point with the parts facing each other on one axis, the
+stand-off and the closing along the axis, fixed hand rotations. Changed:
+in-hand offsets measured while held and the hands' read-back poses in place
+of simulator part poses and ACT's tuned `lift_right`; a lateral alignment on
+the holder's read-back entry; stepped closing with contact felt on both arms
+(lag, holder displacement, efforts) in place of open-loop interpolation; one
+arm per call with explicit `arm_id`; routed exits. ACT's pick phase is not
+part of this skill (any grasp skill does it).
