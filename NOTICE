@@ -410,6 +410,16 @@ include/Lego.hpp, commit 9bc91654e708e4d8428ecfa76840103cacb2a19a), MIT License
 (its LICENSE.md carries the MIT text under the line "Copyright (c) 2011-2023
 GitHub Inc."); the file's header lists the changes, and the license is
 skills/computing-brick-pose-from-stud-grid/LICENSE.icl.
+skills/disassembling-a-brick-by-twist-lever/scripts/disassemble_brick.py is
+adapted from Robotic_Lego_Manipulation
+(https://github.com/intelligent-control-lab/Robotic_Lego_Manipulation,
+src/ros_nodes/lego_task_planning_node.cpp (the disassembly pick, modes 1-5, and
+its twist about robot_DH_tool_disassemble), src/Lego.cpp
+(Lego::calc_brick_grab_pose) and config/user_config.json (Twist_Deg), commit
+9bc91654e708e4d8428ecfa76840103cacb2a19a), MIT License (its LICENSE.md carries
+the MIT text under the line "Copyright (c) 2011-2023 GitHub Inc."); the file's
+header lists the changes, and the license is
+skills/disassembling-a-brick-by-twist-lever/LICENSE.icl.
 skills/planning-a-domino-layout/scripts/topple_physics.py adapts two works.
 Its GapChain is adapted from domino-fall-simulation
 (https://github.com/maxencelaunayquerre/domino-fall-simulation, commit

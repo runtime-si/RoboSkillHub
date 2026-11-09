@@ -1,0 +1,28 @@
+{
+  "skill": "disassembling-a-brick-by-twist-lever",
+  "inputs": {"seat_position": "Vec3", "seat_yaw_deg": "float"},
+  "outputs": {
+    "strategy": {"$ref": "lever.strategy"},
+    "holding": {"$ref": "lever.holding"},
+    "top_height_change": {"$ref": "lever.top_height_change"}
+  },
+  "nodes": {
+    "lever": {
+      "type": "script",
+      "script": "scripts/disassemble_brick.py",
+      "inputs": {
+        "seat_position": {"$ref": "in.seat_position"},
+        "seat_yaw_deg": {"$ref": "in.seat_yaw_deg"},
+        "system": "duplo",
+        "strategy": "lever",
+        "fallbacks": "straight"
+      }
+    }
+  },
+  "edges": [["START", "lever"], ["lever", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["removed", "stuck", "slipped", "neighbour_lifted", "missed", "unverified"]
+  },
+  "on_error": "unreachable"
+}

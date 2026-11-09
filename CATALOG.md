@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-19 tools, 106 skills, 2 policies, 1 recipe and 1 paper.
+19 tools, 107 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -85,6 +85,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`selecting-safe-cable-grasp-segments`](#selecting-safe-cable-grasp-segments) | select | Ranks top-down grasp points along a cable's fitted centreline that keep the fingers off its ends (a larger margin at… | any, *tuned on* yam-station-overhead-rgbd |
 | [`anchoring-a-free-end`](#anchoring-a-free-end) | execute | Pins one end of a cable with the support hand before any crossing is attempted. | any, 2 arms |
 | [`approaching-above-a-target`](#approaching-above-a-target) | execute | Moves the hand to hover a set clearance above a target's oriented box, rising in place first and keeping the hand's… | any |
+| [`disassembling-a-brick-by-twist-lever`](#disassembling-a-brick-by-twist-lever) | execute | Removes a seated LEGO or DUPLO brick with a parallel gripper and no force sensor. | any |
 | [`executing-feature-mating`](#executing-feature-mating) | execute | Executes a supplied feature-mating plan for an already-held rigid object. | any |
 | [`executing-held-object-motion`](#executing-held-object-motion) | execute | Executes an ordered, collision-aware pose sequence for an already-grasped rigid object without releasing it. | any |
 | [`grasping-a-cable-by-its-plug`](#grasping-a-cable-by-its-plug) | execute | Grasps a cable by the rigid plug at its end rather than by its thin jacket. | any |
@@ -1105,6 +1106,25 @@ Moves the hand to hover a set clearance above a target's oriented box, rising in
 - **Exits**:
   - `above`: The tool centre stands within reach_tolerance (default 10 mm) of the point clearance (default 0.12 m) above the target's top, its rotation within rot_tolerance_deg (default 4 deg) of the one asked for.
   - `unreachable`: A move raised or reported that it did not arrive, or the hand ended further off in position or rotation; `detail` says which.
+
+### disassembling-a-brick-by-twist-lever
+
+execute · robots: any · tasks: assembly, lego · MIT · v0.1.0 · [`SKILL.md`](skills/disassembling-a-brick-by-twist-lever/SKILL.md) · [upstream](https://github.com/intelligent-control-lab/Robotic_Lego_Manipulation/blob/9bc91654e708e4d8428ecfa76840103cacb2a19a/src/ros_nodes/lego_task_planning_node.cpp)
+
+Removes a seated LEGO or DUPLO brick with a parallel gripper and no force sensor - ICL's disassembly twist (grip, seat the grip, rotate 14 deg about one bottom edge so the stud rows let go one at a time, lift 15 mm with the twist kept), the edge being the one under a finger, commanded in small steps and read back so tracking lag (or joint effort) tells a brick that holds from one that lets go; with a straight pull and a wiggle (alternate small levers about both edges) as strategies and fallbacks, a regrasp after a slip, and the wrist depth camera reading the seat and its neighbouring cells before and after. Use when a brick must come off a baseplate or another brick at a cell known from the stud grid (computing-brick-pose-from-stud-grid's seat).
+
+- **In**: `seat_position` Vec3
+- **Out**: `strategy` str, `attempts` int, `attempt_log` str, `pivot_side` str, `twist_deg` float, `peak_lag` float, `releases` str, `release_count` int, `seat_lag` float, `holding` bool, `top_height_change` float, `neighbour_change` float, `samples` int, `verified_by` str
+- **Calls**: connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`, `robot.set_grip`, `robot.solve_ik`
+- **Scripts**: [`disassemble_brick`](skills/disassembling-a-brick-by-twist-lever/scripts/disassemble_brick.py)
+- **Exits**:
+  - `removed`: The hand lifted free, the jaws read at the brick's width, and the wrist depth reads the seat more than half a brick height under the brick's top (and less than 1.5) with no neighbouring cell moved; the brick is in the hand at the clearance height.
+  - `stuck`: Every strategy tried stalled - for three steps in a row the hand stood lag_threshold further behind its command than in free motion (or a joint effort jumped) and advanced less than half its step, or the lever's tilt stood 4 deg short; the hand went back to the grasp, opened and rose, the brick left on the seat.
+  - `slipped`: The last strategy lifted free but the jaws closed past the brick's width, or the wrist depth still reads the brick on its seat (regrasped and the next strategy tried while any were left); the jaws are open over the seat. A load that cleared during that attempt is named in detail as the grip letting go, not counted as a release.
+  - `neighbour_lifted`: The seat reads more than 1.5 brick heights low (the brick under it came along) or a neighbouring cell's stud top moved more than max(half a stud height, 2 mm) between the views before and after; still holding.
+  - `missed`: Before anything was gripped - the wrist depth finds no brick top at the seat, the open jaws stopped 3 mm or more over the grasp, or the jaws closed past the brick's width.
+  - `unverified`: Lifted free, but the seat was not read (verify false, or no wrist camera / reachable view / 3 depth readings); detail says whether the jaws hold something.
+  - `unreachable`: The grasp, or every strategy's motion, failed the IK preview, or a move was refused.
 
 ### executing-feature-mating
 
