@@ -346,28 +346,35 @@ def verify_stable_placement(request: dict, ctx: Any = None) -> dict:
                 )
 
     # --- the release: measured gripper state, or the measured TCP clear of the tile
+    # The jaws take time to open (contact-sampled states still touch the tile just after
+    # the command), so the release is judged on states from the end of the retreat on;
+    # only without any, on the latest state after the release command.
     release = {"confirmed": False, "by": None}
-    for g in request.get("gripper_states") or []:
-        if (
-            not isinstance(g, dict)
-            or not g.get("source")
-            or not isinstance(g.get("timestamp_s"), (int, float))
-        ):
-            continue
-        if float(g["timestamp_s"]) <= t_release:
-            continue
-        if g.get("holding") is True:
-            failures.append(
-                {
-                    "code": "release_failed",
-                    "phase": "release",
-                    "detail": f"gripper ({g['source']}) reports holding at t={g['timestamp_s']:.3f}",
-                }
-            )
-            release = {"confirmed": False, "by": "gripper_holding_true"}
-            break
-        if g.get("holding") is False:
-            release = {"confirmed": True, "by": f"gripper:{g['source']}"}
+    states = sorted(
+        (
+            g
+            for g in request.get("gripper_states") or []
+            if isinstance(g, dict)
+            and g.get("source")
+            and isinstance(g.get("timestamp_s"), (int, float))
+            and float(g["timestamp_s"]) > t_release
+            and isinstance(g.get("holding"), bool)
+        ),
+        key=lambda g: float(g["timestamp_s"]),
+    )
+    judged = [g for g in states if float(g["timestamp_s"]) >= t_retreat] or states[-1:]
+    held_after = next((g for g in judged if g["holding"] is True), None)
+    if held_after is not None:
+        failures.append(
+            {
+                "code": "release_failed",
+                "phase": "release" if float(held_after["timestamp_s"]) < t_retreat else "settle",
+                "detail": f"gripper ({held_after['source']}) reports holding at t={held_after['timestamp_s']:.3f}",
+            }
+        )
+        release = {"confirmed": False, "by": "gripper_holding_true"}
+    elif judged:
+        release = {"confirmed": True, "by": f"gripper:{judged[-1]['source']}"}
     if not release["confirmed"] and release["by"] is None:
         for s in request.get("tcp_states") or []:
             if (

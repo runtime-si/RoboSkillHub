@@ -308,7 +308,21 @@ def test_assembly_eval_samples_adapter():
     out = verify_stable_placement(req(records, holding=None, tcp_z=0.05, gripper_states=grip))
     assert out["status"] == "succeeded" and out["privileged_inputs"]
     assert out["evidence"]["release"]["by"] == "gripper:simulation_truth:contacts"
-    held = [sample(RELEASE + 0.5, {"d2": ["table", "gripper_pad_l"]})] + samples[1:]
+    # Pads still touching just after the release command (the jaws are opening): fine.
+    opening = [sample(RELEASE + 0.5, {"d2": ["table", "gripper_pad_l"]})] + samples[1:]
+    records, grip = from_eval_samples(opening, target_id="d2")
+    assert (
+        verify_stable_placement(req(records, holding=None, gripper_states=grip))["status"]
+        == "succeeded"
+    )
+    # Pads still on the tile after the retreat: not released.
+    held = [sample(RELEASE + 0.5, {"d2": ["table"]})] + [
+        sample(RETREAT + 0.25 * k, {"d2": ["table", "gripper_pad_r"]}) for k in range(4)
+    ]
     records, grip = from_eval_samples(held, target_id="d2")
     out = verify_stable_placement(req(records, holding=None, gripper_states=grip))
     assert out["status"] == "failed" and out["failure_type"] == "release_failed"
+    # A frozen frame (same seq) is dropped by the adapter, not counted twice.
+    frozen = samples[:2] + [dict(samples[1])] * 3
+    records, _ = from_eval_samples(frozen, target_id="d2")
+    assert len({r["timestamp_s"] for r in records}) == 2
