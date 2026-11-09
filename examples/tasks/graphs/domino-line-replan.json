@@ -1,0 +1,251 @@
+{
+  "graph_id": "domino-line-replan",
+  "version": "0.4.0",
+  "contract_version": "rsh-task/1",
+  "params": {
+    "recovery": true,
+    "attempts": 2,
+    "speed_m_s": 0.03,
+    "grasps": "perception"
+  },
+  "skills": {
+    "core.select_next_target": "0.1.0",
+    "core.observe": "0.1.0",
+    "perception.classify_object_state": "0.1.0",
+    "perception.propose_grasps": "0.1.0",
+    "core.select_candidate": "0.1.0",
+    "core.pick": "0.1.0",
+    "domino.place_upright": "0.1.0"
+  },
+  "budgets": {
+    "max_steps": 180,
+    "max_total_attempts": 150,
+    "timeout_s": 600.0
+  },
+  "state": {
+    "done": [],
+    "used": [],
+    "placed": [],
+    "tried": 0
+  },
+  "start": "select",
+  "nodes": {
+    "select": {
+      "skill": "core.select_next_target",
+      "params": {
+        "targets": "$input.layout.slots",
+        "done": "$state.done",
+        "pieces": "$input.feeder.pieces",
+        "used": "$state.used",
+        "placed": "$state.placed"
+      },
+      "max_visits": 16,
+      "branch": [
+        {
+          "path": "$last.select.outputs.complete",
+          "equals": true,
+          "next": "done"
+        }
+      ],
+      "assign": {
+        "used": "$last.select.outputs.used_after"
+      },
+      "on": {
+        "succeeded": "observe_piece",
+        "failed": "abort",
+        "unverified": "unsure",
+        "rejected": "abort"
+      }
+    },
+    "observe_piece": {
+      "skill": "core.observe",
+      "params": {
+        "object_ids": [
+          "$last.select.outputs.piece"
+        ],
+        "require_orientation": true
+      },
+      "timeout_s": 5,
+      "attempts": 2,
+      "retry_on": [
+        "unverified"
+      ],
+      "max_visits": 45,
+      "on": {
+        "succeeded": "classify",
+        "failed": "abort",
+        "unverified": "unsure",
+        "rejected": "abort"
+      }
+    },
+    "classify": {
+      "skill": "perception.classify_object_state",
+      "params": {
+        "observation": "$last.observe_piece.outputs.first",
+        "table_z": "$input.table_z"
+      },
+      "post": [
+        {
+          "path": "$last.classify.outputs.state_label",
+          "equals": "standing"
+        }
+      ],
+      "on": {
+        "succeeded": "candidate",
+        "failed": "select",
+        "unverified": "unsure",
+        "rejected": "abort"
+      }
+    },
+    "candidate": {
+      "skill": "perception.propose_grasps",
+      "params": {
+        "observation": "$last.observe_piece.outputs.first",
+        "table_z": "$input.table_z",
+        "max_candidates": 4
+      },
+      "assign": {
+        "tried": 0
+      },
+      "on": {
+        "succeeded": "choose",
+        "failed": "select",
+        "unverified": "unsure",
+        "rejected": "abort"
+      }
+    },
+    "pick": {
+      "skill": "core.pick",
+      "params": {
+        "candidate": "$last.choose.outputs.candidate",
+        "gripper_id": "$input.gripper_id",
+        "speed_m_s": 0.03,
+        "uncertainty": "$input.grasp.uncertainty",
+        "collision_geometry": "$input.grasp.collision_geometry"
+      },
+      "timeout_s": 30,
+      "max_visits": 45,
+      "on": {
+        "succeeded": "place_first",
+        "failed": "abort",
+        "unverified": "unsure",
+        "rejected": "abort",
+        "failed:grasp_missed": "observe_piece",
+        "failed:grasp_lost": "observe_piece",
+        "failed:unreachable": "choose",
+        "rejected:unreachable": "choose"
+      },
+      "branch": [
+        {
+          "path": "$last.select.outputs.has_placed",
+          "equals": true,
+          "next": "observe_neighbours"
+        }
+      ]
+    },
+    "choose": {
+      "skill": "core.select_candidate",
+      "params": {
+        "candidates": "$last.candidate.outputs.candidates",
+        "tried": "$state.tried",
+        "max_tries": 3
+      },
+      "max_visits": 45,
+      "assign": {
+        "tried": "$last.choose.outputs.tried_after"
+      },
+      "on": {
+        "succeeded": "pick",
+        "failed": "select",
+        "unverified": "unsure",
+        "rejected": "abort"
+      }
+    },
+    "observe_neighbours": {
+      "skill": "core.observe",
+      "params": {
+        "object_ids": "$last.select.outputs.placed",
+        "require_orientation": true
+      },
+      "timeout_s": 5,
+      "on": {
+        "succeeded": "place",
+        "failed": "abort",
+        "unverified": "unsure",
+        "rejected": "abort"
+      }
+    },
+    "place_first": {
+      "skill": "domino.place_upright",
+      "params": {
+        "frame_id": "$input.layout.frame_id",
+        "target_id": "$last.select.outputs.piece",
+        "target_object_pose": "$last.select.outputs.target.pose",
+        "held": "$last.pick.outputs.held",
+        "geometry": "$input.place.geometry",
+        "support": "$input.place.support",
+        "retreat": "$input.place.retreat",
+        "hand": "$input.place.hand",
+        "workspace": "$input.place.workspace",
+        "timeout_s": "$input.place.timeout_s",
+        "tolerances_ref": "$input.place.tolerances_ref",
+        "speed_m_s": 0.03
+      },
+      "timeout_s": 90,
+      "assign": {
+        "done": "$last.select.outputs.done_after",
+        "placed": "$last.select.outputs.placed_after"
+      },
+      "on": {
+        "succeeded": "select",
+        "failed": "abort",
+        "unverified": "unsure",
+        "rejected": "abort",
+        "failed:domino.toppled_after_release": "select",
+        "failed:domino.pose_out_of_tolerance": "select",
+        "failed:grasp_lost": "select",
+        "failed:held_object_slipped": "select",
+        "failed:motion_not_converged": "select"
+      }
+    },
+    "place": {
+      "skill": "domino.place_upright",
+      "params": {
+        "frame_id": "$input.layout.frame_id",
+        "target_id": "$last.select.outputs.piece",
+        "target_object_pose": "$last.select.outputs.target.pose",
+        "held": "$last.pick.outputs.held",
+        "geometry": "$input.place.geometry",
+        "support": "$input.place.support",
+        "retreat": "$input.place.retreat",
+        "hand": "$input.place.hand",
+        "workspace": "$input.place.workspace",
+        "timeout_s": "$input.place.timeout_s",
+        "tolerances_ref": "$input.place.tolerances_ref",
+        "speed_m_s": 0.03,
+        "neighbors": "$last.observe_neighbours.outputs.observations"
+      },
+      "timeout_s": 90,
+      "assign": {
+        "done": "$last.select.outputs.done_after",
+        "placed": "$last.select.outputs.placed_after"
+      },
+      "on": {
+        "succeeded": "select",
+        "failed": "abort",
+        "unverified": "unsure",
+        "rejected": "abort",
+        "failed:domino.toppled_after_release": "select",
+        "failed:domino.pose_out_of_tolerance": "select",
+        "failed:grasp_lost": "select",
+        "failed:held_object_slipped": "select",
+        "failed:motion_not_converged": "select"
+      }
+    }
+  },
+  "terminals": {
+    "done": "succeeded",
+    "abort": "failed",
+    "unsure": "unverified"
+  }
+}
