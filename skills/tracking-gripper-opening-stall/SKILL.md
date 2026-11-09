@@ -117,7 +117,21 @@ reads 26.5-26.7 mm: the gap comes from the read fraction times the 94 mm span
 (`width_fit.source: span`), so expect a ~1.5 mm bias on this hand, inside the
 4 mm `width_tolerance_m`.
 
-AIR_PLACEHOLDER
+Open-air targets (hand clear of everything, `robot.set_grip` for partial
+gaps): 80, 50, 20, 0 (close), 94 (open), 60 mm all routed `reached`, within
+0.0-1.9 mm, after 1-2 samples.
+
+Creeping jaws (a harness error of mine drove the hand into the table, so the
+fingers dragged on it while moving, ~1-7 mm/s): with 10 sim steps per sample
+(a 0.14 s window) an opening that crept 0.2 mm across the window was called
+`stalled_jammed` ("did not move"); with the default 50 steps (0.7 s window) the
+same creeping moves (94 -> 60 mm in 10 s toward a 50 mm target) routed
+`still_moving` after 100 samples, which is what they were. A hand pressed into
+the table with the fingers pinned shut routed `stalled_jammed` for every
+opening target (0.0 mm travel), which is also what happened.
+
+The jammed-while-opening case on a free hand (fingers blocked by a neighbour)
+was not staged; it is covered by the unit tests only.
 
 ## Relation to other skills
 
@@ -141,7 +155,7 @@ upstream's.
 - A stall is split into stalled_on_object / unexpected_width / stalled_jammed
   by direction, travel and the expected width; upstream reported only
   "stalled".
-- Samples are spaced in time (50 sim steps, 0.1 s on a real station): in the
-  twin `robot.set_grip` moves the jaws ~3.4-7 mm/s, and with 10 steps per
-  sample a slow opening read as "did not move" (sim run 1).
+- Samples are spaced in time (50 sim steps, 0.1 s on a real station) so the
+  8-sample window spans ~0.7 s: with 10 steps per sample, jaws creeping
+  against friction read as "did not move" (sim, above).
 - A window that never settles routes still_moving (upstream stayed pending).

@@ -35,8 +35,8 @@ WINDOW = 8
 
 POLL_STEPS = 50
 """Sim steps between samples (0.1 s at 500 Hz), so the 8-sample window spans 0.7 s. Upstream
-counted control steps; in the YAM twin robot.set_grip moves the jaws ~7 mm/s, and with 10
-steps per sample (a 0.14 s window) a slow opening read as "did not move" (sim check)."""
+counted control steps; in the YAM twin, jaws creeping ~1-7 mm/s with the fingers dragging on
+the table read as "did not move" with 10 steps per sample (a 0.14 s window) (sim check)."""
 
 POLL_S = 0.1
 """Wall-clock seconds between samples when the connector cannot step (a real station)."""
@@ -46,7 +46,7 @@ MIN_TRAVEL_M = 0.001
 an object: a drive that never moved did not close on anything."""
 
 WIDTH_TOLERANCE_M = 0.004
-"""Stall gap vs expected part width. Sim check: a 25 mm cube read 26.4-26.7 mm (pads
+"""Stall gap vs expected part width. Sim check: a 25 mm cube read 26.3-26.7 mm (pads
 and the span-linear width fit), so 4 mm."""
 
 
@@ -106,7 +106,11 @@ class OpeningTracker:
 
     @property
     def reached(self) -> bool | None:
-        return None if self.actual_m is None else abs(self.actual_m - self.target_m) <= self.tolerance_m
+        return (
+            None
+            if self.actual_m is None
+            else abs(self.actual_m - self.target_m) <= self.tolerance_m
+        )
 
     @property
     def stalled(self) -> bool:
@@ -129,7 +133,9 @@ def _refused(reply: Any) -> str:
     if not isinstance(reply, dict):
         return ""
     if reply.get("success") is False or reply.get("reached") is False:
-        return str(reply.get("reason") or reply.get("message") or "the gripper command reported failure")
+        return str(
+            reply.get("reason") or reply.get("message") or "the gripper command reported failure"
+        )
     return ""
 
 
@@ -168,14 +174,20 @@ def run(
     if span > floor:
         target = max(floor, min(span, target))
 
-    def out(route: str, why: str, tracker: OpeningTracker, start: float, trace: list[float]) -> Output:
+    def out(
+        route: str, why: str, tracker: OpeningTracker, start: float, trace: list[float]
+    ) -> Output:
         actual = -1.0 if tracker.actual_m is None else float(tracker.actual_m)
         width = actual if route in ("stalled_on_object", "unexpected_width") else -1.0
         werr = (
             width - float(expected_width_m) if width >= 0 and expected_width_m is not None else 0.0
         )
         logger.info(
-            "tracking-gripper-opening-stall: %s target=%.4f actual=%.4f (%s)", route, target, actual, why
+            "tracking-gripper-opening-stall: %s target=%.4f actual=%.4f (%s)",
+            route,
+            target,
+            actual,
+            why,
         )
         return {
             "route": route,
@@ -210,7 +222,9 @@ def run(
             why = str(exc) or type(exc).__name__
         if why:
             tracker.update(start)
-            return out("refused", f"the gripper command was refused: {why}", tracker, start, [start])
+            return out(
+                "refused", f"the gripper command was refused: {why}", tracker, start, [start]
+            )
 
     trace: list[float] = []
     for i in range(int(max_samples)):
@@ -229,7 +243,9 @@ def run(
         trace.append(value)
         status = tracker.status
         if status == "reached":
-            return out("reached", f"within {tolerance_m * 1e3:.1f} mm of the target", tracker, start, trace)
+            return out(
+                "reached", f"within {tolerance_m * 1e3:.1f} mm of the target", tracker, start, trace
+            )
         if status != "stalled":
             continue
         travel = abs(value - start)
@@ -252,7 +268,9 @@ def run(
                 start,
                 trace,
             )
-        if expected_width_m is not None and abs(value - float(expected_width_m)) > float(width_tolerance_m):
+        if expected_width_m is not None and abs(value - float(expected_width_m)) > float(
+            width_tolerance_m
+        ):
             return out(
                 "unexpected_width",
                 f"stopped on something {value * 1e3:.1f} mm wide, expected "

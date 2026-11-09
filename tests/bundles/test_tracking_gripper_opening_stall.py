@@ -21,7 +21,9 @@ class Jaw:
     """Gap in metres; moves ``speed`` per wait toward the command, stops at ``block_close`` /
     ``block_open``; reads back as a fraction (1.0 = open) like robot.get_gripper."""
 
-    def __init__(self, gap=SPAN, speed=0.004, block_close=None, block_open=None, stuck=False, metric=False):
+    def __init__(
+        self, gap=SPAN, speed=0.004, block_close=None, block_open=None, stuck=False, metric=False
+    ):
         self.gap = gap
         self.cmd = gap
         self.speed = speed
