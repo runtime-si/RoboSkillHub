@@ -631,15 +631,19 @@ def run(
         """Fine move putting the piece's reference over ``piece_xy`` with its
         bottom at ``bottom_z`` (hand at the current yaw), the miss in the plane
         folded into the command. Returns the measured hand position."""
-        goal = hand_for(piece_xy, state["yaw"], bottom_z)
         _, r = arm.read()
+        state["yaw"] = _yaw_between(r0, r)
+        goal = hand_for(piece_xy, state["yaw"], bottom_z)
         shift = np.zeros(3)
         p = goal
         for k in range(ALIGN_TRIES + 1):
             kind, why = arm.move("robot.go_to_pose", goal + shift, r, fine=True)
             if kind == "refused":
                 return p, why
-            p, _ = arm.still()
+            p, r_read = arm.still()
+            # A wrist that drifted in yaw swings the piece round the tool centre: re-aim.
+            state["yaw"] = _yaw_between(r0, r_read)
+            goal = hand_for(piece_xy, state["yaw"], bottom_z)
             err = goal - p
             err[2] = 0.0
             if float(np.linalg.norm(err)) <= ALIGN_TOLERANCE or k == ALIGN_TRIES:
@@ -978,6 +982,8 @@ def run(
                 "slot is higher than given or something is in the way",
             )
         place(slot, window_bottom)
+        if abs(yaw0 - state["yaw"]) > 2.0 * YAW_TOLERANCE_DEG and not turn(yaw0):
+            place(slot, window_bottom)
     overtravel = OVERTRAVEL_FRACTION * thick
 
     best: dict[str, Any] = {"h": math.inf}
@@ -995,6 +1001,7 @@ def run(
                 lift_back("unreachable", f"a step of {label} was refused: {res['refused']}")
             )
         at = res["at"]
+        state["yaw"] = _yaw_between(r0, arm.read()[1])
         h = height(at)
         if not res["contact"]:
             raise _Done(
@@ -1042,6 +1049,8 @@ def run(
                 logger.info("seating-a-piece: yaw %+.1f skipped (%s)", yaw - yaw0, why)
                 return None
         _, why = place(np.asarray(target_xy, float), lift_bottom)
+        if not why and abs(yaw - state["yaw"]) > 2.0 * YAW_TOLERANCE_DEG and not turn(yaw):
+            _, why = place(np.asarray(target_xy, float), lift_bottom)
         if why:
             raise _Done(lift_back("unreachable", f"the move to {label} was refused: {why}"))
         return probe(target_xy, label)

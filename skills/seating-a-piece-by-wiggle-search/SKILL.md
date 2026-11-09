@@ -27,6 +27,7 @@ metadata:
       authors: [runtime-si]
       code: https://github.com/markroberyoutube/puzzle_bot/blob/main/src/application.py
       upstream_license: none (reference only; reimplemented, no code copied)
+      paper: https://arxiv.org/abs/2002.02580
 gap:
   requires: {connector: [robot.describe_gripper]}
   allowed_tools:
@@ -39,6 +40,7 @@ gap:
     - robot.move_to_joints
     - robot.solve_ik
     - robot.open_gripper
+    - robot.close_gripper
   required_inputs:
     slot_position: Vec3
   produces_outputs:
@@ -141,6 +143,9 @@ the piece, not the hand, over its point.
   (15 mm), `contact_window` (4 mm), `release_when_not_seated` (false), `hold_s`,
   `verify` (true), `camera`, `top_radius` (5 mm), `roll_limits`, `check_reach`,
   `reach_tolerance`, `arm_id` (passed only when nonzero).
+- `approach`: `wiggle` (default), `tilt_first` or `offset_push` (below), with
+  `seam_direction`, `tilt_deg` (10), `tilt_back` (3 mm), `piece_radius`
+  (10 mm), `push_offset` (4 mm), `finger_reach` (10.2 mm).
 
 ## The constants, and why
 
@@ -166,17 +171,39 @@ the piece, not the hand, over its point.
 - **`SCOOT = 0.3 mm` (+0.2 per round, 3 rounds), `SCOOT_YAW_DEG = 0.75`**:
   puzzle_bot's scoot starts at 50 counts and widens by 25.
 
-## Why not the other placements
+## The other two approaches (`approach`)
 
-Two related designs (jigsaw_gaps in the skill sources) are separate skills,
-not options here: **tilted tab-first placement** (lower the piece tilted
-8-15 deg, leading tab first, slide toward the neighbours, level) needs a grip
-that holds a tilt, and in pressing-a-brick-onto-studs' twin check a fingertip
-grip did not (the part turned back level in the jaws); **placing offset then
-pushing into the seat** releases the piece first and pushes it with closed
-fingers, the answer when no grip clears the neighbours. This skill assumes the
-fingers are clear of the neighbours (the piece is pinched across sides that
-face empty cells, see selecting-a-grip-clear-of-placed-neighbours).
+Both need `seam_direction`: the horizontal direction from the piece toward the
+placed neighbours it goes against (world frame).
+
+- **`tilt_first`** (tilted tab-first, re-expressed from Watson, Miller and
+  Correll's InsertTilt, arXiv 2002.02580, paper only). Tilt the piece
+  `tilt_deg` (10) leading side low, lower it `tilt_back` (3 mm) short of the
+  slot until its edge touches (no press), slide it along `seam_direction` at
+  that height until the hand lags (it met the neighbours) or `tilt_back +
+  search_radius`, level it about its reference point and feel down. That stop
+  is the first probe; the probe search and the scoot continue around where the
+  slide ended, so an error along the seam is taken out by the slide and one
+  across it by the search. Needs a grip that holds the tilt (a fingertip grip
+  can let the piece turn back level in the jaws, as pressing-a-brick-onto-studs'
+  twin check saw) and fingers clear of the leading seam.
+- **`offset_push`** (placing offset then pushing into the seat). Set the piece
+  down flat `push_offset` (4 mm) short of the slot where the mat is clear (a
+  stop over a quarter thickness up: `not_seated`, kept), let go, retreat, close
+  the jaws, lower the closed fingertips 1 mm over the mat 3 mm behind the
+  piece's trailing edge (`piece_radius` from its reference), push along
+  `seam_direction` in fine steps to 0.5 mm past the slot, stop on lag (a stop
+  more than 1 mm short is `jammed`), then press the piece's centre with the
+  fingertips (`finger_reach` under the tool centre) and read its top with the
+  wrist depth. The only one of the three that works when no grip clears the
+  neighbours, and only where the slot is open toward the push: a rigid tab
+  cannot slide sideways into a blank, so it suits a corner or edge slot, not a
+  slot with neighbours on opposite sides. Detecting a pushed neighbour needs
+  detecting-disturbed-pieces-by-snapshot-diff afterwards.
+
+The default (`wiggle`) assumes the fingers are clear of the neighbours (the
+piece is pinched across sides that face empty cells, see
+selecting-a-grip-clear-of-placed-neighbours).
 
 ## Simulation check
 

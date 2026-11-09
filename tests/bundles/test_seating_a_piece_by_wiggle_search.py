@@ -99,7 +99,9 @@ class World:
         efforts=None,
         open_side=None,
         push_block=None,
+        drift_deg=0.0,
     ):
+        self.drift = float(drift_deg)
         self.p = START.copy()
         self.r = _rot(DOWN)
         self.r0 = self.r.copy()
@@ -199,6 +201,8 @@ class World:
             r = _rot(pose["rotation"])
             if not self.has_joints:
                 self.r = r
+            elif self.drift and "tolerance" not in kw:
+                self.r = _rz(self.drift) @ self.r  # a long move with the roll left free creeps
             old = self.p.copy()
             self.p = p
             if self.closed and self.free is not None and self.fingertips(old, p):
@@ -409,6 +413,18 @@ def test_partly_in_switches_to_the_scoot_which_finishes_it(script):
     assert out["route"] == "seated", out["detail"]
     assert "dropped in the scoot" in out["detail"]
     assert out["probes"] > 2
+
+
+def test_a_wrist_creeping_in_yaw_is_re_aimed_and_turned_back(script):
+    # Every long move turns the hand 1.5 deg: the piece (3.6 mm off the tool centre)
+    # swings and its yaw leaves the slot's; positions use the yaw read back, probes re-turn.
+    world = World(drift_deg=1.5, partial=False)
+    out = run(script, world)
+    assert out["route"] == "seated", out["detail"]
+    p = np.array([out["seated_position"][k] for k in "xy"])
+    assert np.linalg.norm(p - SLOT[:2]) <= CLEAR
+    assert abs(out["yaw_found_deg"]) <= YAW_TOL
+    assert out["probes"] == 1
 
 
 def test_efforts_fire_contact_where_published(script):
