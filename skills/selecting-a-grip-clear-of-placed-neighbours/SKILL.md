@@ -124,32 +124,42 @@ have to close diagonally, across a tab, or along the free row.
 
 | cut / order | grip_found | only_offset_place | no_clear_grip | median clearance |
 |---|---|---|---|---|
-| classic / rows | 100 | 0 | 0 | 2.2 mm |
-| classic / frame first | 85 | 0 | 15 | 2.5 mm |
-| classic / random | 68 | 0 | 32 | 4.3 mm |
-| random-cut / rows | 99 | 1 | 0 | 2.4 mm |
-| random-cut / frame first | 83 | 2 | 15 | 2.8 mm |
-| random-cut / random | 64 | 0 | 36 | 4.2 mm |
+| classic / rows | 79 | 21 | 0 | 3.6 mm |
+| classic / frame first | 81 | 4 | 15 | 6.0 mm |
+| classic / random | 59 | 9 | 32 | 5.6 mm |
+| random-cut / rows | 68 | 29 | 3 | 3.0 mm |
+| random-cut / frame first | 71 | 13 | 16 | 4.6 mm |
+| random-cut / random | 56 | 4 | 40 | 5.1 mm |
 
 **By sides placed round the slot**, over all six runs:
 
-- 0-1 sides: always `grip_found`.
-- 2 sides: 301 / 305 (3 `only_offset_place`, 1 `no_clear_grip`).
-- 3 or 4 sides: 0 / 97. Every one is `no_clear_grip`: no antipodal grip has both fingertips over free table, and an offset placement is blocked by the neighbours' knobs.
+- 0-1 sides: always `grip_found` (198 / 198).
+- 2 sides: 216 `grip_found`, 80 `only_offset_place`, 9 `no_clear_grip` (of 305). With the west and south neighbours placed, a tangent grip has to close along the free row or column across a knob, or diagonally between two knobs.
+- 3 or 4 sides: 0 / 97. Every one is `no_clear_grip`: no tangent antipodal grip has both fingertips over free table, and an offset placement is blocked by the neighbours' knobs.
 
 A row-by-row order never makes a 3-sided slot, so it suits a parallel gripper; a frame-first order makes the last piece of each row 3-sided.
 
-**Occupied cells only** (no outlines; cells grown by 0.33 cell), rows and random orders:
+**Before the tangency rule** (any contact counted), the same runs found 99-100 % `grip_found` in row order. Many of those grips pressed two sides inclined at 45 degrees to the pads, which would not hold.
 
-- grips found (`grip_found` or `only_offset_place`) in 39-48 % of placements, against 64-100 % with outlines;
-- every grip checked against the true outlines: 0 / 85 touched a neighbour on the classic cut, 1 / 87 on the random cut, whose knobs reach up to 0.51 cell past their cell.
-- With cells grown by only 0.28 cell, 9 grips over the six runs touched a neighbour (0-4 per run).
+**Occupied cells only** (no outlines; cells grown by 0.33 cell):
+
+- grips found (`grip_found` or `only_offset_place`) in 37-48 % of placements, against 60-100 % with outlines;
+- every grip checked against the true outlines: 0 / 248 touched a neighbour, classic and random cuts.
+- With cells grown by only 0.28 cell, and before the tangency rule, 9 grips over the six runs touched a neighbour. Random-cut knobs reach up to 0.51 cell past their cell (classic: 0.30).
 
 Give outlines (the placed pieces' masks from the wrist camera, put at their slot).
 
-Time: median 0.07 s, max 0.09 s without the offset search, up to 0.8 s with it.
+Time: median 0.05 s; up to 0.8 s when the offset search runs.
 
-Finger size: see the pull request for 6 x 3 mm and 10 x 5 mm tips.
+**Fingertip size** (classic cut; counts are grip_found / only_offset_place / no_clear_grip):
+
+| tips | rows | frame first | random |
+|---|---|---|---|
+| 6 x 3 mm | 93 / 7 / 0 | 85 / 0 / 15 | 63 / 5 / 32 |
+| 8 x 4 mm | 79 / 21 / 0 | 81 / 4 / 15 | 59 / 9 / 32 |
+| 10 x 5 mm | 52 / 48 / 0 | 57 / 28 / 15 | 55 / 11 / 34 |
+
+Narrower tips grip more pieces in place; 3 and 4-sided slots stay out of reach at every size.
 
 ## Limits
 
