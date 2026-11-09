@@ -1617,7 +1617,7 @@ Seats a held jigsaw piece in its slot among already-placed neighbours when the a
 
 - **In**: `slot_position` Vec3
 - **Out**: `released` bool, `probes` int, `moves` int, `elapsed_s` float, `stop_height` float, `best_height` float, `resting_height` float, `offset_found` Vec3, `yaw_found_deg` float, `seated_position` Vec3, `flush_error` float, `flush_spread` float, `samples` int, `verified_by` str
-- **Calls**: connector `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.move_to_joints`, `robot.open_gripper`, `robot.solve_ik`
+- **Calls**: connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.move_to_joints`, `robot.open_gripper`, `robot.solve_ik`
 - **Scripts**: [`seat_piece`](skills/seating-a-piece-by-wiggle-search/scripts/seat_piece.py)
 - **Exits**:
   - `seated`: A probe stopped with the piece's bottom within a quarter of its thickness of the mat (it dropped), the jaws opened, and the wrist depth reads the piece's top within a quarter of the thickness of flush with a spread under the same.

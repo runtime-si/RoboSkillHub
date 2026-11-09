@@ -12,6 +12,9 @@
 # caller's error estimate; the suction cup's rotation stage becomes the arm's
 # last joint; flushness is read from the wrist depth camera after the release.
 # The pose, lag, depth and wrist-camera helpers follow pressing-a-brick-onto-studs.
+# approach="tilt_first" re-expresses Watson, Miller and Correll's InsertTilt
+# (arXiv:2002.02580, Algorithm 2; paper only); approach="offset_push" is the
+# jigsaw design note's place-short-then-push, no source code.
 """Seat a held jigsaw piece in its slot among placed neighbours by probing small x / y / yaw offsets until it drops."""
 
 from __future__ import annotations
