@@ -1,0 +1,47 @@
+{
+  "skill": "tracking-identical-parts-by-id",
+  "inputs": {
+    "prompts": "string"
+  },
+  "outputs": {
+    "n_tracked": {
+      "$ref": "track.n_tracked"
+    },
+    "n_lost": {
+      "$ref": "track.n_lost"
+    },
+    "reason": {
+      "$ref": "track.reason"
+    }
+  },
+  "nodes": {
+    "track": {
+      "type": "script",
+      "script": "scripts/track_parts.py",
+      "inputs": {
+        "prompts": {
+          "$ref": "in.prompts"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "track"
+    ],
+    [
+      "track",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "tracks_updated",
+      "track_lost",
+      "id_switch_suspected"
+    ]
+  },
+  "on_error": "no_frame"
+}

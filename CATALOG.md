@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-24 tools, 128 skills, 2 policies, 1 recipe and 1 paper.
+24 tools, 129 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -65,6 +65,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`refining-target-from-wrist-closeup`](#refining-target-from-wrist-closeup) | perceive | Refines a coarse world-frame target (an overhead perception's OBB or point) by aiming the wrist RGB-D camera at it… | any |
 | [`registering-held-objects`](#registering-held-objects) | perceive | Reobserves a grasped rigid object from the wrist cameras, estimates its functional feature in the TCP frame, and fits… | any |
 | [`segmenting-and-picking-pieces-classical`](#segmenting-and-picking-pieces-classical) | perceive | Finds the loose jigsaw pieces lying on a staging mat in one top-down RGB(-D) frame without a learned model. | any |
+| [`tracking-identical-parts-by-id`](#tracking-identical-parts-by-id) | perceive | Keeps a stable id for each of many look-alike parts (dominoes, same-colour bricks, jigsaw pieces, cubes) across… | any |
 | [`tracking-objects`](#tracking-objects) | perceive | Long-running skill that drives the SAM3 tracker from the graph-scoped observation stream. | any |
 | [`tracking-points`](#tracking-points) | perceive | Tracks selected image points through the configured workcell tracking backend and reports visibility evidence. | yam_i2rt |
 | [`checking-design-connectivity-and-collisions`](#checking-design-connectivity-and-collisions) | plan | Checks a brick design on a stud grid before the arms build it. | any |
@@ -802,6 +803,22 @@ Finds the loose jigsaw pieces lying on a staging mat in one top-down RGB(-D) fra
   - `segmented`: At least one piece was found and none touches anything; `pieces` lists them, piece_mask / pick_point are the best pickable one (clearest of its surroundings, then the widest inscribed circle).
   - `touching_pieces`: Pieces were found but some touch or lie on one another (split by the watershed or by height; their records say touching, neighbours, layer), or a blob did not split into piece-sized parts (`clusters`, with the source's drag point and direction); piece_mask / pick_point still name the best pickable piece when n_pickable &gt; 0. Singulate the rest, e.g. singulating-by-pushing toward `free_spot`.
   - `nothing_found`: No piece-sized blob on the mat (empty, or only foreign objects and specks).
+
+### tracking-identical-parts-by-id
+
+perceive · robots: any · tasks: sorting, pick-place, domino, jigsaw, lego · MIT · v0.1.0 · [`SKILL.md`](skills/tracking-identical-parts-by-id/SKILL.md) · [upstream](https://github.com/FoundationVision/ByteTrack/blob/d1bf0191adff/yolox/tracker/byte_tracker.py)
+
+Keeps a stable id for each of many look-alike parts (dominoes, same-colour bricks, jigsaw pieces, cubes) across overhead frames while the arm covers and uncovers them - ByteTrack (Kalman box prediction, two-stage IoU matching that also uses low-score boxes) over a detector's boxes, one frame per call with the tracker state carried by the graph; reports parts that went out of sight and new ids born where a lost part was (a likely id switch). CPU only. Use when a graph must know which of several identical parts is which over time (checkpointing, backtracking, disturbance checks) and a per-frame detector alone renumbers them.
+
+- **In**: `prompts` string
+- **Out**: `n_tracked` int, `n_lost` int, `n_detections` int, `reason` string
+- **Calls**: [`grounding-dino`](#grounding-dino), [`owlv2`](#owlv2); connector `robot.get_observation`
+- **Scripts**: [`track_parts`](skills/tracking-identical-parts-by-id/scripts/track_parts.py)
+- **Exits**:
+  - `tracks_updated`: Every track that was in view is matched (or new parts started tracks); `tracks` lists id, box, label, state (tracked / lost) and frames lost for every live part.
+  - `track_lost`: At least one tracked part had no box this frame (covered by the arm, picked, or missed by the detector); its id stays in `tracks` as lost at its last box for track_buffer frames and `lost_ids` names it.
+  - `id_switch_suspected`: A new track started within switch_radius (2.5) part sizes of where a lost part of the same label and size was last seen - probably that part, moved while covered; `suspected_switches` pairs new_id with lost_id. Decide which (re-identify, or accept the new id).
+  - `no_frame`: The camera had no RGB or the detector raised; nothing was tracked and `state` is returned unchanged.
 
 ### tracking-objects
 

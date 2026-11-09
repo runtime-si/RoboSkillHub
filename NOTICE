@@ -693,3 +693,9 @@ copies the system_prompt.txt each checkpoint ships and the user-turn format
 and output parsing of their model cards' quickstarts, and re-implements the
 image resize of qwen-vl-utils 0.0.14 (Apache-2.0, Copyright (c) Alibaba Cloud)
 that the quickstart runs. The file's header lists the changes.
+skills/tracking-identical-parts-by-id/scripts/bytetrack.py is adapted from
+ByteTrack (https://github.com/FoundationVision/ByteTrack, commit d1bf0191adff,
+yolox/tracker/byte_tracker.py, matching.py and basetrack.py), MIT License,
+Copyright (c) 2021 Yifu Zhang. Its Kalman filter is written anew (upstream's
+yolox/tracker/kalman_filter.py comes from deep_sort and is not used). The file's
+header lists the changes.
