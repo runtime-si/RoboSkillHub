@@ -150,9 +150,13 @@ HANDOVER_HEIGHT = 0.12
 """handover: height of the tile's centre over the table where the helper takes it [m] (a choice: clear of the
 table for a level hand)."""
 
-HELPER_OFFSET = 0.012
-"""handover: how far from the tile's centre toward its far end the helper pinches [m] (12 mm from that end): clear
-of this arm's pads, which sit 6-22 mm toward the other end."""
+HELPER_OFFSET = 0.004
+"""handover: how far from the tile's centre toward its far end the helper pinches [m]. Rolled with that end up the
+tile hangs 4 mm under the pinch, and this arm's fingertips (8 mm down from the top) stay clear of the helper's pads."""
+
+HANDOVER_GRIP_OFFSET = 0.017
+"""handover: how far from the tile's centre this arm pinches it for the carry [m]: its pads 9-25 mm out, clear of
+the helper's at -12 to +4 mm."""
 
 HELPER_BITE = 0.010
 """handover: how far the helper's tool centre goes past the tile's near long edge [m]; its fingertips reach 10.2 mm
@@ -876,6 +880,7 @@ def run(
     handover_point: dict[str, float] | None = None,
     handover_height: float = HANDOVER_HEIGHT,
     helper_offset: float = HELPER_OFFSET,
+    handover_grip_offset: float = HANDOVER_GRIP_OFFSET,
     helper_bite: float = HELPER_BITE,
     top_bite: float = TOP_BITE,
     joint_limits: list[list[float]] | None = None,
@@ -2004,7 +2009,8 @@ def run(
         e_n = heading(theta)
         if float(e_n @ np.array([*(hp[:2] - center[:2]), 0.0])) < 0.0:
             e_n = -e_n
-        grasp_point = np.array([*(center[:2] + s * e_n[:2]), table_z + gh])
+        s_h = max(0.0, min(float(handover_grip_offset), tl / 2.0))
+        grasp_point = np.array([*(center[:2] + s_h * e_n[:2]), table_z + gh])
         g_rot = next(
             (g for g in order if ik(np.array([*grasp_point[:2], lift_z]), g) is not None), None
         )
@@ -2032,7 +2038,7 @@ def run(
         def tile_from_a() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
             p, r = hand_a.pose()
             a, e = r @ local_approach, r @ e_local
-            return p + (g_meas - tt / 2.0) * a - s * e, e, r
+            return p + (g_meas - tt / 2.0) * a - s_h * e, e, r
 
         c_now, e_now, r_a = tile_from_a()
         why = hand_a.line(_xyz(here()) + (hp - c_now), r_a)
@@ -2057,7 +2063,7 @@ def run(
             # The solver may leave the roll free: read the jaws back and square them across the thickness, the
             # way round (the jaws are symmetric) that leaves the last joint room for the quarter roll upright.
             rate_b = hand_b.roll_rate(b_approach)
-            up_roll = turn_about(w_dir, e_now, z_up)
+            up_roll = turn_about(w_dir, -e_now, z_up)
             for _ in range(TURN_TRIES):
                 _, rb_now = hand_b.pose()
                 err = wrap(turn_about(rb_now @ b_approach, rb_now @ b_close, n_t), True)
@@ -2120,7 +2126,9 @@ def run(
                 "dropped", f"the helper's jaws read {w_b * 1e3:.1f} mm after this arm let go"
             )
 
-        # --- the helper rolls a quarter turn about its approach: the far end down, the tile upright.
+        # --- the helper rolls a quarter turn about its approach: its own end up, so the tile hangs under its pads
+        # (they are a weak hinge about the closing axis too: rolled the other way, a tile toppled to 53 deg in them).
+        e_loc = -e_loc
         roll = turn_about(rb_now @ b_approach, rb_now @ e_loc, z_up)
         why = hand_b.roll(roll, float(pitch_step_deg), b_approach)
         for _ in range(TURN_TRIES):
