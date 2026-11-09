@@ -145,7 +145,9 @@ class Arm:
         goal[:3, 3] += err
         if self.land_yaw:
             goal[:3, :3] = (
-                Rotation.from_euler("z", self.rng.normal(0.0, self.land_yaw), degrees=True).as_matrix()
+                Rotation.from_euler(
+                    "z", self.rng.normal(0.0, self.land_yaw), degrees=True
+                ).as_matrix()
                 @ goal[:3, :3]
             )
         self.true = goal
@@ -184,7 +186,9 @@ def start_over(scene: Scene, dx=0.0, dy=0.0, dyaw_deg=0.0, height=0.03) -> np.nd
     """Tool pose top-down over the true pair (+ an offset in the pair frame), x along the pair."""
     pair = scene.pair
     m = np.eye(4)
-    m[:3, :3] = pair[:3, :3] @ Rotation.from_euler("z", dyaw_deg, degrees=True).as_matrix() @ TOP_DOWN
+    m[:3, :3] = (
+        pair[:3, :3] @ Rotation.from_euler("z", dyaw_deg, degrees=True).as_matrix() @ TOP_DOWN
+    )
     m[:3, 3] = (
         pair[:3, 3]
         + dx * pair[:3, 0]

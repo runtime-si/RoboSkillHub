@@ -1,0 +1,29 @@
+{
+  "skill": "correcting-brick-offset-from-stud-circles",
+  "inputs": {"pair_pose": "Se3Pose"},
+  "outputs": {
+    "pair_pose": {"$ref": "correct.pair_pose"},
+    "tool_pose": {"$ref": "correct.tool_pose"},
+    "offset_mm": {"$ref": "correct.offset_mm"},
+    "yaw_offset_deg": {"$ref": "correct.yaw_offset_deg"}
+  },
+  "nodes": {
+    "correct": {
+      "type": "script",
+      "script": "scripts/correct_offset.py",
+      "inputs": {
+        "pair_pose": {"$ref": "in.pair_pose"},
+        "system": "lego",
+        "peek_height": 0.03,
+        "tolerance_mm": 0.2,
+        "max_iterations": 6
+      }
+    }
+  },
+  "edges": [["START", "correct"], ["correct", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["aligned", "ambiguous_stud_pair", "lost_studs", "max_iterations", "unreachable"]
+  },
+  "on_error": "lost_studs"
+}

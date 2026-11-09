@@ -773,3 +773,10 @@ a98934c6a1a16317821fed41a3b816b1d300b427: uni_robot_agent/tools/gripper/opening.
 OpeningTracker and native_opening), MIT License, Copyright (c) 2026
 uni-robot-agent contributors; the file's header lists the changes, and the
 license is skills/tracking-gripper-opening-stall/LICENSE.uni-robot-agent.
+
+skills/correcting-brick-offset-from-stud-circles/scripts/correct_offset.py
+re-expresses Algorithm 1 of Eye-in-Finger (arXiv:2503.06848, Sec. III-B) and
+the behaviour of its code, legoscope
+(https://github.com/kevinpoi/legoscope, detect_offset.py at 2abdc205ef36),
+which has no license; none of its code and none of its YOLO stud weights are
+used.

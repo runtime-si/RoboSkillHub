@@ -22,8 +22,18 @@ from gap import NodeContext
 logger = logging.getLogger(__name__)
 
 PRESETS = {
-    "lego": {"stud_pitch": 0.008, "stud_height": 0.0017, "stud_diameter": 0.0048, "brick_height": 0.0096},
-    "duplo": {"stud_pitch": 0.016, "stud_height": 0.0045, "stud_diameter": 0.0094, "brick_height": 0.0192},
+    "lego": {
+        "stud_pitch": 0.008,
+        "stud_height": 0.0017,
+        "stud_diameter": 0.0048,
+        "brick_height": 0.0096,
+    },
+    "duplo": {
+        "stud_pitch": 0.016,
+        "stud_height": 0.0045,
+        "stud_diameter": 0.0094,
+        "brick_height": 0.0192,
+    },
 }
 """The hub's LEGO / DUPLO dimensions (calibrating-baseplate-stud-grid, pressing-a-brick-onto-studs)."""
 
@@ -32,9 +42,10 @@ PEEK_HEIGHT = 0.03
 tool, 45 deg forward) then sees the studs under the tool ~6 deg off its axis at ~0.14 m, past its
 ~7 cm minimum range; a LEGO stud is ~13 px wide there. The paper's EiF camera peeks at 17-30 mm."""
 
-TOLERANCE = 0.0003
+TOLERANCE = 0.0002
 """Residual tool-to-pair offset that counts as aligned [m]. The paper's loop ends at its detector's
-noise (~0.3-0.4 mm); the renders' single-frame noise is 0.05-0.15 mm."""
+noise (~0.3-0.4 mm); here one frame's midpoint scatters 0.025 mm (sd) on the renders, so 0.2 mm leaves
+room for a real D405's noise."""
 
 TOLERANCE_DEG = 1.0
 """Residual yaw that counts as aligned [deg]: two studs 8 mm apart at 0.15 mm each give ~1 deg."""
@@ -111,6 +122,7 @@ class Output(TypedDict):
     history: list[dict[str, Any]]
     stud_centres: list[list[float]]
     pair_px: list[float]
+    pair_range_m: float
     rim_arc_deg: list[float]
     tool_axis_source: str
     camera_name: str
@@ -205,7 +217,9 @@ def _wrist_frame(obs: dict[str, Any], arm_id: int, name: str | None) -> dict[str
     cams = [
         c
         for c in obs.get("cameras") or []
-        if c.get("pose") is not None and c.get("intrinsics") is not None and c.get("depth") is not None
+        if c.get("pose") is not None
+        and c.get("intrinsics") is not None
+        and c.get("depth") is not None
     ]
     if name:
         return next((c for c in cams if c.get("name") == name), None)
@@ -231,7 +245,9 @@ def _depth(d: Any) -> np.ndarray:
 # -- one measurement ------------------------------------------------------------------------
 
 
-def _plane(pts: np.ndarray, band: float, rng: np.random.Generator) -> tuple[np.ndarray, float, np.ndarray]:
+def _plane(
+    pts: np.ndarray, band: float, rng: np.random.Generator
+) -> tuple[np.ndarray, float, np.ndarray]:
     """RANSAC plane (n, d) with n.p + d = 0, n roughly +z of the given points, and its inliers."""
     best = (np.array([0.0, 0.0, 1.0]), 0.0, np.zeros(len(pts), bool))
     if len(pts) < 3:
@@ -345,7 +361,9 @@ def measure(
     not_top = seen & ~top
     top_c = cv2.morphologyEx(top.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8)) > 0
     top_c &= ~not_top | top
-    nlab, lab, stats, cent = cv2.connectedComponentsWithStats(top_c.astype(np.uint8), connectivity=4)
+    nlab, lab, stats, cent = cv2.connectedComponentsWithStats(
+        top_c.astype(np.uint8), connectivity=4
+    )
     disc = math.pi * (r / cell) ** 2
     studs, arcs = [], []
     for i in range(1, nlab):
@@ -361,7 +379,10 @@ def measure(
             tgt = not_top[max(0, dr) : size - max(0, -dr), max(0, dc) : size - max(0, -dc)]
             nb[max(0, -dr) : size - max(0, dr), max(0, -dc) : size - max(0, dc)] = src & tgt
             rr, cc = np.nonzero(nb)
-            edges += [((c + 0.5 + dc / 2.0) * cell - win, (rr_ + 0.5 + dr / 2.0) * cell - win) for rr_, c in zip(rr, cc, strict=True)]
+            edges += [
+                ((c + 0.5 + dc / 2.0) * cell - win, (rr_ + 0.5 + dr / 2.0) * cell - win)
+                for rr_, c in zip(rr, cc, strict=True)
+            ]
         if len(edges) < MIN_RIM_POINTS:
             continue
         e = np.asarray(edges)
@@ -407,7 +428,10 @@ def measure(
     # the pair's yaw and midpoint by a rigid 2D fit; the pair itself only says which node is which.
     c, sn = math.cos(yaw), math.sin(yaw)
     local = (s - mid) @ np.array([[c, -sn], [sn, c]])
-    node = np.stack([np.round(local[:, 0] / pitch - 0.5) + 0.5, np.round(local[:, 1] / pitch)], axis=1) * pitch
+    node = (
+        np.stack([np.round(local[:, 0] / pitch - 0.5) + 0.5, np.round(local[:, 1] / pitch)], axis=1)
+        * pitch
+    )
     inl = np.linalg.norm(local - node, axis=1) < LATTICE_INLIER * pitch
     out["lattice_studs"] = int(inl.sum())
     if inl.sum() >= 3:
@@ -426,7 +450,9 @@ def measure(
         out["studs"].append((t_w_plane @ np.array([c[0], c[1], stud_h, 1.0]))[:3])
     out["arc"] = [arcs[a], arcs[b]]
     if d1 > MAX_PRIOR_ERROR * pitch:
-        out["why"] = f"the nearest pair is {d1 / pitch:.2f} pitch from the expected one (over {MAX_PRIOR_ERROR})"
+        out["why"] = (
+            f"the nearest pair is {d1 / pitch:.2f} pitch from the expected one (over {MAX_PRIOR_ERROR})"
+        )
         out["ambiguous"] = True
         return out
     if d2 - d1 < MIN_PAIR_MARGIN * pitch:
@@ -445,7 +471,9 @@ def _pixel(frame: dict[str, Any], p: np.ndarray) -> list[float]:
     return [float(k[0, 0] * pc[0] / pc[2] + k[0, 2]), float(k[1, 1] * pc[1] / pc[2] + k[1, 2])]
 
 
-def _ray_on_plane(frame: dict[str, Any], px: list[float], origin: np.ndarray, n: np.ndarray) -> np.ndarray | None:
+def _ray_on_plane(
+    frame: dict[str, Any], px: list[float], origin: np.ndarray, n: np.ndarray
+) -> np.ndarray | None:
     k = np.asarray(frame["intrinsics"], dtype=np.float64)
     t = _matrix(frame["pose"])
     d = t[:3, :3] @ np.array([(px[0] - k[0, 2]) / k[0, 0], (px[1] - k[1, 2]) / k[1, 1], 1.0])
@@ -469,7 +497,10 @@ def _settled(ctx: NodeContext, arm_id: int) -> dict[str, Any]:
         a = _matrix(arms[arm_id]["ee_pose"])[:3, 3]
         nb = nxt.get("arms") or []
         obs = nxt
-        if len(nb) > arm_id and float(np.linalg.norm(_matrix(nb[arm_id]["ee_pose"])[:3, 3] - a)) <= SETTLE_DISTANCE:
+        if (
+            len(nb) > arm_id
+            and float(np.linalg.norm(_matrix(nb[arm_id]["ee_pose"])[:3, 3] - a)) <= SETTLE_DISTANCE
+        ):
             break
     return obs
 
@@ -484,6 +515,7 @@ def run(
     peek_height: float = PEEK_HEIGHT,
     yaw_in_pair_deg: float | None = None,
     tool_center_px: list[float] | None = None,
+    tool_center_range: float | None = None,
     tolerance_mm: float = TOLERANCE * 1e3,
     tolerance_deg: float = TOLERANCE_DEG,
     max_iterations: int = MAX_ITERATIONS,
@@ -505,8 +537,14 @@ def run(
         raise ValueError("max_iterations must be at least 1")
     if tool_center_px is not None and len(tool_center_px) != 2:
         raise ValueError("tool_center_px is [u, v]")
+    if tool_center_range is not None and tool_center_px is None:
+        raise ValueError("tool_center_range needs tool_center_px")
     geom = dict(PRESETS[system])
-    for key, val in (("stud_pitch", stud_pitch), ("stud_height", stud_height), ("stud_diameter", stud_diameter)):
+    for key, val in (
+        ("stud_pitch", stud_pitch),
+        ("stud_height", stud_height),
+        ("stud_diameter", stud_diameter),
+    ):
         if val is not None:
             geom[key] = float(val)
     pitch = geom["stud_pitch"]
@@ -538,6 +576,7 @@ def run(
         "history": [],
         "stud_centres": [],
         "pair_px": [],
+        "pair_range_m": 0.0,
         "rim_arc_deg": [],
         "tool_axis_source": "tool_center_px" if tool_center_px is not None else "ee_pose",
         "camera_name": "",
@@ -572,7 +611,9 @@ def run(
 
     def target_for(pair: np.ndarray, tool_now: np.ndarray, axis_now: np.ndarray) -> np.ndarray:
         """Tool pose putting the tool axis over the pair midpoint at the peek height, at yaw rel."""
-        yaw_now = math.atan2(float(tool_now[:3, 0] @ pair[:3, 1]), float(tool_now[:3, 0] @ pair[:3, 0]))
+        yaw_now = math.atan2(
+            float(tool_now[:3, 0] @ pair[:3, 1]), float(tool_now[:3, 0] @ pair[:3, 0])
+        )
         r_turn = _axis_angle(up, _wrap(rel - yaw_now, math.pi))
         lever = axis_now - tool_now[:3, 3]
         lever -= (lever @ up) * up
@@ -584,7 +625,9 @@ def run(
 
     if move_to_peek:
         want = target_for(prior, tool, tool[:3, 3])
-        if float(np.linalg.norm(want[:3, 3] - tool[:3, 3])) > 0.001 or abs(rel - yaw_tool) > math.radians(0.5):
+        if float(np.linalg.norm(want[:3, 3] - tool[:3, 3])) > 0.001 or abs(
+            rel - yaw_tool
+        ) > math.radians(0.5):
             if tool[2, 3] < want[2, 3] - 0.001:
                 rise = tool.copy()
                 rise[2, 3] = want[2, 3]
@@ -617,11 +660,21 @@ def run(
             return finish("lost_studs", m["why"])
         pair = m["pair"]
         top = pair[:3, 3] + geom["stud_height"] * pair[:3, 2]
+        cam = _matrix(frame["pose"])[:3, 3]
         out["pair_px"] = _pixel(frame, top)
+        out["pair_range_m"] = round(float(np.linalg.norm(top - cam)), 6)
+        dh = 0.0
         if tool_center_px is not None:
             axis = _ray_on_plane(frame, list(tool_center_px), top, pair[:3, 2])
             if axis is None:
                 return finish("lost_studs", "tool_center_px's ray does not meet the stud-top plane")
+            if tool_center_range is not None:
+                # Hold the camera's range to the studs along the pixel's ray (camera-frame depth, free
+                # of hand-eye error) at the calibrated one: the ray meets the tool axis only there.
+                ray = (axis - cam) / np.linalg.norm(axis - cam)
+                dh = -(float(np.linalg.norm(axis - cam)) - float(tool_center_range)) * abs(
+                    float(ray @ up)
+                )
         else:
             # Dropped vertically: the fitted plane's normal is good to ~0.3 deg, 0.2 mm at the peek height.
             axis = tool[:3, 3] - float((tool[:3, 3] - top) @ up) * up
@@ -644,7 +697,7 @@ def run(
             }
         )
         prior = pair
-        if lateral <= tol and abs(dyaw) <= tol_yaw:
+        if lateral <= tol and abs(dyaw) <= tol_yaw and abs(dh) <= tol:
             return finish(
                 "aligned",
                 f"tool axis {lateral * 1e3:.2f} mm and {math.degrees(dyaw):.2f} deg from the pair after "
@@ -653,6 +706,8 @@ def run(
         if it == int(max_iterations) - 1:
             break
         want = target_for(pair, tool, axis)
+        if tool_center_range is not None:
+            want[:3, 3] += (float((tool[:3, 3] - want[:3, 3]) @ up) + dh) * up
         step = want[:3, 3] - tool[:3, 3]
         lat_step = step - (step @ up) * up
         scale = float(gain)
