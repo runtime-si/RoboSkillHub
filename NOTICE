@@ -425,6 +425,14 @@ commit cbd5de3238e6ac12f44ef699e1507a9f16bdafc3), MIT License, Copyright (c)
 include/Lego.hpp knob_height_, commit 9bc91654e708e4d8428ecfa76840103cacb2a19a),
 MIT License; the file's header lists the changes, and the licenses are
 skills/verifying-brick-seated-by-height/LICENSE.bricksim and LICENSE.icl.
+skills/classifying-brick-resting-face-from-depth/scripts/classify_face.py is
+adapted from UR5-Pick-and-Place-Simulation
+(https://github.com/pietrolechthaler/UR5-Pick-and-Place-Simulation,
+catkin_ws/src/vision/scripts/lego-vision.py getDepthAxis and process_item,
+commit 596c496867c11ba63f47127833e0f49b7480ffd3), MIT License, Copyright (c)
+2022 Pietro Lechthaler; its YOLOv5 models are not used. The file's header lists
+the changes, and the license is
+skills/classifying-brick-resting-face-from-depth/LICENSE.ur5pickplace.
 
 skills/checking-design-connectivity-and-collisions/scripts/check_design.py is
 adapted from BrickGPT (https://github.com/AvaLovelace1/BrickGPT, commit

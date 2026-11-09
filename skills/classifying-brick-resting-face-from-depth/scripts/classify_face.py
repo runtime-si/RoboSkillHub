@@ -60,6 +60,10 @@ TOP_THICKNESS_FRACTION = 0.1
 """Top wall about a tenth of the brick height (1 mm LEGO): the cavity is 0.9 brick
 heights deep, so DEEP_FRACTION sits in its middle."""
 
+UPDOWN_MARGIN = 0.001
+"""The deep cut must clear the stud height and stay inside the hollow by this much [m]
+(about two D405 sigmas at 0.2 m); a plate (3.2 mm LEGO) fails it and is not judged."""
+
 UPSIDE_DOWN_SHARE = 0.25
 STUDS_UP_SHARE = 0.10
 """Deep share at or over UPSIDE_DOWN_SHARE: upside down; at or under STUDS_UP_SHARE:
@@ -108,7 +112,8 @@ class Output(TypedDict):
     yaw_deg: float
     centre: dict[str, float]
     height: float
-    footprint: list[float]
+    footprint_long: float
+    footprint_short: float
     table_height: float
     deep_share: float
     scores: dict[str, float]
@@ -409,7 +414,8 @@ def run(
         "yaw_deg": 0.0,
         "centre": _vec(near),
         "height": 0.0,
-        "footprint": [0.0, 0.0],
+        "footprint_long": 0.0,
+        "footprint_short": 0.0,
         "table_height": 0.0,
         "deep_share": 0.0,
         "scores": {},
@@ -429,7 +435,9 @@ def run(
     if cam is None:
         return finish("unknown", "no camera with a pose (named, or a wrist camera)")
     table_guess = float(table_height) if table_height is not None else float(near[2])
-    top_guess = table_guess + max(f["height"] for f in faces(nx, ny, pitch, stud_h, body_h).values())
+    top_guess = table_guess + max(
+        f["height"] for f in faces(nx, ny, pitch, stud_h, body_h).values()
+    )
     target = np.array([near[0], near[1], top_guess])
 
     tries: list[str] = []
@@ -488,7 +496,8 @@ def judge(
         )
     scores = m["scores"]
     out["scores"] = {k: round(v, 3) for k, v in scores.items()}
-    out["height"], out["footprint"] = float(m["height"]), [float(s) for s in m["sides"]]
+    out["height"] = float(m["height"])
+    out["footprint_long"], out["footprint_short"] = (float(v) for v in m["sides"])
     ds = m["deep_share"]
     out["deep_share"] = 0.0 if math.isnan(ds) else float(ds)
     table_z = out["table_height"]
@@ -512,6 +521,14 @@ def judge(
         period = 90.0 if nx == ny else 180.0
         out["yaw_deg"] = _wrap(math.degrees(math.atan2(x_dir[1], x_dir[0])), period)
         out["vertical_axis"] = "z"
+        cut = max(DEEP_FRACTION * body_h, 1.5 * stud_h)
+        cavity = (1.0 - TOP_THICKNESS_FRACTION) * body_h
+        if not stud_h + UPDOWN_MARGIN < cut < cavity - UPDOWN_MARGIN:
+            return finish(
+                "unknown",
+                f"{read}: a {body_h * 1e3:.1f} mm part's hollow ({cavity * 1e3:.1f} mm) is too "
+                f"shallow to tell from its {stud_h * 1e3:.1f} mm studs; up / down not decided",
+            )
         if math.isnan(ds):
             return finish("unknown", f"{read}: too few inner points to tell up from down")
         if ds >= UPSIDE_DOWN_SHARE:
@@ -555,9 +572,7 @@ def judge(
     out["stud_direction_known"] = known
     height = (lx if key == "x" else ly) - 2 * FOOTPRINT_PLAY
     out["centre"] = _vec([cxy[0], cxy[1], table_z + height / 2])
-    side = "studs toward " + (
-        f"({up[0]:+.2f}, {up[1]:+.2f})" if known else "an unresolved side"
-    )
+    side = "studs toward " + (f"({up[0]:+.2f}, {up[1]:+.2f})" if known else "an unresolved side")
     return finish("on_side", f"{read}; the brick's {key} axis is vertical, {side}")
 
 

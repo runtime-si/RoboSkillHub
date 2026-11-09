@@ -161,7 +161,12 @@ class World:
         )
 
 
-EXPECTED = {"studs_up": "studs_up", "upside_down": "upside_down", "side_x": "on_side", "side_y": "on_side"}
+EXPECTED = {
+    "studs_up": "studs_up",
+    "upside_down": "upside_down",
+    "side_x": "on_side",
+    "side_y": "on_side",
+}
 
 CASES = [
     ("duplo", (2, 2), ("studs_up", "upside_down", "side_x")),
@@ -189,7 +194,9 @@ def main(yaws=(0.0, 17.0, 33.0, 62.0, 105.0)):
     spec = importlib.util.spec_from_file_location("classify_face", path)
     script = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(script)
-    print(f"| brick | face | routes (of {len(yaws)} yaws) | vertical axis right | studs side right | yaw err deg (max) |")
+    print(
+        f"| brick | face | routes (of {len(yaws)} yaws) | vertical axis right | studs side right | yaw err deg (max) |"
+    )
     print("|---|---|---|---|---|---|")
     for system, studs, fcs in CASES:
         for face in fcs:

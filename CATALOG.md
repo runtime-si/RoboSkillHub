@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-24 tools, 133 skills, 2 policies, 1 recipe and 1 paper.
+24 tools, 134 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -47,6 +47,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | --- | --- | --- | --- |
 | [`calibrating-arm-to-arm-base-transform`](#calibrating-arm-to-arm-base-transform) | perceive | Measures where one arm's base sits in the other arm's base frame. | any |
 | [`calibrating-baseplate-stud-grid`](#calibrating-baseplate-stud-grid) | perceive | Estimates a LEGO or DUPLO baseplate's pose (the plate frame computing-brick-pose-from-stud-grid takes, and APEX-MR's… | any |
+| [`classifying-brick-resting-face-from-depth`](#classifying-brick-resting-face-from-depth) | perceive | Tells from depth whether a loose LEGO or DUPLO brick of known size lies studs up, upside down (resting on its stud… | any |
 | [`detecting-contact-from-joint-effort`](#detecting-contact-from-joint-effort) | perceive | Feels for contact without a force sensor. | any |
 | [`estimating-cut-grid-from-pieces`](#estimating-cut-grid-from-pieces) | perceive | Estimates a jigsaw's real cut grid (cols x rows) and cell size from the piece count printed on the box, the board's… | any |
 | [`framing-a-target-by-mask-edge-steering`](#framing-a-target-by-mask-edge-steering) | perceive | Moves the wrist camera until a named target lies wholly inside its image with a margin. | any |
@@ -538,6 +539,24 @@ Estimates a LEGO or DUPLO baseplate's pose (the plate frame computing-brick-pose
   - `coarse_only`: A coarse pose was found but no close-up was used - refine off, no wrist camera with a pose (and depth), or no view pose reached (IK preview, refused or short moves); plate_pose is the coarse pose and lattice_status says which.
   - `no_lattice`: A close-up was taken but the lattice is not trusted - no plate plane near the coarse one (no_plane), too few studs (too_few_studs), residual over max_residual (high_residual), yaw correction over 10 deg (yaw_off) or the coarse pose about half a pitch off (ambiguous); plate_pose stays the coarse pose, the fit's numbers are filled in.
   - `no_markers`: No coarse pose - none of the listed markers seen, no coarse_plate_pose, no usable plate mask; plate_pose is empty.
+
+### classifying-brick-resting-face-from-depth
+
+perceive · robots: any · tasks: assembly, lego, reorientation · MIT · v0.1.0 · [`SKILL.md`](skills/classifying-brick-resting-face-from-depth/SKILL.md) · [upstream](https://github.com/pietrolechthaler/UR5-Pick-and-Place-Simulation/blob/596c496867c11ba63f47127833e0f49b7480ffd3/catkin_ws/src/vision/scripts/lego-vision.py)
+
+Tells from depth whether a loose LEGO or DUPLO brick of known size lies studs up, upside down (resting on its stud tops, hollow underside up) or on a side wall, and which of its axes is vertical, with its yaw, its stud direction and its body centre. The brick is the connected cluster of depth points over the table nearest a rough position. Every resting face of the brick is scored on its height over the table and its footprint (the height-versus-dimensions match of a UR5 LEGO pick-and-place pipeline). Up is told from down by the hollow underside (most of the inner footprint far under the rim) instead of the source's YOLO model. Moves the wrist camera over the brick first, or reads the current frame of any posed depth camera. Use before picking a loose brick, to grasp it directly when it is studs up or to route it to a flip / regrasp otherwise, and to pick the grasp axis and yaw.
+
+- **In**: `brick_position` Vec3
+- **Out**: `vertical_axis` str, `up_vector` Vec3, `stud_direction_known` bool, `yaw_deg` float, `centre` Vec3, `height` float, `footprint_long` float, `footprint_short` float, `table_height` float, `deep_share` float, `samples` int
+- **Calls**: connector `robot.get_observation`, `robot.go_to_pose`, `robot.solve_ik`
+- **Scripts**: [`classify_face`](skills/classifying-brick-resting-face-from-depth/scripts/classify_face.py)
+- **Exits**:
+  - `studs_up`: The brick's z axis is vertical (its height and footprint fit that face best by a margin) and at most 10 % of its inner footprint lies far under its top - a face with studs on it; up_vector (0, 0, 1).
+  - `upside_down`: The z axis is vertical and at least 25 % of the inner footprint lies far under the rim - the hollow underside, the brick resting on its stud tops; up_vector (0, 0, -1).
+  - `on_side`: A side wall is down - the brick's x or y axis is vertical (vertical_axis); up_vector is the horizontal stud direction when the silhouette resolves which side carries the studs (stud_direction_known), else its axis only.
+  - `unknown`: No resting face of the given brick fits the reading (wrong size, two bricks touching, a part that is not that brick), two faces fit about equally, the up / down share is between 10 % and 25 % or the part is too thin to tell (a plate lying flat), or the depth could not be read (no posed camera, too few points around the brick); detail says which.
+  - `no_brick`: Fewer than 40 depth points stand over the table near brick_position.
+  - `unreachable`: view 'move' and every view of the brick was out of reach or refused.
 
 ### detecting-contact-from-joint-effort
 
