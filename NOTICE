@@ -548,3 +548,19 @@ commit 728139e9ad0e003106c71a7c0d0a2fc9d8430644:
 parallel-jaw-grasping/baseline/predict.m, the parallel-jaw grasp baseline),
 Apache-2.0, Andy Zeng et al. (MIT-Princeton team, Amazon Robotics Challenge
 2017); the file's header lists the changes.
+
+tools/owlv2/tools.py adapts code of Hugging Face transformers
+(https://github.com/huggingface/transformers, commit
+b39d97c836e8d9f0ee6035a87c7a3ce5eaea43a8 (v5.19.0):
+src/transformers/models/owlv2/image_processing_owlv2.py _scale_boxes,
+post_process_object_detection, post_process_image_guided_detection's
+suppression and Owlv2ImageProcessor's preprocessing,
+src/transformers/models/owlv2/modeling_owlv2.py image_guided_detection; and
+v4.30.0 src/transformers/models/owlvit/modeling_owlvit.py embed_image_query's
+query-box selection), Apache License 2.0, Copyright 2018- The Hugging Face
+team; the file's header lists the changes, and the license is
+tools/owlv2/LICENSE.transformers. The bundle downloads the OWLv2 checkpoints
+google/owlv2-base-patch16-ensemble and google/owlv2-large-patch14-ensemble
+(Apache-2.0 model cards; Minderer, Gritsenko and Houlsby, "Scaling
+Open-Vocabulary Object Detection", 2023) at pinned commits on first use; none
+are stored here.
