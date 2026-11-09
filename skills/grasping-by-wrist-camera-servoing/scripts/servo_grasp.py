@@ -4,14 +4,16 @@
 # grasp_open_loop, _grasp) and src/stretch/utils/filters.py (MaskTemporalFilter),
 # Apache-2.0, Copyright (c) Hello Robot, Inc.
 # Changes: world-frame hub inputs (a coarse OBB or point) instead of the agent's instance
-# memory; the pregrasp is refining-target-from-wrist-closeup's camera-aimed view (its
-# helpers are loaded from that skill) instead of a Stretch joint-space standoff; the
-# target is a segmenter tool's mask (sam3.segment_text by default) instead of the agent's
-# detector classes, chosen as the mask under the aim pixel, else the one nearest the last
-# centroid, and gated by a jump bound; the servo error is metric (the median of the mask's
-# top-face points back-projected with the wrist depth, minus the tool centre) rather than
-# the mask centroid's pixel offset, so it carries to any range and to a camera mounted
-# behind and above the fingers; Stretch's base_x / lift / arm / wrist_pitch steps are small
+# memory; the pregrasp standoff is a Cartesian pose straight above the target, kept only
+# where the wrist camera (its extrinsic read from the observation with
+# refining-target-from-wrist-closeup's helpers, loaded from that skill) would see the
+# target, else that skill's camera-aimed view, instead of a Stretch joint-space standoff;
+# the target is a segmenter tool's mask (sam3.segment_text by default) instead of the
+# agent's detector classes, chosen as the mask under the aim pixel, else the one nearest
+# the last centroid, and gated by a jump bound; the servo error is metric (the midpoint of
+# the extent of the mask's top-face points back-projected with the wrist depth, minus the
+# tool centre) rather than the mask centroid's pixel offset, so it carries to any range
+# and to a camera mounted behind and above the fingers; Stretch's base_x / lift / arm / wrist_pitch steps are small
 # capped robot.go_to_pose_cartesian steps of the tool centre, each previewed with
 # robot.solve_ik; the source's pixel alignment thresholds and eroded-mask test still gate
 # the descent, and a metric tolerance gates the last part of it, past the target's top;
@@ -112,12 +114,21 @@ PREGRASP_MARGIN = 0.006
 1.5 mm of servo error and the pads' compliance, narrow enough not to sweep a neighbour
 a centimetre away."""
 
+PREGRASP_HEIGHT = 0.06
+"""Tool centre over the target's top at the pregrasp standoff [m]: the fingertips 50 mm
+clear (refining-target-from-wrist-closeup's clearance floor). On a YAM the D405 then
+sees the target ~12 deg above its optical axis at ~0.16 m. The source stood off 0.3 m
+along the approach on a Stretch."""
+
+FALLBACK_HEIGHTS = (0.06, 0.08, 0.10)
+"""Standoffs tried after the asked one [m]."""
+
 PREGRASP_RANGE = 0.20
-"""Camera-to-target range of the pregrasp view [m]: refining-target-from-wrist-closeup's
-default view."""
+"""Camera-to-target range of the fallback pregrasp view, the target on the optical axis
+[m]: refining-target-from-wrist-closeup's default view."""
 
 FALLBACK_RANGES = (0.20, 0.25, 0.30)
-"""Pregrasp ranges tried after the asked one [m]."""
+"""Fallback-view ranges tried after the asked one [m]."""
 
 MAX_ITERATIONS = 30
 """Most servo frames before the open-loop fallback. The source ran for 120 s."""
@@ -283,6 +294,7 @@ def run(
     object_height: float | None = None,
     grasp_depth: float | None = None,
     pregrasp_margin: float = PREGRASP_MARGIN,
+    pregrasp_height: float = PREGRASP_HEIGHT,
     pregrasp_range: float = PREGRASP_RANGE,
     align_tolerance: float = ALIGN_TOLERANCE,
     lateral_step: float = LATERAL_STEP,
@@ -524,8 +536,10 @@ def run(
         r = rotations[0]
         return open_loop(coarse, aim._quat(r), "")
 
-    # Pregrasp: refining-target-from-wrist-closeup's oblique view, the target on the
-    # camera's optical axis with the hand top-down.
+    # Pregrasp: the source's standoff along the approach (the tool centre straight above
+    # the target), kept only where the wrist camera would see the target well inside
+    # its image; else refining-target-from-wrist-closeup's view with the target on the
+    # camera's optical axis, the hand top-down.
     cam = aim._wrist_camera(obs, tool_now, camera)
     if cam is None:
         names = [c.get("name") for c in obs.get("cameras") or []]
@@ -535,38 +549,64 @@ def run(
     out["camera_name"] = str(cam.get("name", ""))
     tool_cam = np.linalg.inv(tool_now) @ aim._matrix(cam["pose"])
     axis_tool, offset_tool = tool_cam[:3, 2], tool_cam[:3, 3]
-    ranges = list(dict.fromkeys([float(pregrasp_range), *FALLBACK_RANGES]))
+    h_img, w_img = np.asarray(cam["rgb"]).shape[:2]
+    mx, my = aim.VIEW_MARGIN * w_img, aim.VIEW_MARGIN * h_img
+
+    def in_view(position: np.ndarray, r_tool: np.ndarray) -> str:
+        """ "" when the coarse target projects inside the image margin within the
+        camera's depth range from this hand pose, else why not."""
+        pose = np.eye(4)
+        pose[:3, :3], pose[:3, 3] = r_tool, position
+        eye = pose @ tool_cam
+        seen = {
+            "intrinsics": cam["intrinsics"],
+            "pose": {"position": aim._vec(eye[:3, 3]), "rotation": aim._quat(eye[:3, :3])},
+        }
+        u, v, z = aim._project(seen, coarse)
+        if not (
+            aim.MIN_DEPTH <= z <= aim.MAX_DEPTH and mx <= u <= w_img - mx and my <= v <= h_img - my
+        ):
+            return f"the target would project at ({u:.0f}, {v:.0f}), {z:.2f} m deep"
+        return ""
+
+    views: list[tuple[str, np.ndarray, np.ndarray]] = []
+    for r_tool in rotations:
+        for hgt in dict.fromkeys([float(pregrasp_height), *FALLBACK_HEIGHTS]):
+            views.append((f"standoff {hgt:.2f} m", r_tool, coarse + np.array([0.0, 0.0, hgt])))
+    for r_tool in rotations:
+        for rng in dict.fromkeys([float(pregrasp_range), *FALLBACK_RANGES]):
+            position = coarse - rng * (r_tool @ axis_tool) - r_tool @ offset_tool
+            views.append((f"camera range {rng:.2f} m", r_tool, position))
     failures: list[str] = []
     rotation: dict[str, float] | None = None
     moves = 0
-    for r_tool in rotations:
-        for rng in ranges:
-            if moves >= aim.MAX_MOVES or rotation is not None:
-                break
-            position = coarse - rng * (r_tool @ axis_tool) - r_tool @ offset_tool
-            if position[2] < coarse[2] + aim.MIN_TOOL_CLEARANCE:
-                failures.append(f"range {rng:.2f} m: too close to the target")
-                continue
-            q = aim._quat(r_tool)
-            why = ik_ok(position, q)
-            if why:
-                failures.append(f"range {rng:.2f} m: {why}")
-                continue
-            moves += 1
-            start = here()[:3, 3]
-            if start[2] < position[2] - 1.0e-3:
-                why = step(
-                    np.array([start[0], start[1], position[2]]),
-                    aim._quat(here()[:3, :3]),
-                    "robot.go_to_pose",
-                )
-                why = f"rise: {why}" if why else ""
-            why = why or step(position, q, "robot.go_to_pose")
-            off = float(np.linalg.norm(here()[:3, 3] - position))
-            if why or off > aim.REACH_TOLERANCE:
-                failures.append(f"range {rng:.2f} m: {why or f'ended {off * 1e3:.0f} mm off'}")
-                continue
-            rotation = q
+    for name, r_tool, position in views:
+        if moves >= aim.MAX_MOVES or rotation is not None:
+            break
+        if position[2] < coarse[2] + aim.MIN_TOOL_CLEARANCE - 1.0e-9:
+            failures.append(f"{name}: too close to the target")
+            continue
+        why = in_view(position, r_tool)
+        q = aim._quat(r_tool)
+        why = why or ik_ok(position, q)
+        if why:
+            failures.append(f"{name}: {why}")
+            continue
+        moves += 1
+        start = here()[:3, 3]
+        if start[2] < position[2] - 1.0e-3:
+            why = step(
+                np.array([start[0], start[1], position[2]]),
+                aim._quat(here()[:3, :3]),
+                "robot.go_to_pose",
+            )
+            why = f"rise: {why}" if why else ""
+        why = why or step(position, q, "robot.go_to_pose")
+        off = float(np.linalg.norm(here()[:3, 3] - position))
+        if why or off > aim.REACH_TOLERANCE:
+            failures.append(f"{name}: {why or f'ended {off * 1e3:.0f} mm off'}")
+            continue
+        rotation = q
     if rotation is None:
         return finish(
             "unreachable", "no pregrasp view: " + ("; ".join(failures) or "nothing to try")

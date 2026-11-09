@@ -375,6 +375,33 @@ def test_a_stalled_arm_falls_back(script):
     assert "stalled" in out["fallback_reason"]
 
 
+def test_pregrasp_stands_off_straight_above_the_estimate(script):
+    rig = Rig()
+    coarse = coarse_obb(0.006, -0.003)
+    out = script.run(rig.ctx(), object_name="red cube", target_obb=coarse)
+    assert out["route"] == "grasped"
+    tool, target, _ = rig.moves[0]
+    assert tool == "go_to_pose"
+    np.testing.assert_allclose(target[:3, 3], [0.406, 0.097, SIDE + 0.06], atol=1e-9)
+
+
+def test_pregrasp_falls_back_to_the_camera_aimed_view(script):
+    def ik(pose):
+        p = pose["position"]
+        above = abs(p["x"] - 0.406) < 1e-6 and abs(p["y"] - 0.097) < 1e-6
+        return {"success": not above, "within_servo_tolerance": True}
+
+    rig = Rig(ik=ik)
+    out = script.run(rig.ctx(), object_name="red cube", target_obb=coarse_obb(0.006, -0.003))
+    assert out["route"] == "grasped", out["detail"]
+    view = rig.moves[0][1]
+    # The coarse top on the camera's optical axis, 0.20 m out.
+    cam = view @ TOOL_CAM
+    ray = np.array([0.406, 0.097, SIDE]) - cam[:3, 3]
+    assert np.linalg.norm(ray) == pytest.approx(0.20, abs=1e-6)
+    assert float(ray @ cam[:3, 2]) / np.linalg.norm(ray) == pytest.approx(1.0, abs=1e-6)
+
+
 def test_pregrasp_out_of_reach_is_unreachable_without_moving(script):
     rig = Rig(ik=lambda pose: {"success": False})
     out = script.run(rig.ctx(), object_name="red cube", target_obb=coarse_obb())

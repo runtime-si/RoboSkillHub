@@ -1,9 +1,9 @@
 ---
 name: grasping-by-wrist-camera-servoing
 description: Grasps a small part by closed-loop eye-in-hand servoing - from a
-  pregrasp view that puts a coarse target on the wrist RGB-D camera's optical
-  axis, it segments the part in every wrist frame (sam3.segment_text), takes the
-  median of the mask's top-face points back-projected with the wrist depth,
+  pregrasp standoff above a coarse target, it segments the part in every wrist
+  RGB-D frame (sam3.segment_text), takes the centre of the mask's top-face
+  points back-projected with the wrist depth,
   steps the hand sideways (capped, IK-previewed robot.go_to_pose_cartesian
   steps) to bring that point under the tool centre, descends while it stays
   centred, and closes once the tool centre reaches the grasp height with the
@@ -88,7 +88,7 @@ top.
   7-50 cm depth range, the 50 mm clearance floor and the 15 mm arrival bound
   come from that skill, so it must be installed beside this one (it is in this
   hub). Its oblique view (the target on the optical axis, the hand
-  top-down) is the pregrasp.
+  top-down) is the fallback pregrasp.
 - **Not `grasping-direct-ik` / `grasping-flat-objects`**: those trust the
   estimate and go straight down. This one uses them as its fallback shape
   (straight down to the last point seen) only when the loop cannot finish.
@@ -110,10 +110,14 @@ tool centre together and cancel; what is left is the mount calibration.
 1. Reads the hand (`robot.describe_gripper`: jaw-gap fit, finger reach) and
    picks a top-down grasp rotation (`robot.grasp_frame`, jaws across the OBB's
    shorter side when it has one; else the hand's own if top-down).
-2. **Pregrasp**: the hand pose that puts the coarse top centre on the wrist
-   camera's optical axis at `pregrasp_range` (0.20, then 0.25, 0.30 m) with
-   the grasp rotation, IK-previewed, risen into from below; at most three
-   moves, each judged from a fresh pose (15 mm).
+2. **Pregrasp** (the source's standoff along the approach): the tool centre
+   straight above the coarse top at `pregrasp_height` (0.06, then 0.08,
+   0.10 m), kept only if the camera-to-tool transform read from the
+   observation predicts the target inside the wrist image (8 % margin) at
+   7-50 cm; else refining-target-from-wrist-closeup's view, the coarse top on
+   the optical axis at `pregrasp_range` (0.20, 0.25, 0.30 m). Each candidate is
+   IK-previewed and kept 50 mm over the top; the hand rises in place first;
+   at most three moves, each judged from a fresh pose (15 mm).
 3. **Pre-shape**: `robot.set_grip` to the part's width + 2 x
    `pregrasp_margin` (6 mm a side); `robot.open_gripper` when the width is
    unknown or the connector has no partial grip.
@@ -123,8 +127,9 @@ tool centre together and cancel; what is left is the mount calibration.
      source's "centred on the right object"), else the one nearest the last
      centroid (first frame: the coarse estimate's projection).
    - Back-project the mask with the wrist depth (7-50 cm); the **top-face
-     centre** is the median x, y of the points within 4 mm of the 95th
-     percentile height. First sight must be within the part's half-diagonal
+     centre** is the midpoint of the extent (2nd-98th percentile) of the
+     points within 1.5 mm of the 95th percentile height, along the hand's two
+     lateral axes. First sight must be within the part's half-diagonal
      + 30 mm of the coarse estimate; later frames within 20 mm of the last.
    - The **aim pixel** is where a point at the part's top height under the
      tool centre projects. Lateral error = top-face centre - tool centre.
@@ -166,7 +171,7 @@ to the coarse estimate (the open-loop baseline, the source's
 - `target_obb` or `target_point`: the coarse estimate, world frame.
 - `object_width`, `object_height` (override the OBB's), `grasp_depth`.
 - `servo` (true), `fallback` (true), `camera`, `pregrasp_margin` (0.006 m),
-  `pregrasp_range` (0.20 m), `align_tolerance` (0.0015 m), `lateral_step`
+  `pregrasp_height` (0.06 m), `pregrasp_range` (0.20 m), `align_tolerance` (0.0015 m), `lateral_step`
   (0.010 m), `descent_step` (0.015 m), `max_iterations` (30), `lift_height`
   (0.05 m), `min_score` (0.3), `check_reach` (true).
 - `arm_id`, `tolerance`, `max_steps`: passed on only when set (`arm_id`
@@ -187,9 +192,14 @@ the plane), `final_error` (last measured lateral error), `mode`,
   servo image, scaled to the frame (x2 at 640 wide, x4 for areas).
 - **`ERODE_FRAC = 0.2`**: the source eroded ~20 px, sized for household
   objects; a 25 mm part at 0.15 m is ~60 px across at 640 wide.
-- **`TOP_BAND = 0.004` m**: side faces seen at 45 deg would pull a plain
-  centroid ~half the part's width toward the camera; the top band keeps
-  the top face (and a LEGO brick's 1.8 mm studs).
+- **`TOP_BAND = 0.0015` m and the extent midpoint**: side faces seen at
+  45 deg pull a plain centroid toward the camera, and so does perspective
+  (the near half of the top face covers more pixels). In the fake rig a
+  4 mm band with a pixel median put a 25 mm cube's centre 4 mm short, a
+  1.5 mm band 2 mm short, a depth-squared-weighted mean 1-1.5 mm short; the
+  extent midpoint is blind to both, and is what closing jaws centre on. The
+  band stays above the D405's sub-millimetre depth noise at 0.1-0.3 m and
+  under a LEGO stud's 1.7 mm.
 - **`ALIGN_TOLERANCE = 0.0015` m**, **`PREGRASP_MARGIN = 0.006` m**: the
   servo must be within 1.5 mm before the fingertips pass the top, which
   leaves 4.5 mm of the margin for the pads' compliance and the twin's/real
