@@ -1,0 +1,34 @@
+[project]
+name = "omdet-turbo-tool-bundle"
+version = "0.1.0.dev0"
+description = "OmDet-Turbo fast open-vocabulary detection from text prompts. Runs out-of-process via gap_core.rpc.server (needs GPU)."
+readme = "SKILL.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+
+dependencies = [
+  "graph-as-policy-core",
+  # OmDetTurboForObjectDetection arrived in transformers 4.45. Its Swin-T backbone is
+  # built by timm (use_timm_backbone in the checkpoint's config); torchvision backs
+  # the DETR image processor's fast path. The post-process is numpy.
+  "torch>=2.7",
+  "torchvision>=0.22",
+  "transformers>=4.45",
+  "timm>=1.0",
+  "pillow>=10",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+# The engine commit sources.yaml pins, by URL, so the bundle resolves the same
+# wherever its checkout sits (a dev clone, a robot's `roboskillhub fetch`).
+[tool.uv.sources]
+graph-as-policy-core = { git = "https://github.com/graph-robots/graph-as-policy.git", rev = "09e45f8de27bc1a29629382ed7c2b9b4b384b3d6", subdirectory = "gap-core" }

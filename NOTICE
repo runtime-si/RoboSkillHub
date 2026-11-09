@@ -613,6 +613,20 @@ google/owlv2-base-patch16-ensemble and google/owlv2-large-patch14-ensemble
 Open-Vocabulary Object Detection", 2023) at pinned commits on first use; none
 are stored here.
 
+tools/omdet-turbo/tools.py adapts code of Hugging Face transformers
+(https://github.com/huggingface/transformers, commit
+b39d97c836e8d9f0ee6035a87c7a3ce5eaea43a8 (v5.19.0):
+src/transformers/models/omdet_turbo/processing_omdet_turbo.py
+post_process_grounded_object_detection, _post_process_boxes_for_image and
+compute_score, and the processor's default task sentence), Apache License 2.0,
+Copyright 2018- The Hugging Face team; the file's header lists the changes,
+and the license is tools/omdet-turbo/LICENSE.transformers. The bundle
+downloads the OmDet-Turbo checkpoint omlab/omdet-turbo-swin-tiny-hf
+(Apache-2.0 model card; Zhao et al., "Real-time Transformer-based
+Open-Vocabulary Detection with Efficient Fusion Head", 2024; original code
+om-ai-lab/OmDet, Apache-2.0) at a pinned commit on first use; none is stored
+here.
+
 skills/grasping-by-wrist-camera-servoing/scripts/servo_grasp.py is adapted from
 Hello Robot's stretch_ai (https://github.com/hello-robot/stretch_ai, commit
 6272b28e3ff7be482af3b427a4551d1772ebf7d7:
