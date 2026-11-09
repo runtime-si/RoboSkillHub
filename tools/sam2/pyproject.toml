@@ -1,7 +1,7 @@
 [project]
-name = "edgetam-tool-bundle"
+name = "sam2-tool-bundle"
 version = "0.1.0.dev0"
-description = "EdgeTAM (or SAM 2.1) promptable video mask tracking: live sessions and recorded clips. Runs out-of-process via gap_core.rpc.server (needs GPU)."
+description = "SAM 2.1 (or EdgeTAM) promptable video mask tracking: live sessions and recorded clips. Runs out-of-process via gap_core.rpc.server (needs GPU)."
 readme = "SKILL.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }

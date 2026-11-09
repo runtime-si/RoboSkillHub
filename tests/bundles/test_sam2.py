@@ -1,4 +1,4 @@
-"""edgetam bundle: prompts, sessions (open, step, evict, close), presence from the occlusion head,
+"""sam2 bundle: prompts, sessions (open, step, evict, close), presence from the occlusion head,
 the clip path and the session pruning, with the EdgeTAM / SAM 2.1 runtime faked."""
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ H, W = 120, 160
 
 @pytest.fixture(scope="module")
 def et(skills_registry):
-    return skills_registry.get("edgetam").tools_module
+    return skills_registry.get("sam2").tools_module
 
 
 def frame(v: int = 0) -> np.ndarray:
@@ -86,7 +86,7 @@ def xyxy(b):
 
 
 def test_tools_registered_with_their_schemas(tool_registry):
-    init = tool_registry.get("edgetam.tracker_init").schema
+    init = tool_registry.get("sam2.tracker_init").schema
     assert {"image", "box", "pixel_x", "pixel_y", "points", "point_labels", "mask"} <= set(
         init.inputs
     )
@@ -97,14 +97,14 @@ def test_tools_registered_with_their_schemas(tool_registry):
         "score",
         "object_present",
     }
-    upd = tool_registry.get("edgetam.tracker_update").schema
+    upd = tool_registry.get("sam2.tracker_update").schema
     assert set(upd.inputs) == {"tracker_id", "image"}
     assert {"mask", "box", "confidence", "object_present"} <= set(upd.outputs)
-    assert set(tool_registry.get("edgetam.tracker_close").schema.inputs) == {"tracker_id"}
-    trk = tool_registry.get("edgetam.track").schema
+    assert set(tool_registry.get("sam2.tracker_close").schema.inputs) == {"tracker_id"}
+    trk = tool_registry.get("sam2.track").schema
     assert {"frames", "box", "prompt_frame", "return_masks"} <= set(trk.inputs)
     for n in ("tracker_init", "tracker_update", "tracker_close", "track"):
-        assert tool_registry.get(f"edgetam.{n}").tags == ("perception",)
+        assert tool_registry.get(f"sam2.{n}").tags == ("perception",)
 
 
 def test_import_does_not_pull_torch_and_models_are_pinned(et):
@@ -115,12 +115,14 @@ def test_import_does_not_pull_torch_and_models_are_pinned(et):
 
 
 def test_model_choice_is_checked(et, monkeypatch, tmp_path):
-    monkeypatch.setenv("GAP_EDGETAM_MODEL", "facebook/sam2.1-hiera-small")
-    assert et._model_source()[1] == et.MODELS["facebook/sam2.1-hiera-small"]
-    monkeypatch.setenv("GAP_EDGETAM_MODEL", str(tmp_path))
+    monkeypatch.delenv("GAP_SAM2_MODEL", raising=False)
+    assert et._model_source() == ("facebook/sam2.1-hiera-base-plus", et.MODELS[et.DEFAULT_MODEL])
+    monkeypatch.setenv("GAP_SAM2_MODEL", "yonigozlan/EdgeTAM-hf")
+    assert et._model_source()[1] == et.MODELS["yonigozlan/EdgeTAM-hf"]
+    monkeypatch.setenv("GAP_SAM2_MODEL", str(tmp_path))
     assert et._model_source() == (str(tmp_path), None)
     assert et.weights_cached() is False
-    monkeypatch.setenv("GAP_EDGETAM_MODEL", "someone/sam2-finetune")
+    monkeypatch.setenv("GAP_SAM2_MODEL", "someone/sam2-finetune")
     with pytest.raises(ValueError, match="must be one of"):
         et._model_source()
 

@@ -1,16 +1,18 @@
-"""edgetam tool bundle -- promptable video mask tracking (EdgeTAM; SAM 2.1 as an alternative).
+"""sam2 tool bundle -- promptable video mask tracking (SAM 2.1; EdgeTAM as the fast option).
 
+SAM 2.1 (Ravi et al., "SAM 2: Segment Anything in Images and Videos", 2024;
+https://github.com/facebookresearch/sam2, Apache-2.0): promptable video
+segmentation with a memory bank, object pointers and an occlusion head.
 EdgeTAM (Zhou et al., "EdgeTAM: On-Device Track Anything Model", CVPR 2025;
-https://github.com/facebookresearch/EdgeTAM, Apache-2.0) keeps SAM 2's
-promptable video segmentation (memory bank, object pointers, occlusion head)
-and replaces its memory attention input with a 2D spatial perceiver, so it is
-several times cheaper per frame. Both run through Hugging Face transformers'
-``EdgeTamVideoModel`` / ``Sam2VideoModel`` with ``Sam2VideoProcessor``
+https://github.com/facebookresearch/EdgeTAM, Apache-2.0) keeps that design and
+feeds the memory attention through a 2D spatial perceiver, so a frame is
+cheaper. Both run through Hugging Face transformers' ``Sam2VideoModel`` /
+``EdgeTamVideoModel`` with ``Sam2VideoProcessor``
 (https://github.com/huggingface/transformers, Apache-2.0,
-src/transformers/models/edgetam_video/, sam2_video/), weights
+src/transformers/models/sam2_video/, edgetam_video/), weights
+``facebook/sam2.1-hiera-*`` (Apache-2.0 model cards) or
 ``yonigozlan/EdgeTAM-hf`` (the transformers conversion of facebook/EdgeTAM's
-edgetam.pt; Apache-2.0 model card) or ``facebook/sam2.1-hiera-*``
-(Apache-2.0 model cards).
+edgetam.pt; Apache-2.0 model card).
 
 Adapted from transformers (Apache-2.0, license in LICENSE.transformers):
 
@@ -30,10 +32,10 @@ as SAM 2 gates its own masks); ``confidence`` is its sigmoid.
 The model loads lazily on first call; importing this module never pulls torch
 / transformers. Knobs via env:
 
-- ``GAP_EDGETAM_MODEL``  -- one of ``MODELS`` (pinned revision) or a local directory
-  (default ``yonigozlan/EdgeTAM-hf``).
-- ``GAP_EDGETAM_DEVICE`` -- torch device (default ``cuda``).
-- ``GAP_EDGETAM_DTYPE``  -- ``bfloat16`` (default on CUDA) or ``float32``.
+- ``GAP_SAM2_MODEL``  -- one of ``MODELS`` (pinned revision) or a local directory
+  (default ``facebook/sam2.1-hiera-base-plus``).
+- ``GAP_SAM2_DEVICE`` -- torch device (default ``cuda``).
+- ``GAP_SAM2_DTYPE``  -- ``bfloat16`` (default on CUDA) or ``float32``.
 """
 
 from __future__ import annotations
@@ -61,7 +63,7 @@ MODELS = {
     "facebook/sam2.1-hiera-base-plus": "b7320756a13354e7530a63935656d35b2f91a290",
     "facebook/sam2.1-hiera-large": "665f8e2ad61cf5f53d65644ff27c8ee525124610",
 }
-DEFAULT_MODEL = "yonigozlan/EdgeTAM-hf"
+DEFAULT_MODEL = "facebook/sam2.1-hiera-base-plus"
 
 #: Sessions kept open at once; opening one more evicts the least recently used.
 MAX_SESSIONS = 8
@@ -111,18 +113,18 @@ class TrackResult(TypedDict):
 
 
 def _model_source() -> tuple[str, str | None]:
-    name = os.environ.get("GAP_EDGETAM_MODEL") or DEFAULT_MODEL
+    name = os.environ.get("GAP_SAM2_MODEL") or DEFAULT_MODEL
     if name in MODELS:
         return name, MODELS[name]
     if os.path.isdir(name):
         return name, None
     raise ValueError(
-        f"GAP_EDGETAM_MODEL must be one of {sorted(MODELS)} or a local directory, got {name!r}"
+        f"GAP_SAM2_MODEL must be one of {sorted(MODELS)} or a local directory, got {name!r}"
     )
 
 
 class _Runtime:
-    """One EdgeTAM / SAM 2.1 video model on the device; numpy in, numpy out."""
+    """One SAM 2.1 / EdgeTAM video model on the device; numpy in, numpy out."""
 
     def __init__(self, source: str, revision: str | None, device: str) -> None:
         import torch
@@ -130,7 +132,7 @@ class _Runtime:
 
         self.torch = torch
         self.device = device
-        name = os.environ.get("GAP_EDGETAM_DTYPE") or ("bfloat16" if device != "cpu" else "float32")
+        name = os.environ.get("GAP_SAM2_DTYPE") or ("bfloat16" if device != "cpu" else "float32")
         self.dtype = {"bfloat16": torch.bfloat16, "float32": torch.float32}[name]
         cfg = AutoConfig.from_pretrained(source, revision=revision)
         if cfg.model_type == "edgetam_video":
@@ -236,7 +238,7 @@ def _get_runtime() -> Any:
     with _load_lock:
         if _runtime is None:
             source, revision = _model_source()
-            _runtime = _Runtime(source, revision, os.environ.get("GAP_EDGETAM_DEVICE", "cuda"))
+            _runtime = _Runtime(source, revision, os.environ.get("GAP_SAM2_DEVICE", "cuda"))
         return _runtime
 
 
@@ -266,14 +268,9 @@ def prefetch() -> None:
         return
     from huggingface_hub import snapshot_download
 
-    logger.info("[edgetam] prefetching %s@%s ...", source, revision)
-    snapshot_download(
-        repo_id=source,
-        revision=revision,
-        repo_type="model",
-        allow_patterns=["*.json", "*.safetensors", "*.md"],
-    )
-    logger.info("[edgetam] prefetch complete")
+    logger.info("[sam2] prefetching %s@%s ...", source, revision)
+    snapshot_download(repo_id=source, revision=revision, repo_type="model")
+    logger.info("[sam2] prefetch complete")
 
 
 # ---------------------------------------------------------------------------
@@ -384,8 +381,8 @@ def _reap(now: float) -> None:
 
 
 @tool(
-    name="edgetam.tracker_init",
-    summary="Open an EdgeTAM mask-tracking session on a live frame from a box, points or a mask; returns a tracker_id and the first mask.",
+    name="sam2.tracker_init",
+    summary="Open a SAM 2.1 / EdgeTAM mask-tracking session on a live frame from a box, points or a mask; returns a tracker_id and the first mask.",
     tags=("perception",),
 )
 def tracker_init(
@@ -408,7 +405,7 @@ def tracker_init(
     occlusion head says absent) still returns a ``tracker_id`` only when
     the mask is not empty.
     """
-    name = "edgetam.tracker_init"
+    name = "sam2.tracker_init"
     arr = _image(image, name)
     size = (int(arr.shape[0]), int(arr.shape[1]))
     if pixel_x is not None or pixel_y is not None:
@@ -423,7 +420,7 @@ def tracker_init(
     except ToolError:
         raise
     except Exception as e:
-        raise PerceptionFailed(f"EdgeTAM init failed: {e}") from e
+        raise PerceptionFailed(f"SAM 2 init failed: {e}") from e
     box_out = _box_of(m)
     if box_out is None:
         return {
@@ -438,8 +435,8 @@ def tracker_init(
         _sessions[tid] = _Session(state, size)
         while len(_sessions) > MAX_SESSIONS:
             old, _ = _sessions.popitem(last=False)
-            logger.info("edgetam: evicted session %s (over %d open)", old, MAX_SESSIONS)
-    logger.info("edgetam.tracker_init %s %r: %d px, score %.2f", tid, object_name, m.sum(), logit)
+            logger.info("sam2: evicted session %s (over %d open)", old, MAX_SESSIONS)
+    logger.info("sam2.tracker_init %s %r: %d px, score %.2f", tid, object_name, m.sum(), logit)
     return {
         "tracker_id": tid,
         "initial_mask": _u8(m),
@@ -450,8 +447,8 @@ def tracker_init(
 
 
 @tool(
-    name="edgetam.tracker_update",
-    summary="Advance an EdgeTAM session by one frame of the same camera; returns the mask, box, confidence and presence.",
+    name="sam2.tracker_update",
+    summary="Advance a SAM 2 session by one frame of the same camera; returns the mask, box, confidence and presence.",
     tags=("perception",),
 )
 def tracker_update(tracker_id: str, image: np.ndarray) -> TrackerUpdateResult:
@@ -460,7 +457,7 @@ def tracker_update(tracker_id: str, image: np.ndarray) -> TrackerUpdateResult:
     and box are None and the memory keeps going, so the object is picked up
     again when it reappears. Raises ToolError for an unknown ``tracker_id``.
     """
-    name = "edgetam.tracker_update"
+    name = "sam2.tracker_update"
     now = time.monotonic()
     _reap(now)
     with _sessions_lock:
@@ -479,7 +476,7 @@ def tracker_update(tracker_id: str, image: np.ndarray) -> TrackerUpdateResult:
         try:
             m, logit = _get_runtime().step(sess.state, arr, sess.frame_index)
         except Exception as e:
-            raise PerceptionFailed(f"EdgeTAM update failed: {e}") from e
+            raise PerceptionFailed(f"SAM 2 update failed: {e}") from e
         sess.touched = time.monotonic()
         box_out = _box_of(m)
         present = logit > 0 and box_out is not None
@@ -494,8 +491,8 @@ def tracker_update(tracker_id: str, image: np.ndarray) -> TrackerUpdateResult:
 
 
 @tool(
-    name="edgetam.tracker_close",
-    summary="Free an EdgeTAM session. Idempotent: closing an unknown id is not an error.",
+    name="sam2.tracker_close",
+    summary="Free a SAM 2 session. Idempotent: closing an unknown id is not an error.",
     tags=("perception",),
 )
 def tracker_close(tracker_id: str) -> TrackerCloseResult:
@@ -505,7 +502,7 @@ def tracker_close(tracker_id: str) -> TrackerCloseResult:
 
 
 @tool(
-    name="edgetam.track",
+    name="sam2.track",
     summary="Track one object through a recorded clip from a box, points or mask on any frame; per-frame boxes, presence and (optionally) masks.",
     tags=("perception",),
 )
@@ -523,7 +520,7 @@ def track(
     ``boxes[i]`` is None where the object is absent (occlusion head or empty
     mask); ``masks`` (uint8 0 / 255) only with ``return_masks``.
     """
-    name = "edgetam.track"
+    name = "sam2.track"
     if not frames:
         raise ToolError(name, "frames is empty")
     arrs = [_image(f, name) for f in frames]
@@ -537,7 +534,7 @@ def track(
     try:
         res = _get_runtime().clip(arrs, int(prompt_frame), prompt)
     except Exception as e:
-        raise PerceptionFailed(f"EdgeTAM clip tracking failed: {e}") from e
+        raise PerceptionFailed(f"SAM 2 clip tracking failed: {e}") from e
     boxes: list[BoundingBox2D | None] = []
     present, conf, area = [], [], []
     masks: list[Mask] = []
