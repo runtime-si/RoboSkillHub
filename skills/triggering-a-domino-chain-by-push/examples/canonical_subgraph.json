@@ -1,0 +1,28 @@
+{
+  "skill": "triggering-a-domino-chain-by-push",
+  "inputs": {"slot": "Se3Pose", "table_z": "float"},
+  "outputs": {
+    "pushed": {"$ref": "push.pushed"},
+    "contact_height": {"$ref": "push.contact_height"},
+    "push_travel": {"$ref": "push.push_travel"},
+    "trigger_time": {"$ref": "push.trigger_time"},
+    "first_standing": {"$ref": "push.first_standing"},
+    "detail": {"$ref": "push.detail"}
+  },
+  "nodes": {
+    "push": {
+      "type": "script",
+      "script": "scripts/trigger_domino.py",
+      "inputs": {
+        "slot": {"$ref": "in.slot"},
+        "table_z": {"$ref": "in.table_z"}
+      }
+    }
+  },
+  "edges": [["START", "push"], ["push", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["triggered", "no_contact", "blocked", "unverified"]
+  },
+  "on_error": "unreachable"
+}
