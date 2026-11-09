@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-19 tools, 105 skills, 2 policies, 1 recipe and 1 paper.
+19 tools, 106 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -89,6 +89,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`executing-held-object-motion`](#executing-held-object-motion) | execute | Executes an ordered, collision-aware pose sequence for an already-grasped rigid object without releasing it. | any |
 | [`grasping-a-cable-by-its-plug`](#grasping-a-cable-by-its-plug) | execute | Grasps a cable by the rigid plug at its end rather than by its thin jacket. | any |
 | [`grasping-a-cable-lying-flat`](#grasping-a-cable-lying-flat) | execute | Grasps a thin cable lying flat on a table. | any |
+| [`grasping-by-wrist-camera-servoing`](#grasping-by-wrist-camera-servoing) | execute | Grasps a small part by closed-loop eye-in-hand servoing. | any |
 | [`grasping-container-rims`](#grasping-container-rims) | execute | Grasps a thin-walled open container (box, bin, tray, cup, bowl) by its rim. | any |
 | [`grasping-direct-ik`](#grasping-direct-ik) | execute | Direct IK align-then-descend grasping. | any, *tuned on* panda |
 | [`grasping-flat-objects`](#grasping-flat-objects) | execute | Grasps an object lying flat on a surface that is too thin for a normal top-down pinch at its box centre (a card, a… | any |
@@ -1164,6 +1165,22 @@ Grasps a thin cable lying flat on a table - top-down over a point on its centrel
   - `grasped`: The jaws closed short of their closed stop and, with a cable_description, the cable beside the fingers was seen to rise at least min_rise (7 mm) with the test lift (lift_checked true); without one it is judged by the jaw gap alone (lift_checked false), which on a real YAM does not tell a cable caught on the fingertips from a held one. The hand is left lifted, closed.
   - `missed`: The jaws closed to their stop, or the cable beside the fingers did not rise with the hand; the hand opened and stands over the cable.
   - `unreachable`: The cable does not lie flat at the grasp point, the depth the fingertips need is under the tool-centre floor (min_tool_height), no wrist solution reaches the grasp pose (IK preview), or a rise, the approach, the wrist turn or the descent was refused; `detail` says which.
+
+### grasping-by-wrist-camera-servoing
+
+execute · robots: any · tasks: pick-place, sorting, jigsaw · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/grasping-by-wrist-camera-servoing/SKILL.md) · [upstream](https://github.com/hello-robot/stretch_ai/blob/6272b28e3ff7be482af3b427a4551d1772ebf7d7/src/stretch/agent/operations/grasp_object.py)
+
+Grasps a small part by closed-loop eye-in-hand servoing - from a pregrasp standoff above a coarse target, it segments the part in every wrist RGB-D frame (sam3.segment_text), takes the centre of the mask's top-face points back-projected with the wrist depth, steps the hand sideways (capped, IK-previewed robot.go_to_pose_cartesian steps) to bring that point under the tool centre, descends while it stays centred, and closes once the tool centre reaches the grasp height with the part under it; a lost track, a stalled arm or the step cap fall back to an open-loop grasp at the last point seen. Use when an overhead estimate is a few millimetres off and that is too much - LEGO bricks, dominoes, jigsaw pieces or 20-30 mm parts picked with the jaws pre-shaped close to the part's width - and the arm carries a wrist camera.
+
+- **In**: `object_name` str
+- **Out**: `grasp_point` Vec3, `coarse_point` Vec3, `mode` str, `correction` float, `final_error` float, `grip_width` float, `held_width` float
+- **Calls**: [`sam3`](#sam3); connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.open_gripper`, `robot.set_grip`, `robot.solve_ik`
+- **Scripts**: [`servo_grasp`](skills/grasping-by-wrist-camera-servoing/scripts/servo_grasp.py)
+- **Exits**:
+  - `grasped`: The jaws closed on something (the gap stayed over fully closed + 3 mm) and still held it after a lift of lift_height; `mode` says whether the servo closed (`servo`), the open-loop fallback did (`open_loop_fallback`, `fallback_reason` says why) or the skill ran open-loop (`open_loop`, servo=false). The hand stays lifted with the part.
+  - `missed`: The jaws closed on nothing, or the part slipped out in the lift; the jaws are opened and the hand lifted clear.
+  - `lost_target`: There is no wrist camera, the segmenter never found the part near the coarse estimate in MAX_LOST frames from the pregrasp view, or (fallback=false) it lost the part mid-servo; the hand stays where it was, jaws open.
+  - `unreachable`: No top-down grasp rotation, no pregrasp view passed the IK preview and the clearance floor or arrived within 15 mm, or a move of the open-loop grasp was refused; `detail` lists each attempt.
 
 ### grasping-container-rims
 

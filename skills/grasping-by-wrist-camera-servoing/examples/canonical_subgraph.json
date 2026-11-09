@@ -1,0 +1,51 @@
+{
+  "skill": "grasping-by-wrist-camera-servoing",
+  "inputs": {
+    "object_name": "str",
+    "target_obb": "OrientedBoundingBox"
+  },
+  "outputs": {
+    "grasp_point": {
+      "$ref": "grasp.grasp_point"
+    },
+    "mode": {
+      "$ref": "grasp.mode"
+    },
+    "grip_width": {
+      "$ref": "grasp.grip_width"
+    }
+  },
+  "nodes": {
+    "grasp": {
+      "type": "script",
+      "script": "scripts/servo_grasp.py",
+      "inputs": {
+        "object_name": {
+          "$ref": "in.object_name"
+        },
+        "target_obb": {
+          "$ref": "in.target_obb"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "grasp"
+    ],
+    [
+      "grasp",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "grasped",
+      "missed",
+      "lost_target"
+    ]
+  },
+  "on_error": "unreachable"
+}
