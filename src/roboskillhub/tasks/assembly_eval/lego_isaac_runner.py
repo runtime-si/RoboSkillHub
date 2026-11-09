@@ -17,7 +17,6 @@ whatever BrickSim's contact trigger produces. Verdicts come from lego_postcondit
 from __future__ import annotations
 
 import argparse
-import asyncio
 import json
 import random
 import sys
@@ -70,9 +69,21 @@ def parse_args(argv=None):
     ap.add_argument(
         "--roco", type=Path, required=True, help="RoCo_BrickAssembly checkout at 8e7ad4da"
     )
-    ap.add_argument("--scene", choices=sorted(SCENES), required=True)
+    ap.add_argument("--scene", choices=sorted(SCENES))
     ap.add_argument("--policy", choices=["roco_naive", "goal_fsm"], default="goal_fsm")
     ap.add_argument("--fault", choices=["none", *sorted(FAULTS)], default="none")
+    ap.add_argument(
+        "--breakage",
+        choices=["roco", "on"],
+        default="roco",
+        help="roco: as shipped (BrickSim LegoWorld disables breakage); on: BrickSim's default thresholds enabled",
+    )
+    ap.add_argument(
+        "--cases",
+        nargs="+",
+        default=[],
+        help="several scene/policy/fault/breakage cases in one Kit session, e.g. single_on_plate/goal_fsm/none/roco",
+    )
     ap.add_argument("--seeds", type=int, nargs="+", default=[0])
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--config", type=Path, default=None)
@@ -80,23 +91,51 @@ def parse_args(argv=None):
     return ap.parse_args(argv)
 
 
-def main(argv=None) -> int:
-    args = parse_args(argv)
-    from isaacsim import SimulationApp
+def main(argv=None) -> None:
+    """Start Kit headless the way the ``bricksim`` launcher does and run ``kit_main`` inside it.
 
-    app = SimulationApp({"headless": True})
+    RoCo's Env initialises World inside a coroutine, which needs the Kit app (``isaacsim.main``); under
+    ``SimulationApp`` the same calls crash in World.initialize_simulation_context_async (Isaac Sim 5.1.0).
+    """
+    import importlib.util
+    import os
+    import shlex
+
+    argv = sys.argv[1:] if argv is None else argv
+    parse_args(argv)
+    os.environ.setdefault("OMNI_KIT_ALLOW_ROOT", "1")
+    entry = Path(importlib.util.find_spec("bricksim").origin).with_name("_entry.py")
+    target = f"{__spec__.name}:kit_main"
+    sys.argv = [
+        sys.argv[0],
+        "isaacsim.exp.full",
+        "--no-window",
+        "--/app/content/emptyStageOnStart=false",
+        "--/crashreporter/enabled=false",
+        "--/log/outputStreamLevel=info",
+        "--/log/channels/*=warn",
+        "--/log/channels/bricksim=info",
+        "--exec",
+        " ".join(shlex.quote(a) for a in [str(entry), target, *argv]),
+    ]
+    import isaacsim
+
+    isaacsim.main()
+
+
+async def kit_main() -> None:
+    import os
+
     rc = 1
     try:
-        task = asyncio.ensure_future(run_all(args))
-        while not task.done():
-            app.update()
-        rc = task.result()
-    except Exception:
+        rc = await run_all(parse_args(sys.argv[1:]))
+    except BaseException:
         traceback.print_exc()
     finally:
         sys.stdout.flush()
-        app.close()
-    return rc
+        sys.stderr.flush()
+        # Kit's shutdown after a BrickSim session can hang for minutes; everything is written by now.
+        os._exit(rc)
 
 
 async def run_all(args) -> int:
@@ -105,15 +144,36 @@ async def run_all(args) -> int:
     if args.no_probe:
         cfg["postconditions"]["probe"]["enabled"] = False
     args.out.mkdir(parents=True, exist_ok=True)
-    rows = []
-    for seed in args.seeds:
-        ep = await run_episode(args, cfg, seed)
-        (args.out / f"{ep['episode_id']}.json").write_text(json.dumps(ep, indent=1, default=str))
-        rows.append(summary_row(ep))
-        print("EPISODE", json.dumps(rows[-1]), flush=True)
-    with open(args.out / "summary.jsonl", "a") as f:
-        for r in rows:
-            f.write(json.dumps(r) + "\n")
+    cases = [c.split("/") for c in args.cases] or [
+        [args.scene, args.policy, args.fault, args.breakage]
+    ]
+    for scene, policy, fault, breakage in cases:
+        if (
+            scene not in SCENES
+            or policy not in ("roco_naive", "goal_fsm")
+            or breakage not in ("roco", "on")
+        ):
+            raise SystemExit(f"bad case {scene}/{policy}/{fault}/{breakage}")
+        if fault != "none" and scene not in FAULTS[fault]["scenes"]:
+            raise SystemExit(f"fault {fault} is not defined for scene {scene}")
+    for scene, policy, fault, breakage in cases:
+        case = argparse.Namespace(
+            **{**vars(args), "scene": scene, "policy": policy, "fault": fault, "breakage": breakage}
+        )
+        for seed in args.seeds:
+            try:
+                ep = await run_episode(case, cfg, seed)
+            except Exception:
+                traceback.print_exc()
+                print("EPISODE_ERROR", scene, policy, fault, breakage, seed, flush=True)
+                continue
+            (args.out / f"{ep['episode_id']}.json").write_text(
+                json.dumps(ep, indent=1, default=str)
+            )
+            row = summary_row(ep)
+            print("EPISODE", json.dumps(row), flush=True)
+            with open(args.out / "summary.jsonl", "a") as f:
+                f.write(json.dumps(row) + "\n")
     return 0
 
 
@@ -155,6 +215,15 @@ def _joint_obs(env):
     return {"joint_positions": q, "images": {}}
 
 
+def _ik_error(env, q, ee, T_target) -> dict:
+    import numpy as np
+
+    T = env.robot_pin.FK(q, [ee])[ee]
+    R = T[:3, :3].T @ T_target[:3, :3]
+    ang = float(np.arccos(np.clip((np.trace(R) - 1.0) / 2.0, -1.0, 1.0)))
+    return {"pos_m": float(np.linalg.norm(T[:3, 3] - T_target[:3, 3])), "rot_rad": ang}
+
+
 def make_policy(NaivePolicy):
     from bricksim.topology.ordering import bfs_sort_connections
     from rocobrick.utils import rot_z, trans_z, world_T_to_robot_T
@@ -166,6 +235,7 @@ def make_policy(NaivePolicy):
             self.cfg, self.mode, self.goal_T_W, self.path_to_id = cfg, mode, goal_T_W, path_to_id
             self.pert, self.fault_index = pert, fault_index
             self.ik_s = 0.0
+            self.ik_report = {}
             super().__init__(env)
 
         def plan_assembly_sequence(self, topology, pre_placed_parts, to_place_placed):
@@ -239,6 +309,17 @@ def make_policy(NaivePolicy):
             )
             sd["retreat_place"], _ = ik({ee: retreat_T}, sd["open_gripper"].copy(), joints)
             self.state_dicts[task_id] = sd
+            targets = {
+                "pregrasp": pregrasp_T,
+                "grasp": grasp_T,
+                "preplace": preplace_T,
+                "place": place_T,
+                "retreat_place": retreat_T,
+            }
+            self.ik_report[task_id] = {
+                "ee": ee,
+                **{k: _ik_error(env, sd[k], ee, T) for k, T in targets.items()},
+            }
 
     return EvalPolicy
 
@@ -320,7 +401,7 @@ async def run_episode(args, cfg, seed: int) -> dict:
     t_wall = time.perf_counter()
     scene = SCENES[args.scene]
     fault = None if args.fault == "none" else args.fault
-    episode_id = f"{args.scene}__{args.policy}__{args.fault}__s{seed}"
+    episode_id = f"{args.scene}__{args.policy}__{args.fault}__brk-{args.breakage}__s{seed}"
     work = args.out / "tasks" / episode_id
     task_dir = write_task_dir(args.scene, work / "task")
     ucfg = user_config(task_dir, args.roco.resolve(), scene["task_type"])
@@ -333,6 +414,10 @@ async def run_episode(args, cfg, seed: int) -> dict:
         system_config_path=str(sys_cfg.resolve()),
     )
     await env.reset()
+    if args.breakage == "on":
+        bt = bc.get_breakage_thresholds()
+        bt.enabled = True
+        bc.set_breakage_thresholds(bt)
     await env.play()
     await env.get_robot_ready()
 
@@ -406,11 +491,11 @@ async def run_episode(args, cfg, seed: int) -> dict:
     steps_out = []
     hold_q = env.robot_pin.home_q.copy()
 
-    async def advance(phase, subtask, q=None, force_on=None):
+    async def advance(phase, subtask, q=None, force_on=None, force_n=0.0):
         if q is not None:
             env.robot_apply_action(q)
         if force_on is not None:
-            _apply_up_force(force_on, probe_cfg["upward_force_n"], env)
+            _apply_up_force(force_on, force_n, env)
         await env.step()
         rec.step += 1
         rec.drain(phase, subtask)
@@ -428,6 +513,7 @@ async def run_episode(args, cfg, seed: int) -> dict:
         }
         ev0 = len(rec.events)
         rec.max_force.pop(pid, None)
+        st["snapshots"]["pick_start"] = rec.snap()
         n = 0
         while policy.task_id == i:
             prev = policy.state
@@ -435,7 +521,9 @@ async def run_episode(args, cfg, seed: int) -> dict:
             await advance(prev, i, q)
             n += 1
             if policy.state != prev:
-                if prev == "preplace":
+                if prev == "retreat_grasp":
+                    st["snapshots"]["grasped"] = rec.snap()
+                elif prev == "preplace":
                     st["snapshots"]["before_place"] = rec.snap()
                 elif prev == "open_gripper":
                     st["snapshots"]["released"] = rec.snap()
@@ -449,8 +537,22 @@ async def run_episode(args, cfg, seed: int) -> dict:
         st["snapshots"]["settled"] = rec.snap()
         if probe_cfg["enabled"]:
             try:
-                for _ in range(probe_cfg["steps"]):
-                    await advance("probe", i, hold_q, force_on=ids[pid])
+                path = ids[pid]
+                mass = float(
+                    omni.usd.get_context()
+                    .get_stage()
+                    .GetPrimAtPath(path)
+                    .GetAttribute("physics:mass")
+                    .Get()
+                )
+                force = probe_cfg["weight_ratio"] * mass * 9.81
+                z0 = env.get_prim_world_T(path)[2, 3]
+                rise = 0.0
+                for k in range(probe_cfg["steps"] + probe_cfg["observe_steps"]):
+                    on = path if k < probe_cfg["steps"] else None
+                    await advance("probe", i, hold_q, force_on=on, force_n=force)
+                    rise = max(rise, float(env.get_prim_world_T(path)[2, 3] - z0))
+                st["probe_max_lift_m"], st["probe_force_n"], st["mass_kg"] = rise, force, mass
                 st["snapshots"]["probe_end"] = rec.snap()
             except Exception as e:  # noqa: BLE001
                 st["probe_error"] = repr(e)
@@ -460,6 +562,8 @@ async def run_episode(args, cfg, seed: int) -> dict:
         st["events"] = rec.events[ev0:]
         st["max_press_force_n"] = rec.max_force.get(pid)
         st["sim_steps"] = n
+        st["ee"] = policy.state_dicts.get(i, {}).get("ee_name")
+        st["ik"] = policy.ik_report.get(i)
         steps_out.append(st)
         if st["timed_out"]:
             break
@@ -519,6 +623,7 @@ async def run_episode(args, cfg, seed: int) -> dict:
         "seed": seed,
         "scene": args.scene,
         "fault": args.fault,
+        "breakage": args.breakage,
         "fault_doc": FAULTS[fault]["doc"] if fault else None,
         "expected_failure_types": FAULTS[fault]["expect"] if fault else [None],
         "fault_index": fault_index,
@@ -573,4 +678,4 @@ def _apply_up_force(path: str, force_n: float, env) -> None:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

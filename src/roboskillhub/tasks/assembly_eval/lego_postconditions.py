@@ -20,7 +20,7 @@ import math
 from .lego_clutch import STUD_HEIGHT_M, STUD_PITCH_M
 from .lego_geometry import pose_error
 
-SNAPSHOTS = ("before_place", "released", "retreated", "settled")
+SNAPSHOTS = ("pick_start", "grasped", "before_place", "released", "retreated", "settled")
 
 
 def footprint_cells(stud_lw, hole_lw, offset, yaw_q) -> frozenset[tuple[int, int]]:
@@ -87,7 +87,7 @@ def evaluate_placement(record: dict, index: int, cfg: dict, accepted: dict[str, 
 
     # Earlier bricks: still where they were accepted and still connected.
     moved, lost = {}, []
-    final_snaps = [settled] + ([snaps["probe_end"]] if "probe_end" in snaps else [])
+    final_snaps = [settled] + [snaps[k] for k in ("probe_end", "after_probe") if k in snaps]
     for other, pose in accepted.items():
         for snap in final_snaps:
             e = pose_error((pose["p"], pose["q"]), _pose(snap, other))
@@ -111,6 +111,18 @@ def evaluate_placement(record: dict, index: int, cfg: dict, accepted: dict[str, 
             intact,
             "earlier bricks within structure_move_tol and still connected",
             {"moved_m": moved, "lost_connections": sorted(set(lost))},
+        )
+    )
+
+    # Grasp: the brick left its start pose upwards with the gripper before the place phase.
+    picked = snaps["grasped"]["parts"][pid]["p"][2] - snaps["pick_start"]["parts"][pid]["p"][2]
+    grasped = picked >= pc["grasp_min_lift_m"]
+    out["postconditions"].append(
+        _check(
+            "grasped",
+            grasped,
+            "brick z rise at retreat_grasp >= grasp_min_lift_m",
+            {"rise_m": picked},
         )
     )
 
@@ -191,24 +203,28 @@ def evaluate_placement(record: dict, index: int, cfg: dict, accepted: dict[str, 
     )
 
     probe = pc["probe"]
-    if probe["enabled"] and "probe_end" in snaps:
-        lift = snaps["probe_end"]["parts"][pid]["p"][2] - settled["parts"][pid]["p"][2]
+    lift = step.get("probe_max_lift_m")
+    if probe["enabled"] and lift is not None:
         held = lift <= probe["lift_tol_m"]
         out["postconditions"].append(
             _check(
                 "holds_under_probe",
                 held,
-                f"z rise under {probe['upward_force_n']} N upward <= lift_tol_m",
-                {"lift_m": lift},
+                f"largest z rise under {probe['weight_ratio']} x own weight upward <= lift_tol_m",
+                {"lift_m": lift, "force_n": step.get("probe_force_n")},
             )
         )
     else:
         held = None
-        out["postconditions"].append(_check("holds_under_probe", None, "probe not run", {}))
+        out["postconditions"].append(
+            _check("holds_under_probe", None, "probe not run", {"error": step.get("probe_error")})
+        )
 
     out["phase"] = "verify"
     if not intact:
         out.update(status="failed", failure_type="lego.structure_damaged")
+    elif not grasped:
+        out.update(status="failed", failure_type="grasp_missed", phase="grasp")
     elif not stayed:
         out.update(status="failed", failure_type="lego.lifted_with_gripper")
     elif not supported:

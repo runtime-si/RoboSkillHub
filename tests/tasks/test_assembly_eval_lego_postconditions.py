@@ -44,20 +44,30 @@ def record(
     goal_conns=None,
 ):
     released = released or settled_parts
+    start = {**(before or GOAL), "1": pose(x=0.2)}
     snaps = {
+        "pick_start": snap(start),
+        "grasped": snap({**start, "1": pose(x=0.2, z=0.04)}),
         "before_place": snap(before or GOAL),
         "released": snap(released, conns),
         "retreated": snap(retreated or released, conns),
         "settled": snap(settled_parts, conns),
     }
-    if probe is not None:
-        snaps["probe_end"] = snap(probe, conns)
+    lift = None if probe is None else probe["1"]["p"][2] - settled_parts["1"]["p"][2]
     return {
         "parts": {"0": {"lw": [32, 32], "role": "plate"}, "1": {"lw": [4, 2], "role": "to_place"}},
         "goal_poses": GOAL,
         "start_poses": GOAL,
         "goal_connections": [goal_conns or PLATE_CONN],
-        "steps": [{"part": "1", "snapshots": snaps, "events": events, "max_press_force_n": 3.0}],
+        "steps": [
+            {
+                "part": "1",
+                "snapshots": snaps,
+                "events": events,
+                "max_press_force_n": 3.0,
+                "probe_max_lift_m": lift,
+            }
+        ],
         "final_snapshot": snap(settled_parts, conns),
     }
 
@@ -151,6 +161,14 @@ def test_knocked_earlier_brick_is_structure_damage():
     accepted = {"3": pose(x=0.016, z=0.0032)}
     v = evaluate_placement(rec, 0, CFG, accepted)
     assert v["failure_type"] == "lego.structure_damaged"
+
+
+def test_brick_that_never_left_the_feeder_is_grasp_missed():
+    rec = record(GOAL, [], [], probe=GOAL)
+    s = rec["steps"][0]["snapshots"]
+    s["grasped"]["parts"]["1"] = s["pick_start"]["parts"]["1"]
+    v = verdict(rec)
+    assert (v["status"], v["failure_type"]) == ("failed", "grasp_missed")
 
 
 def test_missing_snapshot_is_unverified():

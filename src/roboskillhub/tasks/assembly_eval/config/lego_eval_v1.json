@@ -44,11 +44,13 @@
     "settle_steps": 60,
     "probe": {
       "enabled": true,
-      "upward_force_n": 0.2,
-      "steps": 30,
+      "weight_ratio": 1.5,
+      "steps": 4,
+      "observe_steps": 12,
       "lift_tol_m": 0.0005,
-      "note": "external upward force on the placed brick after release and retreat; a resting (unclutched) brick weighs ~0.02 N and lifts, a clutched one is held by the weld until the breakage solver says otherwise"
-    }
+      "note": "upward force of weight_ratio x the brick's own weight (physics:mass authored by BrickSim) for `steps` physics steps after release, retreat and settling; the largest rise over steps+observe_steps is compared with lift_tol_m. An unwelded brick rises ~10 mm and falls back; a welded one does not move."
+    },
+    "grasp_min_lift_m": 0.01
   },
   "baseline": {
     "policy": "privileged waypoint FSM derived from rocobrick.policy.NaivePolicy (MIT); exact brick poses from the simulator",
@@ -63,13 +65,36 @@
     "max_steps_per_brick": 6000
   },
   "faults": {
-    "lateral_offset": {"dx_m": 0.003, "dy_m": 0.0},
-    "angle_error": {"yaw_deg": 9.0},
-    "partial_engagement": {"shift_studs": [0, 1]},
-    "not_fully_pressed": {"hover_above_seat_m": 0.0012},
-    "insufficient_support": {"skip_parts": "parents of the faulted part"},
-    "lifted_on_release": {"keep_closed": true},
-    "damaging_build": {"retreat_sweep_m": [-0.03, 0.0, 0.0], "retreat_sweep_height_units": 0.5}
+    "lateral_offset": {
+      "dx_m": 0.003,
+      "dy_m": 0.0
+    },
+    "angle_error": {
+      "yaw_deg": 9.0
+    },
+    "partial_engagement": {
+      "shift_studs": [
+        0,
+        1
+      ]
+    },
+    "not_fully_pressed": {
+      "hover_above_seat_m": 0.0012
+    },
+    "insufficient_support": {
+      "skip_parts": "parents of the faulted part"
+    },
+    "lifted_on_release": {
+      "keep_closed": true
+    },
+    "damaging_build": {
+      "retreat_sweep_m": [
+        -0.03,
+        0.0,
+        0.0
+      ],
+      "retreat_sweep_height_units": 0.5
+    }
   },
   "randomization": {
     "note": "v1 uses no physics randomization; seeds only drive numpy/random and the storage arrangement order",
