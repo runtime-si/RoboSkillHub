@@ -25,7 +25,6 @@ metadata:
       code: https://github.com/nolann030628/ShapeForce/blob/1bc2aa8c4ee66622f0a597b2112a61cfbea2a345/third_party/utils_repo/peg_insertion/force_insert.py
       upstream_license: MIT
 gap:
-  requires: {connector: [robot.move_to_joints]}
   allowed_tools:
     - robot.get_ee_pose
     - robot.get_observation
@@ -131,7 +130,43 @@ check after the release.
 
 ## Simulation check
 
-Pending; see the PR.
+Ran, but the search itself could not be exercised. Setup: a YAM station twin
+(left arm, MuJoCo at 500 Hz) with a square socket added as fixtures, a 33 mm
+hole in 4 mm walls 15 mm high, 9 cm from the 30 mm cube. A scripted top-down
+grasp (tool centre 5 mm over the cube's centre) carried the cube to hover
+3 mm over the wall tops, and the skill ran from there.
+
+| run | cube friction | contact_lag / descent_step / press_depth / drop_depth | route | what happened |
+|---|---|---|---|---|
+| 1 | 0.8 (twin) | defaults (1.5 / 1 / 3 / 2 mm) | blocked | "no socket felt": the hand went 9.8 mm under the start |
+| 2 | 0.8 | 0.4 / 0.5 / 0.5 / 0.6 mm | blocked | the same, 9.9 mm |
+| 3 | 2.0 | 0.8 / 0.5 / 1.0 / 1.0 mm | blocked | the same, 9.9 mm |
+
+- In every run the cube ended resting on the socket's wall tops (its bottom
+  at the wall-top height, 15 mm over the table), while the hand kept
+  following its command for another ~5 mm. **The held cube slid up in the
+  jaws** under a push too small to show as 0.4 mm of lag, so the wall tops
+  were never felt and nothing was turned. Raising the cube's friction from
+  0.8 to 2.0 changed nothing measurable. On the fixed box wall,
+  verifying-a-brick-connection-by-pull-up saw the twin's jaws slide at
+  about 0.5-0.76 mm of lag.
+- The grasp and carry turned the cube by -19.8 deg in the jaws: the twin's
+  wrist roll is free (PORTING lesson 10). The socket, set 20 deg from the
+  cube's start, therefore needed a +39.8 deg turn.
+- So `dropped_in`, `no_drop` and `jammed` ran only in the unit tests. The
+  "part already in" hint in `blocked` was wrong here: the part had slid in
+  the jaws. Nothing ran on a real YAM.
+
+## Limits
+
+- **A part that slides in the jaws is not felt.** The push the press can
+  apply is bounded by the grip's friction. If the part slides first, the
+  socket reads as free travel (`blocked`, "no socket felt"), and a slide
+  during the press could look like a drop. The drop test needs the hand to
+  follow its command back to the free-motion lag (under half
+  `contact_lag`), which a friction-limited slide does not quite do, but this
+  was not seen in simulation. Grip the part firmly and check it in the jaws
+  (wrist camera) after a `blocked`.
 
 ## What changed from ShapeForce, and why
 
