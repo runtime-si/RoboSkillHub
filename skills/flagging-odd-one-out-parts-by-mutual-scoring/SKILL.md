@@ -128,7 +128,7 @@ by `tests/bundles/_domino_render.py`: a look-down camera at 0.2 m, tiles
 masks and depth from the renderer): 10 tiles per scene, 3 layouts x (2 odd
 kinds + a control with none) x 8 seeds = 72 scenes. Lying tiles are placed
 end-for-end at random. The skill ran with the real tools/musc (DINOv2-base,
-448 px crops) on an RTX PRO 6000 (1.6 s per scene of 10 crops). The
+448 px crops; `python -m tests.bundles._odd_one_out_eval DIR`) on an RTX PRO 6000 (1.6 s per scene of 10 crops). The
 baseline is the hub's current no-reference route, a VLM: Gemini Robotics-ER
 2 (`gemini-robotics-er-2-preview`, temperature 0) given the frame with the
 parts numbered, asked which differ ("a part turned end-for-end counts as the
