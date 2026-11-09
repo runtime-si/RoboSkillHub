@@ -290,7 +290,14 @@ an empty-but-noisy zone and `staging_not_clear` (never settled) on the first
 two parts. The skill's change detection assumes a camera whose frame-to-frame
 noise is under `PIXEL_DIFF_THR`; that run was stopped and is not counted.
 
-Run 2: pending.
+Run 2 (same host, same 12 drops, with `spread_drops`): plan 12 / 12
+routed, colour 12 / 12, bin 12 / 12 (overflow included), footprint within
+0.7 mm; execute **12 / 12 grasped, 12 / 12 `sorted`, and 12 / 12 inside the
+right bin by the simulator**, at every cycle's own check and at the final
+tally (red 4, blue 4, other 4: two yellow, one green, the overflowed red).
+The releases walked the drop points centre, -u, +u, -v per bin. One run of
+12, one layout: not a rate, and no failure exit was exercised in the sim
+(the unit tests cover them).
 
 ## Provenance
 
