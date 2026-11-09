@@ -768,6 +768,7 @@ def joint_stand(script, arm, **kw):
         "tile_center": TILE,
         "long_axis": {"x": 1.0, "y": 0.0, "z": 0.0},
         "park_pose": {"position": {"x": 0.40, "y": 0.30, "z": TABLE_Z + 0.2}},
+        "strategy": "table_pivot",
     }
     args.update(kw)
     return script.run(arm.ctx(), **args)
@@ -971,7 +972,6 @@ def test_handover_stands_the_tile_with_two_arms(script):
         tile_center=TILE,
         long_axis={"x": 1.0, "y": 0.0, "z": 0.0},
         park_pose={"position": {"x": 0.40, "y": 0.30, "z": TABLE_Z + 0.2}},
-        strategy="handover",
         verify=False,
     )
     assert out["route"] == "standing", out["detail"]

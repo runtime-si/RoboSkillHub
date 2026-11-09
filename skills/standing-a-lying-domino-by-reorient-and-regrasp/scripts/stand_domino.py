@@ -855,7 +855,7 @@ def run(
     tile_center: dict[str, float],
     long_axis: dict[str, float],
     staging: dict[str, float] | None = None,
-    strategy: str = "table_pivot",
+    strategy: str = "handover",
     tile_size: dict[str, float] | None = None,
     grasp_height: float = GRASP_HEIGHT,
     grip_offset: float = GRIP_OFFSET,
