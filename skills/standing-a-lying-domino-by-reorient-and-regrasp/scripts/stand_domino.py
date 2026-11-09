@@ -1394,6 +1394,15 @@ def run(
                     why = f"step {i} of {n_piv}: {why}"
                     break
                 path.append(joints())
+                logger.info(
+                    "standing-a-lying-domino: upright step %d of %d at (%.3f, %.3f): hand %s, jaws %.1f mm",
+                    i,
+                    n_piv,
+                    float(xy[0]),
+                    float(xy[1]),
+                    np.round(_xyz(here()), 4).tolist(),
+                    width() * 1e3,
+                )
             if not why:
                 stood = xy
                 break
