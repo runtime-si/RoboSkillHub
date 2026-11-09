@@ -22,7 +22,7 @@ import json
 import time
 from pathlib import Path
 
-from roboskillhub.tasks.baselines import compare, summarize
+from roboskillhub.tasks.baselines import compare, simulation_search, summarize
 
 from roboskillhub.runtime.engine import Runtime
 from roboskillhub.runtime.graph import load_graph, run_graph
@@ -204,6 +204,48 @@ def independent_summary(episodes: list[dict]) -> dict:
     }
 
 
+def partial_compare(env, names, train_seeds, test_seeds, environment, slots) -> dict:
+    """``baselines.compare`` restricted to some baselines (same graphs, candidates, seeds)."""
+    rows = {}
+    for name in names:
+        if name in ("fixed_script", "online_replan"):
+            g = graphs.domino_line(
+                recovery=name == "online_replan",
+                attempts=1 if name == "fixed_script" else 2,
+                slots=slots,
+            )
+            eps = [env(g, s) for s in test_seeds]
+            rows[name] = {
+                "params": g["params"],
+                **summarize(eps),
+                "planning_s": 0.0,
+                "search_rollouts": 0,
+                "episodes_detail": eps,
+            }
+        elif name == "simulation_search":
+            cands = graphs.domino_candidates(slots)
+            search = simulation_search(cands, env, train_seeds)
+            eps = [env(search["selected"], s) for s in test_seeds]
+            rows[name] = {
+                "params": search["selected_params"],
+                **summarize(eps),
+                "planning_s": search["planning_s"],
+                "search_rollouts": search["search_rollouts"],
+                "candidates": len(cands),
+                "train_table": search["train_table"],
+                "episodes_detail": eps,
+            }
+        else:
+            raise SystemExit(f"unknown baseline {name}")
+    return {
+        "task": "domino",
+        "environment": environment,
+        "train_seeds": list(train_seeds),
+        "test_seeds": list(test_seeds),
+        "baselines": rows,
+    }
+
+
 def seeds(text: str) -> list[int]:
     a, _, b = text.partition("-")
     return list(range(int(a), int(b or a) + 1))
@@ -219,6 +261,11 @@ def main() -> None:
     ap.add_argument("--test", default="0-9")
     ap.add_argument("--neg-seeds", default="0-2")
     ap.add_argument("--faults", default=",".join(STATION_FAULTS))
+    ap.add_argument(
+        "--only",
+        help="comma list of fixed_script,online_replan,simulation_search (default: all three via "
+        "baselines.compare); same graphs, seeds and search candidates, so partial runs can be merged",
+    )
     args = ap.parse_args()
     registry, unavailable = load_registry()
     args.out.mkdir(parents=True, exist_ok=True)
@@ -228,14 +275,19 @@ def main() -> None:
             registry, physics=args.physics, slots=args.slots, out=args.out / "baselines"
         )
         probe = physics_domino_world(0, physics=args.physics, slots=args.slots)["describe"]
-        res = compare(
-            "domino",
-            env,
-            train_seeds=seeds(args.train),
-            test_seeds=seeds(args.test),
-            environment=probe,
-            slots=args.slots,
-        )
+        if args.only:
+            res = partial_compare(
+                env, args.only.split(","), seeds(args.train), seeds(args.test), probe, args.slots
+            )
+        else:
+            res = compare(
+                "domino",
+                env,
+                train_seeds=seeds(args.train),
+                test_seeds=seeds(args.test),
+                environment=probe,
+                slots=args.slots,
+            )
         for name, row in res["baselines"].items():
             eps = row.pop("episodes_detail")
             row["independent"] = independent_summary(eps)
