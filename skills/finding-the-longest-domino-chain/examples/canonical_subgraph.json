@@ -1,0 +1,36 @@
+{
+  "skill": "finding-the-longest-domino-chain",
+  "inputs": {
+    "hand": "Any",
+    "start_value": "int",
+    "start_end": "Any",
+    "footprints": "Any"
+  },
+  "outputs": {
+    "chain": {"$ref": "chain.chain"},
+    "chain_tiles": {"$ref": "chain.chain_tiles"},
+    "hand_indices": {"$ref": "chain.hand_indices"},
+    "end_value": {"$ref": "chain.end_value"},
+    "leftover": {"$ref": "chain.leftover"},
+    "new_end": {"$ref": "chain.new_end"},
+    "footprints_after": {"$ref": "chain.footprints_after"}
+  },
+  "nodes": {
+    "chain": {
+      "type": "script",
+      "script": "scripts/find_chain.py",
+      "inputs": {
+        "hand": {"$ref": "in.hand"},
+        "start_value": {"$ref": "in.start_value"},
+        "start_end": {"$ref": "in.start_end"},
+        "footprints": {"$ref": "in.footprints"}
+      }
+    }
+  },
+  "edges": [["START", "chain"], ["chain", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["chain_found", "no_chain", "no_room"]
+  },
+  "on_error": "invalid_input"
+}

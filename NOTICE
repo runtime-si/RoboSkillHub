@@ -447,6 +447,12 @@ ea9f532c9b834117a5c07d214711515872f7537e: dominoes/game.py, dominoes/board.py,
 dominoes/players.py, dominoes/search.py), MIT License, Copyright (c) 2016 Alan
 Wagner; the file's header lists the changes, and the license is
 skills/choosing-a-domino-move-by-end-matching/LICENSE.dominoes.
+skills/finding-the-longest-domino-chain/scripts/find_chain.py is adapted from
+mexican-train-domino-solver (https://github.com/RGBz/mexican-train-domino-solver,
+commit ac758e87bbae433a5a10ba4a6907874be17d80d6: src/Graph.ts,
+src/findMostValuableChain.ts, src/Domino.ts), MIT License, Copyright (c) 2021
+Anton C Beza Jr; the file's header lists the changes, and the license is
+skills/finding-the-longest-domino-chain/LICENSE.mexican-train-domino-solver.
 skills/parsing-ldraw-build-instructions/scripts/parse_ldraw.py is adapted from
 ldraw-py (https://github.com/michaelgale/ldraw-py, ldrawpy/ldrmodel.py, commit
 d650ab0a9c2a774e1ba6f206aa2cd3b1925478e3), MIT License, Copyright (c) 2019
