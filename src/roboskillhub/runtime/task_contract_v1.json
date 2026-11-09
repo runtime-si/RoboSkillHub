@@ -1,0 +1,803 @@
+{
+  "contract_version": "rsh-task/1",
+  "graph_version": "rsh-graph/1",
+  "conventions": {
+    "units": {
+      "length": "m",
+      "time": "s",
+      "angle": "rad"
+    },
+    "timestamps": "Unix seconds",
+    "quaternion": "xyzw",
+    "transform_naming": "T_A_B maps coordinates in frame B into frame A (pose of B in A)",
+    "held_object_frame": "tcp"
+  },
+  "statuses": [
+    "succeeded",
+    "failed",
+    "unverified",
+    "rejected"
+  ],
+  "status_semantics": {
+    "rejected": "not started; request, configuration, capability or precondition not satisfied",
+    "failed": "attempted; evidence shows the required condition was not met",
+    "unverified": "attempted; available evidence cannot establish the postcondition",
+    "succeeded": "postcondition supported by independent observation"
+  },
+  "kinds": [
+    "primitive",
+    "tool",
+    "skill"
+  ],
+  "readiness_levels": [
+    "source-reviewed",
+    "unit-tested",
+    "sim-validated",
+    "hardware-validated"
+  ],
+  "phases": [
+    "validate",
+    "lease",
+    "approach",
+    "descend",
+    "contact",
+    "grasp",
+    "lift",
+    "transport",
+    "release",
+    "retreat",
+    "observe",
+    "verify"
+  ],
+  "recovery_hints": [
+    "reobserve",
+    "regrasp",
+    "retry_same",
+    "back_off",
+    "replan",
+    "reset_piece",
+    "abort",
+    "human"
+  ],
+  "failure_types": {
+    "core": [
+      "invalid_request",
+      "capability_missing",
+      "precondition_unmet",
+      "unreachable",
+      "station_busy",
+      "nested_lease",
+      "lease_expired",
+      "timeout",
+      "cancelled",
+      "motion_not_converged",
+      "backend_error",
+      "evidence_missing",
+      "stale_observation",
+      "object_not_observed",
+      "grasp_missed",
+      "grasp_lost",
+      "release_failed",
+      "held_object_slipped",
+      "postcondition_failed",
+      "retry_budget_exhausted",
+      "step_budget_exhausted",
+      "graph_error"
+    ],
+    "module_prefixes": [
+      "domino.",
+      "lego.",
+      "perception.",
+      "eval."
+    ],
+    "module_examples": [
+      "domino.toppled_after_release",
+      "domino.neighbour_disturbed",
+      "domino.pose_out_of_tolerance",
+      "domino.dragged_on_retreat",
+      "lego.misaligned",
+      "lego.not_seated",
+      "lego.partially_seated",
+      "lego.lifted_with_gripper",
+      "lego.structure_damaged",
+      "lego.contact_control_unavailable",
+      "perception.symmetry_ambiguous",
+      "perception.low_confidence"
+    ]
+  },
+  "backend_capabilities": {
+    "pose_feedback": "measured TCP pose with timestamp",
+    "cartesian_motion": "bounded move to a station-frame TCP pose; path is backend-defined",
+    "linear_cartesian_motion": "true straight-line Cartesian interpolation (no current backend)",
+    "gripper": "commanded gripper width",
+    "gripper_feedback": "measured holding flag and/or width with source and timestamp",
+    "object_feedback": "independently observed object position",
+    "object_pose_feedback": "independently observed object orientation (6D)",
+    "stop": "stops active motion",
+    "invocation_lease": "backend-side ownership across processes",
+    "contact_force_feedback": "F/T or equivalent contact force; must declare signal, units, rate, max age",
+    "compliant_motion": "force/impedance control closed in the controller process"
+  },
+  "primitives": {
+    "move_pose": {
+      "requires": [
+        "pose_feedback",
+        "cartesian_motion",
+        "stop"
+      ],
+      "since": "0.1.0"
+    },
+    "grasp": {
+      "requires": [
+        "pose_feedback",
+        "cartesian_motion",
+        "gripper",
+        "object_feedback",
+        "stop"
+      ],
+      "since": "0.1.0"
+    },
+    "push": {
+      "requires": [
+        "pose_feedback",
+        "cartesian_motion",
+        "object_feedback",
+        "stop"
+      ],
+      "since": "0.1.0"
+    },
+    "pull_drawer": {
+      "requires": [
+        "pose_feedback",
+        "cartesian_motion",
+        "gripper",
+        "object_feedback",
+        "stop"
+      ],
+      "since": "0.1.0"
+    },
+    "track_points": {
+      "requires": [],
+      "since": "0.1.0",
+      "note": "perception; API-side, no station"
+    },
+    "set_gripper": {
+      "requires": [
+        "pose_feedback",
+        "gripper",
+        "stop"
+      ],
+      "since": "rsh-task/1",
+      "request": {
+        "width_m": "number",
+        "purpose": [
+          "open",
+          "close",
+          "release"
+        ],
+        "target_id": "string?",
+        "speed_m_s": "number?",
+        "timeout_s": "number?"
+      }
+    },
+    "move_waypoints": {
+      "requires": [
+        "pose_feedback",
+        "cartesian_motion",
+        "stop"
+      ],
+      "requires_if": {
+        "linear=true": [
+          "linear_cartesian_motion"
+        ],
+        "held": [
+          "object_feedback"
+        ]
+      },
+      "since": "rsh-task/1",
+      "request": {
+        "waypoints": "Pose[1..32]",
+        "linear": "boolean",
+        "held": "{object_id, T_TCP_object}?",
+        "speed_m_s": "number?",
+        "timeout_s": "number?"
+      }
+    },
+    "observe_objects": {
+      "requires": [
+        "object_feedback"
+      ],
+      "requires_if": {
+        "require_orientation=true": [
+          "object_pose_feedback"
+        ]
+      },
+      "since": "rsh-task/1",
+      "request": {
+        "object_ids": "string[1..32]",
+        "require_orientation": "boolean?",
+        "timeout_s": "number?"
+      }
+    }
+  },
+  "schemas": {
+    "Pose": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "frame_id",
+        "position_m",
+        "quaternion_xyzw"
+      ],
+      "properties": {
+        "frame_id": {
+          "type": "string"
+        },
+        "position_m": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number"
+          }
+        },
+        "quaternion_xyzw": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "Uncertainty": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "position_m": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "rotation_rad": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      }
+    },
+    "Observation": {
+      "type": "object",
+      "required": [
+        "object_id",
+        "frame_id",
+        "position_m",
+        "quaternion_xyzw",
+        "timestamp_s",
+        "source",
+        "privileged",
+        "visibility"
+      ],
+      "properties": {
+        "object_id": {
+          "type": "string"
+        },
+        "class": {
+          "type": "string"
+        },
+        "frame_id": {
+          "type": "string"
+        },
+        "position_m": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number"
+          }
+        },
+        "quaternion_xyzw": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "number"
+          }
+        },
+        "timestamp_s": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "source": {
+          "type": "string"
+        },
+        "privileged": {
+          "type": "boolean"
+        },
+        "confidence": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "uncertainty": {
+          "$ref": "#/schemas/Uncertainty"
+        },
+        "visibility": {
+          "enum": [
+            "visible",
+            "partially_occluded",
+            "occluded",
+            "not_found",
+            "unknown"
+          ]
+        },
+        "state_label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "geometry": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "HeldObject": {
+      "type": "object",
+      "required": [
+        "object_id",
+        "gripper_id",
+        "T_TCP_object",
+        "estimate",
+        "timestamp_s",
+        "valid"
+      ],
+      "properties": {
+        "object_id": {
+          "type": "string"
+        },
+        "gripper_id": {
+          "type": "string"
+        },
+        "T_TCP_object": {
+          "$ref": "#/schemas/Pose",
+          "frame_id": "tcp"
+        },
+        "estimate": {
+          "enum": [
+            "grasp_geometry_prior",
+            "estimated_from_observation",
+            "privileged_sim"
+          ]
+        },
+        "timestamp_s": {
+          "type": "number"
+        },
+        "uncertainty": {
+          "$ref": "#/schemas/Uncertainty"
+        },
+        "collision_geometry": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "valid": {
+          "type": "boolean"
+        },
+        "invalidated_reason": {
+          "enum": [
+            null,
+            "slip_detected",
+            "occlusion",
+            "identity_changed",
+            "released",
+            "regrasped"
+          ]
+        }
+      }
+    },
+    "DominoLayoutTarget": {
+      "type": "object",
+      "required": [
+        "kind",
+        "layout_id",
+        "frame_id",
+        "piece",
+        "slots"
+      ],
+      "properties": {
+        "kind": {
+          "const": "domino_layout"
+        },
+        "layout_id": {
+          "type": "string"
+        },
+        "frame_id": {
+          "type": "string"
+        },
+        "piece": {
+          "type": "object",
+          "required": [
+            "size_m"
+          ],
+          "note": "size_m = [height, width, thickness]"
+        },
+        "slots": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "slot_id",
+              "order",
+              "pose"
+            ],
+            "properties": {
+              "slot_id": {
+                "type": "string"
+              },
+              "order": {
+                "type": "integer"
+              },
+              "pose": {
+                "$ref": "#/schemas/Pose"
+              },
+              "neighbours": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "tolerances_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "LegoMatingTarget": {
+      "type": "object",
+      "required": [
+        "kind",
+        "target_id",
+        "frame_id",
+        "baseplate",
+        "brick",
+        "placement",
+        "mating_pose"
+      ],
+      "properties": {
+        "kind": {
+          "const": "lego_mating"
+        },
+        "target_id": {
+          "type": "string"
+        },
+        "frame_id": {
+          "type": "string"
+        },
+        "baseplate": {
+          "type": "object",
+          "required": [
+            "object_id",
+            "T_W_baseplate",
+            "stud_pitch_m"
+          ]
+        },
+        "brick": {
+          "type": "object",
+          "required": [
+            "part",
+            "studs"
+          ]
+        },
+        "placement": {
+          "type": "object",
+          "required": [
+            "stud_x",
+            "stud_y",
+            "layer",
+            "yaw_quarter_turns"
+          ]
+        },
+        "mating_pose": {
+          "$ref": "#/schemas/Pose"
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "requires_support": {
+          "type": "boolean"
+        },
+        "tolerances_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "SkillResult": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "contract_version",
+        "invocation_id",
+        "capability",
+        "skill",
+        "version",
+        "status",
+        "failure_type",
+        "evidence"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "contract_version": {
+          "const": "rsh-task/1"
+        },
+        "invocation_id": {
+          "type": "string"
+        },
+        "task_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "request_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "capability": {
+          "type": "string"
+        },
+        "skill": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "primitive",
+            "tool",
+            "skill"
+          ]
+        },
+        "status": {
+          "enum": [
+            "succeeded",
+            "failed",
+            "unverified",
+            "rejected"
+          ]
+        },
+        "phase": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "failure_type": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "note": "null iff status == succeeded"
+        },
+        "recovery_hints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidence": {
+          "type": "object",
+          "note": "task skills: evidence.postcondition = {name, passed, criterion, measured, thresholds_ref}"
+        },
+        "observations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/schemas/Observation"
+          }
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "kind"
+            ]
+          }
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "privileged_inputs": {
+          "type": "boolean"
+        },
+        "error": {
+          "type": "object"
+        },
+        "trace": {
+          "type": "array"
+        },
+        "elapsed_s": {
+          "type": "number"
+        },
+        "outputs": {
+          "type": "object",
+          "note": "values a graph may assign into its state"
+        }
+      }
+    },
+    "GraspCandidate": {
+      "type": "object",
+      "required": [
+        "object_id",
+        "pregrasp_pose",
+        "grasp_pose",
+        "lift_pose",
+        "open_width_m",
+        "close_width_m",
+        "T_TCP_object",
+        "score"
+      ],
+      "properties": {
+        "object_id": {
+          "type": "string"
+        },
+        "pregrasp_pose": {
+          "$ref": "#/schemas/Pose"
+        },
+        "grasp_pose": {
+          "$ref": "#/schemas/Pose"
+        },
+        "lift_pose": {
+          "$ref": "#/schemas/Pose"
+        },
+        "open_width_m": {
+          "type": "number"
+        },
+        "close_width_m": {
+          "type": "number"
+        },
+        "T_TCP_object": {
+          "$ref": "#/schemas/Pose"
+        },
+        "score": {
+          "type": "number"
+        },
+        "checks": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "task_skill_protocol": {
+    "module_export": "src/roboskillhub/tasks/<module>/__init__.py: SKILLS = [TaskSkill, ...]",
+    "attributes": {
+      "skill_id": "str '<module>.<verb_phrase>'",
+      "version": "semver",
+      "kind": "tool|skill",
+      "requires": "frozenset of backend_capabilities",
+      "input_schema": "JSON schema object",
+      "readiness": "readiness level"
+    },
+    "method": "run(request: dict, ctx: SkillContext) -> SkillResult",
+    "context": [
+      "task_id",
+      "request_id",
+      "capabilities",
+      "privileged_allowed",
+      "invoke(capability, request)",
+      "observe(object_ids, require_orientation=False)",
+      "cancelled()",
+      "now()",
+      "result(status, phase=..., failure_type=..., evidence=..., observations=...)"
+    ],
+    "gates": [
+      "version match",
+      "requires subset of backend capabilities else rejected/capability_missing",
+      "input_schema",
+      "envelope validation",
+      "succeeded requires evidence.postcondition.passed and non-empty observations else downgraded to unverified/evidence_missing"
+    ]
+  },
+  "task_lease": {
+    "acquire": "Runtime.task_lease(task_id, timeout_s) / api.task_lease(station, task_id, timeout_s)",
+    "covers": "Runtime lock + backend begin_invocation/end_invocation for the whole graph",
+    "inside": "invoke(..., lease=lease) does not reacquire",
+    "nested_without_lease_same_thread": "rejected / nested_lease",
+    "other_callers": "wait until own deadline then rejected / station_busy (error code QueueTimeout kept)",
+    "expiry": "rejected / lease_expired for new calls; active primitive failed / timeout and stop()",
+    "cancel": "lease.cancel(reason): active primitive failed / cancelled and stop(); later calls rejected / cancelled",
+    "preemption": "not supported in v1"
+  },
+  "graph": {
+    "version": "rsh-graph/1",
+    "edge_keys": [
+      "succeeded",
+      "failed",
+      "unverified",
+      "rejected",
+      "<status>:<failure_type>"
+    ],
+    "node_fields": [
+      "skill",
+      "version?",
+      "params",
+      "pre",
+      "post",
+      "timeout_s",
+      "attempts",
+      "retry_on",
+      "max_visits",
+      "assign",
+      "on",
+      "note"
+    ],
+    "budgets": [
+      "max_steps",
+      "max_total_attempts",
+      "timeout_s"
+    ],
+    "load_checks": [
+      "every node skill is bound in graph.skills with matching version",
+      "every edge target exists",
+      "every node routes all four statuses",
+      "unverified and rejected never route directly to a succeeded terminal",
+      "every cycle contains a node with max_visits; global budgets (max_steps, max_total_attempts, timeout_s) always apply"
+    ],
+    "param_expressions": [
+      "$input.<path>",
+      "$state.<path>",
+      "$last.<node>.<path>"
+    ],
+    "facts": {
+      "path": "$input|$state|$last expression",
+      "equals": "value?",
+      "exists": "bool?",
+      "default": "truthy"
+    },
+    "assign": "after a succeeded step whose post facts hold: {state_key: expression}",
+    "visit_exhaustion": "a visit beyond max_visits yields failed/retry_budget_exhausted routed by the node's edges"
+  }
+}

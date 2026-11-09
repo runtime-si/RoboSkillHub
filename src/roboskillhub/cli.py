@@ -531,9 +531,9 @@ def build_parser() -> argparse.ArgumentParser:
         r = rsub.add_parser(action)
         r.add_argument("--station", help="trusted station YAML; defaults to ROBOSKILLHUB_STATION")
         if action == "invoke":
-            r.add_argument(
-                "capability", choices=("move_pose", "grasp", "track_points", "push", "pull_drawer")
-            )
+            from .runtime.contracts import SCHEMAS
+
+            r.add_argument("capability", choices=tuple(SCHEMAS))
             r.add_argument("--request", required=True, help="path to input JSON")
         r.set_defaults(fn=cmd_runtime)
     return parser

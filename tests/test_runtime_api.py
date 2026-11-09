@@ -38,7 +38,7 @@ def isolate_station_configuration(monkeypatch):
     monkeypatch.setattr(api, "_TRACKERS", {})
 
 
-def test_runtime_list_exposes_all_five_schemas_without_hardware(capsys):
+def test_runtime_list_exposes_every_schema_without_hardware(capsys):
     assert main(["runtime", "list"]) == 0
     data = json.loads(capsys.readouterr().out)
     entries = {row["capability"]: row for row in data["capabilities"]}
@@ -194,7 +194,7 @@ def test_jsonlines_describe_invalid_invoke_sequence_is_clean_and_keeps_processin
     responses = [json.loads(line) for line in captured.out.splitlines()]
     assert len(responses) == 3
     assert responses[0]["id"] == 1
-    assert len(responses[0]["result"]["capabilities"]) == 5
+    assert len(responses[0]["result"]["capabilities"]) == len(CAPABILITY_BUNDLES)
     assert responses[1]["id"] is None
     assert "error" in responses[1]
     assert responses[2]["id"] == 3
