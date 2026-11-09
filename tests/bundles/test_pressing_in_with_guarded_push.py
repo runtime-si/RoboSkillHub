@@ -287,7 +287,7 @@ def test_sideways_push_along_x(script):
 def test_arm_id_and_knobs_are_passed_only_when_set(script):
     arm = Arm()
     script.run(arm.ctx(), arm_id=1, step_max_steps=50, **FAST)
-    assert arm.moves[1][1] == {"tolerance": 0.001, "max_steps": 50, "arm_id": 1}
+    assert arm.moves[1][1] == {"tolerance": 0.0002, "max_steps": 50, "arm_id": 1}
     arm = Arm()
     script.run(arm.ctx(), step_tolerance=0.0, **FAST)
     assert arm.moves[1][1] == {}

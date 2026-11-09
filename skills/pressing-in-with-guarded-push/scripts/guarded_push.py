@@ -85,9 +85,11 @@ which a sample is dropped as still moving (i2rt's clog_speed_threshold)."""
 BASELINE_WINDOW = 3
 """Free-motion lags the baseline is the median of (the most recent)."""
 
-STEP_TOLERANCE = 0.001
-"""Arrival ball asked of each step [m], passed as go_to_pose's ``tolerance``: a
-feedback servo with a 4 mm default ball calls a 1 mm step reached without moving."""
+STEP_TOLERANCE = 0.0002
+"""Arrival ball asked of each step [m], passed as go_to_pose's ``tolerance``. It must
+be well under the step: a YAM station twin's servo stops once inside its ball, so a
+1 mm ball left a 1 mm step unmoved (read as lag: a hold that was not there).
+0 leaves the connector's default."""
 
 SETTLE_QUIET = 0.0003
 SETTLE_PERIOD = 0.3

@@ -102,7 +102,7 @@ command runs ahead of it, and how far ahead is the push.
   `effort_threshold` (0.5 N.m), `effort_samples` (5), `speed_threshold`
   (0.3 rad/s).
 - `floor_z`, `relieve` (true), `check_reach` (true), `step_tolerance`
-  (0.001 m, passed as the servo's `tolerance`; 0 leaves the connector's),
+  (0.0002 m, passed as the servo's `tolerance`; 0 leaves the connector's),
   `step_max_steps` (0), the settle constants, `arm_id` (passed only when
   nonzero).
 
@@ -140,21 +140,24 @@ then stood at the case's start. One rollout per case:
 
 | case | start | route | travelled | resistance from | peak lag | fingertip stop vs true surface | cube moved |
 |---|---|---|---|---|---|---|---|
-| free air, 8 mm | 60 mm over the table | seated | 9.0 mm | none | 1.0 mm | - | 0 |
-| table | tips 3 mm over it | force_limit_no_travel | 3.2 mm | 3.2 mm | 6.8 mm | +0.37 mm | 0 |
-| cube top | tips 3 mm over it | force_limit_no_travel | 3.7 mm | 3.4 mm | 6.3 mm | +0.22 mm | 3.8 mm along +x |
-| cube top, target 2 mm under it, lockup tolerance 3 mm | as above | seated (lockup) | 3.7 mm | 3.4 mm | 6.3 mm | +0.22 mm | 3.8 mm along +x |
-| sideways into the cube, 35 mm along +x | tips at mid-height, 20 mm off its face | seated | 35.1 mm | none | 1.0 mm | - | 25 mm along +x, tipped (rose 4 mm) |
+| free air, 8 mm | 60 mm over the table | seated | 9.0 mm | none | 0.6 mm | - | 0 |
+| table | tips 3 mm over it | force_limit_no_travel | 3.2 mm | 3.2 mm | 6.8 mm | +0.38 mm | 0 |
+| cube top | tips 3 mm over it | force_limit_no_travel | 3.7 mm | 3.4 mm | 6.3 mm | +0.22 mm | 4.3 mm along +x |
+| cube top, target 2 mm under it, lockup tolerance 3 mm | as above | seated (lockup) | 3.7 mm | 3.4 mm | 6.3 mm | +0.22 mm | 3.7 mm along +x |
+| sideways into the cube, 35 mm along +x | tips at mid-height, 20 mm off its face | seated | 35.0 mm | none | 0.1 mm | - | 26 mm along +x, tipped (rose 4 mm) |
 
 - Every press stopped at the limit (10 steps, 6.3-6.8 mm over the free lag)
   with the fingertips 0.2-0.4 mm over the true surface, and was unloaded
-  (`relieved`). The twin's free-motion lag peaked at 1.0 mm on single steps,
-  under `contact_lag`; no false resistance in either free run.
-- The press on the cube's top pushed the cube 3.8 mm sideways (the tapered
+  (`relieved`). The twin's free-motion lag peaked at 0.6 mm (0.1 mm moving
+  sideways), under `contact_lag`; no false resistance in either free run. A
+  first set of runs passed a 1 mm arrival ball (`step_tolerance`) to the servo
+  with these 1 mm steps and the free lag then peaked at 1.0 mm; the ball is
+  now 0.2 mm, the contact cases read the same.
+- The press on the cube's top pushed the cube 3.7-4.3 mm sideways (the tapered
   tips on its top edge), and the hand ended 4-4.6 mm off in x after the table
   and cube presses: under 6 mm of lag the twin's servo gives sideways as well.
 - **A part that slides is not felt.** Pushed sideways, the free 30 mm cube
-  slid 25 mm and tipped with the lag never over 1.03 mm: the push reads as
+  slid 26 mm and tipped with the lag never over 0.1 mm: the push reads as
   free travel and ends `seated`. A part that skids on its seat instead of
   going in looks the same; verify afterwards.
 - No snap-fit exists in the twin, so `snap_detected` ran only in the unit
