@@ -259,8 +259,9 @@ def physics_lego_world(
             "yaw_tolerance_deg": 2.0,
             "preassembly_height_m": 0.01,
             # The graph hands align the HeldObject from pick (stamped at the lift); align checks that stamp
-            # against max_obs_age_s (default 0.5 s), which transport always exceeds. 5 s: see integration-note.
-            "max_obs_age_s": 5.0,
+            # against max_obs_age_s (default 0.5 s), which transport always exceeds (Agent 5 is adding a
+            # re-confirm). 10 s (align's upper bound) keeps the harness out of that until then.
+            "max_obs_age_s": 10.0,
             "workspace_min_m": [0.0, -0.35, 0.0],
             "workspace_max_m": [0.6, 0.35, 0.3],
             "limits_source": "assembly_eval lego_world v1 (simulated station; not calibrated hardware)",

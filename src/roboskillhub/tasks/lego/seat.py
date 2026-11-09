@@ -18,7 +18,9 @@ contact where the stud tops are expected:
    press, is usable (fresh, after the press started, same frame, not commanded, its 2-sigma band
    narrower than the seat band): its bottom must lie within ``seat_depth_tolerance_m`` of the
    seat height and its lateral / yaw / tilt error within ``lego.verify_connection``'s bands
-   (``verify._thresholds``: the same geometry + 2 sigma). The observed brick decides; the TCP
+   (``verify._thresholds``: the same geometry + 2 sigma); tilt is judged through the bottom-face
+   corners (none may be above the seat band), because the hand still holds the brick and can tilt
+   it; verify applies the strict tilt band after the release. The observed brick decides; the TCP
    travel does not (a brick can move in the grasp, e.g. a simulator that snaps it to the seat).
 2. **Force rise** - required only when the station declares that its force signal shows the
    press-fit (``contact_signal.insertion_force_observable``, default true): then the press must
@@ -505,18 +507,35 @@ def _seated_by_observation(res: SkillResult, p: dict, s: Any) -> tuple[bool, dic
         return None
     res.use(obs)
     res.evidence["seat_check_observation"] = obs.obs_id
-    d = g.pose_delta(g.matrix(seat_pose), g.matrix(pose))
+    t_seat, t_obs = g.matrix(seat_pose), g.matrix(pose)
+    d = g.pose_delta(t_seat, t_obs)
     period = 90.0 if bt.studs[0] == bt.studs[1] else 180.0
     d["yaw_deg"] = (d["yaw_deg"] + period / 2) % period - period / 2
-    depth_ok = abs(d["dz_m"]) <= p["seat_depth_tolerance_m"]
+    # Heights of the four bottom-face corners over the seat plane. The brick is still in the hand:
+    # a clamp on a brick that is already held by the studs can tilt the observed pose (BrickSim, 15 N
+    # grip: 1.5-2.2 deg). What makes it unseated is a corner still above the seat band (riding on the
+    # stud tops), so tilt is judged through the corners here; lego.verify_connection applies the
+    # strict tilt band after the release.
+    rel = g.relative(t_seat, t_obs)
+    lx, ly = bt.body_m[0] / 2, bt.body_m[1] / 2
+    corners = [rel[2][0] * x + rel[2][1] * y + rel[2][3] for x in (-lx, lx) for y in (-ly, ly)]
+    d["corner_max_dz_m"], d["corner_min_dz_m"] = max(corners), min(corners)
+    tol = p["seat_depth_tolerance_m"]
+    depth_ok = abs(d["dz_m"]) <= tol
+    corners_ok = d["corner_max_dz_m"] <= tol
     lat_ok = d["lateral_m"] <= th["lateral_m"]
     yaw_ok = abs(d["yaw_deg"]) <= th["yaw_deg"]
-    tilt_ok = d["tilt_deg"] <= th["tilt_deg"]
     res.check("post", "seat_depth_observed", depth_ok, f"{d['dz_m'] * 1e3:+.2f} mm over the seat")
+    res.check(
+        "post",
+        "seat_corners_observed",
+        corners_ok,
+        f"highest bottom corner {d['corner_max_dz_m'] * 1e3:+.2f} mm over the seat "
+        f"(tilt {d['tilt_deg']:.2f} deg, judged after release by verify)",
+    )
     res.check("post", "seat_lateral_observed", lat_ok, f"{d['lateral_m'] * 1e3:.2f} mm")
     res.check("post", "seat_yaw_observed", yaw_ok, f"{d['yaw_deg']:+.2f} deg")
-    res.check("post", "seat_tilt_observed", tilt_ok, f"{d['tilt_deg']:.2f} deg")
-    return depth_ok and lat_ok and yaw_ok and tilt_ok, d, th
+    return depth_ok and corners_ok and lat_ok and yaw_ok, d, th
 
 
 def _brick_type(plan: dict, s: Any) -> g.BrickType:
@@ -529,7 +548,7 @@ def _brick_type(plan: dict, s: Any) -> g.BrickType:
 def _off_seat(
     res: SkillResult, d: dict, th: dict, depth_tol: float, s: Any, after: list
 ) -> SkillResult:
-    dz = d["dz_m"]
+    dz = max(d["dz_m"], d.get("corner_max_dz_m", d["dz_m"]))
     if d["lateral_m"] > th["wrong_cell_m"] or abs(d["yaw_deg"]) > th["yaw_deg"]:
         return res.finish(
             "failed",

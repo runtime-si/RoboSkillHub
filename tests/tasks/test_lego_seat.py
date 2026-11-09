@@ -259,13 +259,16 @@ def test_sim_backend_level_is_carried(alignment):
 NOW = 100.0
 
 
-def _seat_obs(alignment, *, dz=0.0, dx=0.0, yaw_deg=0.0, t=NOW, sigma=0.0001):
+def _seat_obs(alignment, *, dz=0.0, dx=0.0, yaw_deg=0.0, tilt_deg=0.0, t=NOW, sigma=0.0001):
     """An independent post-press observation of the pressed brick, offset from its seat."""
+    import math
 
     from roboskillhub.tasks.lego import geometry as g
 
     seat = alignment["evidence"]["plan"]["seat_pose"]
-    m = g.mul(g.matrix(seat), g.mul(g.tr(dx, 0.0, dz), g.rz(yaw_deg)))
+    c, s_ = math.cos(math.radians(tilt_deg)), math.sin(math.radians(tilt_deg))
+    rx = [[1, 0, 0, 0], [0, c, -s_, 0], [0, s_, c, 0], [0, 0, 0, 1]]  # tilt about the brick's x
+    m = g.mul(g.matrix(seat), g.mul(g.mul(g.tr(dx, 0.0, dz), g.rz(yaw_deg)), rx))
     return {
         "obs_id": f"camera:brick@{t}",
         "source": "camera",
@@ -376,3 +379,32 @@ def test_declared_seat_depth_tolerance_is_used_and_cited(alignment):
     )
     assert out["reason_code"] == "not_pressed_fully"
     assert out["evidence"]["seat_check"]["seat_depth_tolerance_source"].startswith("request")
+
+
+@pytest.mark.parametrize("tilt_deg", [1.49, 2.2])
+def test_regression_firm_grip_tilt_in_the_hand_with_corners_in_band_succeeds(alignment, tilt_deg):
+    # 15 N grip, brick on the plate: snapped, clutched and seated, then observed tilted 1.5-2.2 deg
+    # by the clamp while still held (centre 0.33 mm low). Before: "misaligned" on the tilt band.
+    samples = press_trace(PRE_H, LEGO.stud_height_m, final_shortfall_m=0.00096, peak_N=6.0)
+    out = _press_obs(
+        alignment, samples, _seat_obs(alignment, dz=-0.00033, tilt_deg=tilt_deg), observable=False
+    )
+    assert out["status"] == "succeeded", out["message"]
+    d = out["evidence"]["seat_check"]["delta"]
+    assert d["corner_max_dz_m"] <= 0.000595 and d["tilt_deg"] == pytest.approx(tilt_deg, abs=0.01)
+
+
+@pytest.mark.parametrize(
+    "tilt_deg, code",
+    [(2.0, "not_pressed_fully"), (4.0, "blocked_on_studs")],
+)
+def test_tilt_that_lifts_a_corner_fails(alignment, tilt_deg, code):
+    # Tilt about x raises one end of the 32 mm side by 16 mm x sin(tilt): with the centre 0.3 mm
+    # high, 2 deg puts that corner 0.86 mm over the seat (band 0.6 mm), 4 deg 1.42 mm (on the studs).
+    out = _press_obs(
+        alignment,
+        press_trace(PRE_H, LEGO.stud_height_m),
+        _seat_obs(alignment, dz=0.0003, tilt_deg=tilt_deg),
+    )
+    assert out["status"] == "failed" and out["reason_code"] == code, out["message"]
+    assert out["evidence"]["seat_check"]["delta"]["corner_max_dz_m"] > 0.000595

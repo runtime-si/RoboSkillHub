@@ -285,7 +285,8 @@ class GuardedSeat:
     criterion = (
         "stop confirmed, peak <= 1.25 x force_limit_N, contact at the stud tops; the pressed brick "
         "observed after the press within seat_depth_tolerance_m (default 0.35 stud height) of its "
-        "seat and within verify's lateral/yaw/tilt bands; plus a force_threshold stop when the "
+        "seat, no bottom corner above that band, lateral/yaw within verify's bands (strict tilt is "
+        "verify's, after the release); plus a force_threshold stop when the "
         "station declares an insertion-observable force signal; without a usable observation a "
         "force-observable station falls back to TCP travel. Connection NOT verified here"
     )
