@@ -795,6 +795,27 @@ class _Hand:
                     sign = -1.0
         return ""
 
+    def roll_rate(self, local_approach: np.ndarray) -> float:
+        """The hand's turn about its approach per radian of the last joint, from a small test turn (1.0 unread)."""
+        q0 = self.q()
+        if q0.size == 0:
+            return 1.0
+        last = q0.size - 1
+        d = 0.1 if self.fits(last, float(q0[last]) + 0.1) else -0.1
+        _, r0 = self.pose()
+        goal = q0.copy()
+        goal[last] += d
+        if self.to_q(goal):
+            return 1.0
+        _, r1 = self.pose()
+        q1 = self.q()
+        self.to_q(q0)
+        dq = float(q1[last] - q0[last]) if q1.size == q0.size else d
+        rate = float(rotvec(r1 @ r0.T) @ (r0 @ np.asarray(local_approach, dtype=np.float64))) / (
+            dq or d
+        )
+        return rate if abs(rate) > 0.5 else 1.0
+
     def base(self) -> np.ndarray | None:
         """Where this arm's first joint stands (its vertical axis), from a small test turn of it."""
         q0 = self.q()
@@ -2027,13 +2048,29 @@ def run(
         if not why:
             why = hand_b.go(pre_b, rb)
         if not why:
-            # The solver may leave the roll free: read the jaws back and square them across the thickness.
+            # The solver may leave the roll free: read the jaws back and square them across the thickness, the
+            # way round (the jaws are symmetric) that leaves the last joint room for the quarter roll upright.
+            rate_b = hand_b.roll_rate(b_approach)
+            up_roll = turn_about(w_dir, e_now, z_up)
             for _ in range(TURN_TRIES):
                 _, rb_now = hand_b.pose()
                 err = wrap(turn_about(rb_now @ b_approach, rb_now @ b_close, n_t), True)
                 if abs(err) <= float(roll_tolerance_deg):
                     break
-                why = hand_b.roll(err, float(pitch_step_deg), b_approach)
+                qb = hand_b.q()
+                last_b = qb.size - 1
+                ways = sorted((err + m * 180.0 for m in (-2, -1, 0, 1, 2)), key=abs)
+                roomy = [
+                    o
+                    for o in ways
+                    if qb.size
+                    and hand_b.fits(last_b, qb[last_b] + math.radians(o) / rate_b)
+                    and hand_b.fits(last_b, qb[last_b] + math.radians(o + up_roll) / rate_b)
+                ]
+                if not roomy:
+                    why = f"the helper's last joint has no room to square its jaws and roll {up_roll:+.0f} deg"
+                    break
+                why = hand_b.roll(roomy[0], float(pitch_step_deg), b_approach)
                 if why:
                     break
             else:
@@ -2098,10 +2135,13 @@ def run(
         tilt = angle_between(e_up, z_up)
         out["pitch_turn_deg"] = abs(roll)
         out["tilt_at_release_deg"] = tilt
-        if tilt > float(tilt_tolerance_deg):
+        # Out of the broad faces' plane the lean is the helper's pads' (known); within it, it is carried over from
+        # this arm's pinch (the tile turns in it) and only shifts where along the width the top is taken.
+        lean_out = math.degrees(math.asin(min(1.0, abs(float(n_up @ z_up)))))
+        if lean_out > float(tilt_tolerance_deg):
             return finish(
                 "unreachable",
-                f"after the helper's roll the tile leans {tilt:.1f} deg; the helper holds the tile",
+                f"after the helper's roll the tile's broad faces lean {lean_out:.1f} deg; the helper holds the tile",
             )
 
         # --- this arm takes the top end top-down, jaws across the thickness.
