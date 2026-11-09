@@ -1,0 +1,123 @@
+[
+  {
+    "id": "rsh-pressing-a-brick-onto-studs",
+    "repository": "https://github.com/runtime-si/RoboSkillHub",
+    "revision": "d015358cb7881bc215ada1aec419c787a79b1f12",
+    "path": "skills/pressing-a-brick-onto-studs/scripts/press_brick.py",
+    "sha256": "256076099325a1b5f4f1f9e43bc15ccbdb94feb69643c6be58f9d492f4dba6c8",
+    "symbols": [
+      "PRESETS",
+      "FOOTPRINT_PLAY",
+      "SEAT_FRACTION",
+      "RESTING_FRACTION",
+      "MISALIGNED_FRACTION",
+      "PRESS_DEPTH"
+    ],
+    "license": "MIT (bundle; upstream BrickSim MIT, ICL Robotic_Lego_Manipulation MIT)",
+    "use": "constants re-stated (LEGO/DUPLO presets, seat/resting bands, overtravel bound from PRESS_DEPTH idea); capture evidence (DUPLO 1 mm seated, 2 mm refused) quoted. Its position/lag press is NOT reused as contact control.",
+    "reuse": "adapted_constants"
+  },
+  {
+    "id": "rsh-computing-brick-pose-from-stud-grid",
+    "repository": "https://github.com/runtime-si/RoboSkillHub",
+    "revision": "d015358cb7881bc215ada1aec419c787a79b1f12",
+    "path": "skills/computing-brick-pose-from-stud-grid/scripts/brick_pose.py",
+    "sha256": "54aa253ee9b4c3bb451192a37085da83b22564b2fff993ff19dc449349b6769a",
+    "symbols": [
+      "_brick_top_in_plate",
+      "_footprint",
+      "_cells",
+      "finger_cells (in run)",
+      "the inverse (nearest cell + residual)",
+      "collides/unsupported/ungraspable"
+    ],
+    "license": "MIT (bundle; upstream ICL Robotic_Lego_Manipulation Lego::calc_brick_loc, MIT, commit 9bc91654e708e4d8428ecfa76840103cacb2a19a)",
+    "use": "grid chain ported to pure Python (no numpy) and cross-checked to 1e-9 m against the original in tests when numpy+gap are importable",
+    "reuse": "ported"
+  },
+  {
+    "id": "rsh-verifying-build-against-model",
+    "repository": "https://github.com/runtime-si/RoboSkillHub",
+    "revision": "d015358cb7881bc215ada1aec419c787a79b1f12",
+    "path": "skills/verifying-build-against-model/scripts/verify_build.py",
+    "sha256": "5bf32d1fe70081a84e71e7a6ea67762556bc5ac4f8840f53adc656d017d23fe3",
+    "symbols": [
+      "unseated / 'one end' rule",
+      "SEAT_SIGMAS idea"
+    ],
+    "license": "MIT (bundle; upstream LTRON MIT)",
+    "use": "concept only: unseated = top high by about a stud, one-end = partial; thresholds widened by observation sigmas. Its LTRON matching is not used here (that skill stays the whole-build checker).",
+    "reuse": "reference"
+  },
+  {
+    "id": "rsh-checking-design-connectivity-and-collisions",
+    "repository": "https://github.com/runtime-si/RoboSkillHub",
+    "revision": "d015358cb7881bc215ada1aec419c787a79b1f12",
+    "path": "skills/checking-design-connectivity-and-collisions/scripts/check_design.py",
+    "sha256": "1611f77f08b109c91bec8352ebba95844a3d60ace6b53952fbb4a35d4ddbc8ef",
+    "symbols": [
+      "_brick_floats",
+      "_connected_to_ground",
+      "_overlap"
+    ],
+    "license": "MIT (bundle; upstream BrickGPT MIT)",
+    "use": "concept only: voxel collision and 'supported by the layer below' rules re-expressed per connection",
+    "reuse": "reference"
+  },
+  {
+    "id": "rsh-calibrating-baseplate-stud-grid",
+    "repository": "https://github.com/runtime-si/RoboSkillHub",
+    "revision": "d015358cb7881bc215ada1aec419c787a79b1f12",
+    "path": "skills/calibrating-baseplate-stud-grid/scripts/stud_lattice.py",
+    "sha256": "24d7732c5ea7989d4eca786fd16bfc27575326641faa6e462fc5143a2d7785a6",
+    "symbols": [
+      "plate pose / lattice"
+    ],
+    "license": "MIT (bundle; upstream APEX-MR MIT)",
+    "use": "upstream producer of plate.pose + calibration_id; no code used",
+    "reuse": "consumer_of_output"
+  },
+  {
+    "id": "lego-apexmr",
+    "repository": "https://github.com/intelligent-control-lab/APEX-MR",
+    "revision": "46a9448d9eaac5bd5973e0cd064623c5e7f5254e",
+    "path": "src/lego_policy.cpp",
+    "symbols": [
+      "LegoPolicy::pressdown",
+      "LegoPolicy::checkForce"
+    ],
+    "license": "MIT",
+    "license_evidence": "https://github.com/intelligent-control-lab/APEX-MR/blob/46a9448d9eaac5bd5973e0cd064623c5e7f5254e/LICENSE",
+    "use": "structure only (approach / force-checked press / exit); no code, thresholds, tool transforms or distances copied (GP4 + F/T settings are not YAM defaults)",
+    "reuse": "reference"
+  },
+  {
+    "id": "lego-aidf",
+    "repository": "https://github.com/intelligent-control-lab/AIDF",
+    "revision": "2a2221f79e0e1cadbcd3809cfefa76f6ca4f6291",
+    "path": "skillgraph/api/skills.hpp; skillgraph/src/lego/lego_skillgraph.cpp",
+    "symbols": [
+      "Skill/AtomicSkill/MetaSkill",
+      "LegoSkillGraph::is_feasible"
+    ],
+    "license": "license_unknown (package.xml <license>TODO</license>)",
+    "use": "concept only: fixed K with feasibility preconditions, G over it; no code",
+    "reuse": "reference_only_license_unknown"
+  },
+  {
+    "id": "lego-brickcraft",
+    "repository": "https://intelligent-control-lab.github.io/BrickCraft/",
+    "revision": null,
+    "license": "no public code",
+    "use": "concept only: reference brick + relative xy/theta connection; not a dependency",
+    "reuse": "reference_only"
+  },
+  {
+    "id": "lego-roco",
+    "repository": "https://github.com/rocochallenge/RoCo_BrickAssembly",
+    "revision": "8e7ad4dae651fd96cad5b8aa145f3fe81d3a48f3",
+    "license": "MIT (devkit only; BrickSim engine license/contact model unchecked)",
+    "use": "not used by this module; Agent 04's scene/contact backend",
+    "reuse": "none"
+  }
+]
