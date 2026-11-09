@@ -831,3 +831,11 @@ data_collection/collect_offsets_single_camera.py,
 reference_implementation/ot2_rack_insertion/cnn_model_misalignment_prediction.py), MIT License,
 Copyright (c) 2026 Hadi Beyzaee Juneghani; the licence is tools/move-classifier/LICENSE.vision-guided-rack-insertion.
 The files' headers list the changes.
+skills/searching-insertion-with-yaw-oscillation/scripts/yaw_search.py is
+adapted from ShapeForce (https://github.com/nolann030628/ShapeForce, commit
+1bc2aa8c4ee66622f0a597b2112a61cfbea2a345:
+third_party/utils_repo/peg_insertion/force_insert.py,
+ForceInserter._phase_spin_search), MIT License, Copyright (c) 2021
+SowmiyaNarayanan G; the file's header lists the changes, and the license is
+skills/searching-insertion-with-yaw-oscillation/LICENSE.shapeforce. Its
+last-joint turn follows skills/seating-a-piece-by-wiggle-search.
