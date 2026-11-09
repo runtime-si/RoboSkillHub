@@ -255,6 +255,7 @@ def stand(script, arm, **kw):
         "park_pose": {"position": {"x": 0.40, "y": 0.30, "z": TABLE_Z + 0.2}},
     }
     args.update(kw)
+    args.setdefault("strategy", "pose_pitch")
     out = script.run(arm.ctx(), **args)
     arm.facing = out["facing_deg"]
     return out
@@ -262,6 +263,7 @@ def stand(script, arm, **kw):
 
 def run_and_check(script, arm, **kw):
     """Run, and run the depth check against the facing the skill chose (the fake camera needs it)."""
+    kw.setdefault("strategy", "pose_pitch")
     probe = Arm(script, reachable=arm.reachable)
     first = stand(script, probe, verify=False, **kw)
     arm.facing = first["facing_deg"]
