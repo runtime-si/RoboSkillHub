@@ -92,7 +92,7 @@ YAM station twin the steps of a passing facing moved the joints 0.2-0.5 rad each
 the wrist pitch 1.27 rad onto its 1.5708 limit, and the tile was lost in that step. Allowed 0.9 rad, five of six
 facings that passed still lost the tile in the pitch."""
 
-STRATEGIES = ("table_pivot", "pose_pitch", "hinge_tip")
+STRATEGIES = ("table_pivot", "pose_pitch", "hinge_tip", "handover")
 """table_pivot: find the wrist joint that pitches the hand about a level axis, carry the tile flat into that joint's
 plane far enough out that the upright hand reaches the table, and turn it upright about its inner bottom edge on the
 table by chained IK steps. pose_pitch: the quarter turn in the air in pose steps about the tool centre over the
@@ -145,6 +145,24 @@ HINGE_OFFSET = 0.016
 HINGE_PRESS = 0.002
 """hinge_tip: how much shorter than the pin's distance to the far bottom edge the arc's radius is [m], so the pin
 pushes the tile's foot onto the table (tipping-over-a-surface-edge presses while it pulls)."""
+
+HANDOVER_HEIGHT = 0.15
+"""handover: height of the tile's centre over the table where the helper takes it [m] (a choice: clear of the
+table for a level hand)."""
+
+HELPER_OFFSET = 0.012
+"""handover: how far from the tile's centre toward its far end the helper pinches [m] (12 mm from that end): clear
+of this arm's pads, which sit 6-22 mm toward the other end."""
+
+HELPER_BITE = 0.010
+"""handover: how far the helper's tool centre goes past the tile's near long edge [m]; its fingertips reach 10.2 mm
+further."""
+
+TOP_BITE = 0.008
+"""handover: how far down the upright tile this arm's fingertips reach when it takes the top end [m]."""
+
+TURN_STEP_DEG = 10.0
+"""Largest turn of the hand per chained IK step when a move also turns it [deg]."""
 
 JOINT_SETTLE = 0.075
 """A joint move that ends farther than this from its target on any joint did not arrive [rad]: a real YAM station's
@@ -542,6 +560,230 @@ def judge_standing(
     return best
 
 
+def _refusal(reply: Any) -> str:
+    if not isinstance(reply, dict):
+        return ""
+    if reply.get("outcome") not in (None, "reached"):
+        return f"{reply['outcome']}: {reply.get('reason', '')}".rstrip(": ")
+    if reply.get("reached") is False or reply.get("success") is False:
+        return str(reply.get("reason") or reply.get("message") or "the move reported failure")
+    return ""
+
+
+def _frame(
+    approach: np.ndarray, close: np.ndarray, local_approach: np.ndarray, local_close: np.ndarray
+) -> np.ndarray:
+    """The hand rotation whose approach is ``approach`` and whose closing axis is ``close`` (made square to it)."""
+    a = np.asarray(approach, dtype=np.float64)
+    a = a / (np.linalg.norm(a) or 1.0)
+    c = np.asarray(close, dtype=np.float64) - float(np.asarray(close) @ a) * a
+    c = c / (np.linalg.norm(c) or 1.0)
+    la = np.asarray(local_approach, dtype=np.float64)
+    la = la / (np.linalg.norm(la) or 1.0)
+    lc = np.asarray(local_close, dtype=np.float64) - float(np.asarray(local_close) @ la) * la
+    lc = lc / (np.linalg.norm(lc) or 1.0)
+    return np.stack([a, c, np.cross(a, c)], axis=1) @ np.stack([la, lc, np.cross(la, lc)], axis=1).T
+
+
+class _Hand:
+    """One arm through robot.* tools (the two-arm strategy drives two): pose, joints, chained IK steps refused when
+    a joint but the last would jump, the jaws."""
+
+    def __init__(
+        self, ctx: Any, arm_id: int, lower: np.ndarray, upper: np.ndarray, jump: float
+    ) -> None:
+        self.ctx, self.id = ctx, int(arm_id)
+        self.kw: dict[str, Any] = {"arm_id": self.id} if self.id else {}
+        self.lower, self.upper, self.jump = np.asarray(lower), np.asarray(upper), float(jump)
+        self.at_open, self.at_closed = 0.0, 0.0
+        try:
+            hand = ctx.tool("robot.describe_gripper", **self.kw)
+            fit = (hand or {}).get("width_fit") or {}
+            self.at_open = float(fit.get("at_open_m") or (hand or {}).get("span_m") or 0.0)
+            self.at_closed = float(fit.get("at_closed_m") or 0.0)
+        except Exception as exc:
+            logger.info(
+                "standing-a-lying-domino: no gripper description for arm %d (%s)", self.id, exc
+            )
+
+    def pose(self) -> tuple[np.ndarray, np.ndarray]:
+        p = _pose(self.ctx.tool("robot.get_ee_pose", **self.kw))
+        return _xyz(p), matrix(p["rotation"])
+
+    def q(self) -> np.ndarray:
+        try:
+            arms = self.ctx.tool("robot.get_observation").get("arms") or []
+        except Exception as exc:
+            logger.info("standing-a-lying-domino: no joint reading (%s)", exc)
+            return np.zeros(0)
+        if self.id >= len(arms):
+            return np.zeros(0)
+        q = arms[self.id].get("joint_state")
+        if isinstance(q, dict):
+            q = q.get("positions")
+        return np.asarray(q if q is not None else [], dtype=np.float64).reshape(-1)
+
+    def fits(self, j: int, value: float) -> bool:
+        return (
+            j >= len(self.lower)
+            or float(self.lower[j]) + JOINT_MARGIN <= value <= float(self.upper[j]) - JOINT_MARGIN
+        )
+
+    def to_q(self, q: np.ndarray) -> str:
+        try:
+            return _refusal(
+                self.ctx.tool(
+                    "robot.move_to_joints",
+                    joint_config={"positions": [float(v) for v in q]},
+                    **self.kw,
+                )
+            )
+        except Exception as exc:
+            return str(exc) or type(exc).__name__
+
+    def ik(self, point: np.ndarray, rot: np.ndarray) -> tuple[np.ndarray, str]:
+        try:
+            reply = self.ctx.tool(
+                "robot.solve_ik", pose={"position": _vec(point), "rotation": quat(rot)}, **self.kw
+            )
+        except Exception as exc:
+            return np.zeros(0), f"IK refused ({exc})"
+        reply = reply if isinstance(reply, dict) else {}
+        if reply.get("success") is False or reply.get("within_servo_tolerance") is False:
+            return np.zeros(0), "no IK solution"
+        q = (reply.get("joint_config") or {}).get("positions")
+        q = np.asarray(q if q is not None else [], dtype=np.float64).reshape(-1)
+        if q.size == 0:
+            return q, "the IK reply has no joints"
+        bad = [j for j in range(q.size) if not self.fits(j, float(q[j]))]
+        if bad:
+            return q, f"joint {bad[0] + 1} would be at {q[bad[0]]:+.2f} rad, at its limit"
+        return q, ""
+
+    def step(self, point: np.ndarray, rot: np.ndarray) -> str:
+        q_now = self.q()
+        q, why = self.ik(point, rot)
+        if why:
+            return why
+        if q_now.size == q.size and q.size > 1:
+            jump = float(np.max(np.abs(q[:-1] - q_now[:-1])))
+            if jump > self.jump:
+                return f"a joint would jump {jump:.2f} rad (limit {self.jump:.2f})"
+        why = self.to_q(q)
+        if why:
+            return why
+        q_after = self.q()
+        if q_after.size == q.size:
+            off = float(np.max(np.abs(q_after - q)))
+            if off > JOINT_SETTLE:
+                return f"the joints stopped {off:.2f} rad short"
+        return ""
+
+    def line(self, target: np.ndarray, rot: np.ndarray, turn: bool = False) -> str:
+        """A straight move in chained IK steps of at most IK_STEP; with ``turn`` the rotation is turned toward
+        ``rot`` along the way in steps of at most TURN_STEP_DEG, else held at ``rot``."""
+        p0, r0 = self.pose()
+        rel = rotvec(np.asarray(rot) @ r0.T) if turn else np.zeros(3)
+        n = max(
+            1,
+            int(math.ceil(float(np.linalg.norm(target - p0)) / IK_STEP)),
+            int(math.ceil(math.degrees(float(np.linalg.norm(rel))) / TURN_STEP_DEG)),
+        )
+        for i in range(1, n + 1):
+            r_i = (
+                axis_angle(rel, math.degrees(float(np.linalg.norm(rel))) * i / n) @ r0
+                if turn
+                else rot
+            )
+            why = self.step(p0 + (target - p0) * i / n, r_i)
+            if why:
+                return f"{why} (step {i} of {n})"
+        return ""
+
+    def grip(self, w: float) -> str:
+        try:
+            return _refusal(self.ctx.tool("robot.set_grip", width_m=float(w), **self.kw))
+        except Exception as exc:
+            return str(exc) or type(exc).__name__
+
+    def width(self, reply: Any = None) -> float:
+        try:
+            fraction = reply.get("position") if isinstance(reply, dict) else None
+            if fraction is None:
+                fraction = self.ctx.tool("robot.get_gripper", **self.kw)["position"]
+            if self.at_open <= 0.0:
+                return -1.0
+            return self.at_closed + max(0.0, min(1.0, float(fraction))) * (
+                self.at_open - self.at_closed
+            )
+        except Exception as exc:
+            logger.info(
+                "standing-a-lying-domino: could not read arm %d's gripper (%s)", self.id, exc
+            )
+            return -1.0
+
+    def close(self) -> float:
+        try:
+            return self.width(self.ctx.tool("robot.close_gripper", **self.kw))
+        except Exception as exc:
+            logger.info("standing-a-lying-domino: arm %d did not close (%s)", self.id, exc)
+            return -1.0
+
+    def roll(self, deg: float, step_deg: float, local_approach: np.ndarray) -> str:
+        """Turn the hand ``deg`` about its approach on the last joint, in steps; the sign of the joint is read
+        from the first step."""
+        q0 = self.q()
+        if q0.size == 0:
+            return "no joint reading"
+        last = q0.size - 1
+        _, r0 = self.pose()
+        options = [deg + m * 360.0 for m in (-1, 0, 1)]
+        n = max(1, int(math.ceil(abs(deg) / max(1.0, step_deg))))
+        sign = 1.0
+        for i in range(1, n + 1):
+            goal = q0.copy()
+            goal[last] += sign * math.radians(deg) * i / n
+            if not self.fits(last, float(goal[last])):
+                alt = [o for o in options if self.fits(last, q0[last] + sign * math.radians(o))]
+                return f"the last joint has no room to roll {deg:+.0f} deg" + (
+                    f" (a turn of {alt[0]:+.0f} would fit)" if alt else ""
+                )
+            why = self.to_q(goal)
+            if why:
+                return why
+            if i == 1:
+                _, r1 = self.pose()
+                turned = float(
+                    rotvec(r1 @ r0.T) @ (r0 @ np.asarray(local_approach, dtype=np.float64))
+                )
+                if turned * deg < 0.0:
+                    sign = -1.0
+        return ""
+
+    def base(self) -> np.ndarray | None:
+        """Where this arm's first joint stands (its vertical axis), from a small test turn of it."""
+        q0 = self.q()
+        if q0.size == 0:
+            return None
+        d = 0.1 if self.fits(0, float(q0[0]) + 0.1) else -0.1
+        p0, _ = self.pose()
+        goal = q0.copy()
+        goal[0] += d
+        why = self.to_q(goal)
+        p1, _ = self.pose()
+        q1 = self.q()
+        self.to_q(q0)
+        if why:
+            return None
+        dq = float(q1[0] - q0[0]) if q1.size == q0.size else d
+        if abs(dq) < 0.02:
+            return None
+        c, s_ = math.cos(dq), math.sin(dq)
+        m = np.array([[c - 1.0, -s_], [s_, c - 1.0]])
+        v = np.linalg.solve(m, (p1 - p0)[:2])
+        return np.array([*(p0[:2] - v), p0[2]])
+
+
 # ----------------------------------------------------------------------------- the skill
 
 
@@ -572,6 +814,12 @@ def run(
     stage_attempts: int = STAGE_ATTEMPTS,
     hinge_offset: float = HINGE_OFFSET,
     hinge_press: float = HINGE_PRESS,
+    helper_arm_id: int = 1,
+    handover_point: dict[str, float] | None = None,
+    handover_height: float = HANDOVER_HEIGHT,
+    helper_offset: float = HELPER_OFFSET,
+    helper_bite: float = HELPER_BITE,
+    top_bite: float = TOP_BITE,
     joint_limits: list[list[float]] | None = None,
     verify: bool = True,
     camera_name: str = "",
@@ -1604,8 +1852,267 @@ def run(
             return finish("standing", hand_note + "; not checked from depth")
         return check(spot_xy, facing, hand_note)
 
+    def handover_run() -> Output:
+        """Two arms, no pitch near the table: this arm carries the tile flat to a point in the air with its width
+        along the helper's approach; the helper pinches its far end across the thickness with a level approach and
+        rolls a quarter turn on its last joint, so the tile stands in its hand; this arm takes the top end top-down
+        across the broad faces, the helper lets go, and this arm sets the tile down on its end."""
+        out["strategy"] = "handover"
+        b_id = int(helper_arm_id)
+        if b_id == int(arm_id):
+            return finish("unreachable", "the helper arm is the working arm")
+        on_b: dict[str, Any] = {"arm_id": b_id} if b_id else {}
+        try:
+            b_arm = ctx.tool("robot.describe_arm", **on_b)
+            jl = b_arm.get("joint_limits") if isinstance(b_arm, dict) else None
+            b_limits = [jl["lower"], jl["upper"]] if jl else list(YAM_LIMITS)
+        except Exception as exc:
+            return finish("unreachable", f"no helper arm {b_id} ({exc})")
+        hand_a = _Hand(ctx, int(arm_id), lower, upper, float(pitch_joint_jump))
+        hand_b = _Hand(
+            ctx, b_id, *(np.asarray(v, dtype=np.float64) for v in b_limits), float(pitch_joint_jump)
+        )
+        try:
+            gf_b = ctx.tool("robot.grasp_frame", **on_b)
+        except Exception as exc:
+            return finish("unreachable", f"no grasp frame for the helper ({exc})")
+        rb0 = matrix(gf_b["rotation"])
+        b_approach = rb0.T @ _xyz(gf_b.get("approach") or {"x": 0.0, "y": 0.0, "z": -1.0})
+        b_close = rb0.T @ _xyz(gf_b.get("close_axis") or {"x": 1.0, "y": 0.0, "z": 0.0})
+
+        # --- where: the handover point (default over the middle of the two hands, handover_height over the table)
+        # and the helper's approach, level and away from its base there (its base from a test turn of joint 1).
+        p_a, _ = hand_a.pose()
+        p_b, _ = hand_b.pose()
+        if handover_point:
+            hp = _xyz(handover_point)
+        else:
+            hp = np.array([*((p_a[:2] + p_b[:2]) / 2.0), table_z + float(handover_height)])
+        base_b = hand_b.base()
+        if base_b is None:
+            return finish(
+                "unreachable",
+                "the helper's base could not be found from a test turn of its joint 1",
+            )
+        w_dir = np.array([*(hp[:2] - base_b[:2]), 0.0])
+        if float(np.linalg.norm(w_dir)) < 0.05:
+            return finish("unreachable", "the handover point is over the helper's base")
+        w_dir /= float(np.linalg.norm(w_dir))
+        out["facing_deg"] = 0.0
+
+        # --- pick (this arm, top-down across the width near one end), lift.
+        cur = rot_now()
+        order = sorted(grasp_rots, key=lambda g: abs(jaw_error(cur, g)))
+        e_n = heading(theta)
+        if float(e_n @ np.array([*(hp[:2] - center[:2]), 0.0])) < 0.0:
+            e_n = -e_n
+        grasp_point = np.array([*(center[:2] + s * e_n[:2]), table_z + gh])
+        g_rot = next(
+            (g for g in order if ik(np.array([*grasp_point[:2], lift_z]), g) is not None), None
+        )
+        if g_rot is None:
+            return finish("unreachable", "no wrist solution over the tile passes the IK preview")
+        why = pick(grasp_point, g_rot, e_n)
+        if why is not None:
+            return why
+        g_meas, e_local = held["g"], held["e"]
+        r_now = turn_last(
+            lambda r: wrap(turn_about(r @ local_approach, r @ local_close, w_dir), True),
+            _xyz(here()),
+            "yaw_turn_deg",
+            period=180.0,
+            step_deg=float(pitch_step_deg),
+        )
+        err = wrap(turn_about(r_now @ local_approach, r_now @ local_close, w_dir), True)
+        if abs(err) > float(roll_tolerance_deg):
+            return finish(
+                "unreachable",
+                f"the held tile's width stayed {err:+.0f} deg off the helper's approach; still holding",
+            )
+
+        # --- this arm to the handover point: the tile's centre at hp.
+        def tile_from_a() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+            p, r = hand_a.pose()
+            a, e = r @ local_approach, r @ e_local
+            return p + (g_meas - tt / 2.0) * a - s * e, e, r
+
+        c_now, e_now, r_a = tile_from_a()
+        why = hand_a.line(_xyz(here()) + (hp - c_now), r_a)
+        if why:
+            return finish("unreachable", f"to the handover point: {why}; still holding")
+        why = holding(width())
+        if why:
+            return finish("dropped", f"at the handover point: {why}")
+
+        # --- the helper: level approach along w_dir, jaws closing across the thickness (vertical), at the far end.
+        c_now, e_now, r_a = tile_from_a()
+        n_t = r_a @ local_approach  # the tile's thickness axis (down while it lies)
+        n_t = n_t / (np.linalg.norm(n_t) or 1.0)
+        rb = _frame(w_dir, n_t, b_approach, b_close)
+        g_b = c_now - float(helper_offset) * e_now - (tw / 2.0 - float(helper_bite)) * w_dir
+        pre_b = g_b - float(retreat) * 2.0 * w_dir
+        b_start, _ = hand_b.pose()
+        why = hand_b.grip(tt + 2.0 * float(grip_clearance))
+        if not why:
+            why = hand_b.line(pre_b, rb, turn=True)
+        if not why:
+            why = hand_b.line(g_b, rb)
+        if why:
+            return finish("unreachable", f"the helper to the tile: {why}; still holding (this arm)")
+        w_b = hand_b.close()
+        if w_b >= 0.0 and not (tt - NARROW_MARGIN <= w_b <= tt + FULL_MARGIN):
+            hand_b.grip(tt + 2.0 * float(grip_clearance))
+            hand_b.line(pre_b, rb)
+            return finish(
+                "unreachable",
+                f"the helper closed to {w_b * 1e3:.1f} mm, not across the {tt * 1e3:.1f} mm tile; still holding",
+            )
+        # The tile in the helper's hand frame, from this arm's model of it.
+        pb, rb_now = hand_b.pose()
+        c_loc = rb_now.T @ (c_now - pb)
+        e_loc = rb_now.T @ e_now
+        n_loc = rb_now.T @ n_t
+        why = set_width(grip_open)
+        if why:
+            return finish("unreachable", f"this arm did not open at the handover ({why})")
+        p_up = _xyz(here()) + np.array([0.0, 0.0, 0.06])
+        why = go("robot.go_to_pose_cartesian", p_up, quat(rot_now()))
+        if why:
+            return finish("unreachable", f"this arm's rise after the handover: {why}")
+        w_b = hand_b.width()
+        if 0.0 <= w_b < tt - NARROW_MARGIN:
+            return finish(
+                "dropped", f"the helper's jaws read {w_b * 1e3:.1f} mm after this arm let go"
+            )
+
+        # --- the helper rolls a quarter turn about its approach: the far end down, the tile upright.
+        roll = turn_about(rb_now @ b_approach, rb_now @ e_loc, z_up)
+        why = hand_b.roll(roll, float(pitch_step_deg), b_approach)
+        if why:
+            return finish("unreachable", f"the helper's roll: {why}; the helper holds the tile")
+        pb, rb_now = hand_b.pose()
+        c_up = pb + rb_now @ c_loc
+        e_up = rb_now @ e_loc
+        n_up = rb_now @ n_loc
+        tilt = angle_between(e_up, z_up)
+        out["pitch_turn_deg"] = abs(roll)
+        out["tilt_at_release_deg"] = tilt
+        if tilt > float(tilt_tolerance_deg):
+            return finish(
+                "unreachable",
+                f"after the helper's roll the tile leans {tilt:.1f} deg; the helper holds the tile",
+            )
+
+        # --- this arm takes the top end top-down, jaws across the thickness.
+        top = c_up + (tl / 2.0) * e_up
+        try:
+            gf_top = ctx.tool(
+                "robot.grasp_frame",
+                close_heading_deg=math.degrees(math.atan2(n_up[1], n_up[0])),
+                **on_arm,
+            )
+        except Exception as exc:
+            return finish(
+                "unreachable", f"no grasp frame for the top ({exc}); the helper holds the tile"
+            )
+        top_rots = [matrix(gf_top[k]) for k in ("rotation", "rotation_flipped") if gf_top.get(k)]
+        a_tcp = np.array([*top[:2], top[2] + tip_reach - float(top_bite)])
+        cur = rot_now()
+        top_rots.sort(
+            key=lambda g: abs(
+                wrap(turn_about(g @ local_approach, cur @ local_close, g @ local_close), True)
+            )
+        )
+        r_top = next(
+            (g for g in top_rots if ik(a_tcp + np.array([0.0, 0.0, 0.05]), g) is not None), None
+        )
+        if r_top is None:
+            return finish(
+                "unreachable",
+                "this arm reaches no top-down grasp of the upright tile; the helper holds it",
+            )
+        why = set_width(tt + 2.0 * float(grip_clearance))
+        if not why:
+            why = go("robot.go_to_pose", a_tcp + np.array([0.0, 0.0, 0.05]), quat(r_top))
+        if why:
+            return finish(
+                "unreachable", f"this arm over the upright tile: {why}; the helper holds it"
+            )
+        r_sq = turn_last(
+            lambda r: jaw_error(r, r_top),
+            a_tcp + np.array([0.0, 0.0, 0.05]),
+            "roll_turn_deg",
+            period=180.0,
+        )
+        why = move("robot.go_to_pose_cartesian", a_tcp, quat(r_sq))
+        reached = _xyz(here())
+        if float(np.linalg.norm(reached - a_tcp)) > float(descent_tolerance):
+            go("robot.go_to_pose_cartesian", a_tcp + np.array([0.0, 0.0, 0.05]), quat(r_sq))
+            return finish(
+                "unreachable",
+                f"this arm's descent onto the top stopped {np.linalg.norm(reached - a_tcp) * 1e3:.0f} mm off "
+                f"({why or 'stalled'}); the helper holds the tile",
+            )
+        w_top = width(ctx.tool("robot.close_gripper", **on_arm))
+        if w_top >= 0.0 and not (tt - NARROW_MARGIN <= w_top <= tt + FULL_MARGIN):
+            return finish(
+                "unreachable",
+                f"this arm closed to {w_top * 1e3:.1f} mm on the top, not across the tile; the helper holds it",
+            )
+        top_off = c_up - reached  # the tile's centre from this arm's tool centre
+        hand_b.grip(tt + 2.0 * float(grip_clearance) + 0.01)
+        pb, rb_now = hand_b.pose()
+        why = hand_b.line(pb - float(retreat) * 2.0 * (rb_now @ b_approach), rb_now)
+        if why:
+            return finish(
+                "unreachable", f"the helper's retreat: {why}; this arm holds the tile upright"
+            )
+        hand_b.line(np.array([*b_start[:2], max(b_start[2], pb[2])]), rb_now, turn=False)
+        why = holding(width())
+        if why and w_top >= 0.0 and width() < tt - NARROW_MARGIN:
+            return finish("dropped", f"after the helper let go: {why}")
+
+        # --- this arm sets the tile down standing at the spot, opens, rises.
+        spot_xy = spot
+        down = np.array(
+            [*(spot_xy - top_off[:2]), table_z + tl / 2.0 + float(release_gap) - top_off[2]]
+        )
+        r_hold = rot_now()
+        here_now = _xyz(here())
+        why = go(
+            "robot.go_to_pose",
+            np.array([*down[:2], max(here_now[2], down[2] + 0.05)]),
+            quat(r_hold),
+        )
+        if not why:
+            why = go("robot.go_to_pose_cartesian", down, quat(r_hold))
+        if why:
+            return finish("unreachable", f"to the staging spot: {why}; still holding (upright)")
+        facing = math.degrees(math.atan2(n_up[1], n_up[0]))
+        out["facing_deg"] = float(facing)
+        out["standing_tile"] = standing_pose(spot_xy, facing, table_z, size)
+        out["release_position"] = _vec(np.array([*spot_xy, table_z + float(release_gap)]))
+        why = set_width(tt + 2.0 * float(grip_clearance))
+        if why:
+            try:
+                ctx.tool("robot.open_gripper", **on_arm)
+            except Exception as exc:
+                return finish(
+                    "unreachable", f"the jaws did not open at the spot ({exc}); still holding"
+                )
+        out["released"] = True
+        why = go("robot.go_to_pose_cartesian", down + np.array([0.0, 0.0, 0.06]), quat(r_hold))
+        if why:
+            return finish("unreachable", f"released, but the rise: {why}")
+        hand_note = f"handed over to arm {b_id} and back, rolled {roll:+.0f} deg, leaning {tilt:.1f} deg before the regrasp"
+        if not verify:
+            return finish("standing", hand_note + "; not checked from depth")
+        return check(spot_xy, facing, hand_note)
+
     if strategy == "table_pivot":
         return table_pivot_run()
     if strategy == "hinge_tip":
         return hinge_tip_run()
+    if strategy == "handover":
+        return handover_run()
     return pose_pitch_run()
