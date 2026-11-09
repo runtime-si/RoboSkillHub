@@ -132,12 +132,36 @@ pressing-a-brick-onto-studs).
 
 ## Simulation check
 
-Pending: no GPU host. The AutoDL pool (autodl5/6/14) and the GCP pool were all
-unreachable (ssh timeout) on 2026-11-09 when this was written. The harness is
-prepared (graph_guarded_push in the round's sim_check copy): free-air presses,
-presses onto the 30 mm cube's top and the table, a target within
-`goal_tolerance_if_lockup`, and a horizontal push of the cube to provoke a
-stick-slip breakaway (the twin has no snap-fit).
+A YAM station twin (left arm, 30 mm cube on the table, MuJoCo at 500 Hz;
+simulator ground truth only to set the cases up and to measure), defaults
+except as noted. The hand was turned top-down with `robot.grasp_frame` and
+closed (the closed fingertips, 10.2 mm under the tool centre, are the "part"),
+then stood at the case's start. One rollout per case:
+
+| case | start | route | travelled | resistance from | peak lag | fingertip stop vs true surface | cube moved |
+|---|---|---|---|---|---|---|---|
+| free air, 8 mm | 60 mm over the table | seated | 9.0 mm | none | 1.0 mm | - | 0 |
+| table | tips 3 mm over it | force_limit_no_travel | 3.2 mm | 3.2 mm | 6.8 mm | +0.37 mm | 0 |
+| cube top | tips 3 mm over it | force_limit_no_travel | 3.7 mm | 3.4 mm | 6.3 mm | +0.22 mm | 3.8 mm along +x |
+| cube top, target 2 mm under it, lockup tolerance 3 mm | as above | seated (lockup) | 3.7 mm | 3.4 mm | 6.3 mm | +0.22 mm | 3.8 mm along +x |
+| sideways into the cube, 35 mm along +x | tips at mid-height, 20 mm off its face | seated | 35.1 mm | none | 1.0 mm | - | 25 mm along +x, tipped (rose 4 mm) |
+
+- Every press stopped at the limit (10 steps, 6.3-6.8 mm over the free lag)
+  with the fingertips 0.2-0.4 mm over the true surface, and was unloaded
+  (`relieved`). The twin's free-motion lag peaked at 1.0 mm on single steps,
+  under `contact_lag`; no false resistance in either free run.
+- The press on the cube's top pushed the cube 3.8 mm sideways (the tapered
+  tips on its top edge), and the hand ended 4-4.6 mm off in x after the table
+  and cube presses: under 6 mm of lag the twin's servo gives sideways as well.
+- **A part that slides is not felt.** Pushed sideways, the free 30 mm cube
+  slid 25 mm and tipped with the lag never over 1.03 mm: the push reads as
+  free travel and ends `seated`. A part that skids on its seat instead of
+  going in looks the same; verify afterwards.
+- No snap-fit exists in the twin, so `snap_detected` ran only in the unit
+  tests, and the stick-slip push meant to stand in for it never built up a
+  push. `efforts_available` was false (the twin publishes no efforts). Nothing
+  here ran on a real YAM, and the force that 6 mm of lag stands for there is
+  not known.
 
 ## What changed from o2ac, and why
 
