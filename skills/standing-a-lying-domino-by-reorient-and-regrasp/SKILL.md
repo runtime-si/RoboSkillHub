@@ -118,24 +118,33 @@ above.
    hand (jaws along the helper's approach) and the helper's level hand
    (approach away from its base) is used. None: `unreachable`, nothing
    picked. Or give `handover_point`.
-2. **Pick.** This arm opens to the tile's width plus `grip_clearance` (4 mm)
-   a side, squares the jaws on its last joint, comes straight down to
-   `grasp_height` (11 mm), closes across the 24 mm width
-   `handover_grip_offset` (17 mm) from the centre toward the end nearer the
-   handover point, reads the gap (empty, 6 mm under or 8 mm over the width is
-   `ungraspable`), lifts.
-3. **Carry.** It turns the held tile about the vertical on its last joint, in
-   `pitch_step_deg` (15 deg) steps, until its width lies along the helper's
-   approach, and carries it to the handover point in chained IK steps.
-4. **Helper in.** The helper opens to the thickness plus 4 mm a side, goes to
-   a pose 60 mm short along its approach (`robot.go_to_pose`), reads its jaw
-   axis back and squares it across the thickness on its last joint (the
-   station twin's solver leaves the roll free; PORTING lesson 10) - choosing,
-   of the two squarings a half turn apart, the one that leaves room for the
-   quarter roll to come - then moves in by chained IK until its tool centre is
-   `helper_bite` (10 mm) past the tile's near edge, `helper_offset` (4 mm)
-   from the centre toward the far end, and closes. A gap not across the
-   7.5 mm thickness is `unreachable` (the helper backs off).
+2. **Helper first.** Before the pick, the helper opens to the thickness plus
+   4 mm a side and goes (`robot.go_to_pose`) to wait 60 mm short of the
+   handover point along its approach; it reads its jaw axis back and squares
+   it across a flat tile's thickness on its last joint (the station twin's
+   solver leaves the roll free; PORTING lesson 10), choosing, of the two
+   squarings a half turn apart, the one that leaves its last joint the most
+   room for a quarter roll. Which way the roll fits decides which end of the
+   tile must point which way at the handover. (Done first because this arm's
+   pinch sags: the tile turned 7-25 deg in it while it waited for the
+   helper.)
+3. **Pick.** This arm opens to the tile's width plus `grip_clearance` (4 mm)
+   a side, squares its jaws on its last joint (the way round that leaves room
+   for the turn after the pick), comes straight down to `grasp_height`
+   (11 mm), closes across the 24 mm width `handover_grip_offset` (17 mm) from
+   the centre, reads the gap (empty, 6 mm under or 8 mm over the width is
+   `ungraspable`), lifts, and turns the held tile about the vertical on its
+   last joint in `pitch_step_deg` (15 deg) steps onto its handover heading
+   (the other heading when its joint has no room and the helper can roll
+   either way).
+4. **Carry, helper in.** It carries the tile to the handover point in
+   chained IK steps and squares it onto its heading again (the steps leave
+   the roll free: once it had drifted 35 deg, and the helper's roll then
+   stood the tile at 55 deg). The helper moves in by chained IK until its
+   tool centre is `helper_bite` (10 mm) past the tile's near edge,
+   `helper_offset` (4 mm) from the centre toward the far end, and closes. A
+   gap not across the 7.5 mm thickness is `unreachable` (the helper backs
+   off).
 5. **Hand over.** This arm opens and rises 60 mm. The helper's jaws are read
    (`dropped`).
 6. **Roll.** The helper rolls a quarter turn about its approach on its last
@@ -261,9 +270,9 @@ written from the described behaviour. Here:
   `MIN_TOOL_HEIGHT`**: in the station twin the hand arrived 2.2-2.7 mm over the
   command, leaving the pads 4.0-4.5 mm of the edge.
 - **`HANDOVER_HEIGHT = 0.12` m, `HANDOVER_ACROSS`, `HANDOVER_FORWARD`**: a
-  top-down YAM hand 0.15 m over the table ran into its wrist limit 0.42 m from
-  its base in the twin (the midpoint between the hands); the first point that
-  solved there was 0.2 m in front of the bases, 0.3 of the way across.
+  top-down YAM hand 0.15 m over the table ran into its wrist limit at the
+  midpoint between the hands (0.42 m from its base) in the twin; the grid is
+  a choice, and a point is used only when both arms' IK solves there.
 - **`HANDOVER_GRIP_OFFSET = 0.017` m, `HELPER_OFFSET = 0.004` m, `TOP_BITE =
   0.008` m, `HELPER_BITE = 0.010` m**: keep the two hands' pads apart on a
   48 mm tile at the handover and at the top grasp. With the helper 12 mm from
@@ -295,7 +304,45 @@ as its simulator box (standing in for perception), staging where it lay. A
 tile counts as standing when its long axis is within 10 deg of vertical, its
 centre at half its height (+/-10 mm) and within 15 mm of the spot.
 
-RESULTS_TABLE
+**Handover (shipped): 8 of 12 tiles stand.** Two runs of six tiles
+(positions and yaws in the two sets differ), the shipped script:
+
+| set | stood (truth) | skill's routes | the others |
+|---|---|---|---|
+| A: yaws 0, 45, 90, 135, 20, 110 | 4/6 | 3 standing, 1 unverified (stood), 2 unreachable | the helper closed on nothing (the tile fell out of this arm's pinch as it came in); this arm's last joint had no room to turn the held tile onto its handover heading (still holding) |
+| B: yaws 160, 70, 10, 100, 150, 60 | 4/6 | 2 standing, 2 unverified (both stood), 2 unreachable | the same two causes, once each |
+
+- Every tile the hands released stood: true tilt 0.0 deg, centre 0.05-0.8 mm
+  from the spot. No route said `standing` for a tile that did not stand.
+- `unverified` (3): the overhead camera's window over the spot was a
+  quarter covered by something higher (the park pose is the harness's).
+- Before the last two changes (re-squaring at the pick for room, and the
+  helper squared before the pick) the same 12 tiles gave 7/12; before the
+  helper waited squared at the handover point, two of three far tiles were
+  knocked out of this arm's pinch by the helper.
+- One run of the harness's 6-tile set takes 22-25 min of simulation
+  (~3.5 min a tile).
+
+**Single-arm strategies: 0 stood.**
+
+| run | strategy, setup | stood | what happened |
+|---|---|---|---|
+| 1-7 (earlier) | pose_pitch, several variants | 0 of ~39 | the pitch steps jumped the wrist pitch onto its limit; refused by the joint-jump guard or the tile dropped (see git history) |
+| diagnostic | pitch joint (4) turned alone in the air, 10 steps | - | the tile followed the hand to 75 deg of elevation, then slid out of the pads between 70 and 80 deg of hand pitch; the pitched hand then descended to 40 mm over the table at 0.55 m from the base with joint 4 at 1.496 rad |
+| j1 | table_pivot, 60 deg in the air, 1 mm press | 0/4 | 2 lost turning up on the table, 1 dropped in the air at 45 deg, 1 no spot (joint 4 at -1.56) |
+| t1 | table_pivot, whole turn on the table, spots previewed from the top-down arm | 0/1 | every preview failed (false negatives); lost at 50 deg on the table |
+| t2 | + the empty rehearsal, no press | 0/1 | at the rehearsed spots the top-down set-down ran joint 4 to -1.54 |
+| t3 | + 45 deg in the air | 0/1 | the tile turned in the pinch from 45 to 64 deg while the hand held 45, the table turned it back to 22 deg, it fell out; the last upright step needed joint 4 at +1.53 |
+| h1 | hinge_tip | 0/2 | the tile lifted with the hand, turning 0.6 deg a step; its foot left the table and it was set down lying |
+
+The 7 earlier pose_pitch runs used the same scene with six tiles 0.52-0.66
+m from the base; runs 4-7 gave the tiles condim 4 and 0.005 m torsional
+friction through a harness-only patch. All runs since use the scene's default
+contacts.
+
+Not exercised in the twin: the regrasp by
+placing-an-upright-domino-beside-neighbours from a stood tile, and
+`table_pivot` / `hinge_tip` reaching `standing`. Nothing ran on a real YAM.
 
 ## Provenance
 
