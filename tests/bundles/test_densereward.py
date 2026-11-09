@@ -70,7 +70,9 @@ def test_one_frame_uses_the_shipped_system_prompt_and_the_card_user_turn(dr, fak
     assert out["model"].startswith("densereward/densereward-1frame@9796cb2a")
     (call,) = fake.calls
     assert call["system"] == dr.SYSTEM_PROMPT_1FRAME
-    assert call["system"].startswith("You are a robot manipulation evaluator. You analyze the image")
+    assert call["system"].startswith(
+        "You are a robot manipulation evaluator. You analyze the image"
+    )
     assert call["system"].endswith("Do NOT generate <tool_call> tokens.")
     assert call["text"] == "Task: put the black bowl on the plate."
     assert call["max_new_tokens"] == 8

@@ -315,7 +315,9 @@ def _get_runtime(variant: str) -> tuple[Any, float]:
             t0 = time.perf_counter()
             device = os.environ.get("GAP_DENSEREWARD_DEVICE", "cuda")
             model_dir = _model_dir(variant)
-            logger.info("Loading DenseReward %s on %s from %s", _model_id(variant), device, model_dir)
+            logger.info(
+                "Loading DenseReward %s on %s from %s", _model_id(variant), device, model_dir
+            )
             _runtimes[variant] = _Runtime(model_dir, device)
             return _runtimes[variant], time.perf_counter() - t0
         return _runtimes[variant], 0.0

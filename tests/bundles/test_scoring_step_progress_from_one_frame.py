@@ -61,8 +61,9 @@ def test_routes_on_the_done_threshold(script, progress, route):
     assert out["progress"] == pytest.approx(progress)
     assert out["camera"] == "top"
     assert out["model"] == "densereward/x@abc"
-    (call,) = one.calls
-    assert call["task"] == TASK and int(call["image"][0, 0, 0]) == 2
+    assert out["scores"] == [pytest.approx(progress)] * 3
+    assert len(one.calls) == 3
+    assert all(c["task"] == TASK and int(c["image"][0, 0, 0]) == 2 for c in one.calls)
 
 
 def test_external_camera_is_preferred_and_a_named_one_is_used(script):
@@ -71,13 +72,65 @@ def test_external_camera_is_preferred_and_a_named_one_is_used(script):
     assert int(one.calls[0]["image"][0, 0, 0]) == 1
     wrist_only = {"cameras": {"left_wrist": {"rgb": np.zeros((2, 2, 3), np.uint8)}}}
     ctx, one, _ = _ctx(obs=wrist_only)
-    assert script.run(ctx, task=TASK)["camera"] == "left_wrist"
+    assert script.run(ctx, task=TASK, samples=1)["camera"] == "left_wrist"
 
 
 def test_given_observation_is_used_instead_of_a_fresh_one(script):
     ctx, one, _ = _ctx(obs=RuntimeError("must not be called"))
-    script.run(ctx, task=TASK, observation={"cameras": [_cam("top", 9)]})
+    script.run(ctx, task=TASK, observation={"cameras": [_cam("top", 9)]}, samples=1)
     assert int(one.calls[0]["image"][0, 0, 0]) == 9
+
+
+class Seq(Scorer):
+    """Answers each call with the next progress in ``values``."""
+
+    def __init__(self, values):
+        super().__init__({})
+        self.values = list(values)
+
+    def __call__(self, **kwargs):
+        self.calls.append(kwargs)
+        return {
+            "model": "m",
+            "raw": "r",
+            "reason": "",
+            "found": True,
+            "progress": self.values.pop(0),
+        }
+
+
+def _seq_ctx(values, observations):
+    one = Seq(values)
+    obs = iter(observations)
+    tools = {"densereward.progress": one, "robot.get_observation": lambda: next(obs)}
+    return FakeContext(tools), one
+
+
+def test_samples_fresh_frames_and_routes_on_their_median(script):
+    frames = [{"cameras": [_cam("top", v)]} for v in (3, 4, 5)]
+    ctx, one = _seq_ctx([0.86, 0.90, 0.70], frames)
+    out = script.run(ctx, task=TASK)
+    assert [int(c["image"][0, 0, 0]) for c in one.calls] == [3, 4, 5]
+    assert out["route"] == "done" and out["progress"] == pytest.approx(0.86)
+    assert out["scores"] == [0.86, 0.9, 0.7]
+    assert out["raw"] == "r | r | r"
+
+
+def test_samples_that_disagree_route_low_confidence(script):
+    frames = [{"cameras": [_cam("top", v)]} for v in (3, 4, 5)]
+    ctx, _ = _seq_ctx([0.33, 0.94, 0.37], frames)
+    out = script.run(ctx, task=TASK)
+    assert out["route"] == "low_confidence" and "disagree" in out["reason"]
+    assert out["progress"] == pytest.approx(0.37)
+    ctx, _ = _seq_ctx([0.33, 0.94, 0.37], frames)
+    assert script.run(ctx, task=TASK, max_spread=0.7)["route"] == "in_progress"
+
+
+def test_a_fresh_frame_without_the_camera_is_skipped(script):
+    frames = [{"cameras": [_cam("top", 3)]}, {"cameras": []}, {"cameras": [_cam("top", 5)]}]
+    ctx, one = _seq_ctx([0.5, 0.6], frames)
+    out = script.run(ctx, task=TASK)
+    assert len(one.calls) == 2 and out["scores"] == [0.5, 0.6]
 
 
 def test_float_frames_are_converted_to_uint8(script):
@@ -112,9 +165,9 @@ def test_a_failure_word_routes_regressed_even_when_high(script, word):
 
 
 def test_a_drop_from_previous_progress_routes_regressed(script):
-    ctx, _, _ = _ctx({"progress": 0.4, "found": True})
+    ctx, _, _ = _ctx({"progress": 0.29, "found": True})
     assert script.run(ctx, task=TASK, previous_progress=0.6)["route"] == "regressed"
-    ctx, _, _ = _ctx({"progress": 0.5, "found": True})
+    ctx, _, _ = _ctx({"progress": 0.31, "found": True})
     assert script.run(ctx, task=TASK, previous_progress=0.6)["route"] == "in_progress"
     ctx, _, _ = _ctx({"progress": 0.5, "found": True})
     out = script.run(ctx, task=TASK, previous_progress=0.6, regress_drop=0.05)
@@ -153,6 +206,8 @@ def test_example_declares_every_route(skills_registry):
     from pathlib import Path
 
     bundle = skills_registry.get(BUNDLE)
-    example = json.loads((Path(bundle.bundle_dir) / "examples" / "canonical_subgraph.json").read_text())
+    example = json.loads(
+        (Path(bundle.bundle_dir) / "examples" / "canonical_subgraph.json").read_text()
+    )
     declared = set(example["exit"]["success_values"]) | {example["on_error"]}
     assert declared == {"done", "in_progress", "regressed", "low_confidence"}
