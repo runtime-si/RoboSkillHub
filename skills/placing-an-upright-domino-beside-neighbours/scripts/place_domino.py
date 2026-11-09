@@ -36,7 +36,11 @@ import math
 from typing import Any, TypedDict
 
 import numpy as np
-from gap import NodeContext
+
+try:
+    from gap import NodeContext
+except ImportError:  # annotation only; lets the domino task module import this without gap
+    NodeContext = Any
 
 logger = logging.getLogger(__name__)
 

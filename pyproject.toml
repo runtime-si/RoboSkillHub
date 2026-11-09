@@ -48,6 +48,11 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/roboskillhub"]
 
+[tool.hatch.build.targets.wheel.force-include]
+# Skill scripts the domino task module reuses in place (found under roboskillhub/_skills).
+"skills/placing-an-upright-domino-beside-neighbours/scripts" = "roboskillhub/_skills/placing-an-upright-domino-beside-neighbours/scripts"
+"skills/planning-a-domino-layout/scripts" = "roboskillhub/_skills/planning-a-domino-layout/scripts"
+
 [tool.hatch.metadata]
 allow-direct-references = true
 

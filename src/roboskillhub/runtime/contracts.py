@@ -147,6 +147,8 @@ class Limits:
     gripper_width_tolerance_m: float = 0.004
     held_object_tolerance_m: float = 0.02
     max_task_s: float = 600.0
+    joint_tolerance_rad: float = 0.02
+    max_joint_step_rad: float = 0.2
     max_contact_force_N: float = 0.0
     """0 means the station has no configured contact-force limit: guarded_press is refused."""
 
@@ -188,6 +190,8 @@ class Limits:
             "held_object_tolerance_m": (1e-3, 0.05),
             "max_task_s": (1, 7200),
             "max_contact_force_N": (0, 200),
+            "joint_tolerance_rad": (1e-4, 0.2),
+            "max_joint_step_rad": (1e-3, 0.6),
         }
         for key, bounds in ranges.items():
             if key in values:
@@ -328,6 +332,20 @@ SCHEMAS = {
             },
         },
     },
+    "move_joints": {
+        "required": ["q_path"],
+        "properties": {
+            "timeout_s": _N,
+            "q_path": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 256,
+                "items": {"type": "array", "minItems": 1, "maxItems": 16, "items": _N},
+            },
+            "joint_names": {"type": "array", "items": _S},
+            "speed_rad_s": _N,
+        },
+    },
     "guarded_press": {
         "required": ["axis", "max_travel_m", "speed_m_s", "force_limit_N"],
         "properties": {
@@ -378,6 +396,7 @@ CAPABILITY_BUNDLES = {
     "move_waypoints": "moving-through-waypoints",
     "observe_objects": "observing-object-poses",
     "guarded_press": "pressing-with-contact-limit",
+    "move_joints": "moving-along-joint-path",
 }
 
 
@@ -391,6 +410,12 @@ def validate_request(capability: str, request: Any) -> dict:
     extra = set(request) - set(schema["properties"])
     if missing or extra:
         raise Rejected(f"request fields: missing={sorted(missing)}, unknown={sorted(extra)}")
+    if "q_path" in request and (
+        not isinstance(request["q_path"], list)
+        or not 1 <= len(request["q_path"]) <= 256
+        or not all(isinstance(q, list) and 1 <= len(q) <= 16 for q in request["q_path"])
+    ):
+        raise Rejected("q_path must hold 1 to 256 joint vectors")
     for key in ("object_ids", "waypoints"):
         if key in request and (
             not isinstance(request[key], list)

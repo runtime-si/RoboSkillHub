@@ -133,6 +133,9 @@ class YamBackend:
         capabilities = ["pose_feedback", "cartesian_motion", "gripper", "stop"]
         if self._object_feedback or self._objects is not None:
             capabilities.append("object_feedback")
+            # Only a provider that states it reports quaternion_xyzw adds 6D object poses.
+            if getattr(self._objects, "provides_orientation", False) is True:
+                capabilities.append("object_pose_feedback")
         return {
             "backend": "yam-callables",
             "kind": "real",
@@ -184,6 +187,8 @@ class YamBackend:
                     "real YAM object feedback cannot be simulated or commanded state"
                 )
             record["timestamp_s"] = self._timestamp(record.get("timestamp_s"), "object timestamp_s")
+            if record.get("visibility") in ("occluded", "not_found"):
+                continue  # an explicit miss carries no position; observe_objects reports it
             try:
                 record["position_m"] = vector(record.get("position_m"), "object position_m", 3)
             except Rejected as exc:
