@@ -301,9 +301,10 @@ def _shrink(img: np.ndarray, scale: float) -> np.ndarray:
 
 
 def exposure_gain(ref: np.ndarray, live: np.ndarray) -> float:
-    """The gain that matches live's mean to the reference's, so auto exposure does not read as a
-    part (lego-sorter's _match_exposure)."""
-    ma, mb = float(np.mean(ref)), float(np.mean(live))
+    """The gain that matches live's median to the reference's, so auto exposure does not read as a
+    part (lego-sorter's _match_exposure, on medians instead of means: a 2 cm part fills 5-15 % of a
+    10 cm zone and would pull a mean)."""
+    ma, mb = float(np.median(ref)), float(np.median(live))
     if mb < 1.0 or ma < 1.0:
         return 1.0
     gain = float(np.clip(ma / mb, *EXPOSURE_GAIN_LIMITS))
@@ -429,6 +430,7 @@ class Window:
             )
             self.in_zone[zy0:zy1, zx0:zx1] = small.astype(bool)
         self.zone_px = max(1, int(self.in_zone.sum()))
+        self.gain = 1.0
 
     def grey(self, frame: dict[str, Any]) -> np.ndarray:
         wx0, wy0, wx1, wy1 = self.full
@@ -441,6 +443,7 @@ class Window:
                 f"frame size changed against the reference ({grey.shape} vs {self.ref_grey.shape})"
             )
         gain = exposure_gain(self.ref_grey[self.in_zone], grey[self.in_zone])
+        self.gain = gain
         out = np.abs(self.ref_grey - np.clip(grey * gain, 0, 255)) >= PIXEL_DIFF_THR
         d = _depth(frame)
         if self.ref_depth is not None and d is not None:
@@ -510,17 +513,21 @@ def capture_reject(window: Window, changed: np.ndarray, allow_edge: bool) -> str
 
 
 def part_mask(
-    ref: dict[str, Any], cur: dict[str, Any], rect: tuple[int, int, int, int], seed: np.ndarray
+    ref: dict[str, Any],
+    cur: dict[str, Any],
+    rect: tuple[int, int, int, int],
+    seed: np.ndarray,
+    gain: float = 1.0,
 ) -> np.ndarray:
     """Full-resolution mask of the part inside ``rect``: pixels whose largest channel moved by
-    PIXEL_DIFF_THR (exposure-matched) or whose depth rose DEPTH_RISE, the component that overlaps the
+    PIXEL_DIFF_THR (after the zone's exposure ``gain``: the crop is mostly part, so its own gain
+    would be wrong) or whose depth rose DEPTH_RISE, the component that overlaps the
     compare-resolution blob ``seed`` (already scaled to ``rect``), holes filled."""
     from scipy import ndimage
 
     x0, y0, x1, y1 = rect
     a = _rgb(ref)[y0:y1, x0:x1].astype(np.float32)
     b = _rgb(cur)[y0:y1, x0:x1].astype(np.float32)
-    gain = exposure_gain(a, b)
     ch = np.abs(a - np.clip(b * gain, 0, 255)).max(axis=2) >= PIXEL_DIFF_THR
     da, db = _depth(ref), _depth(cur)
     if da is not None and db is not None:
@@ -751,15 +758,15 @@ def drop_position(b: dict[str, Any]) -> dict[str, float]:
 
 def run(
     ctx: NodeContext,
-    bins: list[dict[str, Any]],
     reference: Any,
+    bins: list[dict[str, Any]] | None = None,
     staging_zone: dict[str, Any] | None = None,
     staging_roi: dict[str, float] | None = None,
     rules: list[dict[str, Any]] | None = None,
     size_classes: list[dict[str, Any]] | None = None,
     bin_counts: dict[str, int] | None = None,
     camera_name: str = "",
-    palette: str | list[dict[str, Any]] = "lego_basic",
+    palette: Any = "lego_basic",
     white_ref: Any = None,
     accept_ambiguous: bool = False,
     part_id: str = "",
@@ -865,7 +872,7 @@ def run(
                                 if crop_looks_empty(_rgb(frame)[y0:y1, x0:x1]):
                                     reject = "empty crop"
                         if reject is None:
-                            captured = (frame, changed, blob, rect)
+                            captured = (frame, changed, blob, rect, window.gain)
                             break
                         last_reject = reject
                         if reject == "empty crop":
@@ -902,7 +909,7 @@ def run(
         nxt = grab()
         frame = nxt if nxt is not None else frame
 
-    frame, _changed, (_bb, blob_mask), rect = captured
+    frame, _changed, (_bb, blob_mask), rect, gain = captured
     out["edge_override"] = whole
     x0, y0, x1, y1 = rect
     import cv2
@@ -913,7 +920,7 @@ def run(
     )
     seed = np.zeros(shape, bool)
     seed[wy0:wy1, wx0:wx1] = seed_full.astype(bool)
-    local = part_mask(ref, frame, rect, seed[y0:y1, x0:x1])
+    local = part_mask(ref, frame, rect, seed[y0:y1, x0:x1], gain)
     mask = np.zeros(shape, bool)
     mask[y0:y1, x0:x1] = local
     if not mask.any():

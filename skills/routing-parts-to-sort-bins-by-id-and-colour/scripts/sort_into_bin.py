@@ -264,9 +264,11 @@ def run(
         except Exception as exc:  # no preview served: let the move decide
             logger.info("routing-parts-to-sort-bins: no IK preview (%s)", exc)
             return True
-        return not (
-            isinstance(reply, dict)
-            and (reply.get("success") is False or reply.get("within_servo_tolerance") is False)
+        if not isinstance(reply, dict):
+            return True
+        return all(
+            reply.get(k) is None or bool(reply.get(k))
+            for k in ("success", "within_servo_tolerance")
         )
 
     carry_z = rim_z + float(approach_clearance) + hang
