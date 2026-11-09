@@ -1,0 +1,89 @@
+{
+ "n_tiles": 4,
+ "tile": {
+  "thickness": 0.0075,
+  "width": 0.024,
+  "height": 0.048,
+  "mass": 0.01,
+  "friction": 0.5,
+  "source": "48 x 24 x 7.5 mm standard domino, 10 g, friction 0.5: the values the placing-an-upright-domino-beside-neighbours MuJoCo check used (Franka-Domino-Project tile size; predicators' table fit)"
+ },
+ "table": {
+  "top_z": 0.1,
+  "center_xy": [
+   0.0,
+   0.0
+  ],
+  "size_xy": [
+   0.6,
+   0.6
+  ],
+  "thickness": 0.05,
+  "tilt_deg": 0.0,
+  "friction": 0.5,
+  "calibration": "scene ground truth (simulation); no real-station calibration"
+ },
+ "feeder": {
+  "origin_xy": [
+   -0.08,
+   -0.15
+  ],
+  "yaw": 0.0,
+  "pitch": 0.04,
+  "separator_size": [
+   0.003,
+   0.012,
+   0.015
+  ]
+ },
+ "line": {
+  "start_xy": [
+   -0.07,
+   0.05
+  ],
+  "yaw": 0.0,
+  "pitch": 0.036
+ },
+ "gripper": {
+  "pad_size": [
+   0.012,
+   0.006,
+   0.04
+  ],
+  "palm_size": [
+   0.03,
+   0.08,
+   0.015
+  ],
+  "max_opening": 0.07,
+  "pad_friction": 1.0,
+  "grip_force": 3.0,
+  "finger_speed": 0.05,
+  "linear_speed": 0.12,
+  "yaw_speed": 1.5,
+  "source": "scene choice loosely after the YAM linear_4310 hand (30 mm blades); no YAM asset or measured dynamics"
+ },
+ "place": {
+  "grasp_height": 0.03,
+  "grip_clearance": 0.004,
+  "squeeze": 0.004,
+  "release_gap": 0.0015,
+  "transit_clearance": 0.02,
+  "neighbour_clearance": 0.004,
+  "table_margin": 0.02,
+  "source": "placing-an-upright-domino-beside-neighbours defaults (grasp 30 mm, 4 mm, 1.5 mm, 20 mm)"
+ },
+ "physics": {
+  "gravity": -9.81,
+  "isaac_dt": 0.004166666666666667,
+  "isaac_solver_position_iterations": 32,
+  "isaac_solver_velocity_iterations": 4,
+  "isaac_contact_offset": 0.002,
+  "isaac_rest_offset": 0.0,
+  "mujoco_timestep": 0.0005,
+  "control_hz": 60.0,
+  "observe_hz": 30.0
+ },
+ "version": "domino_scene_v1",
+ "schema": "roboskillhub.assembly_eval.domino_scene/v1"
+}
