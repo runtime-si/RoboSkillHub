@@ -88,9 +88,10 @@ bricks that hold; the wrist depth camera decides whether the brick came off.
   directly (layer 1 is a brick on the plate). Refine the seat from a wrist
   close-up first if the plate calibration is a few millimetres off.
 - **After it**: `removed` holds the brick at the clearance height. In the twin
-  the brick then hung turned in the fingertips (38-40 deg, 15-19 mm off
-  centre): measure the held brick again (registering-held-objects /
-  perceiving-objects) before pressing-a-brick-onto-studs places it.
+  the brick then hung turned in the fingertips (38-40 deg, its centre 5-10 mm
+  off the tool centre): measure the held brick again
+  (registering-held-objects / perceiving-objects) before
+  pressing-a-brick-onto-studs places it.
   `stuck` / `slipped` leave the brick on the seat with the jaws open over it:
   retry with `strategy: wiggle`, a deeper `grasp_depth`, or pin the structure
   with the other arm (holding-steady-while-other-arm-acts). `neighbour_lifted`
@@ -177,7 +178,63 @@ still held: strategy, tilt, height of the hand over its start), `seat_lag`
 
 ## Simulation check
 
-SIM_SECTION
+Run on a YAM station twin (left arm, linear_4310 fingers, the real station's
+wrist D405 pose and intrinsics) with a fixed 4 x 4 DUPLO baseplate and a free
+2 x 2 DUPLO brick (31.8 x 31.8 x 19.2 mm, 8 g, friction 0.8) seated on its
+four central studs, layer 1. The skill got the true seat (or one 2 mm off),
+`system: duplo`, no fallbacks unless said; ground truth (the brick's box and
+which studs still hold) was read by the harness after each trial, never by
+the skill.
+
+**How the stud clutch is approximated.** The twin has no interference fit,
+so the clutch is an added force, not contact:
+
+- Each of the brick's four sockets is held by a constant downward force of F
+  newtons (the per-stud force in the table) applied at the socket's bottom
+  centre, every physics substep, while that point has risen less than 4.5 mm
+  (the DUPLO stud height) over its seated height. Once it has risen past that,
+  the stud lets go for good. The force is the same at 0.1 mm and at 4.4 mm of
+  rise, and there is none after.
+- So a straight pull has to beat 4F at once; a lever lifts the far row out
+  first (in the harness it lets go at about 11 deg about the near bottom
+  edge) while the near row rises 0.7-1.7 mm, and the lift then pulls 2F.
+- The plate's studs render 4.5 mm high (what the wrist depth reads) but
+  collide only 1.5 mm high, the brick's walls 0.1 mm and its tube 0.3 mm off
+  them: with rigid 4.5 mm studs the far wall's inner corner jams on the far
+  studs at about 5 deg, where a real wall flexes.
+
+**Lever against straight pull** (two runs of 8 trials: the current script,
+and one before the baseline-creep guard and the slip wording, with the same
+routing):
+
+| force per stud (total) | lever | straight pull | wiggle |
+|---|---|---|---|
+| 1.5 N (6 N) | removed 1/1 | removed 1/1 | - |
+| 2.5 N (10 N) | removed 4/4 (2 of them with the seat 2 mm off) | slipped 2/2 | removed 1/1 |
+| 4.0 N (16 N) | slipped 1/1 | slipped 1/1 | stuck 1/1 |
+| 6.0 N (24 N) | slipped 2/2 (one with the straight fallback, slipped too) | slipped 1/1 | stuck 1/1 |
+
+- The route agreed with the harness's ground truth in 16 of 16 trials: every
+  `removed` had all four studs released and the brick in the hand, every
+  `slipped` / `stuck` left it seated (within 0.9 mm and 1.2 deg).
+- The lever removed the brick up to 2.5 N a stud, where the straight pull
+  already slipped (its studs rose 0.4-2.2 mm before the fingertips slid off).
+  At 4 N the lever brought the far row to 4.39 mm of the 4.5 mm and the grip
+  slid; at 6 N, 3.7-3.9 mm.
+- Every lever and straight-pull failure was the fingertips sliding off the
+  brick. The wiggle stalled (`stuck`) at 4 and 6 N with all four studs still
+  engaged after 3.4-4.1 mm of rise: its alternate levers walk both rows up
+  without letting either out.
+- On success the load cleared with the tilt at 14 deg, 7-11 mm into the lift;
+  the peak lag over free motion was 2.7-3.7 mm. A straight pull at 1.5 N
+  lifted the brick without a load that cleared (its lag never fell back under
+  the threshold before the clearance).
+- The wrist depth read the empty seat 19.2 mm under the brick's top over
+  10-12 points every time, and the neighbouring cells within 0.12 mm.
+- After `removed` the brick hung 38-40 deg turned in the fingertips, its
+  centre 5-10 mm off the tool centre.
+- An earlier version that stopped on lag alone (no progress test) called
+  both a lever and a straight pull at 2.5 N `stuck` on 0.9-1.3 mm of lag.
 
 ## Limits
 
@@ -185,10 +242,11 @@ SIM_SECTION
   stud over its engagement (see above), not a measured interference fit, and
   real LEGO/DUPLO walls flex where the twin's are rigid with low studs. Which
   strategy wins on real bricks, and at what force, is not established here.
-- **The grip is the limit.** Every failure in the twin was the fingertips
-  sliding, never the arm running out of force; on a real YAM the same is
-  likely (small tapered fingertips, 13 mm into a DUPLO wall). Rubber pads or a
-  deeper grasp help; a 1-wide LEGO brick may not take a lever at all.
+- **The grip is the limit.** Every lever and straight-pull failure in the
+  twin was the fingertips sliding, never the arm running out of force; on a
+  real YAM the same is likely (small tapered fingertips, 13 mm into a DUPLO
+  wall). Rubber pads or a deeper grasp may help (not tested); a 1-wide LEGO
+  brick may not take a lever at all.
 - **Lag on a real YAM** is millimetres in free air
   (detecting-contact-from-joint-effort measured 5.4 mm): the default
   threshold is the twin's 0.56 mm; pass `lag_threshold` from a free-air run,
