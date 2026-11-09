@@ -1,0 +1,3591 @@
+{
+ "snapshot_date": "2026-11-08",
+ "note": "Union of the 12 shard rejection lists plus integration dedup merges and drops. Not counted in the index.",
+ "rows": [
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/graspnet/graspness_unofficial",
+   "reason": "Mirror of rhett-chen/graspness_implementation (identical file list, same GraspNet-baseline NC licence); merged into that entry."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/atenpas/gpd_ros",
+   "reason": "ROS wrapper of GPD; merged into the atenpas/gpd entry (same algorithm)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/H-Freax/GraspNet_Pointnet2_PyTorch1.13.1",
+   "reason": "Fork of graspnet-baseline upgraded to PyTorch 1.13; same code (MIT header over research-only upstream)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/chenyunbo-cyb/graspnet-app",
+   "reason": "Fork of graspnet-baseline plus a PyQt demo app; no new capability."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/Loahit5101/GR-ConvNet-grasping",
+   "reason": "Re-implementation of GR-ConvNet with TensorRT benchmarking; no licence; merged with skumra/robotic-grasping."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/TX-Leo/GRCNN_plane_robotic_grasping",
+   "reason": "Deployment wrapper of GR-ConvNet (same author pattern as the graspness wrapper); not a distinct algorithm."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/YangXuanyi/grasp-encyclopedia",
+   "reason": "Aggregates copied GR-ConvNet / TF-Grasp code; no distinct implementation."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/kalyanksk/yolo-ggcnn",
+   "reason": "Bundles copies of Ultralytics (AGPL) and GG-CNN; selection pipeline only."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/ivalab/grasp_primitiveShape",
+   "reason": "Repository contains Mask R-CNN segmentation and V-REP data generation; no grasp-pose code found outside V-REP bindings."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/ivalab/grasp_multiObject",
+   "reason": "Dataset and MATLAB visualisation scripts only (detector lives in grasp_multiObject_multiGrasp, indexed)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/stanford-iprl-lab/UniGrasp",
+   "reason": "Multi-finger focused; point_set_selection.py is training code only - left to the dexterous shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/upc-ghy/PSAGrasp",
+   "reason": "Release lacks model definitions (18 files, no models/ directory); not a usable implementation at the pinned commit."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/pyni/PointNet2_Grasping_Data_Part",
+   "reason": "Data-generation copy of Dex-Net; no new grasp method."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/yudhisteer/Robotic-Grasping-Detection-with-PointNet",
+   "reason": "Student project with data loading/processing only."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/mvandermerwe/PointSDF",
+   "reason": "Shape reconstruction for grasping; no grasp planner in tree, no licence."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/BenBurgessLimerick/DGBench",
+   "reason": "Dynamic-grasping hardware benchmark (moving platform firmware/controller); no grasp algorithm."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/cxy1997/Transferable-Active-Grasping",
+   "reason": "Viewpoint optimisation for segmentation, not grasp generation/quality."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/PKU-EPIC/DREDS",
+   "reason": "Depth restoration for specular/transparent objects - perception shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/Shreeyak/cleargrasp",
+   "reason": "Depth completion for transparent objects - perception shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/liruiw/OMG-Planner",
+   "reason": "Grasp-aware motion planning - motion shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/liruiw/GA-DDPG",
+   "reason": "Point-cloud grasping RL policy - policy shard (not inspected here)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/machines-in-motion/grasping_sim",
+   "reason": "RL grasping with contact forces - policy shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/rhett-chen/airobot",
+   "reason": "General robot simulation framework, not grasp generation."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/andyzeng/visual-pushing-grasping",
+   "reason": "Push-grasp RL policy in clutter - policy/clutter shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/choicelab/grasping-invisible",
+   "reason": "Target-oriented push-grasp policy - policy/clutter shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/pantor/learning-shifting-for-grasping",
+   "reason": "Shifting/push policy for grasping (GPL) - policy shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/tsagkas/click2grasp",
+   "reason": "User-clicked part-level grasping with visual descriptors - task-oriented shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/NJU-R-L-Group-Embodied-Lab/AdaClearGrasp",
+   "reason": "Agentic skill orchestration for clearing - expert/primitive shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/thkkk/manibox",
+   "reason": "Grasp generalisation via scalable sim data for visuomotor policies - policy shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/anthonysimeonov/ndf_robot",
+   "reason": "Neural descriptor fields pick-and-place - placement/relational shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/adithyamurali/TaskGrasp",
+   "reason": "Task-oriented grasping - task-oriented shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/wenbowen123/catgrasp",
+   "reason": "Task-relevant category-level grasping - task-oriented shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/wliu88/rail_semantic_grasping",
+   "reason": "Context-aware semantic grasp selection - task-oriented shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/mkt1412/GraspGPT_public",
+   "reason": "Language-guided task-oriented grasping - task-oriented shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/abhaybd/GraspMolmo",
+   "reason": "Language-grounded task-oriented grasping - task-oriented shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/H-Freax/ThinkGrasp",
+   "reason": "VLM-guided grasp selection - task-oriented/language shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/luyh20/VL-grasp",
+   "reason": "Vision-language target grasping - task-oriented/language shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/cv516Buaa/OVGNet",
+   "reason": "Open-vocabulary grasping - task-oriented/language shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/andvg3/LGD",
+   "reason": "Language-driven grasp detection - task-oriented/language shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/Fsoft-AIC/Language-Driven-6-DoF-Grasp-Detection-Using-Negative-Prompt-Guidance",
+   "reason": "Language-driven grasp detection - task-oriented/language shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/wu467/LangGrasp",
+   "reason": "Language-conditioned grasping - task-oriented/language shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/HilbertXu/CROG",
+   "reason": "Language-referred grasping - task-oriented/language shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/xukechun/Vision-Language-Grasping",
+   "reason": "Vision-language grasping policy - task-oriented/language shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/MrSecant/GaussianGrasper",
+   "reason": "Open-vocabulary Gaussian-splat grasping - task-oriented/language shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/hjy-u/ETOG",
+   "reason": "Language-guided grasping tuning - task-oriented/language shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/tev-fbk/FreeGrasp_code",
+   "reason": "Free-form language grasping - task-oriented/language shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/yimingli1998/hgc_net",
+   "reason": "Anthropomorphic hand grasping in clutter - dexterous shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/PKU-EPIC/DexGraspNet",
+   "reason": "Dexterous grasp synthesis - dexterous shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/PKU-EPIC/UniDexGrasp2",
+   "reason": "Dexterous grasp policies - dexterous shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/tengyu-liu/GenDexGrasp",
+   "reason": "Dexterous grasp generation - dexterous shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/MultiGrasp/MultiGrasp",
+   "reason": "Multi-object dexterous grasping - dexterous shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/graspnet/AnyDexGrasp",
+   "reason": "Cross-hand dexterous grasping - dexterous shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/zhenyuwei2003/DRO-Grasp",
+   "reason": "Cross-embodiment dexterous grasping - dexterous shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/leggedrobotics/graspqp",
+   "reason": "Force-closure dexterous grasp optimisation - dexterous shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/google-deepmind/geomatch",
+   "reason": "Multi-finger grasp synthesis - dexterous shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/Jiaxin-Lu/ugg",
+   "reason": "Unified generative dexterous grasping - dexterous shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/graspnet/suctionnet-baseline",
+   "reason": "Suction-only - suction shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/junchengli1/Sim-Suction-API",
+   "reason": "Suction-only - suction shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/IRVLUTD/handnet-pipeline",
+   "reason": "Human hand detection for demonstrations, not robot grasp generation."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/poisonwine/REGRAD",
+   "reason": "Relational grasp dataset (no grasp generation code reviewed) - dataset."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/Galaxies99/TransCG",
+   "reason": "Transparent-object depth completion dataset/code - perception shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/maximiliangilles/MetaGraspNet",
+   "reason": "Grasp dataset - dataset only (superquadric follow-up MetaSQGraspnet_public indexed)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/BerkeleyAutomation/dex-nerf-datasets",
+   "reason": "Dataset only."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/moveit/moveit_grasps",
+   "reason": "Overlap: motion shard indexes grasp_generator / grasp_filter / grasp_planner; parallel-jaw generator and IK filter dropped here to avoid double counting."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/jingxixu/dynamic-grasping",
+   "reason": "Overlap: motion shard indexes reachability-motion-aware dynamic grasping."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/jimazeyu/GraspSplats",
+   "reason": "Overlap: perception-pose shard indexes it."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/PKU-EPIC/GraspNeRF",
+   "reason": "Overlap: perception-pose shard indexes it."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/dkguo/PhyGrasp",
+   "reason": "Overlap: grasp-special shard indexes it."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/liruiw/HCG",
+   "reason": "Overlap: grasp-special shard indexes it."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-parallel",
+   "repo": "https://github.com/TARGO-benchmark/TARGO",
+   "reason": "Overlap: grasp-special shard indexes it (target-driven clutter grasping)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "tsagkas/click2grasp",
+   "reason": "Tree at HEAD contains only LICENSE and README; no implementation."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "Jianwei915/VLA-Grasp",
+   "reason": "HybridGrasp: README only, no code at HEAD."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "ekjt/OVAL-Grasp",
+   "reason": "Project website (HTML/JS/videos) only; no grasping code."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "leizhang-public/contact-dexnet",
+   "reason": "Only an example dataset and two visualisation scripts; no method implementation."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "wyl1253/Learning-Dual-Arm-Push-and-Grasp-Synergy-in-Dense-Clutter",
+   "reason": "HEAD contains only URDF/mesh assets and licence text; no policy code."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "MrSecant/GaussianGrasper",
+   "reason": "nerfstudio fork plus figures; no grasp module located in the tree (only gifs named grasp*)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "wu467/LangGrasp",
+   "reason": "Only GPT prompt scripts and vendored VLPart/detectron2; no grasp implementation located."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "Kamalnl92/Self-Supervised-Learning-for-pushing-and-grasping",
+   "reason": "VPG-derived codebase with identical layout (trainer/robot/vrep); merge into andyzeng/visual-pushing-grasping."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "lzalza/Learning-Push-Grasp-Synergy-for-Occluded-Objects-in-Cluttered-Environments",
+   "reason": "VPG/goal-oriented push-grasp derivative with identical layout; merge into xukechun/Efficient_goal-oriented_push-grasping_synergy."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "phuongboi/pushing-and-grasping-with-reinforcement-learning",
+   "reason": "VPG re-implementation in CoppeliaSim, no licence; merge into VPG (not separately indexed)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "caomw/arc-robot-vision",
+   "reason": "Mirror of andyzeng/arc-robot-vision (kept original)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "wudongming97/AffordanceNet",
+   "reason": "Affordance segmentation (RAGNet) already indexed by shard perception-pose (wudongming97/affordancenet#affordance-vlm); dropped to avoid double count."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "Reagan1311/Aff-Grasp",
+   "reason": "Affordance segmentation already indexed by shard perception-pose (reagan1311/aff-grasp#aff-grasp); dropped to avoid double count."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "AdamRashid96/lerf_togo_website / lerf-togo/lerf-togo.github.io",
+   "reason": "LERF-TOGO: only website repos found; no official code release located."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "dheerajkiran/gaussian-task-grasping / milan-tiwari/gaussian-task-grasping",
+   "reason": "0-star unofficial LERF-TOGO-style backends without licence; not reviewed."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "nabe1750/Dex-Net-5.0",
+   "reason": "Parallel-jaw GQ-CNN re-implementation; out of scope (grasp-parallel)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "shisha101/agile_grasp_suction, shisha101/OpenCV_for_suction_grasps, shisha101/grasp_SM, triwahyuu/suction_grasp_estimate, JH2-LEE/suction_grasp",
+   "reason": "Tiny undocumented suction experiments (0-2 stars, mostly no licence); not worth indexing."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "graspnet/graspnet-baseline, NVlabs/contact_graspnet, UT-Austin-RPL/GIGA, ethz-asl/vgn, THU-VCLab/HGGD and other plain parallel-jaw generators in grasp-seeds.json",
+   "reason": "Plain parallel-jaw grasp generators belong to shard grasp-parallel."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "grasp-special",
+   "repo": "lihuang3 / v1viswan/dexnet_rrt_planner_surreal_robosuite",
+   "reason": "Dex-Net parallel-jaw wrapper in robosuite; out of suction/task/clutter/dex scope (grasp-parallel or motion)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-seg",
+   "repo": "https://github.com/FlagOpen/RoboBrain2.0",
+   "reason": "Same repository as FlagOpen/RoboBrain2.5 (git ls-remote HEAD identical, af98c932); RoboBrain 2.0 script rb_v2.0/inference_rb2.py lives in the indexed 2.5 entry."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-seg",
+   "repo": "https://github.com/FlagOpen/RoboBrain",
+   "reason": "RoboBrain v1, superseded by 2.5 (model-version variant of the same capability); merged into the robobrain entry."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-seg",
+   "repo": "https://github.com/IDEA-Research/TAPTR",
+   "reason": "Default branch at the pinned HEAD contains only README/LICENSE/assets, no code entrypoint; licence is IDEA License 1.0 (commercial use needs permission)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-seg",
+   "repo": "https://github.com/chongzhou-ntu/EdgeSAM",
+   "reason": "Repository URL not resolvable (git ls-remote: not found); not indexed. EdgeSAM is also under the S-Lab non-commercial licence."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-seg",
+   "repo": "https://github.com/open-mmlab/mmdetection (MM-Grounding-DINO)",
+   "reason": "Reimplementation of Grounding DINO; same capability as the indexed original and the Hub tool; not added."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-seg",
+   "repo": "https://github.com/ultralytics/ultralytics (YOLO-World / YOLOE / SAM wrappers)",
+   "reason": "Integrations of models indexed from their original repos (AILab-CVC/YOLO-World, THU-MIG/yoloe, SAM); only the YOLO instance-segmentation predictor is indexed from ultralytics."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-seg",
+   "repo": "https://github.com/SysCV/sam-hq (sam-hq2)",
+   "reason": "HQ-SAM2 is a variant in the same repo; merged into the hq-sam entry."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-seg",
+   "repo": "https://github.com/ChaoningZhang/MobileSAM (MobileSAMv2)",
+   "reason": "Variant in the same repo; merged into the mobilesam entry."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-seg",
+   "repo": "https://github.com/google-deepmind/tapnet (BootsTAPIR, TAPNet, causal TAPIR)",
+   "reason": "Model variants of the indexed TAPIR / TAPNext entries; merged."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-seg",
+   "repo": "https://github.com/allenai/molmoact2",
+   "reason": "Action policy (VLA), not a perception tool; belongs to a policy shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-seg",
+   "repo": "https://github.com/abhaybd/GraspMolmo",
+   "reason": "Task-oriented grasp prediction; belongs to the grasp shard, not target localisation."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-seg",
+   "repo": "https://github.com/stefan-ainetter/grasp_det_seg_cnn",
+   "reason": "Joint grasp detection + semantic segmentation; grasp shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-seg",
+   "repo": "https://github.com/HilbertXu/CROG",
+   "reason": "Language-guided grasp (CLIP referring + grasp); grasp shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-seg",
+   "repo": "https://github.com/hjy-u/ETOG",
+   "reason": "Language-guided grounding + grasp; grasp shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-seg",
+   "repo": "https://github.com/chjohnkim/MaskRCNN_Grasp_Detection",
+   "reason": "Mask R-CNN + ROS grasp demo, no licence file in search metadata and grasp-focused; left to grasp shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-seg",
+   "repo": "https://github.com/huangwl18/VoxPoser",
+   "reason": "Planning/value-map system; its perception is OWL-ViT + SAM + XMem, all indexed separately."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-seg",
+   "repo": "https://github.com/teal024/FoundationPose-plus-plus",
+   "reason": "6D pose tracking; object-pose shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-seg",
+   "repo": "https://github.com/wenbowen123/BundleTrack",
+   "reason": "6D pose tracking; object-pose shard (already in perception-planning-seeds as object-pose)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose",
+   "repo": "weigao95/kPAM",
+   "reason": "Pinned HEAD 7214936b contains only LICENSE, README and two GIFs; no implementation code to index."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose",
+   "repo": "MrSecant/GaussianGrasper",
+   "reason": "Pinned HEAD 2ac23c2f is a vendored nerfstudio tree plus figures/colab; no GaussianGrasper-specific grasping/feature-field code found outside nerfstudio, no licence file. Revisit if code is released."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose",
+   "repo": "Fsoft-AIC/Open-Vocabulary-Affordance-Detection",
+   "reason": "git ls-remote failed (repository not reachable under this name); not pinned."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose",
+   "repo": "jeffi/dex-nerf",
+   "reason": "Repository not reachable; no public Dex-NeRF implementation found."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose",
+   "repo": "Zhengrong-Xue/USEEK",
+   "reason": "Repository not reachable under this name; not pinned."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose",
+   "repo": "Evo-NeRF (Kerr et al. 2022)",
+   "reason": "No public code repository found."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose",
+   "repo": "tjiiv-cprg/EPro-PnP",
+   "reason": "Differentiable probabilistic PnP layer used inside training; not a standalone pose tool for picking. Deferred, not counted."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose",
+   "repo": "nv-nguyen/cnos",
+   "reason": "CAD-based novel-object segmentation; belongs to the segmentation shard (it is the 2D front-end of SAM-6D/GigaPose here). Not duplicated in this shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose",
+   "repo": "anthonysimeonov/relational_ndf",
+   "reason": "Relational placement; left to the placement shard to avoid duplicate dedup keys. NDF itself is indexed here."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose",
+   "repo": "r-pad/taxpose",
+   "reason": "Relative placement transform; placement shard scope."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose",
+   "repo": "ivalab/KGN",
+   "reason": "Keypoint-based grasp generation; grasp shard scope."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose-2",
+   "repo": "ethnhe/FS6D-PyTorch",
+   "reason": "Pinned HEAD d5552e4b contains only LICENSE and README; no implementation released."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose-2",
+   "repo": "LinHuang17/NCF",
+   "reason": "Pinned HEAD 8b60d0a4 is a project web page (index.html + CSS); no code."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose-2",
+   "repo": "JasonQSY/AffordanceLLM",
+   "reason": "Pinned HEAD 44bc435d has only AGD20K data-processing scripts and a vendored copy of LOCATE; the AffordanceLLM model itself is not released. LOCATE is already indexed (reagan1311/locate) by perception-pose."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose-2",
+   "repo": "stanford-iprl-lab/ao-grasp",
+   "reason": "Fetched and drafted, but grasp-parallel already holds dedup_key stanford-iprl-lab/ao-grasp#ao-grasp; dropped here to avoid a duplicate."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose-2",
+   "repo": "CNJianLiu/GenCOPE",
+   "reason": "Seed listed by perception-pose, but already indexed in the backlog shard (cnjianliu/gencope)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose-2",
+   "repo": "CNJianLiu/MH6D",
+   "reason": "Seed listed by perception-pose, but already indexed in the backlog shard (cnjianliu/mh6d)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose-2",
+   "repo": "wentaoyuan/robopoint",
+   "reason": "RoboPoint spatial affordance pointing already indexed by perception-seg (wentaoyuan/robopoint#robopoint-spatial-affordance)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose-2",
+   "repo": "MandiZhao/real2code",
+   "reason": "Pinned 44-file tree has SAM part-segmentation fine-tuning, shape completion and joint evaluation, but not the LLM articulation code-generation step the paper is about. Deferred, not counted."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose-2",
+   "repo": "yyvhang/lemon_3d",
+   "reason": "Pinned; models human-body/object interaction affordance with SMPL-X, not robot grasp or manipulation regions. Out of scope."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose-2",
+   "repo": "columbia-ai-robotics/act_the_part",
+   "reason": "git ls-remote failed; repository not reachable under this name."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose-2",
+   "repo": "r-pad/flowbothd",
+   "reason": "Not reachable; the code lives at liy1shu/FlowBotHD, which is indexed."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose-2",
+   "repo": "SiyuanHuang95/A3VLM",
+   "reason": "Not reachable; the code lives at changhaonan/A3VLM, which is indexed."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose-2",
+   "repo": "yufeiwang63/ArticuBot",
+   "reason": "Found by search; it is a full articulated-object opening policy, so it was left to the policies shard. Not pinned here."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "perception-pose-2",
+   "repo": "DualPoseNet, HS-Pose, RBP-Pose, CenterSnap, ShAPO, NOCS",
+   "reason": "Listed in the task, but the first pose shard already indexes them (gorilla-lab-scut/dualposenet, lynne-zheng-linfang/hs-pose, lolrudy/rbp_pose, zubair-irshad/centersnap, zubair-irshad/shapo, hughw19/nocs_cvpr2019). Not duplicated."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "moveit/moveit_task_constructor#generate-grasp-pose / generate-place-pose / simple-grasp",
+   "reason": "Exact duplicates of primitives-recipes shard entries (pr-mtc-generate-grasp-pose, pr-mtc-generate-place-pose, pr-mtc-simple-grasp); failure-path notes kept in notes/motion.md."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "moveit/moveit_grasps#grasp-generator, #grasp-filter",
+   "reason": "Duplicates of grasp-parallel entries moveit-moveit-grasps and moveit-moveit-grasps-grasp-ik-filter. Only the approach/lift GraspPlanner is kept here."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "jingxixu/dynamic-grasping",
+   "reason": "Duplicate of grasp-parallel entry jingxixu-dynamic-grasping (reachability). Also no LICENSE file."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "moveit/moveit2#totg",
+   "reason": "MoveIt TOTG is a maintained port of tobiaskunz/trajectories; merged into the original's entry (kunz-time-optimal-trajectories) as extra evidence."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "NVlabs/curobo#grasp-phase-planner (main 5e4f23d)",
+   "reason": "Refactor of the same plan_grasp capability after the Hub pin; merged into curobo-plan-grasp-approach-lift."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "tesseract-robotics/trajopt",
+   "reason": "Optimizer core of the Tesseract TrajOpt planner; merged into tesseract-trajopt-motion-planner. Root licence also unresolved (per-package files)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "jacarvalho/mpd-public",
+   "reason": "Earlier version of the same Motion Planning Diffusion project; merged into mpd-splines-motion-planning-diffusion."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "RobotLocomotion/gcs-science-robotics",
+   "reason": "Paper reproduction scripts for Drake GCS; capability merged into drake-gcs-trajectory-optimization."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "moveit/moveit",
+   "reason": "ROS 1 MoveIt; same capabilities as moveit/moveit2 entries (kept the maintained ROS 2 code)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "RobotLocomotion/drake#toppra, open-planning/roboplan#toppra, hungpham2511/toppra C++ core",
+   "reason": "Re-implementations of TOPP-RA; one TOPP-RA entry kept (hungpham2511/toppra Python)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "ompl/ompl planners listed separately (RRT*, PRM, BIT*, KPIECE)",
+   "reason": "Algorithm variants behind the same SimpleSetup interface; one OMPL geometric-planning entry."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "oleg-alexandrov/reuleaux",
+   "reason": "Repository does not exist (git ls-remote empty); the real Reuleaux is ros-industrial-consortium/reuleaux."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "vahrenkamp/simox",
+   "reason": "Not on GitHub (Simox lives on GitLab); not fetched in this pass."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "facebookresearch/differentiable-robot-model",
+   "reason": "Differentiable kinematics/dynamics learning library; no IK/planning entrypoint relevant to pick-and-place."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "ivy-llc/robot",
+   "reason": "Archived toy gradient planner for the Ivy framework."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "HKUST-Aerial-Robotics/FIESTA, JINXER000/GIE-mapping, rlnav/motion_planning, acmerobotics/road-runner, KailinTong/Motion-Planning-for-Mobile-Robots, Boyang--Li/Motion-Planning-Course, Amos-Chen98/mobile_robots_motion_planning, AlexGeControl/..., Huan0414/..., Zhihaibi/...",
+   "reason": "Mobile / aerial robot planning or course homework from search-motion*.json; not arm manipulation."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "yoraish/mmd, hhhhzl/mdoc, RAISELab-atUVA/Diffusion-MRMP, IMRCLab/db-lacam, reso1/stgcs",
+   "reason": "Multi-robot (mobile/point-robot) planning; not single/dual arm."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "danderfer/Comp_Sci_Sem_2, MarkipTheMudkip/in-class-project-2, S4ltster/Beemovie, landonasato/Function, HimangshuCyber/Math-Quiz, Skattermuffin/...",
+   "reason": "Spam (Bee Movie text) matched by the search query."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "noitom-robotics/AdaPT, KelvinLauMiau/Kinova7DoF-MuJoCo, Hack-a-Day/Spark-MeArm, ZodiusInfuser/TrueWalkSimulator, cevalokas/Continuum_Robot...",
+   "reason": "Tennis policy, simulation demo, hobby S-curve, walking gait, continuum robots: not pick-place motion."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "caelan/pddlstream, caelan/LTAMP, aidan-curtis/tampura",
+   "reason": "Task-and-motion planning frameworks (GPL / unresolved); belongs to primitives-recipes/policies scope, not indexed here."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "mikeferguson/simple_grasping",
+   "reason": "Shape-based grasp planner; grasp shard scope."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "motion",
+   "repo": "sahilrajpurkar03/nlp-pnp-robotic-arm, Abeilles14/Velocity-Obstacle-and-Motion-Planning, paul-moumita/Motion-Planning-on-Baxter, blackcoffeerobotics/bcr_arm",
+   "reason": "Application demos wrapping MoveIt/OMPL without a reusable new capability; not indexed."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "StructDiffusion/StructDiffusion#physics-stability-eval",
+   "reason": "src/StructDiffusion/utils/physics_eval.py runs no physics simulation despite its name: it only moves point clouds for the learned pairwise-collision model. Folded into the structdiffusion/structdiffusion entry."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "RealHunger/VLM-TAMP",
+   "reason": "Copy of zt-yang/pybullet_planning with extra debug artefacts/reports (45-line tree diff); the original zt-yang/pybullet_planning is indexed."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "yijiangh/pybullet_planning",
+   "reason": "Repackaged derivative of caelan/pybullet-planning (task_modeling/placement.py mirrors the original); original indexed."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "changhaonan/LG-MCTS",
+   "reason": "Pinned HEAD contains only a README; no implementation."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "RrQqY/TableRearrangement",
+   "reason": "Pinned HEAD has only LICENSE and a submodule pointer (robotic-grasping); no placement/rearrangement code."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "TheCamusean/grasp_diffusion",
+   "reason": "SE(3)-DiffusionFields code generates and evaluates grasps only; no placement implementation exists in the repo (grasp shard scope)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "NeRP (Neural Rearrangement Planning)",
+   "reason": "No public code found (ahq1993/NeRP and similar names do not exist)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "SpatialVLM (official)",
+   "reason": "No official code release; the community reproduction remyxai/VQASynth is indexed instead."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "AnyGrasp SDK (graspnet/anygrasp_sdk)",
+   "reason": "Not used by the AnyPlace code at the pinned commit: the class GetGraspByAnyGrasp imports graspnet-baseline (non-commercial licence). Dependency recorded in the AnyPlace pipeline entry, not indexed separately."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "Equivariant Transporter / Fourier Transporter / Imagination Policy",
+   "reason": "Could not locate public repositories under the guessed owner names; not indexed."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "zhoues/Code-as-Monitor",
+   "reason": "Repository not found."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "instadeep/jumanji",
+   "reason": "git ls-remote failed twice; BinPack is a generic RL env, not robot placement. Not indexed."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "weigao95/kPAM",
+   "reason": "Pinned HEAD has no implementation code (already rejected by perception-pose)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "ARISE-Initiative/robosuite (placement_samplers)",
+   "reason": "Placement samplers initialise episode object poses; they are not robot placement or verification. Task success checks belong to expert shards."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "yongchao98/AutoTAMP",
+   "reason": "2D navigation signal-temporal-logic planning; no object placement."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "aidan-curtis/tampura",
+   "reason": "Generic TAMP-under-uncertainty framework; motion shard rejected the TAMP frameworks group; no placement-specific code."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "allenai/molmo",
+   "reason": "General VLM (AnyPlace uses it to point at placement regions); no placement code."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "yufeiwang63/RL-VLM-F",
+   "reason": "Reward learning from VLM preferences for RL; not a placement method or release verifier."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "sumedh7/RoboCLIP",
+   "reason": "Video-language reward for RL; not a placement success detector."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "zhouxian/act3d-chained-diffuser",
+   "reason": "Visuomotor policy (policies scope); bundles an RLBench copy."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "nickgkan/3d_diffuser_actor",
+   "reason": "Visuomotor policy (policies scope)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "Learning-and-Intelligent-Systems/predicators",
+   "reason": "Learning-for-planning research framework; placement samplers are incidental. Not inspected."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "alexfrom0815/Packing-Tools",
+   "reason": "Blender rendering/visualisation helpers for packing figures; no placement algorithm."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "sled-group/RACER",
+   "reason": "Failure-recovery visuomotor policy (policies scope); not inspected."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "search-placement.json noise (28 hits)",
+   "reason": "Query 'robot placement' returned mostly unrelated repos (FTC/FRC code, bee-movie text, bipedal MPC, forest generator, needle/PCB/BGA placement, base-placement reachability maps). Only ac-rad/anyplace was relevant; reachability maps belong to motion."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "huangwl18/VoxPoser",
+   "reason": "Dropped as duplicate: primitives-recipes indexes huangwl18/voxposer#voxposer-lmp-interface (same entrypoint)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "huangwl18/ReKep",
+   "reason": "Dropped as duplicate: primitives-recipes (#rekep-keypoint-constraint-pipeline), perception-seg and perception-pose already index it. Note for integrator: subgoal_solver accepts iteration-limit terminations as success before constraint checks."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "HaoxuHuang/copa",
+   "reason": "Dropped as duplicate: primitives-recipes #copa-spatial-constraint-solver covers constraint_solver/main_infer_trans.py."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "moka-manipulation/moka",
+   "reason": "Dropped as duplicate: primitives-recipes and perception-seg index it. Note: FrankaMarkPolicy sets task_success when the gripper opens (no placement check)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "google-research/google-research (code_as_policies)",
+   "reason": "Dropped as duplicate: primitives-recipes #code-as-policies-tabletop-lmp. Note: PickPlaceEnv.get_reward returns None."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "wentaoyuan/RoboPoint",
+   "reason": "Dropped as duplicate: perception-seg #robopoint-spatial-affordance (same eval_model entrypoint)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "Zhoues/RoboRefer",
+   "reason": "Dropped as duplicate: perception-seg #roborefer-spatial-referring."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "qizekun/SoFar",
+   "reason": "Dropped as duplicate: perception-seg #sofar-perception; the original Open6DOR evaluator is indexed here instead."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "IRVLUTD/SceneReplica",
+   "reason": "Dropped as duplicate: perception-seg #scenereplica-seg-grasp-benchmark."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "zhouzypaul/auto_eval",
+   "reason": "Dropped as duplicate: backlog indexes zhouzypaul/auto_eval with the same PaligemmaDetector entrypoint."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "anthonysimeonov/ndf_robot",
+   "reason": "Dropped as duplicate: perception-pose #ndf-pose-transfer covers the same descriptor-alignment optimisation (used for place poses)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "tomato1mule/edf",
+   "reason": "Dropped as duplicate: perception-pose #equivariant-descriptor-fields covers PickAgent/PlaceAgent."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "google-research/ravens",
+   "reason": "Dropped as duplicate: policies indexes TransporterAgent.act/Transport (the place module is part of that policy)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "cliport/cliport",
+   "reason": "Dropped as duplicate: policies indexes TwoStreamClipLingUNetTransporterAgent.act."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "DFKI-NI/grasplan",
+   "reason": "Dropped as duplicate: motion indexes dfki-ni/grasplan#place (same dedup key)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "moveit/moveit_task_constructor (GeneratePlacePose)",
+   "reason": "Dropped as duplicate: primitives-recipes #mtc-generate-place-pose and motion #place."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "stepjam/RLBench (conditions.py)",
+   "reason": "Dropped as duplicate: experts-classic #rlbench-success-conditions."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "isaac-sim/IsaacLab (cubes_stacked, task_done_pick_place)",
+   "reason": "Dropped as duplicate: experts-sim #stack-grasp-predicates and #place-upright-and-into-predicates cover both termination functions."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "robocasa/robocasa (object_utils.py)",
+   "reason": "Dropped as duplicate: experts-sim #placement-predicates (same functions)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "Lifelong-Robot-Learning/LIBERO (predicates)",
+   "reason": "Dropped as duplicate: experts-sim #bddl-predicates."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "placement",
+   "repo": "StanfordVL/BEHAVIOR-1K (sample_kinematics)",
+   "reason": "Dropped as duplicate: experts-classic #omnigibson-place-with-predicate-primitive samples placements through the same machinery. The OnTop/Inside predicates are kept here as a verification entry."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "haosulab/ManiSkill",
+   "item": "mani_skill/examples/motionplanning/panda/solutions/{pull_cube,pull_cube_tool,push_cube}.py",
+   "reason": "Adjacent non-prehensile push/pull/hook-tool tasks (intake seeds marked adjacent); not pick-and-place."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "haosulab/ManiSkill",
+   "item": "panda/solutions/{draw_triangle,draw_svg}.py",
+   "reason": "Drawing with a stick tool; not pick-and-place."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "haosulab/ManiSkill",
+   "item": "seed maniskill-actor-oriented-bounding-box; seed maniskill-move-to-pose-with-rrtstar",
+   "reason": "Merged: OBB extraction into maniskill-obb-grasp-pose; RRT* into maniskill-mplib-pose-planning (same function family, planner-name variant)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "haosulab/ManiSkill",
+   "item": "xarm6/so100 solution ports",
+   "reason": "Robot-model variants of the Panda experts; listed as variants_merged, not separate entries."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "haosulab/ManiSkill2",
+   "item": "whole repo at 63e0e7db",
+   "reason": "Repository now contains only a README redirecting to ManiSkill; ManiSkill2 never shipped scripted motion-planning solutions in-repo."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "RoboTwin-Platform/RoboTwin",
+   "item": "envs/{dump_bin_bigbin,open_microwave,open_laptop}.py",
+   "reason": "Adjacent articulated/dumping tasks (intake seeds marked adjacent)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "RoboTwin-Platform/RoboTwin",
+   "item": "envs/{beat_block_hammer,shake_bottle,shake_bottle_horizontally,press_stapler,turn_switch,click_bell,click_alarmclock}.py",
+   "reason": "Tool striking, shaking, pressing and switching tasks; not pick-and-place."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "RoboTwin-Platform/RoboTwin",
+   "item": "envs/{place_can_basket,place_container_plate,move_pillbottle_pad,stamp_seal,handover_mic,pick_diverse_bottles,blocks_ranking_rgb,stack_blocks_three,stack_bowls_three,place_shoe,place_object_stand,place_a2b_right,move_can_pot,place_bread_basket,place_mouse_pad,move_stapler_pad}.py",
+   "reason": "Object/colour/count/side variants of an indexed behaviour; recorded under variants_merged of the parent entry."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "RoboTwin-Platform/RoboTwin",
+   "item": "seed robotwin-transfer-object-out-of-vessel (move_can_pot.py)",
+   "reason": "Seed name is wrong: the code places a can beside the pot at a computed target. Merged into robotwin-relational-placement-a-beside-b."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "RoboTwin-Platform/RoboTwin@RoboTwin-1.0",
+   "item": "envs/* other than base_task.py and pick_apple_messy.py",
+   "reason": "Same behaviours as RoboTwin 2.0 tasks (handover, stacking, shoes, mug hanging, bottles, container place); 2.0 kept as the maintained implementation."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "OpenMOSS/VLABench",
+   "item": "SkillLib.{open_door,close_door,open_drawer,press,pour,open_laptop}",
+   "reason": "Adjacent articulation/pressing/pouring primitives (intake seeds marked adjacent)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "OpenMOSS/VLABench",
+   "item": "SkillLib.{lift,push,move_offset}",
+   "reason": "Directional/relative wrappers of moveto/pull; merged (seeds marked variant)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "OpenMOSS/VLABench",
+   "item": "AddCondimentTask, HeatFoodTask, SetStudyTableTask, TakeChemistryExperimentTask, HammerNailandHangPictureTask, PressButtonTask",
+   "reason": "Pouring, appliance operation, articulated-object or hammer tool-use sequences; adjacent."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "OpenMOSS/VLABench",
+   "item": "CoolDrinkTask.get_expert_skill_sequence",
+   "reason": "Body is `pass` (no implementation)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "OpenMOSS/VLABench",
+   "item": "store_food_series, find_unseen_object, make_juice_series, play_mahjong, play_snooker, use_seesaw_complex, primitive/physical_series/*",
+   "reason": "No get_expert_skill_sequence at the pinned commit (QA or unfinished tasks)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "OpenMOSS/VLABench",
+   "item": "select_toy/mahjong/billiards/drink/chemistry_tube/poker, PutBoxOnPaintingTask, GetCoffeeWith{Sugar,Milk}, Cluster{Toy,Drink,Dessert,Ingredients,Billiards}, PokerPlayTask, MathGameTask",
+   "reason": "Same skill sequence as an indexed task with different entities/orientations; merged as variants."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "isaac-sim/IsaacLab",
+   "item": "scripts/environments/state_machine/open_cabinet_sm.py",
+   "reason": "Articulated drawer opening; adjacent."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "isaac-sim/IsaacLab",
+   "item": "scripts/environments/state_machine/lift_franka_soft.py",
+   "reason": "Same PickAndLiftSm with a deformable object; merged into isaaclab-pick-lift-state-machine."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "isaac-sim/IsaacLab",
+   "item": "source/isaaclab_mimic/isaaclab_mimic/locomanipulation_sdg/*",
+   "reason": "Humanoid (G1) navigation + manipulation data generation; embodiment far from YAM. Not indexed this round (see notes, 'left')."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "ARISE-Initiative/robosuite",
+   "item": "joint_pos / joint_vel / joint_tor / simple_grip controllers",
+   "reason": "Generic low-level controllers with no pick-place behaviour; intake seeds counted them but they add no pick-place capability."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "ARISE-Initiative/robosuite",
+   "item": "environments Lift/Stack/PickPlace/NutAssembly",
+   "reason": "Environment definitions only; robosuite ships no scripted experts (demos are human teleop)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "robocasa/robocasa",
+   "item": "scripted experts",
+   "reason": "None exist in repo; demos are teleop (collect_demos.py) plus MimicGen-generated data. utils/subtask_labeling dropped: abstract labeling framework for composite-task datasets."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "Lifelong-Robot-Learning/LIBERO",
+   "item": "scripted experts",
+   "reason": "None exist; datasets are human teleoperation. Only BDDL predicates indexed."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "NVlabs/dexmimicgen",
+   "item": "whole repo at 940e8a1b",
+   "reason": "Only robosuite environment definitions, dataset download and BC training configs; the bimanual generation code is not in the repo. Code under NVIDIA non-commercial licence."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "NVlabs/mimicgen",
+   "item": "mimicgen/scripts/annotate_subtasks.py",
+   "reason": "Manual (pygame) subtask annotation; folded into mimicgen-data-generator evidence."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "GenSim2/GenSim2",
+   "item": "kpam/config/{LiftBucketUpright,RelocateSuitcase}.yaml and Open*/Close*/Push*/Turn*/Swing*/Rotate*/Press* configs",
+   "reason": "Articulated-object or handle-transport tasks; adjacent."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "GenSim2/GenSim2",
+   "item": "seven kpam term_spec seed records",
+   "reason": "Merged into one constraint-library entry (one capability, seven term classes)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "Genesis-Embodied-AI/Genesis",
+   "item": "examples/manipulation/grasp_train.py, grasp_eval.py, behavior_cloning.py",
+   "reason": "Learned RL/BC policies; belongs to a policy shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "Genesis-Embodied-AI/Genesis",
+   "item": "examples/coupling/*, ipc/*, sap_coupling/* grasp demos; rigid/ik_*.py",
+   "reason": "Physics-coupling showcases with hard-coded motions, or IK-only examples (motion shard)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-sim",
+   "repo": "Farama-Foundation/Metaworld, google-research/ravens, cliport/cliport, stepjam/RLBench, liruiw/GenSim",
+   "item": "intake seeds",
+   "reason": "Out of scope for this shard (experts-classic)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "Farama-Foundation/Metaworld",
+   "item": "metaworld/policies: stick_pull, stick_push, sweep, sweep_into, coffee_pull, coffee_push, hammer",
+   "reason": "Tool use / pushing / sliding with a grasped or contacted object; adjacent, no place step. Not counted."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "Farama-Foundation/Metaworld",
+   "item": "metaworld/policies: drawer/door/window/faucet/handle/lever/button/dial/plate-slide/push/reach/soccer policies",
+   "reason": "Articulation, pressing, pushing or reaching only; no pick-and-place."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "google-research/ravens",
+   "item": "ravens/tasks/manipulating_rope.py, sweeping_piles.py",
+   "reason": "Deformable rope / nonprehensile sweeping; adjacent."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "cliport/cliport",
+   "item": "cliport/tasks/align_box_corner.py, assembling_kits.py, block_insertion.py, packing_boxes.py, palletizing_boxes.py, place_red_in_green.py, stack_block_pyramid.py, towers_of_hanoi.py, task.py, grippers.py, primitives.py",
+   "reason": "Copies of the Ravens originals; counted once under google-research/ravens."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "cliport/cliport",
+   "item": "assembling_kits_seq.py, stack_block_pyramid_seq.py, towers_of_hanoi_seq.py, packing_boxes_pairs.py",
+   "reason": "Language-sequenced / colour-pair variants of Ravens recipes; merged as variant_paths of the Ravens entries."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "cliport/cliport",
+   "item": "align_rope.py, separating_piles.py",
+   "reason": "Rope / pile pushing; adjacent."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "DanielTakeshi/deformable-ravens",
+   "item": "bag-alone-open, cloth-flat, cloth-flat-notarget, cable tasks (defs_cables.py, cable.py)",
+   "reason": "Deformable opening / flattening / cable shaping without a pick-and-place goal; adjacent."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "DanielTakeshi/deformable-ravens",
+   "item": "insertion_goal.py, hanoi_generalize.py, stacking.py, sorting.py, kitting.py, aligning.py, packing.py, palletizing.py",
+   "reason": "Older forks/goal-conditioned variants of Ravens tasks; merged into Ravens entries."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "vimalabs/VIMABench",
+   "item": "BaseTask.oracle, components/action_primitives.PickPlace, components/end_effectors.Suction",
+   "reason": "Forks of the Ravens oracle/primitive/suction; merged (listed as variants of the Ravens entries)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "vimalabs/VIMABench",
+   "item": "instruction_following/rotate*.py, novel_concept_grounding/twist.py",
+   "reason": "In-place rotation, no relocation; adjacent."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "vimalabs/VIMABench",
+   "item": "constraint_satisfaction/without_exceeding.py, without_touching.py",
+   "reason": "Spatula sweeping (nonprehensile); adjacent."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "vimalabs/VIMABench",
+   "item": "novel_noun.py, novel_adj.py, scene_understanding.py, same_profile.py",
+   "reason": "Grounding/attribute variants; merged into simple-manipulation and same-attribute entries."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "GenSim2/GenSim2",
+   "item": "kpam/config LiftBucketUpright.yaml, RelocateSuitcase.yaml; separate per-term kPAM spec records from the previous intake",
+   "reason": "Articulated/large-object handle tasks are adjacent; per-term constraint classes merged into one constraint-library entry and one expert entry."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "etaoxing/kitchen-shift",
+   "item": "kitchen_shift/kitchen_v1.py",
+   "reason": "Fork of the adept Franka Kitchen env with distribution shifts; no scripted expert or pick-place primitive. Kettle task indexed once via Gymnasium-Robotics."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "google-research/relay-policy-learning",
+   "item": "adept_envs franka kitchen",
+   "reason": "Original kitchen env with human VR demos only; no expert. Kettle task indexed once via the maintained Gymnasium-Robotics port."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "haosulab/SAPIEN",
+   "item": "python/py_package/example/*.py",
+   "reason": "hello_world / load_urdf / offscreen examples only; no pick-and-place. SAPIEN pick-place examples live in haosulab/MPlib (indexed)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "mees/calvin",
+   "item": "whole repo",
+   "reason": "No scripted expert exists; data are teleoperated play. Only the calvin_env task checks are indexed."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "arnold-benchmark/arnold",
+   "item": "tasks/reorient_object.py, pour_water.py, transfer_water.py, open/close drawer/cabinet",
+   "reason": "Reorientation, fluids and articulation; adjacent. Learned agents (cliport6d, peract, bc_z) are policies needing weights, outside this expert shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "StanfordVL/BEHAVIOR-1K",
+   "item": "StarterSemanticActionPrimitives._toggle, _open_or_close",
+   "reason": "Toggle raises NotImplementedError; open/close is articulation (adjacent)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "StanfordVL/iGibson",
+   "item": "igibson/external/pybullet_tools/kuka_primitives.py, pr2_primitives.py",
+   "reason": "Vendored copy of caelan/pybullet-planning; original should be indexed (motion/planning shard)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "facebookresearch/habitat-lab",
+   "item": "hrl/skills/art_obj.py, nav.py, ll_nav.py, nn_skill.py, reset.py, wait.py, noop.py",
+   "reason": "Articulation/navigation/utility skills; nn_skill is the shared base already covered by pick/place skill entries."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "facebookresearch/home-robot",
+   "item": "home_robot_hw/manipulation/funmap.py, projects/slap_manipulation, home_robot_spot/grasp_env.py",
+   "reason": "funmap is a thin wrapper around Stretch FUNMAP; SLAP is a learned policy project; Spot grasp env depends on Spot SDK. Not expert code for this shard."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "allenai/allenact",
+   "item": "allenact_plugins/manipulathor_plugin/*",
+   "reason": "Port of allenai/manipulathor task/env code; counted once under the original."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "allenai/manipulathor",
+   "item": "manipulathor_baselines/*",
+   "reason": "Learned DD-PPO baselines (policies with weights), not experts."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "experts-classic",
+   "repo": "askforalfred/alfred",
+   "item": "models/*",
+   "reason": "Learned seq2seq baselines, not experts."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "MarkFzp/act-plus-plus",
+   "reason": "fork of tonyzhaozh/act (Mobile ALOHA co-training); merged into act-aloha as extra evidence"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "google-deepmind/open_x_embodiment",
+   "reason": "RT-1-X is a checkpoint + JAX re-implementation of RT-1; merged into rt-1 as extra evidence"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "huggingface/lerobot (act, diffusion, vqbet, pi0, pi0_fast, pi05, groot, xvla, molmoact2, wall_x, lingbot_vla_v2 ports)",
+   "reason": "re-implementations of families indexed from their original repos; attached as evidence to those entries"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "huggingface/lerobot (rtc)",
+   "reason": "real-time chunking is an inference wrapper, not a policy family; candidate for a tool/runtime shard"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "huggingface/lerobot (tdmpc, gaussian_actor)",
+   "reason": "RL policies without pick-place checkpoints; off-scope"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "xiaoxiaoxh/reactive_diffusion_policy",
+   "reason": "visual-tactile contact-rich policy (peeling, wiping) needing tactile sensors; not pick-and-place"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "UMass-Foundation-Model/3D-VLA",
+   "reason": "code generates goal images / point clouds only, no action policy entrypoint at the pinned commit; no LICENSE file"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "jxu124/LLaRA",
+   "reason": "git ls-remote failed (repository not reachable at that path); not indexed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "Psi-Robot/DexGraspVLA",
+   "reason": "already indexed and implementation-inspected by the grasp-special shard (dedup_key psi-robot/dexgraspvla#dexgraspvla); dropped here to avoid a cross-shard duplicate"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "InternRobotics/NavDP",
+   "reason": "navigation diffusion policy (search-policy hit); off-scope"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "marmotlab/DARE",
+   "reason": "exploration diffusion policy; off-scope"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "shaoanlu/diffusion_policy_quadrotor",
+   "reason": "quadrotor control; off-scope"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "Jiang-Yufei/DiffusionPolicy4Drone",
+   "reason": "UAV planning; off-scope"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "Tokishx/DifNav",
+   "reason": "navigation; off-scope"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "sail-sg/edp",
+   "reason": "offline-RL diffusion policy on D4RL locomotion; off-scope"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "sail-sg/GDPO",
+   "reason": "graph generation RL; off-scope"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "KevinRojas1499/GDPO",
+   "reason": "diffusion language model RL; off-scope"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "iLearn-Lab/VLA-Diffusion-Policy-Robotics",
+   "reason": "awesome list, no implementation"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "arpitg1304/forge",
+   "reason": "dataset conversion toolkit, not a policy"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "lucidrains/diffusion-policy",
+   "reason": "unofficial re-implementation of Diffusion Policy; original indexed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "mrtanke/diffusion-policy, KHOUTAIBI/DiffusionPolicy, ewmstaley/diffusion_policies, ZidongChen25/Imitation_Policy_Minimal, silencht/simpleDiffusionPolicy, mishmish66/DiffPo",
+   "reason": "educational/minimal re-implementations of Diffusion Policy (PushT); duplicates of the original"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "Yechen-Fan/UR5e-DP-Family, Topasm/diffusion_policy_panda_py, courtSmith77/FrankaDiffusionPolicy, zzyt6/diffusion_policy_piper, QinDeyun/act-plus-plus-realman",
+   "reason": "robot-specific deployment forks of DP/ACT; robot-model variants are not new entries"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "policies",
+   "repo": "huggingface.co/vernerobotics/v0.5-base, robocurve/dreamzero-yam-molmoact2, airoa-org/AIRoA-0, nvidia/Cosmos3-Nano-Sim-Bimanual (radar)",
+   "reason": "HF-only in the radar; no GitHub code repo pinned in this pass (AIRoA-0 and DreamZero code repos exist per radar: left as gaps, not rejected on merit)"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "i2rt-robotics/yam-arcade",
+   "reason": "Repository not found (git ls-remote fails); no public source to pin."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "mikeferguson/simple_grasping (src/shape_grasp_planner.cpp)",
+   "reason": "Same file and capability already indexed in grasp-parallel shard; only the basic_grasping_perception action server is kept here."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "BerkeleyAutomation/gqcnn (ros_nodes/grasp_planner_node.py)",
+   "reason": "ROS wrapper of the GQ-CNN policy already indexed by grasp-parallel/grasp-special; Dex-Net+ROS use is covered by PickNikRobotics/deep_grasp_demo dexnet action server. Research-only licence."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "yxKryptonite/RAM_code (run_realworld/run.py)",
+   "reason": "RAM affordance capability already indexed by perception-pose shard (#ram); research-only GraspNet-baseline licence."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "i2rt-robotics/yam-abc-reproduce",
+   "reason": "robot/interface.py is a typing Protocol only; yam_adapter.py is teleop/data-collection, not a pick or place primitive."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "robocurve/inspect-robots-yam (hold_check.py)",
+   "reason": "Measures joint drift during policy gaps, not grasp hold or placement outcome; collision.py from the same repo is kept."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "GreyViperTooth/LIL-YAM",
+   "reason": "Six files (MuJoCo load/render/smoke tests); no pick/place code."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "uynitsuj/robots_realtime",
+   "reason": "Teleoperation / control interfaces for YAM and Franka; no pick or place primitive. No licence file."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "BirhanuShimelis/i2rt_ros2_jazzy",
+   "reason": "ROS 2 hardware interface for YAM only; no manipulation primitive."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "RVMI/skiros2_std_lib",
+   "reason": "Only generic action-client and utility primitives; pick/place skills are not in the std lib (LGPL)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "splintered-reality/py_trees_ros_tutorials",
+   "reason": "Behaviour-tree tutorials with mock robot; no real pick/place behaviour. py_trees pick-place covered by Isaac Manipulator PlanToGrasp."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "Interbotix/interbotix_ros_manipulators (bartender.py)",
+   "reason": "Hard-coded waypoint script (no perception, no target); perception pick_place.py kept instead."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "Salman-H/pick-place-robot",
+   "reason": "Udacity KUKA KR210 Gazebo project: IK server plus Gazebo grasp-fix plugin (simulator attach); no reusable real pick primitive."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "lihuang3/ur5_ROS-Gazebo",
+   "reason": "Gazebo-only UR5 vacuum demo driven by simulated camera colour blobs; no licence file."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "IFRA-Cranfield/ros2_RobotSimulation",
+   "reason": "Gazebo robot simulations; grasping uses an attacher plugin (simulator attach) rather than a grasp primitive."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "microsoft/PromptCraft-Robotics",
+   "reason": "Prompt examples and AirSim chat demos; no pick/place implementation."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "hello-robot/stretch_ros2 (handover_object.py)",
+   "reason": "Hand-over to a detected human mouth position; not pick-and-place."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "hello-robot/stretch_ai (llm_plan_executor.py)",
+   "reason": "46-line stub that only wraps a plan string; no executable logic to index."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "Kinovarobotics/ros_kortex, Kinovarobotics/kortex",
+   "reason": "Driver and generic motion examples; no pick/place example located."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "xArm-Developer/xarm_ros (findobj_grasp_*.cpp), xarm_ros2 findobj_grasp_xarm_api.cpp",
+   "reason": "ROS 1 copy and xArm-API variant of the same find_object grasp recipe; merged into the xarm_ros2 MoveIt-planner entry."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "primitives-recipes",
+   "repo": "facebookresearch/home-robot (grasp_helper.py, simple_grasp_server.py)",
+   "reason": "ROS service plumbing around grasp generators already indexed (voxel grasps)."
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "aadhithya14/Open-Teach",
+   "reason": "unrelated",
+   "detail": "Quest-3 teleoperation / data-collection framework; no autonomous pick-place skill",
+   "commit": "32a7d44b33953066ff27312a7b2b4c294f4f52c5",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "airo-ugent/airo-mono",
+   "reason": "unrelated",
+   "detail": "generic camera/dataset/spatial-algebra utility packages; no pick-place capability in the linked CLI or packages",
+   "commit": "c3cde173d589b0830af7f2e884bc101ed245f70e",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "algvr/maple",
+   "reason": "unrelated",
+   "detail": "visual-encoder pretraining from egocentric video; no action/pick-place entrypoint",
+   "commit": "08aa2edbeb88dcc3f24fbbbda7725f497a075ffe",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "anthonysimeonov/baxter_moveit_experiments",
+   "reason": "simulator only",
+   "detail": "MoveIt benchmarking environments/notebooks for Baxter; no new planner or pick-place skill",
+   "commit": "19946cd125dd28be567ef595b2cced91dc4443f3",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "astomodynamics/robotics-simulation-matlab",
+   "reason": "unrelated",
+   "detail": "course collection (PUMA kinematics, control); no reusable pick-place interface",
+   "commit": "daedab01397f2074207c7e18be94282092757f52",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "BenBurgessLimerick/DGBench",
+   "reason": "simulator only",
+   "detail": "hardware benchmark rig (moving-target table) with ROS control for its own motors; benchmark only, no grasp algorithm",
+   "commit": "41084b3cbffa2572f6abbe355b4326fab1d5f0b3",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Boey-li/AdaptiGraph",
+   "reason": "unrelated",
+   "detail": "material-adaptive neural dynamics for pushing/deformable objects; not pick-and-place",
+   "commit": "9f002ab35b08727d5de9b220d48b43e52e126eaa",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Boxjod/RLBench_ACT",
+   "reason": "duplicate/mirror",
+   "detail": "wrapper running ACT / Diffusion Policy inside RLBench (duplicate of tonyzhaozh/act + real-stanford/diffusion_policy)",
+   "commit": "b93ed197c0dae0cf61b1478a86965ed6e909e646",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "caomw/arc-robot-vision",
+   "reason": "duplicate/mirror",
+   "detail": "copy of andyzeng/arc-robot-vision",
+   "commit": "8d65602dae3e4e55560121f421aba29a5b245213",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "carlosluis/online_dmpc",
+   "reason": "unrelated",
+   "detail": "multi-agent (quadrotor) trajectory generation",
+   "commit": "32a3764467bc2aa67a5beefc7c1555b67f440e42",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "carosteven/HeRD",
+   "reason": "unrelated",
+   "detail": "nonprehensile pushing (hierarchical RL + diffusion); no grasp/place",
+   "commit": "94dcf976047745bbc587a522986e3d0c07f5c368",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "cf87/Optimal-Transport-for-Multi-Robot-Path-Planning",
+   "reason": "unrelated",
+   "detail": "multi-robot path planning",
+   "commit": "a14954301c4d9102adf2b673339b25e78e84c32b",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "chen-tianjian/isaac_imitation_learning",
+   "reason": "duplicate/mirror",
+   "detail": "robomimic (ACT/DP/BC) run in Isaac Lab; wrapper of ARISE-Initiative/robomimic",
+   "commit": "214ea80cd389c4820a2d478cc0868f84e30646ce",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Chen-Wendi/ImplicitRDP",
+   "reason": "unrelated",
+   "detail": "visual-force contact-rich policy requiring F/T sensing; not pick-and-place",
+   "commit": "ec03623bd5965435a53f6bcf1a2e857e2dff688a",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "CINAPSLab/MATT-Diff",
+   "reason": "unrelated",
+   "detail": "active target tracking by diffusion policy (mobile sensing)",
+   "commit": "75f34aa0ebac6b7565c7b75b73dd579bc9a7106c",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "CodyMDillinger/Robotics",
+   "reason": "unrelated",
+   "detail": "MATLAB course motion-planning scripts; no manipulator pick-place interface",
+   "commit": "455c70297d14db6d20928479099433ff1fca3e45",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "crystalccy1/3D-CovDiffusion",
+   "reason": "unrelated",
+   "detail": "coverage path planning",
+   "commit": "604dbde7e331b7420f4f6112bb0b9d272bfa1602",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Cyberyyc/Spatially-Aligned-Graph-Based-Visuo-Tactile-Fusion-with-Adaptive-Gating-for-Dexterous-Manipulation",
+   "reason": "no code",
+   "detail": "project website only; no code files",
+   "commit": "e3dea471aac5422ee45759f95b1f8b81e3f85585",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "D-Robotics-AI-Lab/TabletopGen",
+   "reason": "simulator only",
+   "detail": "tabletop scene generation for simulation; no pick-place skill",
+   "commit": "2f23f76f446649804a4441e96055469f05e57e98",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "DAGroup-PKU/PhysisForcing",
+   "reason": "unrelated",
+   "detail": "physics world simulator / video model; no action interface",
+   "commit": "6b407f5776479d17fa3574c3697e42e738b2ba0c",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "DG16M/DG16M-dataset",
+   "reason": "dataset only",
+   "detail": "dual-arm grasp dataset; generation code is a Dex-Net/DA2 fork used to produce the dataset (duplicate of BerkeleyAutomation/dex-net tooling)",
+   "commit": "748ee00210796fb2b2e0f79b05cebb1003f7053e",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "eanswer/TactileSimulation",
+   "reason": "simulator only",
+   "detail": "differentiable tactile simulator",
+   "commit": "0c42783a8b5cc7abe1a9fa3e6aa65e4aeb8eb670",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "ecada/SRDP_ADA",
+   "reason": "unrelated",
+   "detail": "offline RL diffusion policy (D4RL)",
+   "commit": "b1c203cb6d806af672e5441128b4d1e196a28164",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "EDiRobotics/mimictest",
+   "reason": "duplicate/mirror",
+   "detail": "testbed re-implementing robomimic policies; duplicate of ARISE-Initiative/robomimic algorithms",
+   "commit": "8505b07ef8ec1e5bf77d04dc221a88885701594f",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Edmond1Cheng/MBDPO",
+   "reason": "unrelated",
+   "detail": "generic model-based RL across locomotion/DMC tasks",
+   "commit": "ede0cedc502b04fb7d9504c9a0b72ae0c169946a",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "emoPointer/supermimic_manipulation",
+   "reason": "unrelated",
+   "detail": "state-based world-model policy optimization for simulated ARX5 tasks; no perception or grasp interface beyond sim state (research method)",
+   "commit": "eda7da480c6d92a68cc41c9628b7efdae08cae23",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "ewmstaley/diffusion_policies",
+   "reason": "unrelated",
+   "detail": "diffusion/flow policies tested on CarRacing",
+   "commit": "c1beec086f376d7f791c1bd888fab9f7dc6bf5d0",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "facebookresearch/AINA",
+   "reason": "unrelated",
+   "detail": "dexterous multi-fingered policies from smart-glasses video; needs dexterous hand, no parallel-jaw pick-place skill (CC-BY-NC)",
+   "commit": "8ed26042095430623334fbcb92b8782bba573e27",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "facebookresearch/ContactOpt",
+   "reason": "unrelated",
+   "detail": "human hand-object contact optimization",
+   "commit": "9eeb59a1cdddf4a5e94fec39d77808ddd5ed512c",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Fang-Haoshu/graspnetAPI",
+   "reason": "duplicate/mirror",
+   "detail": "fork of graspnet/graspnetAPI (dataset API)",
+   "commit": "f77d9b14aab6af19d2e24929b56e33dcffd5f5d3",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "fcimeson/cbTSP",
+   "reason": "unrelated",
+   "detail": "SMT-based multi-goal path planning (TSP)",
+   "commit": "aaf102c7a6a9f3b36a8b5f0c62570c40409ec7c8",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "felixchenfy/Command_Robot_to_Move",
+   "reason": "unrelated",
+   "detail": "voice command + detection to drive a mobile robot",
+   "commit": "bcd72cc400b39c8ba7dcc65fc8cd49809107a768",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Genesis-Embodied-AI/DiffTactile",
+   "reason": "simulator only",
+   "detail": "tactile physics simulator",
+   "commit": "c4bf43d44071758aea68a5c7ae125fc8257bb8e1",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "GR1-Manipulation/GR-1",
+   "reason": "no code",
+   "detail": "placeholder repository (README only); code lives in bytedance/GR-1",
+   "commit": "a6f4d58a10ace28bbca24626f1013ddf9925f9e9",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "grasp-lyrl/fast-feature-fields",
+   "reason": "unrelated",
+   "detail": "event-camera predictive representation",
+   "commit": "833e2c65233f9787449ce0675ae41e3f6e9c193a",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "grasp-lyrl/unitree_go2w_agent_sdk",
+   "reason": "unrelated",
+   "detail": "quadruped SDK",
+   "commit": "2f2825122ff2214945d39194ee640f204f182dab",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Hack-a-Day/Spark-MeArm",
+   "reason": "unrelated",
+   "detail": "hobby servo-arm firmware (S-curve + IK for MeArm); no reusable pick-place interface",
+   "commit": "3265542732054e3c711f670b42d95dc33afcfb2c",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "han20192019/Letters-Planar-Pushing-Dataset",
+   "reason": "dataset only",
+   "detail": "planar pushing dataset",
+   "commit": "3979054de4ed2c5b902cca085ab949b2ef259117",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "HCIS-Lab/GRITS",
+   "reason": "unrelated",
+   "detail": "food scooping diffusion policy",
+   "commit": "7b6648f6c16e8a64b6f91aa667fe1a922b8beac0",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "hhhhzl/mdoc",
+   "reason": "unrelated",
+   "detail": "multi-robot motion planning",
+   "commit": "861a3aa00d1fa2a82adab6914e7ac7fcffa7e4dd",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "hjlllll/DexFuncGrasp",
+   "reason": "dataset only",
+   "detail": "dexterous functional grasp dataset + annotation system",
+   "commit": "d1368159e892649e8ef90c319eb46cc236823446",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "HKUST-Aerial-Robotics/FIESTA",
+   "reason": "unrelated",
+   "detail": "aerial ESDF mapping",
+   "commit": "d01ce1b4602340a417a68ec7bb5f6b5a6790207e",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "hsp-iit/pybullet-robot-envs",
+   "reason": "simulator only",
+   "detail": "PyBullet gym environments",
+   "commit": "8fb3f9ba1f1a0dec4cd1e96e26556afbd89cbd59",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "huanfez/Multi-robot-motion-planning-with-discrete-control",
+   "reason": "unrelated",
+   "detail": "multi-agent symbolic planning",
+   "commit": "7bdaa5066ebe907bd9dfa3a01bb5f09f8f238a9d",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "huangwl18/PointWorld",
+   "reason": "no code",
+   "detail": "placeholder repository; code at NVlabs/PointWorld (world model)",
+   "commit": "3831eea584cb720d3e891994900354eeaac531c6",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "iamprem/rmp",
+   "reason": "unrelated",
+   "detail": "2D mobile path planning homework",
+   "commit": "a0e9bc40ff11c5930a7e91eb45fbfc394dc944ff",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "iamrajee/roskinectic_src_ws",
+   "reason": "unrelated",
+   "detail": "personal ROS workspace of mixed projects",
+   "commit": "5b0463d902c4147722203f06a4b3e1b414d955f4",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "IMRCLab/db-lacam",
+   "reason": "unrelated",
+   "detail": "multi-robot kinodynamic planning",
+   "commit": "91dbf49239179280fc85789509811eac04a3d1a7",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "indraneelpatil/3D-Weld-Seam-Tracking-using-PCL",
+   "reason": "unrelated",
+   "detail": "weld seam tracking",
+   "commit": "a233052efa4895813a05746d99af380d944bc48c",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "InternRobotics/Re3Sim",
+   "reason": "simulator only",
+   "detail": "real-to-sim data generation pipeline",
+   "commit": "681da6f5d842f0de6c573a077926fe3722924708",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "irmakguzey/AINA",
+   "reason": "duplicate/mirror",
+   "detail": "same project as facebookresearch/AINA",
+   "commit": "84d7f676e351614c7c218bbcfc860cd6030ca218",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "isaac-sim/IsaacLab-Arena",
+   "reason": "simulator only",
+   "detail": "Isaac Lab environment/evaluation framework",
+   "commit": "1f60bbc5c2cbe782765565aba3303a40daccf041",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "JHHuan/Demogen-simulation-project",
+   "reason": "duplicate/mirror",
+   "detail": "course project copying DemoGen",
+   "commit": "26725b2e79496cd6fc74f59fc75467098fb8de3b",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "JiahaoPlus/SAGA",
+   "reason": "unrelated",
+   "detail": "human whole-body grasp synthesis",
+   "commit": "ecaed33b580afbfa61a29a8b6bd4ad019de91108",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "JinhangZhu/robotics-fundamentals",
+   "reason": "unrelated",
+   "detail": "kinematics coursework",
+   "commit": "d94bf3a3e0a16e3428918e98bda65cef877a0dc0",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "JJUNE0/diffusion_policy_robot_docking",
+   "reason": "unrelated",
+   "detail": "mobile docking",
+   "commit": "6b002eaac56986b1ae88299fef037f6952c4e922",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "johnmockler/Image-Guided-Robotic-Needle-Placement",
+   "reason": "unrelated",
+   "detail": "medical needle placement",
+   "commit": "9b10fabb12923578b6eecc9bfe8ea451be6ac2b7",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "JonasMedu/learn_grasping",
+   "reason": "unrelated",
+   "detail": "in-hand Allegro stabilization; not pick-place",
+   "commit": "108af447a04e44cbb3d7570de7c45c418c2990ea",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "josepquintana/UR5-Motion-Planning",
+   "reason": "unrelated",
+   "detail": "summer-school MATLAB RRT exercise",
+   "commit": "f3e48e8a3b178a7ceb92d8d8231bfe3b705b7b6f",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "KavrakiLab/motion_bench_maker",
+   "reason": "simulator only",
+   "detail": "motion-planning benchmark dataset generator",
+   "commit": "f50542777f4d1ae013b0de430bafbf51fdbdc40e",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Kei18/sssp",
+   "reason": "unrelated",
+   "detail": "multi-robot planning",
+   "commit": "62b3100cdd8bff39d07fab477244e3445a693c30",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "KelvinLauMiau/Kinova7DoF-MuJoCo",
+   "reason": "simulator only",
+   "detail": "Kinova MJCF model + kinematics demos",
+   "commit": "c76cce8c3e25f746ef04dc960022fc84d79fe94a",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Kenn3o3/Vista",
+   "reason": "unrelated",
+   "detail": "visual-tactile contact-rich policy (needs tactile)",
+   "commit": "a0381fb1f95498dda9b006344bbbe923d42b5ccc",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "KlingAIResearch/RoboMaster",
+   "reason": "unrelated",
+   "detail": "video generation",
+   "commit": "0159b53e905d659259bb3f4a949d0ebabb835747",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Kuntz-Lab/interactive-rate-tendons",
+   "reason": "unrelated",
+   "detail": "continuum tendon robots",
+   "commit": "537472b9722d473701d1ed8ef4bc34b387ca6652",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "ky-ji/SAG",
+   "reason": "unrelated",
+   "detail": "diffusion-policy inference acceleration",
+   "commit": "32ce90340a4f286e6c35fa1f0188d9ec3f3d30bc",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "kyegomez/RoboCAT",
+   "reason": "no code",
+   "detail": "non-functional architecture sketch; no trained policy or env integration",
+   "commit": "b7d07d34552d8eddd36fb9559b775d43b0cadc1c",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "labicon/DDAT",
+   "reason": "unrelated",
+   "detail": "dynamically admissible diffusion trajectories (quadrotor/unicycle)",
+   "commit": "9521bab550504354f319d4adbaee54fe73a26b06",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "LBG21/diffusion_policy",
+   "reason": "duplicate/mirror",
+   "detail": "copy of real-stanford/diffusion_policy",
+   "commit": "2e8f71c7683e2a7d58af16d73b30eb15c92bcec4",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "ldkong1205/numerical-planning",
+   "reason": "unrelated",
+   "detail": "numerical repetitive motion planning MATLAB study",
+   "commit": "23345041da4e837add55152f3f11bad7f45af263",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "luccachiang/GSWorld",
+   "reason": "simulator only",
+   "detail": "photo-realistic simulation suite",
+   "commit": "532950475cc80a97c7050fd94858a1a8841dbf2c",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "lucidrains/RL-100",
+   "reason": "unrelated",
+   "detail": "model-architecture reimplementation without environment/robot integration",
+   "commit": "23844b9ebebe559715e84fa4b78ae6f6425c5775",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "lzylucy/4dgen",
+   "reason": "unrelated",
+   "detail": "4D video generation",
+   "commit": "954b3a7293ee7d7441b3fa3d957257e2ec5cfc19",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "mahaitongdae/diffusion_policy_online_rl",
+   "reason": "unrelated",
+   "detail": "online RL for diffusion policies on MuJoCo locomotion",
+   "commit": "a50cf41167b8d1ce89487f00684ac4d4691b090d",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "manuelboldrer/RBL",
+   "reason": "unrelated",
+   "detail": "multi-robot planning",
+   "commit": "a6423cd28fb37f519291b40e6696439e396a7d2e",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "martin-sedlacek/REALM",
+   "reason": "simulator only",
+   "detail": "real-to-sim benchmark",
+   "commit": "897f3acd2ffbfdb5b8467414f71f9b981ae9d561",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "mathworks-robotics/templates-robocup-robot-manipulation-challenge",
+   "reason": "no code",
+   "detail": "MATLAB/Simulink templates without algorithm code",
+   "commit": "55dfec98bef66486cc62eab772bea51baa277d93",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Maxwell-Zhao/RoboSimGS",
+   "reason": "simulator only",
+   "detail": "simulated data generation",
+   "commit": "3f767f53a27015719c001b486e7c9cfc52276031",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "mees/calvin",
+   "reason": "simulator only",
+   "detail": "benchmark/environment",
+   "commit": "fa03f01f19c65920e18cf37398a9ce859274af76",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "mengyuest/pSTL-diffusion-policy",
+   "reason": "unrelated",
+   "detail": "driving trajectory diffusion",
+   "commit": "47750eaa01a5e521df3f9b2846d6b5886626b814",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Michaelszeng/diffusion-policy-drake",
+   "reason": "unrelated",
+   "detail": "planar pushing",
+   "commit": "2bfd13944a641ae66004076d225f16bf4fccf778",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Michaelszeng/diffusion-policy-experiments",
+   "reason": "duplicate/mirror",
+   "detail": "diffusion policy training copy",
+   "commit": "6645bd1acea5f72f48440f667e7bd318db579f8e",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "mishmish66/DiffPo",
+   "reason": "duplicate/mirror",
+   "detail": "minimal diffusion policy reimplementation",
+   "commit": "ab2dbb38546e0a8a3afa2f475e01f0456334975a",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "MIT-REALM/pstl-diffusion",
+   "reason": "unrelated",
+   "detail": "driving trajectory diffusion",
+   "commit": "47750eaa01a5e521df3f9b2846d6b5886626b814",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "mrtanke/diffusion-policy",
+   "reason": "duplicate/mirror",
+   "detail": "reimplementation of real-stanford/diffusion_policy",
+   "commit": "b0878a71d9a2f2b69767804d073d288bec258c54",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "NathanWu7/isaacLab.manipulation",
+   "reason": "simulator only",
+   "detail": "Isaac Lab task extension",
+   "commit": "acf5d3731ed7abfbd2b38fc4c55d077f13ab000a",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "ngafur/MPC_MultiRobot_Motion_Planning",
+   "reason": "unrelated",
+   "detail": "multi-robot MPC",
+   "commit": "d0c78f35a3abb049d4d2ebb1f289b7d3af4f3824",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "nirobotics/cyber-planner-2025",
+   "reason": "unrelated",
+   "detail": "FRC robot superstructure",
+   "commit": "1bad80e19002bb782800dd93b5c25a4e52c5677b",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "nonsugarcokecola/lerobot_VR",
+   "reason": "duplicate/mirror",
+   "detail": "LeRobot fork with VR teleop + Genesis data collection",
+   "commit": "b623af7141704ed08ac384256d6315f4ddbc99e0",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "NVIDIA-Omniverse-blueprints/synthetic-manipulation-motion-generation",
+   "reason": "simulator only",
+   "detail": "Isaac Lab Mimic data-generation blueprint",
+   "commit": "be78013710543995b40a3a122294e6ab21699e67",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "NVlabs/acronym",
+   "reason": "dataset only",
+   "detail": "grasp dataset sample + visualization tools",
+   "commit": "d02f58fb3a556c3b719976e206cce0dce0103199",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "NVlabs/oscar",
+   "reason": "unrelated",
+   "detail": "operational space controller learning",
+   "commit": "5a2ede63de9b0ca5f578ce0c3457123ad544d831",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "NVlabs/PointWorld",
+   "reason": "unrelated",
+   "detail": "3D world model",
+   "commit": "05484826dfef74cbe278a3974179a5a16705d35d",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "PatilVrush/3D_Weld_Seam_Detection_and_Tracking_using_PCL_ROS_ANN",
+   "reason": "unrelated",
+   "detail": "weld seam detection",
+   "commit": "d45d1b17113f09b137d3d24005b63fc19e66a684",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "pengxinyi-up/mobile-grab-Robot",
+   "reason": "unrelated",
+   "detail": "mobile servo robot firmware",
+   "commit": "972e5e052401e08a8dca8e40c9ccb76cef5be8c1",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "phamtrongthang123/drifting_policy",
+   "reason": "unrelated",
+   "detail": "PushT",
+   "commit": "95d9244126a3ea1eb59279d5f21a22bb44ad201b",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "phuongboi/pushing-and-grasping-with-reinforcement-learning",
+   "reason": "duplicate/mirror",
+   "detail": "lightweight variant of andyzeng/visual-pushing-grasping",
+   "commit": "70306028cffc4a2f80f3bb19facb78a5567098d8",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "pnorouzi/Robot-Parallel-Motion-Planning",
+   "reason": "no code",
+   "detail": "no description; no source located (unlinked)",
+   "commit": "a8830a7f30eaaa263a433e2d51cd0d7366b651b0",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "popnut123/TacDiffusion",
+   "reason": "unrelated",
+   "detail": "force-domain insertion",
+   "commit": "6a5567c829c54b7d03164cf40779d2451de4099e",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "purvaten/FLEX",
+   "reason": "unrelated",
+   "detail": "full-body human grasp synthesis",
+   "commit": "46d4a7638858f4303b1c90360d803dad4474d7ca",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "RachithP/planning-in-robotics",
+   "reason": "unrelated",
+   "detail": "graph planning exercises",
+   "commit": "3c67207b09cdb31f33a80e09635b6951ea0e1fb3",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "RAISELab-atUVA/Diffusion-MRMP",
+   "reason": "unrelated",
+   "detail": "multi-robot motion planning",
+   "commit": "c87fc76044b350a37fcea7afc468c13c8371a237",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "real-stanford/dsr",
+   "reason": "unrelated",
+   "detail": "dynamic scene representation under pushing",
+   "commit": "d7560e09f67fc997546c9d735bdcc913e8b5ea79",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "real-stanford/iPhUMI",
+   "reason": "unrelated",
+   "detail": "handheld data-collection hardware/pipeline",
+   "commit": "68407bb0e201814f93bec9d78dc944fe684eeab8",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "reso1/stgcs",
+   "reason": "unrelated",
+   "detail": "multi-robot spatiotemporal planning",
+   "commit": "d9b6bd4c409c786db77d27cec2dc1921bccfab88",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "REZ3LIET/KUKA-ROS2",
+   "reason": "unrelated",
+   "detail": "robot bringup/integration (Gazebo, MoveIt config)",
+   "commit": "8f2c2a35a2d45d5739c7a247d5872e514a8d4895",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Rin-Li/diffusion_motion",
+   "reason": "unrelated",
+   "detail": "2D path planning diffusion",
+   "commit": "3b909feeb55b5399d34bcd5f1520a1d91787a550",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "rishabh1b/RealTimePathPlanning",
+   "reason": "unrelated",
+   "detail": "2D mobile planning",
+   "commit": "794a446b6c0bd5110175cd6ed915eba97e5d3d21",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "RLAgent/factor-world",
+   "reason": "duplicate/mirror",
+   "detail": "run_scripted_policy.py dispatches to Meta-World's own scripted policies (metaworld.policies.*); expert code is Farama-Foundation/Metaworld",
+   "commit": "01df1f18f7e532afda0a38169356fa637d24e432",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "rll/lfd",
+   "reason": "unrelated",
+   "detail": "rope knot-tying trajectory transfer",
+   "commit": "9fef15f556cba49dd4b42c0c29505a4137f95fc5",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "robinzhoucmu/PlanarManipulationToolBox",
+   "reason": "unrelated",
+   "detail": "planar pushing mechanics/planning (limit surface, Dubins push actions); not pick-and-place",
+   "commit": "09b70a4caff8300a021d12388d4ca8c897c68456",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "robocasa-benchmark/diffusion_policy",
+   "reason": "duplicate/mirror",
+   "detail": "fork of real-stanford/diffusion_policy for RoboCasa",
+   "commit": "41212698b6f481ed92a55f0d5f1778ec56bea417",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "robot-colosseum/robot-colosseum",
+   "reason": "simulator only",
+   "detail": "benchmark",
+   "commit": "098a910ae1d490524adb49b8d50735b00a1a62de",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "robot-danger-lab/PARC",
+   "reason": "unrelated",
+   "detail": "reach-avoid planning",
+   "commit": "0f541c2c0474d64fce65efa4a6a0d22caeb1a7f2",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "robot-motion/bench-mr",
+   "reason": "unrelated",
+   "detail": "mobile planning benchmark",
+   "commit": "c10ef1c81afe80ad1f4f3a2cc4369dd6ef7bf844",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "RobotExMachina/Machina-Grasshopper",
+   "reason": "no code",
+   "detail": "Grasshopper plugin binaries; no source files",
+   "commit": "d3b823ee252cba6dccdd0627c57dea8d97cbd0e6",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "robotgnchallenge/challenge2023",
+   "reason": "no code",
+   "detail": "README only",
+   "commit": "3eba782be692572a95c54b1d30e477b23d2527d6",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "RoboVIP/RoboVIP_VDM",
+   "reason": "unrelated",
+   "detail": "video generation",
+   "commit": "5eb9c0c654c385e994b8b1e8286f512b4cda050f",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "rparak/PyBullet_Industrial_Robotics_Gym",
+   "reason": "unrelated",
+   "detail": "RL reach only",
+   "commit": "686b2e7225a41718a31e3b80d947958b4bc44447",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "rr-learning/CausalWorld",
+   "reason": "simulator only",
+   "detail": "benchmark",
+   "commit": "1045277101a92c506db42704da28f6e7227d401b",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "rsar97/-Adaptive-Filtering-Technique-for-Error-Detection-and-Correction-of-Precision-Welding-RobotAdaptive-",
+   "reason": "unrelated",
+   "detail": "welding",
+   "commit": "7f03e6358547ccb2f67579efe90a47aa3f935a7a",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "rvarun7777/Computational-Motion-Planning",
+   "reason": "unrelated",
+   "detail": "coursework",
+   "commit": "8de5cebaf3dc0d0b1e4415457489c2cb62ce215a",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "SafeFlowMatching/SafeFlow",
+   "reason": "no code",
+   "detail": "README only",
+   "commit": "f022042f3afd23ab5e3ba946dbbc50f878889a27",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "sahilrajpurkar03/UR5-Object-Alignment",
+   "reason": "duplicate/mirror",
+   "detail": "LeRobot fork for Isaac Sim bar alignment",
+   "commit": "b54beab3f37a1fcfe5a182040875a74974f796a9",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "sail-sg/edp",
+   "reason": "unrelated",
+   "detail": "offline RL D4RL",
+   "commit": "b019648e3db9f8d035d3bf0897a8643bc5ab2369",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "SakshayMahna/Robotics-Mechanics",
+   "reason": "unrelated",
+   "detail": "kinematics coursework library",
+   "commit": "3fa4b5860c4c9b4e22bd8799c0edc08237707aef",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "schmrlng/MotionPlanning.jl",
+   "reason": "unrelated",
+   "detail": "generic geometric planners (Julia)",
+   "commit": "1967f8e5153e64717ea5930c7efb917b37878535",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "seohongpark/ocbench",
+   "reason": "simulator only",
+   "detail": "benchmark",
+   "commit": "ab6a2c2602b9ac2196e786aea7b7fab2fe779d98",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "ShuhongLL/RawVLA",
+   "reason": "unrelated",
+   "detail": "ISP for VLA",
+   "commit": "ba9c56b04da2c4931b70d8844710f5928d43775b",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "silencht/simpleDiffusionPolicy",
+   "reason": "duplicate/mirror",
+   "detail": "commented copy of diffusion_policy",
+   "commit": "9f54802c32076367b94b9879e2be844c308bc64a",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "sim-and-real-cotraining/diffusion-policy",
+   "reason": "duplicate/mirror",
+   "detail": "fork of diffusion_policy",
+   "commit": "13427613ad4ab1b0317933e07a2060c3cbb03b03",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Simon0323/A-star-RRT-Motion-Planning",
+   "reason": "unrelated",
+   "detail": "coursework",
+   "commit": "3319a4da07b9a81fdc6ab64aeef119abb5aedd93",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "simpler-env/SimplerEnv",
+   "reason": "simulator only",
+   "detail": "evaluation env",
+   "commit": "eddb5690749a1e34267807c0f7b5eede323918d7",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "SquareRootTwo/Diffusion-Policy-Collision-Avoidance",
+   "reason": "unrelated",
+   "detail": "2D collision avoidance",
+   "commit": "4eb3630dc8426e6a26fe4ea07935211b73a54af5",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "supersglzc/ddiffpg",
+   "reason": "unrelated",
+   "detail": "generic RL multimodal",
+   "commit": "7edd06c4799abbab0f8fa534c21deb56253b018e",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "thowell/motion_planning",
+   "reason": "unrelated",
+   "detail": "trajectory optimization for locomotion/classic systems (Julia)",
+   "commit": "66be01056e7bb1137b5aa943e11b71e90ec74501",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Topasm/diffusion_policy_panda_py",
+   "reason": "duplicate/mirror",
+   "detail": "fork of diffusion_policy",
+   "commit": "1e38a074c2a12d9bfb6560e9069f7239a350ef28",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Tsinghua-Space-Robot-Learning-Group/SpaceOctopus",
+   "reason": "unrelated",
+   "detail": "space robot MARL",
+   "commit": "cf677df8450548566673d9ae1d975ee2c413d4f6",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "TwinAligner/TwinAligner",
+   "reason": "simulator only",
+   "detail": "real2sim alignment",
+   "commit": "29ec86d637bd13f3565c2e925116c27975625d4a",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "UdaySMukherjee/Flipkart-Grid-Robotics",
+   "reason": "duplicate/mirror",
+   "detail": "code is a copy of ultralytics/yolov5 plus an ESP32 arm sketch; no distinct pick-place algorithm",
+   "commit": "2995f27924054ba25336469693771b3a1e223450",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "UthiraS/Motion-Planning--Spine-Surgery-Robot",
+   "reason": "unrelated",
+   "detail": "surgical",
+   "commit": "b8cfa515ab390c469d5c5175894c84be29c0af7a",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "vdesai2014/diffusion-policy-accelerated",
+   "reason": "duplicate/mirror",
+   "detail": "accelerated copy of diffusion_policy",
+   "commit": "12b6d1f28fb16f93edefb95c46210babf4e9cb41",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "VincentChen95/Robotic-Motion-Planning-A-Star-RRT-and-RRT-Star-Search",
+   "reason": "unrelated",
+   "detail": "coursework",
+   "commit": "f6513649094d590dcde27d7f1653c3fad3df0774",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "vmurta/GPU-Collision-Detection",
+   "reason": "unrelated",
+   "detail": "class project primitive-shape collision kernels",
+   "commit": "4fd5e4a5bab7f2bc6c62f3a7213ae553cbf0adcf",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Whiterrrrr/dipole-rl",
+   "reason": "unrelated",
+   "detail": "generic offline RL",
+   "commit": "67c8e035fc40afc51d62488c9a039030e8498cfd",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "wrangelvid/diffusion-policy-rl",
+   "reason": "duplicate/mirror",
+   "detail": "fork of diffusion_policy",
+   "commit": "ea7baafdee0e6c26cfd1030f1fa6c2b2d211e2d8",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "xiaoxiaoxh/reactive_diffusion_policy",
+   "reason": "unrelated",
+   "detail": "visuo-tactile contact-rich",
+   "commit": "824c5e8de1fd1811106907a04b5f0186e0138c0b",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "xiaoxiaoxh/TactAR_APP",
+   "reason": "no code",
+   "detail": "AR app, no robot code",
+   "commit": "a86d5e85f2bbb6982bd6b6b9c6c2b5914fd5cb05",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "xwnb/motion_planning",
+   "reason": "unrelated",
+   "detail": "2D planning algorithms",
+   "commit": "8b098d862f1c56fe4bc3724cabfde17bcba743ac",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "YAN-17-future/Design-and-Implementation-of-a-Fully-Autonomous-Logistics-Handling-Cart",
+   "reason": "unrelated",
+   "detail": "logistics cart firmware",
+   "commit": "49ed17475026aff54409d03de068b82aab3a80df",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Yangjingyuan-HK/lerobot-so101-policy-evaluation",
+   "reason": "duplicate/mirror",
+   "detail": "LeRobot fork",
+   "commit": "15b444c16c7295ac7b70b0af6f35eb67a1419929",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "YanjieZe/Humanoid-Teleoperation",
+   "reason": "unrelated",
+   "detail": "teleop",
+   "commit": "8221c58e0005de7efcd071f2373a888751727811",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "Yifu-Tian/tmpd-public",
+   "reason": "unrelated",
+   "detail": "tethered path planning",
+   "commit": "e688e36657f5e8d1eb08c3551b4b74528e9c8558",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "yoraish/mmd",
+   "reason": "unrelated",
+   "detail": "multi-robot",
+   "commit": "5c2597eb3e2def9f0a87d7972811d340343c0738",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "YoungYNG/DQ_WBC",
+   "reason": "unrelated",
+   "detail": "legged manipulator",
+   "commit": "4b2fd47319d2321e3a60e2bb5d0ff1b4ca88718f",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "yudhisteer/Digital-Twin-of-Anthropomorphic-Robotic-Arm",
+   "reason": "no code",
+   "detail": "README only",
+   "commit": "9fc00da4cdb487a299f5049f1467357e19d8bdaf",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "yzhao334/Efficient-Trajectory-Optimization-for-Robot-Motion-Planning--Examples",
+   "reason": "unrelated",
+   "detail": "MATLAB trajectory optimization examples (no README-linked arm pick-place)",
+   "commit": "ca4fd248e6e5e6d7af951b4c3652390ae9f17e67",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "yzyzchen/Learning-Based-Motion-Planning-and-Control-for-Robotics",
+   "reason": "unrelated",
+   "detail": "coursework",
+   "commit": "7b107e449ac88d8a1e1147981974c4e317e52d9f",
+   "origin": "review_needed"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "ZhengtongXu/LeTac-MPC",
+   "reason": "unrelated",
+   "detail": "tactile",
+   "commit": "4914b338ed9476ab5b17949eee3ad3c83fc703aa",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "ZibinDong/cocos",
+   "reason": "unrelated",
+   "detail": "DP training conditioning study",
+   "commit": "ccfb8dd862fc24eab2435b9fb0106615329862ef",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "zzyt6/diffusion_policy_piper",
+   "reason": "unrelated",
+   "detail": "push-T reproduction",
+   "commit": "d0888eeddf8c894e8a6cd16a53ca0aa10aaafde4",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "shard",
+   "shard": "backlog",
+   "repo": "ZzZZCHS/RoboGround",
+   "reason": "no code",
+   "detail": "only a GPT instruction-generation script and unzip helper at the pinned commit; policy code not released",
+   "commit": "25a862634398bc0407bc7b36b5d8b7c61d7a502b",
+   "origin": "linked-unclassified"
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "primitives-recipes",
+   "repo": "https://github.com/facebookresearch/home-robot/blob/ede6a67a2d0c0c8e12ad3b9726f330cea6cf90f5/src/home_robot/home_robot/manipulation/heuristic_pick_policy.py",
+   "item": "pr-home-robot-heuristic-pick-policy",
+   "dedup_key": "facebookresearch/home-robot#home-robot-heuristic-pick-policy",
+   "merged_into": "home-robot-heuristic-pick-policy",
+   "reason": "Same dedup_key, same file heuristic_pick_policy.py at ede6a67, both inspected; experts-classic record kept (expert shard owns HomeRobot), primitives-recipes notes merged."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "primitives-recipes",
+   "repo": "https://github.com/facebookresearch/home-robot/blob/ede6a67a2d0c0c8e12ad3b9726f330cea6cf90f5/src/home_robot/home_robot/manipulation/heuristic_place_policy.py",
+   "item": "pr-home-robot-heuristic-place-policy",
+   "dedup_key": "facebookresearch/home-robot#home-robot-heuristic-place-policy",
+   "merged_into": "home-robot-heuristic-place-policy",
+   "reason": "Same dedup_key, same file heuristic_place_policy.py at ede6a67, both inspected; experts-classic record kept."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "primitives-recipes",
+   "repo": "https://github.com/facebookresearch/home-robot/blob/ede6a67a2d0c0c8e12ad3b9726f330cea6cf90f5/src/home_robot/home_robot/agent/ovmm_agent/pick_and_place_agent.py",
+   "item": "pr-home-robot-ovmm-pick-and-place-agent",
+   "dedup_key": "facebookresearch/home-robot#home-robot-ovmm-pick-and-place-agent",
+   "merged_into": "home-robot-ovmm-pick-and-place-agent",
+   "reason": "Same dedup_key, same file pick_and_place_agent.py at ede6a67, both inspected; experts-classic record kept."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "primitives-recipes",
+   "repo": "https://github.com/facebookresearch/home-robot/blob/ede6a67a2d0c0c8e12ad3b9726f330cea6cf90f5/src/home_robot/home_robot/manipulation/voxel_grasps.py",
+   "item": "pr-home-robot-voxel-grasps",
+   "dedup_key": "facebookresearch/home-robot#home-robot-voxel-grasps",
+   "merged_into": "home-robot-voxel-grasp-generator",
+   "reason": "Same repository, same file voxel_grasps.py at ede6a67, same capability (top-down voxel grasps) under two dedup_keys; experts-classic record kept."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "perception-pose",
+   "repo": "https://github.com/f3rm/f3rm/blob/0802283b682e9bfcd5fb9432015a6c9da97c96c0/f3rm_robot/optimize.py",
+   "item": "pose-f3rm-language-grasp-optimization",
+   "dedup_key": "f3rm/f3rm#language-grasp-optimization",
+   "merged_into": "gs-f3rm-feature-field-grasp",
+   "reason": "Same dedup_key and file f3rm_robot/optimize.py; grasp-special record kept (task-oriented-grasp is the more specific category than scene-representation)."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "perception-pose",
+   "repo": "https://github.com/priyankamandikal/graff/blob/a94be2ce38e9a0e6d4c003222b0deff99bd2331f/affordance-pred/train.py",
+   "item": "pose-graff",
+   "dedup_key": "priyankamandikal/graff#graff",
+   "merged_into": "gs-graff-graff",
+   "reason": "Same dedup_key priyankamandikal/graff#graff; grasp-special record is implementation-inspected, perception-pose record metadata-indexed (affordance-pred/train.py kept as extra evidence)."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-classic",
+   "repo": "https://github.com/GenSim2/GenSim2/blob/4c3a5da3b515a9e772e73a93f0a315732af1c937/gensim2/env/solver/planner.py",
+   "item": "gensim2-kpam-keypoint-constrained-expert",
+   "dedup_key": "gensim2/gensim2#gensim2-kpam-keypoint-constrained-expert",
+   "merged_into": "gensim2-kpam-keypoint-expert",
+   "reason": "Same repository, same file gensim2/env/solver/planner.py, same capability (kPAM expert); experts-sim record kept (GenSim2 is in that shard's scope), experts-classic failure_paths merged."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-sim",
+   "repo": "https://github.com/GenSim2/GenSim2/blob/4c3a5da3b515a9e772e73a93f0a315732af1c937/gensim2/env/solver/kpam/term_spec.py",
+   "item": "gensim2-kpam-constraint-library",
+   "dedup_key": "gensim2/gensim2#kpam-constraint-library",
+   "merged_into": "gensim2-kpam-constraint-term-library",
+   "reason": "Same repository, same file gensim2/env/solver/kpam/term_spec.py, same capability; experts-classic record kept (relational-placement is the more specific category than placement-planning)."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-sim",
+   "repo": "https://github.com/GenSim2/GenSim2/blob/4c3a5da3b515a9e772e73a93f0a315732af1c937/gensim2/env/solver/kpam/config/ReachRigidBody.yaml",
+   "item": "gensim2-kpam-reach-grasp-configs",
+   "dedup_key": "gensim2/gensim2#kpam-reach-grasp-configs",
+   "merged_into": "gensim2-kpam-keypoint-expert",
+   "reason": "Parameter variant: ReachRigidBody.yaml is a kPAM constraint config consumed by the kPAM expert, not code (object/parameter variants are not new entries)."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-sim",
+   "repo": "https://github.com/GenSim2/GenSim2/blob/4c3a5da3b515a9e772e73a93f0a315732af1c937/gensim2/env/solver/kpam/config/MoveInsideBox.yaml",
+   "item": "gensim2-kpam-container-placement-configs",
+   "dedup_key": "gensim2/gensim2#kpam-container-placement-configs",
+   "merged_into": "gensim2-kpam-keypoint-expert",
+   "reason": "Parameter variant: MoveInsideBox.yaml is a kPAM constraint config consumed by the kPAM expert, not code."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "perception-seg",
+   "repo": "https://github.com/huangwl18/ReKep/blob/63c43fdba60354980258beaeb8a7d48e088e1e3e/keypoint_proposal.py",
+   "item": "ps-rekep-rekep-keypoint-proposal",
+   "dedup_key": "huangwl18/rekep#rekep-keypoint-proposal",
+   "merged_into": "pose-rekep-keypoint-proposal",
+   "reason": "Same repository, same file keypoint_proposal.py, same capability; perception-pose record is implementation-inspected, perception-seg record metadata-indexed."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "primitives-recipes",
+   "repo": "https://github.com/moveit/moveit_task_constructor/blob/f527048b3db1574f68f5c646e9ed7099085af5c8/core/src/stages/pick.cpp",
+   "item": "pr-mtc-pick-place-container",
+   "dedup_key": "moveit/moveit_task_constructor#mtc-pick-place-container",
+   "merged_into": "mtc-pick-container",
+   "reason": "Same file core/src/stages/pick.cpp at f527048; motion shard splits Pick and Place into two entries (more specific split kept); the combined primitives-recipes entry is merged into mtc-pick-container and noted on mtc-place-container."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "primitives-recipes",
+   "repo": "https://github.com/PickNikRobotics/moveit_grasps/blob/e70b88f97ed223dbcaecd3343316b6900029dacd/src/grasp_planner.cpp",
+   "item": "pr-moveit-grasps-grasp-planner",
+   "dedup_key": "picknikrobotics/moveit_grasps#moveit-grasps-grasp-planner",
+   "merged_into": "moveit-grasps-planner",
+   "reason": "Mirror: github.com/PickNikRobotics/moveit_grasps redirects (301) to moveit/moveit_grasps; same commit e70b88f and identical grasp_planner.cpp bytes. moveit/moveit_grasps record kept."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "backlog",
+   "repo": "https://github.com/vimalabs/VIMABench/blob/97e0af11e126fd477c9d81eeabfb6c739021c680/scripts/oracle/run.py",
+   "item": "backlog-vimalabs-vimabench",
+   "dedup_key": "vimalabs/vimabench",
+   "merged_into": "vima-bench-simple-manipulation-recipe",
+   "reason": "Repo-level backlog entry (metadata-indexed, scripts/oracle/run.py driver) fully covered by 8 capability-level VIMA-Bench task-oracle entries in experts-classic."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "backlog",
+   "repo": "https://github.com/kalyanksk/yolo-ggcnn/blob/43a4313469d337ef9d7b0e4dd657fbaab93a79e6/run_yolo.py",
+   "item": "backlog-kalyanksk-yolo-ggcnn",
+   "dedup_key": "kalyanksk/yolo-ggcnn",
+   "merged_into": "dougsm-ggcnn",
+   "reason": "Copy: repo bundles copies of GG-CNN and Ultralytics; the indexed entrypoint run_yolo.py is only a YOLOv8 detection ROS node (re-read at 43a4313). grasp-parallel had already rejected it; merged into the original dougsm/ggcnn."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-classic",
+   "repo": "https://github.com/stepjam/RLBench/blob/02720bba4c73fe02eb75df946b8791b806028a9d/rlbench/tasks/pick_and_lift.py",
+   "item": "rlbench-pick-and-lift-demo-recipe",
+   "dedup_key": "stepjam/rlbench#pick-and-lift-demo-recipe",
+   "merged_into": "rlbench-waypoint-demo-generator",
+   "reason": "Environment definition only: the RLBench task file registers objects, success sensors and language (init_task/init_episode); the demonstration motion comes from waypoints in the binary .ttm scene executed by the generic Scene.get_demo. START_HERE excludes files that are only environment definitions, so the task is kept as a variant of the demo generator."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-classic",
+   "repo": "https://github.com/stepjam/RLBench/blob/02720bba4c73fe02eb75df946b8791b806028a9d/rlbench/tasks/place_cups.py",
+   "item": "rlbench-place-cups-demo-recipe",
+   "dedup_key": "stepjam/rlbench#place-cups-demo-recipe",
+   "merged_into": "rlbench-waypoint-demo-generator",
+   "reason": "Environment definition only: the RLBench task file registers objects, success sensors and language (init_task/init_episode); the demonstration motion comes from waypoints in the binary .ttm scene executed by the generic Scene.get_demo. START_HERE excludes files that are only environment definitions, so the task is kept as a variant of the demo generator."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-classic",
+   "repo": "https://github.com/stepjam/RLBench/blob/02720bba4c73fe02eb75df946b8791b806028a9d/rlbench/tasks/place_hanger_on_rack.py",
+   "item": "rlbench-place-hanger-on-rack-demo-recipe",
+   "dedup_key": "stepjam/rlbench#place-hanger-on-rack-demo-recipe",
+   "merged_into": "rlbench-waypoint-demo-generator",
+   "reason": "Environment definition only: the RLBench task file registers objects, success sensors and language (init_task/init_episode); the demonstration motion comes from waypoints in the binary .ttm scene executed by the generic Scene.get_demo. START_HERE excludes files that are only environment definitions, so the task is kept as a variant of the demo generator."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-classic",
+   "repo": "https://github.com/stepjam/RLBench/blob/02720bba4c73fe02eb75df946b8791b806028a9d/rlbench/tasks/place_shape_in_shape_sorter.py",
+   "item": "rlbench-place-shape-in-shape-sorter-demo-recipe",
+   "dedup_key": "stepjam/rlbench#place-shape-in-shape-sorter-demo-recipe",
+   "merged_into": "rlbench-waypoint-demo-generator",
+   "reason": "Environment definition only: the RLBench task file registers objects, success sensors and language (init_task/init_episode); the demonstration motion comes from waypoints in the binary .ttm scene executed by the generic Scene.get_demo. START_HERE excludes files that are only environment definitions, so the task is kept as a variant of the demo generator."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-classic",
+   "repo": "https://github.com/stepjam/RLBench/blob/02720bba4c73fe02eb75df946b8791b806028a9d/rlbench/tasks/insert_onto_square_peg.py",
+   "item": "rlbench-insert-onto-square-peg-demo-recipe",
+   "dedup_key": "stepjam/rlbench#insert-onto-square-peg-demo-recipe",
+   "merged_into": "rlbench-waypoint-demo-generator",
+   "reason": "Environment definition only: the RLBench task file registers objects, success sensors and language (init_task/init_episode); the demonstration motion comes from waypoints in the binary .ttm scene executed by the generic Scene.get_demo. START_HERE excludes files that are only environment definitions, so the task is kept as a variant of the demo generator."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-classic",
+   "repo": "https://github.com/stepjam/RLBench/blob/02720bba4c73fe02eb75df946b8791b806028a9d/rlbench/tasks/insert_usb_in_computer.py",
+   "item": "rlbench-insert-usb-in-computer-demo-recipe",
+   "dedup_key": "stepjam/rlbench#insert-usb-in-computer-demo-recipe",
+   "merged_into": "rlbench-waypoint-demo-generator",
+   "reason": "Environment definition only: the RLBench task file registers objects, success sensors and language (init_task/init_episode); the demonstration motion comes from waypoints in the binary .ttm scene executed by the generic Scene.get_demo. START_HERE excludes files that are only environment definitions, so the task is kept as a variant of the demo generator."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-classic",
+   "repo": "https://github.com/stepjam/RLBench/blob/02720bba4c73fe02eb75df946b8791b806028a9d/rlbench/tasks/put_item_in_drawer.py",
+   "item": "rlbench-put-item-in-drawer-demo-recipe",
+   "dedup_key": "stepjam/rlbench#put-item-in-drawer-demo-recipe",
+   "merged_into": "rlbench-waypoint-demo-generator",
+   "reason": "Environment definition only: the RLBench task file registers objects, success sensors and language (init_task/init_episode); the demonstration motion comes from waypoints in the binary .ttm scene executed by the generic Scene.get_demo. START_HERE excludes files that are only environment definitions, so the task is kept as a variant of the demo generator."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-classic",
+   "repo": "https://github.com/stepjam/RLBench/blob/02720bba4c73fe02eb75df946b8791b806028a9d/rlbench/tasks/put_knife_in_knife_block.py",
+   "item": "rlbench-put-knife-in-knife-block-demo-recipe",
+   "dedup_key": "stepjam/rlbench#put-knife-in-knife-block-demo-recipe",
+   "merged_into": "rlbench-waypoint-demo-generator",
+   "reason": "Environment definition only: the RLBench task file registers objects, success sensors and language (init_task/init_episode); the demonstration motion comes from waypoints in the binary .ttm scene executed by the generic Scene.get_demo. START_HERE excludes files that are only environment definitions, so the task is kept as a variant of the demo generator."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-classic",
+   "repo": "https://github.com/stepjam/RLBench/blob/02720bba4c73fe02eb75df946b8791b806028a9d/rlbench/tasks/put_books_on_bookshelf.py",
+   "item": "rlbench-put-books-on-bookshelf-demo-recipe",
+   "dedup_key": "stepjam/rlbench#put-books-on-bookshelf-demo-recipe",
+   "merged_into": "rlbench-waypoint-demo-generator",
+   "reason": "Environment definition only: the RLBench task file registers objects, success sensors and language (init_task/init_episode); the demonstration motion comes from waypoints in the binary .ttm scene executed by the generic Scene.get_demo. START_HERE excludes files that are only environment definitions, so the task is kept as a variant of the demo generator."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-classic",
+   "repo": "https://github.com/stepjam/RLBench/blob/02720bba4c73fe02eb75df946b8791b806028a9d/rlbench/tasks/stack_blocks.py",
+   "item": "rlbench-stack-blocks-demo-recipe",
+   "dedup_key": "stepjam/rlbench#stack-blocks-demo-recipe",
+   "merged_into": "rlbench-waypoint-demo-generator",
+   "reason": "Environment definition only: the RLBench task file registers objects, success sensors and language (init_task/init_episode); the demonstration motion comes from waypoints in the binary .ttm scene executed by the generic Scene.get_demo. START_HERE excludes files that are only environment definitions, so the task is kept as a variant of the demo generator."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-classic",
+   "repo": "https://github.com/stepjam/RLBench/blob/02720bba4c73fe02eb75df946b8791b806028a9d/rlbench/tasks/stack_cups.py",
+   "item": "rlbench-stack-cups-demo-recipe",
+   "dedup_key": "stepjam/rlbench#stack-cups-demo-recipe",
+   "merged_into": "rlbench-waypoint-demo-generator",
+   "reason": "Environment definition only: the RLBench task file registers objects, success sensors and language (init_task/init_episode); the demonstration motion comes from waypoints in the binary .ttm scene executed by the generic Scene.get_demo. START_HERE excludes files that are only environment definitions, so the task is kept as a variant of the demo generator."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-classic",
+   "repo": "https://github.com/stepjam/RLBench/blob/02720bba4c73fe02eb75df946b8791b806028a9d/rlbench/tasks/stack_chairs.py",
+   "item": "rlbench-stack-chairs-demo-recipe",
+   "dedup_key": "stepjam/rlbench#stack-chairs-demo-recipe",
+   "merged_into": "rlbench-waypoint-demo-generator",
+   "reason": "Environment definition only: the RLBench task file registers objects, success sensors and language (init_task/init_episode); the demonstration motion comes from waypoints in the binary .ttm scene executed by the generic Scene.get_demo. START_HERE excludes files that are only environment definitions, so the task is kept as a variant of the demo generator."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-classic",
+   "repo": "https://github.com/stepjam/RLBench/blob/02720bba4c73fe02eb75df946b8791b806028a9d/rlbench/tasks/set_the_table.py",
+   "item": "rlbench-set-the-table-demo-recipe",
+   "dedup_key": "stepjam/rlbench#set-the-table-demo-recipe",
+   "merged_into": "rlbench-waypoint-demo-generator",
+   "reason": "Environment definition only: the RLBench task file registers objects, success sensors and language (init_task/init_episode); the demonstration motion comes from waypoints in the binary .ttm scene executed by the generic Scene.get_demo. START_HERE excludes files that are only environment definitions, so the task is kept as a variant of the demo generator."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-classic",
+   "repo": "https://github.com/stepjam/RLBench/blob/02720bba4c73fe02eb75df946b8791b806028a9d/rlbench/tasks/play_jenga.py",
+   "item": "rlbench-play-jenga-demo-recipe",
+   "dedup_key": "stepjam/rlbench#play-jenga-demo-recipe",
+   "merged_into": "rlbench-waypoint-demo-generator",
+   "reason": "Environment definition only: the RLBench task file registers objects, success sensors and language (init_task/init_episode); the demonstration motion comes from waypoints in the binary .ttm scene executed by the generic Scene.get_demo. START_HERE excludes files that are only environment definitions, so the task is kept as a variant of the demo generator."
+  },
+  {
+   "rejected_by": "integration-dedup",
+   "shard": "experts-classic",
+   "repo": "https://github.com/stepjam/RLBench/blob/02720bba4c73fe02eb75df946b8791b806028a9d/rlbench/tasks/take_lid_off_saucepan.py",
+   "item": "rlbench-take-lid-off-saucepan-demo-recipe",
+   "dedup_key": "stepjam/rlbench#take-lid-off-saucepan-demo-recipe",
+   "merged_into": "rlbench-waypoint-demo-generator",
+   "reason": "Environment definition only: the RLBench task file registers objects, success sensors and language (init_task/init_episode); the demonstration motion comes from waypoints in the binary .ttm scene executed by the generic Scene.get_demo. START_HERE excludes files that are only environment definitions, so the task is kept as a variant of the demo generator."
+  },
+  {
+   "rejected_by": "integration-drop",
+   "shard": "backlog",
+   "repo": "https://github.com/yudhisteer/Robotic-Grasping-Detection-with-PointNet",
+   "item": "backlog-yudhisteer-robotic-grasping-detection-with-pointnet",
+   "dedup_key": "yudhisteer/robotic-grasping-detection-with-pointnet",
+   "reason": "Not an implementation of the claimed capability: the indexed entrypoint Point_Cloud_Processing.py (re-read at b0fff8f) only does RANSAC plane removal, visualisation and point-cloud augmentation; no grasp prediction code. grasp-parallel had rejected the repo for the same reason."
+  }
+ ]
+}
