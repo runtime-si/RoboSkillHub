@@ -642,6 +642,15 @@ yonigozlan/EdgeTAM-hf (Apache-2.0 model card, the transformers conversion of
 facebook/EdgeTAM; Zhou et al., "EdgeTAM: On-Device Track Anything Model",
 2025; facebookresearch/EdgeTAM, Apache-2.0) at pinned commits on first use;
 none are stored here.
+tools/mm-grounding-dino/tools.py is adapted from this repository's
+tools/grounding-dino/tools.py (from open-robot-skills, MIT; see above) and
+keeps its MIT license; the file's header lists the changes. The bundle
+downloads the MM-Grounding-DINO checkpoints
+openmmlab-community/mm_grounding_dino_large_all, _base_all and
+_tiny_o365v1_goldg_v3det (Apache-2.0 model cards; Zhao et al., "An Open and
+Comprehensive Pipeline for Unified Object Grounding and Detection", 2024;
+open-mmlab/mmdetection, Apache-2.0) at pinned commits on first use and runs
+them through Hugging Face transformers (Apache-2.0); none are stored here.
 
 skills/grasping-by-wrist-camera-servoing/scripts/servo_grasp.py is adapted from
 Hello Robot's stretch_ai (https://github.com/hello-robot/stretch_ai, commit
