@@ -1,0 +1,26 @@
+{
+  "skill": "segmenting-and-picking-pieces-classical",
+  "inputs": {
+    "observation": "Observation"
+  },
+  "outputs": {
+    "n_pieces": {"$ref": "segment.n_pieces"},
+    "n_touching": {"$ref": "segment.n_touching"},
+    "n_pickable": {"$ref": "segment.n_pickable"},
+    "piece_mask": {"$ref": "segment.piece_mask"},
+    "pick_point": {"$ref": "segment.pick_point"},
+    "angle_deg": {"$ref": "segment.angle_deg"}
+  },
+  "nodes": {
+    "segment": {
+      "type": "script",
+      "script": "scripts/segment_pieces.py",
+      "inputs": {
+        "observation": {"$ref": "in.observation"}
+      }
+    }
+  },
+  "edges": [["START", "segment"], ["segment", "END"]],
+  "exit": {"router_field": "route", "success_values": ["segmented", "touching_pieces"]},
+  "on_error": "nothing_found"
+}

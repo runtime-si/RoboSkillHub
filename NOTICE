@@ -526,3 +526,11 @@ that commit on first use; none are stored here. They were trained on the
 Cornell grasping dataset (no license stated) and the Jacquard dataset (its
 EULA allows academic, non-commercial use only; annotations CC BY-NC-SA 3.0),
 which may bear on commercial use of the weights.
+skills/segmenting-and-picking-pieces-classical/scripts/segment_pieces.py is
+adapted from Jigsaw-Puzzle-Building-Robot
+(https://github.com/JPStrydom/Jigsaw-Puzzle-Building-Robot, commit
+be867bda743740fac9d843f606b9211e663777f7: code/software/Functions_1.py
+Clear_Background, Binarise, Detect_Pieces, Separate_Overlap and the side angle
+of Classify_Pieces), MIT License, Copyright (c) 2016 JP Strydom; the file's
+header lists the changes, and the license is
+skills/segmenting-and-picking-pieces-classical/LICENSE.jigsaw-puzzle-building-robot.
