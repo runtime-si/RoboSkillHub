@@ -282,9 +282,15 @@ What this shows, honestly:
 - One trial took 70-870 s of simulated servo time: `robot.go_to_pose` with a
   0.3 mm `tolerance` runs to the twin's step cap on most alignment and probe
   moves.
-- Not run: `mode: both_move`, `release: mover`. A DUPLO press (2 x 2 bricks
-  lying on their sides, 0.1 mm wall play) is in the harness (`PARTS=duplo`);
-  see the PR for its result.
+- **DUPLO press** (`PARTS=duplo`: two 2 x 2 bricks lying on their sides,
+  9.4 mm studs 4.5 mm high, 0.1 mm wall play, rigid, `clearance` 0.2 mm,
+  `insert_depth` 4.5 mm, `step` 1.5 mm): 0 of 2 seated (0 and 0.5 mm
+  injected). Both routed `slipped` correctly (0 of 4 probes stopped): the
+  hands went 4.0 mm, the brick 0.1 and 0.8 mm, 0.45 and 0.25 mm off the studs'
+  axis (over the 0.1 mm play) and 2.5-5.5 deg tilted, sliding back in its
+  jaws while neither arm lagged (0.01-0.02 mm) nor the holder moved
+  (0.27-0.30 mm). Fingertips again at 0.0 mm.
+- Not run: `mode: both_move`, `release: mover`.
 
 ## Provenance
 
