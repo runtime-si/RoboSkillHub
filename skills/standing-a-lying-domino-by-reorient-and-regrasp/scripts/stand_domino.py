@@ -477,8 +477,10 @@ def judge_standing(
     size: dict[str, float],
 ) -> dict[str, Any]:
     """Whether a tile stands at (xy, facing): the highest depth points inside its footprint widened by
-    SEARCH_MARGIN are its top; it stands when that top is within HEIGHT_TOLERANCE of the tile's height and
-    within POSITION_TOLERANCE of xy. The first camera that sees the window whole and unoccluded judges."""
+    SEARCH_MARGIN are its top; it stands when that top is within HEIGHT_TOLERANCE of the tile's height (a tile at
+    rest with its top that high leans less than its 8.9 deg tipping angle unless something holds it), and is at the
+    spot when the top is within POSITION_TOLERANCE of xy (``xy`` is where the top was seen). The first camera that
+    sees the window whole and unoccluded judges."""
     along = heading(facing_deg)[:2]
     across = np.array([-along[1], along[0]])
     h = size["height"]
@@ -540,20 +542,20 @@ def judge_standing(
         else:
             top = float(np.percentile(z[raised], 95))
             band = raised & (z >= top - TOP_BAND)
-            offset = math.hypot(float(np.mean(a[band])), float(np.mean(w[band])))
-            standing = top >= h - HEIGHT_TOLERANCE and offset <= POSITION_TOLERANCE
+            ma, mw = float(np.mean(a[band])), float(np.mean(w[band]))
+            offset = math.hypot(ma, mw)
+            standing = top >= h - HEIGHT_TOLERANCE
+            at_spot = offset <= POSITION_TOLERANCE
             why = (
-                ""
-                if standing
-                else (
-                    f"its top is {top * 1e3:.0f} mm over the table (a standing tile's is {h * 1e3:.0f})"
-                    if top < h - HEIGHT_TOLERANCE
-                    else f"its top is {offset * 1e3:.0f} mm off the spot (leaning or misplaced)"
-                )
+                f"its top is {top * 1e3:.0f} mm over the table (a standing tile's is {h * 1e3:.0f})"
+                if not standing
+                else ("" if at_spot else f"its top is {offset * 1e3:.0f} mm off the spot")
             )
             verdict = {
                 "seen": True,
                 "standing": bool(standing),
+                "at_spot": bool(at_spot),
+                "xy": [float(v) for v in xy + ma * along + mw * across],
                 "points": n,
                 "camera": name,
                 "top": top,
@@ -1246,10 +1248,14 @@ def run(
             return finish("unverified", f"{hand_note}; the spot could not be checked ({v['why']})")
         if not v["standing"]:
             return finish("fell", f"{hand_note}; {v['why']} ({v['camera']})")
+        moved = ""
+        if not v.get("at_spot", True):
+            out["standing_tile"] = standing_pose(np.asarray(v["xy"]), facing, table_z, size)
+            moved = "; standing_tile moved to where its top was seen"
         return finish(
             "standing",
             f"{hand_note}; stands, top {v['top'] * 1e3:.0f} mm, {v['offset'] * 1e3:.1f} mm off the spot "
-            f"({v['camera']}, {v['points']} points)",
+            f"({v['camera']}, {v['points']} points){moved}",
         )
 
     def pose_pitch_run() -> Output:

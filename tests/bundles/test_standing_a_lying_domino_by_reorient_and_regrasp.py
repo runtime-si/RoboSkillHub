@@ -646,7 +646,7 @@ def test_no_camera_is_unverified(script):
     assert out["released"] and not out["verified"]
 
 
-def test_judge_standing_reads_a_leaning_tile_off_the_spot(script):
+def test_judge_standing_reads_a_tile_standing_off_the_spot(script):
     arm = Arm(script)
     arm.facing = 0.0
     cam = arm.camera()
@@ -657,8 +657,9 @@ def test_judge_standing_reads_a_leaning_tile_off_the_spot(script):
     off = script.judge_standing(
         [cam], np.array([TILE["x"] - 0.012, TILE["y"]]), 0.0, TABLE_Z, script.TILE_SIZE
     )
-    assert not off["standing"]
+    assert off["standing"] and not off["at_spot"]
     assert "off the spot" in off["why"]
+    assert off["xy"][0] == pytest.approx(TILE["x"], abs=0.004)
 
 
 def test_an_occluded_camera_does_not_judge(script):
