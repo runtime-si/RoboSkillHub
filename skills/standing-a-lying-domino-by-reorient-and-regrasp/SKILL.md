@@ -50,7 +50,7 @@ gap:
     grasp_height: float
     grip_width: float
     facing_deg: float
-    yaw_turn_deg: float
+    pitch_turn_deg: float
     roll_turn_deg: float
     tilt_at_release_deg: float
     release_position: Vec3

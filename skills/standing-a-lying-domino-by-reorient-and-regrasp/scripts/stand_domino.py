@@ -2,12 +2,12 @@
 # (place_dominoes/place_dominoes/place_dominoes.py): pick the lying tile top-down, turn the wrist so its long axis
 # is vertical, set it down on its end at a staging spot, release, retreat - so a top-down pick can take it from
 # there. That repository has no licence: no code was copied; this script is written from the description only.
-# What is new here: the inputs are a world-frame centre and long axis; the 90 deg turn is made on the arm's own
-# wrist-pitch joint, found by a small test turn of each wrist joint (a pose command asking for the pitched hand
-# stalled in a YAM station twin whose solver leaves the wrist roll free), with the tile first turned about the
-# vertical on the last joint so its long axis lies in the plane that joint swings; the tile's lean is read back
-# from the hand's rotation before the release; Franka's force-limited descent is a measured height; and whether the
-# tile stands is judged from depth.
+# What is new here: the inputs are a world-frame centre and long axis; the heading of the pitched approach (the
+# facing) is chosen by IK preview before anything moves, since a pitched hand near the table reaches only some
+# headings on a YAM; the quarter turn is driven to the previewed joints in small steps, then the wrist roll is read
+# back and finished on the last joint (a YAM station twin's solver leaves the roll free); the tile's lean is read
+# back from the hand's rotation before the release; Franka's force-limited descent is a measured height; and
+# whether the tile stands is judged from depth.
 """Stand a flat-lying domino upright: pinch it across its width, lift, pitch the wrist 90 deg, set it on its end."""
 
 from __future__ import annotations
@@ -34,10 +34,11 @@ SKILL.md."""
 MIN_BITE = 0.002
 """Least height of tile edge between the commanded fingertips and the tile's top [m] (a choice)."""
 
-GRIP_OFFSET = 0.012
+GRIP_OFFSET = 0.014
 """How far along the long axis from the tile's centre the jaws close [m], toward the end that ends up on top. The
-tool centre then stands half the tile's height plus this over the table at the release, which keeps the pitched
-hand's housing off the table; a quarter of a 48 mm tile, the pads still over the tile."""
+tool centre then stands half the tile's height plus this over the table at the release (39.5 mm here): in a YAM
+station twin the pitched hand stalled 37.7 mm over the table when asked for 25.5 mm (gripped at the centre). Held
+16 mm off its centre and lifted, a tile there sagged 1.7 deg in the pinch."""
 
 LIFT_HEIGHT = 0.10
 """Tool-centre height over the table for the lift, the test turns, the turn about the vertical and the pitch
@@ -53,12 +54,6 @@ GRIP_CLEARANCE = 0.004
 RETREAT = 0.03
 """How far the hand backs off along its approach after the release before it rises [m]: the fingertips reach
 10.2 mm past the tool centre, the tile's near face about 3-5 mm."""
-
-TEST_TURN = 0.15
-"""Each wrist joint's test turn [rad] (8.6 deg) to learn which way, and about which axis, it turns the hand."""
-
-PITCH_AXIS_TILT = 0.25
-"""Largest vertical component of a usable pitch joint's axis (unit) at the top-down hand: ~14 deg off level."""
 
 JOINT_MARGIN = 0.05
 """Kept clear of each joint limit [rad]."""
@@ -79,6 +74,21 @@ edge at 8.9 deg."""
 
 TURN_TRIES = 3
 """Corrections tried per turn, each read back."""
+
+FACING_STEP_DEG = 10.0
+"""Spacing of the facings (headings of the pitched approach) tried in the IK preview [deg]. The release with the
+pitched hand solves only in bands of about this width in a YAM station twin (a 30 deg probe grid found one or two
+facing pairs per spot, none along the arm's radius)."""
+
+PITCH_STEP_DEG = 15.0
+"""The quarter turn is commanded as pose moves of at most this turn about the level axis through the tool centre
+[deg]. In a YAM station twin one 90 deg pose command stalled (the servo's solver lost the path), and one jump of
+the joints to a solved pitched pose (1.6 rad on a wrist joint) flung the held tile out of the jaws or knocked a
+neighbour."""
+
+CENTRE_TOLERANCE = 0.004
+"""A wrist turn that moved the tool centre more than this is followed by a re-centring move [m] (a servo's 4 mm
+arrival bound)."""
 
 TIP_REACH = 0.0102
 """How far the closed linear_4310 fingertips reach under the tool centre [m] when robot.describe_gripper does not
@@ -103,10 +113,6 @@ bound (grasping-flat-objects)."""
 
 REACH_TOLERANCE = 0.015
 """How far the hand may end from a free move's target [m]: no tighter than a real YAM station's 12 mm."""
-
-STAGING_MOVE = 0.01
-"""A staging spot farther than this from where the tile lay is carried to, and the pitch joint learned again
-there [m]."""
 
 HEIGHT_TOLERANCE = 0.010
 """A standing tile's top reads at least its height less this [m]; a lying one reads 7.5 or 24 mm."""
@@ -144,7 +150,6 @@ class Output(TypedDict):
     released: bool
     grasp_height: float
     grip_width: float
-    pitch_joint: int
     facing_deg: float
     yaw_turn_deg: float
     pitch_turn_deg: float
@@ -236,19 +241,6 @@ def axis_angle(axis: np.ndarray, deg: float) -> np.ndarray:
     return np.eye(3) + math.sin(a) * kx + (1.0 - math.cos(a)) * (kx @ kx)
 
 
-def rotation_vector(m: np.ndarray) -> np.ndarray:
-    """The axis times the angle [rad] of a rotation matrix (the turn it makes)."""
-    angle = math.acos(max(-1.0, min(1.0, (float(np.trace(m)) - 1.0) / 2.0)))
-    if angle < 1.0e-9:
-        return np.zeros(3)
-    v = np.array([m[2, 1] - m[1, 2], m[0, 2] - m[2, 0], m[1, 0] - m[0, 1]])
-    n = float(np.linalg.norm(v))
-    if n < 1.0e-9:  # a half turn: the axis from the symmetric part
-        k = np.sqrt(np.maximum(0.0, (np.diag(m) + 1.0) / 2.0))
-        return k * angle
-    return v / n * angle
-
-
 def heading(deg: float) -> np.ndarray:
     a = math.radians(deg)
     return np.array([math.cos(a), math.sin(a), 0.0])
@@ -272,6 +264,24 @@ def turn_about(axis: np.ndarray, frm: np.ndarray, to: np.ndarray) -> float:
 def angle_between(a: np.ndarray, b: np.ndarray) -> float:
     c = float(a @ b) / ((np.linalg.norm(a) * np.linalg.norm(b)) or 1.0)
     return math.degrees(math.acos(max(-1.0, min(1.0, c))))
+
+
+def pitched_rotation(
+    u: np.ndarray, local_approach: np.ndarray, local_close: np.ndarray, local_up: np.ndarray
+) -> np.ndarray:
+    """The hand's rotation after the quarter turn: its approach along the level heading ``u``, the hand-frame
+    direction ``local_up`` (the tile end that goes up) vertical, its closing axis level."""
+    a = np.asarray(local_approach, dtype=np.float64)
+    a = a / (np.linalg.norm(a) or 1.0)
+    c = np.asarray(local_close, dtype=np.float64) - float(np.asarray(local_close) @ a) * a
+    c = c / (np.linalg.norm(c) or 1.0)
+    e = np.cross(a, c)
+    if float(e @ np.asarray(local_up, dtype=np.float64)) < 0.0:
+        e, c = -e, -c
+    z = np.array([0.0, 0.0, 1.0])
+    level = np.asarray(u, dtype=np.float64)
+    b_world = np.stack([level, np.cross(z, level), z], axis=1)
+    return b_world @ np.stack([a, c, e], axis=1).T
 
 
 def plan_release(
@@ -474,7 +484,8 @@ def run(
     grip_clearance: float = GRIP_CLEARANCE,
     retreat: float = RETREAT,
     min_tool_height: float = MIN_TOOL_HEIGHT,
-    pitch_joint: int = -1,
+    facing_step_deg: float = FACING_STEP_DEG,
+    pitch_step_deg: float = PITCH_STEP_DEG,
     joint_limits: list[list[float]] | None = None,
     verify: bool = True,
     camera_name: str = "",
@@ -503,7 +514,6 @@ def run(
         "released": False,
         "grasp_height": float(grasp_height),
         "grip_width": -1.0,
-        "pitch_joint": -1,
         "facing_deg": 0.0,
         "yaw_turn_deg": 0.0,
         "pitch_turn_deg": 0.0,
@@ -662,20 +672,21 @@ def run(
         except Exception as exc:
             return str(exc) or type(exc).__name__
 
-    def solves(point: np.ndarray, rot: np.ndarray) -> bool:
+    def ik(point: np.ndarray, rot: np.ndarray) -> dict[str, Any] | None:
+        """The IK preview's reply, or None when it is refused or off the servo's tolerance."""
         if not check_reach:
-            return True
+            return {}
         try:
             reply = ctx.tool(
                 "robot.solve_ik", pose={"position": _vec(point), "rotation": quat(rot)}, **on_arm
             )
         except Exception as exc:
             logger.info("standing-a-lying-domino: IK preview refused (%s)", exc)
-            return False
-        return not (
-            isinstance(reply, dict)
-            and (reply.get("success") is False or reply.get("within_servo_tolerance") is False)
-        )
+            return None
+        reply = reply if isinstance(reply, dict) else {}
+        if reply.get("success") is False or reply.get("within_servo_tolerance") is False:
+            return None
+        return reply
 
     # The hand-frame axes, from the hand's own grasp frame: the closing axis and the approach.
     try:
@@ -696,22 +707,61 @@ def run(
         """How far the jaws must turn about the approach to close along ``target``'s closing axis [deg]."""
         return wrap(turn_about(r @ local_approach, r @ local_close, target @ local_close), True)
 
-    # A preview of the top-down grasp, the nearer wrist solution first.
+    # --- the plan, previewed before anything moves: a top-down grasp, then for each facing (the pitched
+    # approach's heading) the pitched hand over the staging spot and at the release, the nearer ones first.
     cur = rot_now()
     grasp_rots.sort(key=lambda g: abs(jaw_error(cur, g)))
-    grasp_rots = [g for g in grasp_rots if solves(np.array([*center[:2], table_z + gh]), g)]
-    if not grasp_rots:
+    step = max(1.0, float(facing_step_deg))
+    facings = sorted(
+        (wrap(theta + i * step, False) for i in range(int(round(360.0 / step)))),
+        key=lambda f: (abs(wrap(f - theta, True)), abs(wrap(f - theta, False))),
+    )
+    plan: tuple[np.ndarray, np.ndarray, np.ndarray, float, dict[str, Any]] | None = None
+    tried: list[str] = []
+    for g in grasp_rots:
+        grasp_ok: dict[bool, bool] = {}
+        for psi in facings:
+            u = heading(psi)
+            forward = float(heading(theta) @ u) >= 0.0
+            e0 = heading(theta) if forward else heading(theta + 180.0)
+            grasp_point = np.array([*(center[:2] + s * e0[:2]), table_z + gh])
+            if forward not in grasp_ok:
+                grasp_ok[forward] = ik(grasp_point, g) is not None
+                if not grasp_ok[forward]:
+                    tried.append(f"{psi:.0f}: grasp")
+            if not grasp_ok[forward]:
+                continue
+            r_f = pitched_rotation(u, local_approach, local_close, g.T @ e0)
+            release = plan_release(spot, psi, table_z, size, gh, s, float(release_gap))
+            if ik(release, r_f) is None:
+                tried.append(f"{psi:.0f}: release")
+                continue
+            hover = ik(np.array([*release[:2], lift_z]), r_f)
+            if hover is None:
+                tried.append(f"{psi:.0f}: over the release")
+                continue
+            plan = (g, e0, grasp_point, psi, hover)
+            break
+        if plan is not None:
+            break
+    if plan is None:
         return finish(
             "unreachable",
-            "the grasp over the tile is out of reach (IK preview, both wrist solutions)",
+            "no facing passes the IK preview for the grasp, the pitched hand over the staging spot and the "
+            f"release ({', '.join(tried[:12])}{', ...' if len(tried) > 12 else ''})",
         )
-    g_rot = grasp_rots[0]
+    g_rot, e0, grasp_point, psi, _ = plan
+    out["facing_deg"] = float(psi)
+    out["standing_tile"] = standing_pose(spot, psi, table_z, size)
+    u = heading(psi)
+    notes: list[str] = []
 
-    roll_gain = [0.0]
+    roll_gain = [1.0]
 
-    def turn_last(err_fn: Any, at: np.ndarray, notes: list[str], key: str) -> np.ndarray:
+    def turn_last(err_fn: Any, at: np.ndarray, key: str, period: float = 360.0) -> np.ndarray:
         """Turn the last joint until ``err_fn(rotation)`` (deg about the approach) is within roll_tolerance_deg,
-        re-centring over ``at`` after each turn. Returns the hand's rotation."""
+        re-centring over ``at`` when the turn moved the hand; a turn by ``period`` is the same, so the smallest
+        one within the joint's limits is taken. Returns the hand's rotation."""
         r = rot_now()
         for _ in range(TURN_TRIES):
             err = float(err_fn(r))
@@ -721,8 +771,8 @@ def run(
             if q.size == 0:
                 notes.append("no joint reading, the wrist was not turned")
                 break
-            options = [err, err - math.copysign(360.0, err)]
-            gain = roll_gain[0] or 1.0
+            options = sorted((err + m * float(period) for m in (-2, -1, 0, 1, 2)), key=abs)
+            gain = roll_gain[0]
             ok = [o for o in options if fits(q.size - 1, q[-1] + math.radians(o) / gain)]
             if not ok:
                 notes.append(f"the last joint has no room to turn {err:+.0f} deg")
@@ -739,76 +789,15 @@ def run(
             out[key] += moved  # type: ignore[literal-required]
             if abs(command) > math.radians(2.0) and 0.5 < abs(math.radians(moved) / command) < 1.5:
                 roll_gain[0] = math.radians(moved) / command
-            why = go("robot.go_to_pose", at, quat(r))
-            if why:
-                notes.append(f"re-centring after the wrist turn: {why}")
-                break
-            r = rot_now()
+            if float(np.linalg.norm(_xyz(here()) - at)) > CENTRE_TOLERANCE:
+                why = go("robot.go_to_pose", at, quat(r))
+                if why:
+                    notes.append(f"re-centring after the wrist turn: {why}")
+                    break
+                r = rot_now()
         return r
 
-    def learn(notes: list[str]) -> tuple[int, np.ndarray, float] | None:
-        """Test-turn the last joint (its sign about the approach) and the wrist joints before it; return the
-        joint that pitches the top-down hand about a level axis by a quarter turn within its limits, that axis
-        (unit, world) and the joint change, or None."""
-        q0 = joints()
-        if q0.size < 3:
-            notes.append("no joint reading")
-            return None
-        n = q0.size
-
-        def test(j: int) -> tuple[np.ndarray, float] | None:
-            step = TEST_TURN if fits(j, q0[j] + TEST_TURN) else -TEST_TURN
-            r0 = rot_now()
-            q = q0.copy()
-            q[j] += step
-            why = to_joints(q)
-            r1 = rot_now()
-            back = to_joints(q0)
-            if why or back:
-                notes.append(f"test turn of joint {j + 1}: {why or back}")
-                return None
-            w = rotation_vector(r1 @ r0.T) / step
-            return w, step
-
-        t = test(n - 1)
-        if t is not None:
-            w, _ = t
-            along = float(w @ (rot_now() @ local_approach))
-            if abs(along) > 0.5:
-                roll_gain[0] = along
-        joints_to_try = [int(pitch_joint)] if int(pitch_joint) >= 0 else [n - 3, n - 2]
-        best: tuple[int, np.ndarray, float] | None = None
-        best_room = -math.inf
-        for j in joints_to_try:
-            t = test(j)
-            if t is None:
-                continue
-            w, _ = t
-            rate = float(np.linalg.norm(w))
-            if rate < 0.5:
-                continue
-            k = w / rate
-            if abs(float(k[2])) > PITCH_AXIS_TILT:
-                notes.append(
-                    f"joint {j + 1} turns the hand about an axis {math.degrees(math.asin(abs(k[2]))):.0f} deg off level"
-                )
-                continue
-            for sign in (1.0, -1.0):
-                dq = sign * (math.pi / 2.0) / rate
-                if not fits(j, q0[j] + dq):
-                    continue
-                room = (
-                    min(q0[j] + dq - float(lower[j]), float(upper[j]) - q0[j] - dq)
-                    if j < len(lower)
-                    else 0.0
-                )
-                if room > best_room:
-                    best_room, best = room, (j, sign * k, dq)
-            if best is None:
-                notes.append(f"joint {j + 1} has no room for a quarter turn either way")
-        return best
-
-    # --- the pick: over the tile, learn the wrist, square the jaws, straight down, close, lift.
+    # --- the pick: over the tile, square the jaws, straight down, close, lift.
     why = set_width(grip_open)
     if why:
         return finish("unreachable", f"the jaws did not open to {grip_open * 1e3:.0f} mm ({why})")
@@ -819,36 +808,18 @@ def run(
         )
         if why:
             return finish("unreachable", f"rise before the pick: {why}")
-    above = np.array([*center[:2], lift_z])
+    above = np.array([*grasp_point[:2], lift_z])
     why = go("robot.go_to_pose", above, quat(g_rot))
     if why:
         return finish("unreachable", f"over the tile: {why}")
-    notes: list[str] = []
-    pitch = learn(notes)
-    if pitch is None:
-        return finish(
-            "unreachable",
-            "no wrist joint can pitch the hand a quarter turn here"
-            + (f" ({'; '.join(notes)})" if notes else ""),
-        )
-    j, k, dq = pitch
-    out["pitch_joint"] = j + 1
-    # The pitch turns the approach (down) toward u; the end of the tile along u goes up.
-    u = np.cross(k, np.array([0.0, 0.0, -1.0]))
-    u = np.array([u[0], u[1], 0.0]) / (float(np.hypot(u[0], u[1])) or 1.0)
-    e0 = heading(theta) if float(heading(theta) @ u) >= 0.0 else heading(theta + 180.0)
-    grasp_point = np.array([*(center[:2] + s * e0[:2]), table_z + gh])
-    r_now = turn_last(lambda r: jaw_error(r, g_rot), above, notes, "yaw_turn_deg")
+    r_now = turn_last(lambda r: jaw_error(r, g_rot), above, "roll_turn_deg", period=180.0)
+    out["roll_turn_deg"] = 0.0
     err = jaw_error(r_now, g_rot)
     if abs(err) > float(roll_tolerance_deg):
         return finish(
             "unreachable",
             f"the jaws stayed {err:+.0f} deg off the tile's width axis ({'; '.join(notes) or 'not turned'})",
         )
-    out["yaw_turn_deg"] = 0.0
-    why = go("robot.go_to_pose", np.array([*grasp_point[:2], lift_z]), quat(r_now))
-    if why:
-        return finish("unreachable", f"over the grasp point: {why}")
     why = move("robot.go_to_pose_cartesian", grasp_point, quat(r_now))
     reached = _xyz(here())
     high = float(reached[2] - grasp_point[2])
@@ -879,86 +850,62 @@ def run(
     if why:
         return finish("dropped", f"after the lift: {why}")
 
-    # --- carried to another staging spot: learn the wrist again there.
-    if float(np.linalg.norm(spot - center[:2])) > STAGING_MOVE:
-        why = go("robot.go_to_pose", np.array([*spot, lift_z]), quat(r_grip))
-        if why:
-            return finish("unreachable", f"to over the staging spot: {why}; still holding")
-        pitch = learn(notes)
-        if pitch is None:
-            return finish(
-                "unreachable",
-                "no wrist joint can pitch the hand a quarter turn over the staging spot ("
-                + "; ".join(notes)
-                + "); still holding",
-            )
-        j, k, dq = pitch
-        out["pitch_joint"] = j + 1
-        u = np.cross(k, np.array([0.0, 0.0, -1.0]))
-        u = np.array([u[0], u[1], 0.0]) / (float(np.hypot(u[0], u[1])) or 1.0)
-    at = _xyz(here())
-
-    # --- turn the held tile about the vertical so the end that goes up points along u.
-    notes = []
+    # --- over the staging spot, the held tile turned about the vertical so the end that goes up points along the
+    # facing, then the quarter turn about the level axis through the tool centre, in steps.
+    release = plan_release(spot, psi, table_z, size, g_meas, s, float(release_gap))
+    high_pt = np.array([*release[:2], lift_z])
+    why = go("robot.go_to_pose", high_pt, quat(r_grip))
+    if why:
+        return finish("unreachable", f"to over the staging spot: {why}; still holding")
     r_now = turn_last(
-        lambda r: turn_about(r @ local_approach, r @ e_local, u), at, notes, "yaw_turn_deg"
+        lambda r: turn_about(r @ local_approach, r @ e_local, u), high_pt, "yaw_turn_deg"
     )
     err = turn_about(r_now @ local_approach, r_now @ e_local, u)
     if abs(err) > float(roll_tolerance_deg):
         return finish(
             "unreachable",
-            f"the held tile stayed {err:+.0f} deg off the pitch's plane ({'; '.join(notes) or 'not turned'}); "
+            f"the held tile stayed {err:+.0f} deg off the facing ({'; '.join(notes) or 'not turned'}); "
             "still holding",
         )
-
-    # --- the pitch, on the wrist joint, then read back: the tile's long axis from vertical.
-    q = joints()
-    goal = q.copy()
-    goal[j] += dq
-    why = to_joints(goal)
-    if why:
-        return finish("unreachable", f"the pitch on joint {j + 1}: {why}; still holding")
-    out["pitch_turn_deg"] = math.degrees(dq)
+    a_before = r_now @ local_approach
+    level = np.cross(-z_up, u)
+    n = max(1, int(math.ceil(90.0 / max(1.0, float(pitch_step_deg)))))
+    for i in range(1, n + 1):
+        target = (
+            pitched_rotation(u, local_approach, local_close, e_local)
+            if i == n
+            else axis_angle(level, 90.0 * i / n) @ r_now
+        )
+        why = go("robot.go_to_pose", high_pt, quat(target))
+        if why:
+            return finish("unreachable", f"the pitch, step {i} of {n}: {why}; still holding")
+        why = holding(width())
+        if why:
+            return finish("dropped", f"during the pitch (step {i} of {n}): {why}")
     r_now = rot_now()
-    lean = turn_about(k, r_now @ e_local, z_up)
-    if abs(lean) > float(roll_tolerance_deg):
-        q = joints()
-        rate = abs(dq) / (math.pi / 2.0)
-        fix = math.radians(lean) / rate * (1.0 if dq > 0 else -1.0)
-        if q.size and fits(j, q[j] + fix):
-            q[j] += fix
-            to_joints(q)
-            out["pitch_turn_deg"] += math.degrees(fix)
-            r_now = rot_now()
-    why = holding(width())
-    if why:
-        return finish("dropped", f"after the pitch: {why}")
+    out["pitch_turn_deg"] = angle_between(a_before, r_now @ local_approach)
     a_now = r_now @ local_approach
-    if float(np.hypot(a_now[0], a_now[1])) < 0.5:
+    if angle_between(a_now, u) > 2.0 * float(roll_tolerance_deg):
         return finish(
             "unreachable",
-            f"after the pitch the hand still points {np.round(a_now, 2).tolist()}; still holding",
+            f"after the pitch the hand points {np.round(a_now, 2).tolist()}, not along the "
+            f"{psi:.0f} deg facing; still holding",
         )
-    psi = math.degrees(math.atan2(a_now[1], a_now[0]))
-    out["facing_deg"] = float(wrap(psi, False))
-    out["standing_tile"] = standing_pose(spot, out["facing_deg"], table_z, size)
-    u = heading(psi)
 
-    # --- over the release point, the roll read back (the tile's up end about the approach), straight down.
-    release = plan_release(spot, psi, table_z, size, g_meas, s, float(release_gap))
-    high_pt = np.array([*release[:2], lift_z])
-    if not solves(release, r_now):
+    # --- the roll read back (the tile's up end about the approach), finished on the last joint; the lean
+    # checked before going down; straight down.
+    r_now = turn_last(
+        lambda r: turn_about(r @ local_approach, r @ e_local, z_up), high_pt, "roll_turn_deg"
+    )
+    tilt = angle_between(r_now @ e_local, z_up)
+    out["tilt_at_release_deg"] = tilt
+    if tilt > float(tilt_tolerance_deg):
         return finish(
             "unreachable",
-            "the release with the pitched hand is out of reach (IK preview); still holding",
+            f"over the staging spot the tile's long axis leans {tilt:.1f} deg from vertical"
+            + (f" ({'; '.join(notes)})" if notes else "")
+            + "; still holding",
         )
-    why = go("robot.go_to_pose", high_pt, quat(r_now))
-    if why:
-        return finish("unreachable", f"to over the staging spot, pitched: {why}; still holding")
-    notes = []
-    r_now = turn_last(
-        lambda r: turn_about(r @ local_approach, r @ e_local, z_up), high_pt, notes, "roll_turn_deg"
-    )
     why = move("robot.go_to_pose_cartesian", release, quat(r_now))
     reached = _xyz(here())
     r_now = rot_now()
@@ -1006,8 +953,8 @@ def run(
         return finish("unreachable", f"released, but the retreat: {why}")
 
     hand_note = (
-        f"set down {np.linalg.norm(landed - spot) * 1e3:.1f} mm from the spot, facing {out['facing_deg']:.0f} deg, "
-        f"pitched on joint {j + 1} by {out['pitch_turn_deg']:+.0f} deg, leaning {tilt:.1f} deg at the release"
+        f"set down {np.linalg.norm(landed - spot) * 1e3:.1f} mm from the spot, facing {psi:.0f} deg, "
+        f"pitched {out['pitch_turn_deg']:.0f} deg, leaning {tilt:.1f} deg at the release"
     ) + (f"; {'; '.join(notes)}" if notes else "")
     if not verify:
         return finish("standing", hand_note + "; not checked from depth")
@@ -1026,7 +973,7 @@ def run(
         cams = order_cameras(_cameras(ctx.tool("robot.get_observation")), camera_name)
     except Exception as exc:
         return finish("unverified", f"{hand_note}; no observation for the check ({exc})")
-    v = judge_standing(cams, spot, out["facing_deg"], table_z, size)
+    v = judge_standing(cams, spot, psi, table_z, size)
     if v["seen"]:
         out["verified"] = True
         out["tile_top"] = float(v.get("top", -1.0))
