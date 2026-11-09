@@ -1,0 +1,34 @@
+{
+  "skill": "picking-upright-dominoes-from-a-loading-rack",
+  "inputs": {
+    "table_z": "float",
+    "rack": "Any",
+    "slot_index": "int"
+  },
+  "outputs": {
+    "slot_index": {"$ref": "pick.slot_index"},
+    "picked": {"$ref": "pick.picked"},
+    "grasp_height": {"$ref": "pick.grasp_height"},
+    "grip_width": {"$ref": "pick.grip_width"},
+    "tile": {"$ref": "pick.tile"},
+    "slot_states": {"$ref": "pick.slot_states"},
+    "remaining": {"$ref": "pick.remaining"}
+  },
+  "nodes": {
+    "pick": {
+      "type": "script",
+      "script": "scripts/pick_from_rack.py",
+      "inputs": {
+        "table_z": {"$ref": "in.table_z"},
+        "rack": {"$ref": "in.rack"},
+        "slot_index": {"$ref": "in.slot_index"}
+      }
+    }
+  },
+  "edges": [["START", "pick"], ["pick", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["picked", "slot_empty", "rack_empty", "grasp_failed", "stuck", "hand_full", "not_seen", "invalid_input"]
+  },
+  "on_error": "unreachable"
+}

@@ -396,6 +396,13 @@ skills/simulating-a-domino-layout-before-building/LICENSE.predicators; and from
 MuJoCo's model/sleep/dominos.xml (https://github.com/google-deepmind/mujoco,
 commit 70dede9373277de3a781428e4ce3a428a34abc8b), Apache-2.0, Copyright 2025
 DeepMind Technologies Limited. The file's header lists the changes.
+skills/picking-upright-dominoes-from-a-loading-rack/scripts/pick_from_rack.py
+reuses the pick, jaw read-back and depth judge of
+skills/placing-an-upright-domino-beside-neighbours/scripts/place_domino.py,
+adapted from predicators (https://github.com/BasisResearch/predicators, commit
+afb6f2918091f5ca372a75b9a335aea317a8a209), MIT License, Copyright (c) 2022
+Rohan Chitnis and Tom Silver; the license is
+skills/picking-upright-dominoes-from-a-loading-rack/LICENSE.predicators.
 skills/pressing-a-brick-onto-studs/scripts/press_brick.py is adapted from
 BrickSim (https://github.com/intelligent-control-lab/BrickSim,
 python/bricksim/envs/assemble_brick/expert.py, commit
