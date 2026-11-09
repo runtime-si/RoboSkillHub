@@ -89,6 +89,12 @@ def parse_args(argv=None):
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--config", type=Path, default=None)
     ap.add_argument("--no-probe", action="store_true")
+    ap.add_argument(
+        "--gripper-max-force",
+        type=float,
+        default=0.1,
+        help="gripper joint drive maxForce written to RoCo's user_config (RoCo ships 0.1)",
+    )
     return ap.parse_args(argv)
 
 
@@ -495,10 +501,11 @@ async def run_episode(args, cfg, seed: int) -> dict:
     t_wall = time.perf_counter()
     scene = SCENES[args.scene]
     fault = None if args.fault == "none" else args.fault
-    episode_id = f"{args.scene}__{args.policy}__{args.fault}__brk-{args.breakage}__s{seed}"
+    grip = "" if args.gripper_max_force == 0.1 else f"__grip{args.gripper_max_force:g}"
+    episode_id = f"{args.scene}__{args.policy}__{args.fault}__brk-{args.breakage}{grip}__s{seed}"
     work = args.out / "tasks" / episode_id
     task_dir = write_task_dir(args.scene, work / "task")
-    ucfg = user_config(task_dir, args.roco.resolve(), scene["task_type"])
+    ucfg = user_config(task_dir, args.roco.resolve(), scene["task_type"], args.gripper_max_force)
     (work / "user_config.json").write_text(json.dumps(ucfg, indent=2))
     sys_cfg = args.roco / "config" / "system_config.json"
 
@@ -747,6 +754,7 @@ async def run_episode(args, cfg, seed: int) -> dict:
         "scene": args.scene,
         "fault": args.fault,
         "breakage": args.breakage,
+        "gripper_max_force": args.gripper_max_force,
         "fault_doc": FAULTS[fault]["doc"] if fault else None,
         "expected_failure_types": FAULTS[fault]["expect"] if fault else [None],
         "fault_index": fault_index,

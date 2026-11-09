@@ -79,8 +79,14 @@ def scene_hash(name: str) -> str:
     return hashlib.sha256(blob).hexdigest()
 
 
-def user_config(task_dir: Path, roco_root: Path, task_type: str) -> dict:
-    """RoCo user_config.json for a scene, with absolute paths and without cameras (the baseline is privileged)."""
+def user_config(
+    task_dir: Path, roco_root: Path, task_type: str, gripper_max_force: float = 0.1
+) -> dict:
+    """RoCo user_config.json for a scene, with absolute paths and without cameras (the baseline is privileged).
+
+    ``gripper_max_force`` is the gripper joint drive limit; RoCo ships 0.1 (user_config.json is the file RoCo
+    lets participants change).
+    """
     assets = roco_root / "robot_assets" / "DexMate"
     return {
         "Task_Config": {
@@ -123,12 +129,12 @@ def user_config(task_dir: Path, roco_root: Path, task_type: str) -> dict:
             },
             "Joints_Physics": {
                 "/World/Robot/R_ee_link/joints/R_gripper_joint": {
-                    "Max_Force": 0.1,
+                    "Max_Force": gripper_max_force,
                     "Damping": 1.0,
                     "Stiffness": 100.0,
                 },
                 "/World/Robot/L_ee_link/joints/L_gripper_joint": {
-                    "Max_Force": 0.1,
+                    "Max_Force": gripper_max_force,
                     "Damping": 1.0,
                     "Stiffness": 100.0,
                 },
