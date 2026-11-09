@@ -692,7 +692,7 @@ def test_produced_outputs_are_in_the_output(script):
     assert produced <= set(script.Output.__annotations__)
 
 
-# ----------------------------------------------------------------------------- joint_pitch
+# ----------------------------------------------------------------------------- table_pivot
 
 
 PITCH_AXIS = np.array([0.0, -1.0, 0.0])
@@ -767,7 +767,7 @@ def joint_stand(script, arm, **kw):
     return script.run(arm.ctx(), **args)
 
 
-def test_joint_pitch_stands_the_tile_and_sees_it_from_depth(script):
+def test_table_pivot_stands_the_tile_and_sees_it_from_depth(script):
     first = joint_stand(script, JointArm(script), verify=False)
     assert first["route"] == "standing", first["detail"]
     arm = JointArm(script)
@@ -778,7 +778,7 @@ def test_joint_pitch_stands_the_tile_and_sees_it_from_depth(script):
     )
     out = joint_stand(script, arm)
     assert out["route"] == "standing", out["detail"]
-    assert out["strategy"] == "joint_pitch" and out["pitch_joint"] == 4
+    assert out["strategy"] == "table_pivot" and out["pitch_joint"] == 4
     assert out["picked"] and out["released"] and out["verified"]
     assert out["pitch_turn_deg"] == pytest.approx(90.0, abs=0.5)
     assert out["tilt_at_release_deg"] < 1.0
@@ -790,9 +790,9 @@ def test_joint_pitch_stands_the_tile_and_sees_it_from_depth(script):
     assert arm.released_at[2] == pytest.approx(TABLE_Z + 0.024 + 0.014 - 0.001, abs=1e-6)
 
 
-def test_joint_pitch_turns_only_the_pitch_joint_in_the_air(script):
+def test_table_pivot_air_pitch_turns_only_the_pitch_joint(script):
     arm = JointArm(script)
-    out = joint_stand(script, arm, verify=False, pitch_step_deg=15.0)
+    out = joint_stand(script, arm, verify=False, pitch_step_deg=15.0, air_pitch_deg=60.0)
     assert out["route"] == "standing", out["detail"]
     deltas = [b - a for a, b in zip(arm.joint_moves, arm.joint_moves[1:], strict=False)]
     air = [d for d in deltas if abs(d[3]) > 0.2 and np.allclose(np.delete(d, 3), 0.0)]
@@ -800,7 +800,7 @@ def test_joint_pitch_turns_only_the_pitch_joint_in_the_air(script):
     assert all(abs(d[3]) == pytest.approx(math.radians(15.0), abs=1e-6) for d in air)
 
 
-def test_joint_pitch_refuses_a_step_that_jumps_a_joint(script):
+def test_table_pivot_refuses_a_step_that_jumps_a_joint(script):
     def jump(point, rot):
         a = rot @ np.array([0.0, 0.0, 1.0])
         if abs(a[2]) < 0.3:  # the last turns upright on the table
@@ -819,7 +819,7 @@ def test_joint_pitch_refuses_a_step_that_jumps_a_joint(script):
     assert max(steps) < 0.6
 
 
-def test_joint_pitch_routes_unreachable_when_no_joint_pitches_level_with_room(script):
+def test_table_pivot_routes_unreachable_when_no_joint_pitches_level_with_room(script):
     arm = JointArm(script)
     limits = [[-2.6, 0.0, 0.0, -1.2, -1.57, -2.09], [3.05, 3.65, 3.66, 0.2, 1.57, 2.09]]
     out = joint_stand(script, arm, verify=False, joint_limits=limits)
@@ -828,7 +828,7 @@ def test_joint_pitch_routes_unreachable_when_no_joint_pitches_level_with_room(sc
     assert not out["picked"]
 
 
-def test_joint_pitch_drop_in_the_air_is_dropped(script):
+def test_table_pivot_drop_in_the_air_is_dropped(script):
     arm = JointArm(script, grip=lambda phase: 0.0 if phase == "pitch" else HOLD)
 
     def gripper(**kw):
@@ -838,12 +838,12 @@ def test_joint_pitch_drop_in_the_air_is_dropped(script):
         return {"position": 0.0 if a[2] > -0.75 else HOLD}
 
     arm.get_gripper = gripper
-    out = joint_stand(script, arm, verify=False)
+    out = joint_stand(script, arm, verify=False, air_pitch_deg=60.0)
     assert out["route"] == "dropped"
     assert "during the pitch" in out["detail"]
 
 
-def test_joint_pitch_moves_the_spot_out_when_the_first_does_not_solve(script):
+def test_table_pivot_moves_the_spot_out_when_the_first_does_not_solve(script):
     first = joint_stand(script, JointArm(script), verify=False)
     x0 = first["standing_tile"]["position"]["x"]
 
@@ -863,7 +863,7 @@ def test_joint_pitch_moves_the_spot_out_when_the_first_does_not_solve(script):
     assert out["standing_tile"]["position"]["x"] == pytest.approx(x0 + 0.03, abs=0.002)
 
 
-def test_joint_pitch_stands_it_at_a_given_staging_spot(script):
+def test_table_pivot_stands_it_at_a_given_staging_spot(script):
     spot = {"x": 0.70, "y": 0.26, "z": TABLE_Z}
     arm = JointArm(script)
     out = joint_stand(script, arm, verify=False, staging=spot)
@@ -872,7 +872,7 @@ def test_joint_pitch_stands_it_at_a_given_staging_spot(script):
     assert math.hypot(at["x"] - 0.70, at["y"] - 0.26) < 0.002
 
 
-def test_joint_pitch_turns_a_tile_lying_across_the_pitch_plane(script):
+def test_table_pivot_turns_a_tile_lying_across_the_pitch_plane(script):
     arm = JointArm(script)
     out = joint_stand(script, arm, verify=False, long_axis={"x": 0.0, "y": 1.0, "z": 0.0})
     assert out["route"] == "standing", out["detail"]

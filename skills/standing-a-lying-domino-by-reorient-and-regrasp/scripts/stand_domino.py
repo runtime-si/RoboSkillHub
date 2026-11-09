@@ -92,10 +92,11 @@ YAM station twin the steps of a passing facing moved the joints 0.2-0.5 rad each
 the wrist pitch 1.27 rad onto its 1.5708 limit, and the tile was lost in that step. Allowed 0.9 rad, five of six
 facings that passed still lost the tile in the pitch."""
 
-STRATEGIES = ("joint_pitch", "pose_pitch")
-"""joint_pitch: pitch on the one wrist joint whose axis is level, then stand the tile on the table about its lower
-edge by chained IK steps. pose_pitch: the quarter turn in pose steps about the tool centre over the staging spot
-(stood 0 tiles in a YAM station twin; kept for arms whose solver holds the whole pose)."""
+STRATEGIES = ("table_pivot", "pose_pitch")
+"""table_pivot: find the wrist joint that pitches the hand about a level axis, carry the tile flat into that joint's
+plane far enough out that the upright hand reaches the table, and turn it upright about its inner bottom edge on the
+table by chained IK steps. pose_pitch: the quarter turn in the air in pose steps about the tool centre over the
+staging spot (stood 0 tiles in a YAM station twin; kept for arms whose solver holds the whole pose)."""
 
 PROBE_TURN = 0.15
 """Test turn of each wrist joint with the hand empty over the tile, to find the pitch joint [rad]. In a YAM station
@@ -104,10 +105,14 @@ twin 0.15 rad of joint 4 turned the hand 8.6 deg and swung the tool centre 37 mm
 LEVEL_TOLERANCE = 0.2
 """Largest vertical share of a joint's unit axis for it to count as level (a choice: 11.5 deg)."""
 
-AIR_PITCH_DEG = 60.0
-"""How far the pitch joint alone turns the hand in the air [deg]. In a YAM station twin the pinched tile turned with
-the hand to 75 deg of elevation (hand at 70 deg), then slid out of the pads before the hand reached 80 deg; the rest
-of the turn is made with the tile's lower edge on the table."""
+AIR_PITCH_DEG = 0.0
+"""How far the pitch joint alone turns the held tile in the air before it is set on the table [deg]. In a YAM station
+twin the tile slid down the pads as it tilted (8-11 mm by 45-55 deg) and fell out between 45 and 80 deg, so by
+default the whole turn is made with the tile's lower edge on the table."""
+
+PITCH_ROOM = 0.3
+"""A pitch joint whose quarter turn leaves this much travel to its limit [rad] is taken without testing the joints
+behind it (a YAM's joint 5 is level too, but its quarter turn ends on its limit)."""
 
 PIVOT_STEP_DEG = 5.0
 """Turn per chained IK step while the tile is stood up about its lower edge on the table [deg]."""
@@ -124,11 +129,15 @@ PRESS = 0.001
 loaded (tipping-over-a-surface-edge presses the edge it turns about; a choice for a 10 g tile)."""
 
 STAGE_STEP = 0.03
-"""With no staging spot given: the first spot is under the tile after the air pitch; when the set-down or the
-upright hand does not solve inside the joint limits there, the spot moves this far out along the approach [m]."""
+"""With no staging spot given, spots are tried this far apart [m] out along the pitch plane from where the tile would
+stand if turned up in place; the ones whose set-down and upright hand pass the IK preview first."""
 
-STAGE_TRIES = 4
-"""Spots tried that way."""
+STAGE_REACH = 0.30
+"""How far out the spots go [m]: in a YAM station twin the upright hand reached 40 mm over the table at 0.55 m from
+the base, a tile lies 0.25-0.40 m out."""
+
+STAGE_ATTEMPTS = 3
+"""Spots at which the turn upright is started at most; a turn that fails is backed out the way it came."""
 
 JOINT_SETTLE = 0.075
 """A joint move that ends farther than this from its target on any joint did not arrive [rad]: a real YAM station's
@@ -535,7 +544,7 @@ def run(
     tile_center: dict[str, float],
     long_axis: dict[str, float],
     staging: dict[str, float] | None = None,
-    strategy: str = "joint_pitch",
+    strategy: str = "table_pivot",
     tile_size: dict[str, float] | None = None,
     grasp_height: float = GRASP_HEIGHT,
     grip_offset: float = GRIP_OFFSET,
@@ -552,6 +561,8 @@ def run(
     press: float = PRESS,
     probe_turn: float = PROBE_TURN,
     stage_step: float = STAGE_STEP,
+    stage_reach: float = STAGE_REACH,
+    stage_attempts: int = STAGE_ATTEMPTS,
     joint_limits: list[list[float]] | None = None,
     verify: bool = True,
     camera_name: str = "",
@@ -780,7 +791,9 @@ def run(
     notes: list[str] = []
     roll_gain = [1.0]
 
-    def turn_last(err_fn: Any, at: np.ndarray, key: str, period: float = 360.0) -> np.ndarray:
+    def turn_last(
+        err_fn: Any, at: np.ndarray, key: str, period: float = 360.0, step_deg: float = 0.0
+    ) -> np.ndarray:
         """Turn the last joint until ``err_fn(rotation)`` (deg about the approach) is within roll_tolerance_deg,
         re-centring over ``at`` when the turn moved the hand; a turn by ``period`` is the same, so the smallest
         one within the joint's limits is taken. Returns the hand's rotation."""
@@ -800,9 +813,17 @@ def run(
                 notes.append(f"the last joint has no room to turn {err:+.0f} deg")
                 break
             command = math.radians(ok[0]) / gain
-            goal = q.copy()
-            goal[-1] += command
-            why = to_joints(goal)
+            n_turn = (
+                max(1, int(math.ceil(abs(math.degrees(command)) / step_deg)))
+                if step_deg > 0.0
+                else 1
+            )
+            for i in range(1, n_turn + 1):
+                goal = q.copy()
+                goal[-1] += command * i / n_turn
+                why = to_joints(goal)
+                if why:
+                    break
             if why:
                 notes.append(f"wrist turn: {why}")
                 break
@@ -1185,11 +1206,11 @@ def run(
                 return f"{why} (step {i} of {n})"
         return ""
 
-    def joint_pitch_run() -> Output:
+    def table_pivot_run() -> Output:
         """Learn the wrist joint that pitches the hand about a level axis, pick, turn the held tile about the
         vertical into that joint's plane, pitch AIR_PITCH_DEG on that joint alone, set the tile's lower edge on
         the table at the spot, turn the rest about that edge by chained IK, release, back off."""
-        out["strategy"] = "joint_pitch"
+        out["strategy"] = "table_pivot"
         cur = rot_now()
         order = sorted(grasp_rots, key=lambda g: abs(jaw_error(cur, g)))
         hover = np.array([*center[:2], lift_z])
@@ -1222,7 +1243,7 @@ def run(
         r0 = rot_now()
         a0 = r0 @ local_approach
         axes: dict[int, np.ndarray] = {}
-        pitch_j, sign, rate = -1, 0.0, 0.0
+        pitch_j, sign, rate, best_rate, best_margin = -1, 0.0, 0.0, 0.0, -1.0
         for j in range(q0.size - 1, 0, -1):
             d = float(probe_turn) if fits(j, q0[j] + float(probe_turn)) else -float(probe_turn)
             test = q0.copy()
@@ -1243,17 +1264,14 @@ def run(
             if rate < 0.5 or abs(w[2]) / rate > LEVEL_TOLERANCE:
                 continue
             quarter = (math.pi / 2.0) / rate
-            room = [sg for sg in (1.0, -1.0) if fits(j, q0[j] + sg * quarter)]
-            if room:
-                pitch_j = j
-                sign = max(
-                    room,
-                    key=lambda sg: min(
-                        q0[j] + sg * quarter - float(lower[j]),
-                        float(upper[j]) - q0[j] - sg * quarter,
-                    ),
-                )
+            for sg in (1.0, -1.0):
+                end_q = q0[j] + sg * quarter
+                margin = min(end_q - float(lower[j]), float(upper[j]) - end_q)
+                if margin >= JOINT_MARGIN and margin > best_margin:
+                    pitch_j, sign, best_rate, best_margin = j, sg, rate, margin
+            if best_margin >= PITCH_ROOM:
                 break
+        rate = best_rate
         out["pitch_joint"] = pitch_j + 1
         if pitch_j < 0:
             return finish(
@@ -1298,7 +1316,10 @@ def run(
         # --- the held tile turned about the vertical so its up end points where the pitch takes the approach.
         p_lift = _xyz(here())
         r_now = turn_last(
-            lambda r: turn_about(r @ local_approach, r @ e_local, to_out), p_lift, "yaw_turn_deg"
+            lambda r: turn_about(r @ local_approach, r @ e_local, to_out),
+            p_lift,
+            "yaw_turn_deg",
+            step_deg=float(pitch_step_deg),
         )
         err = turn_about(r_now @ local_approach, r_now @ e_local, to_out)
         if abs(err) > float(roll_tolerance_deg):
@@ -1312,7 +1333,7 @@ def run(
         a_before = r_now @ local_approach
         q_start = joints()
         air = max(0.0, min(90.0, float(air_pitch_deg)))
-        n_air = max(1, int(math.ceil(air / max(1.0, float(pitch_step_deg)))))
+        n_air = int(math.ceil(air / max(1.0, float(pitch_step_deg))))
         for i in range(1, n_air + 1):
             goal = q_start.copy()
             goal[pitch_j] += sign * math.radians(air * i / n_air) / rate
@@ -1325,7 +1346,7 @@ def run(
             if why:
                 return finish("dropped", f"during the pitch (step {i} of {n_air}): {why}")
 
-        # --- where the tile's lower edge goes: from the hand, the tile hangs (grasp height - half its thickness)
+        # --- where the tile's lower edge goes: from the hand, the tile sits (grasp height - half its thickness)
         # ahead of the tool centre along the approach and grip_offset behind it along its up end.
         r = rot_now()
         p = _xyz(here())
@@ -1337,55 +1358,65 @@ def run(
         phi = turn_about(cl, e, z_up)
         r_phi = axis_angle(cl, phi)
         final_c = pivot + r_phi @ (c_t - pivot)
-        lead = np.array([*a[:2], 0.0])
-        lead = lead / (np.linalg.norm(lead) or 1.0)
         if staging:
             spots = [spot]
         else:
-            spots = [final_c[:2] + i * float(stage_step) * lead[:2] for i in range(STAGE_TRIES)]
-        tried: list[str] = []
-        plan = None
-        for xy in spots:
+            n_out = max(1, int(round(float(stage_reach) / max(1.0e-3, float(stage_step)))) + 1)
+            spots = [final_c[:2] + i * float(stage_step) * to_out[:2] for i in range(n_out)]
+
+        def plan_at(xy: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, str]:
             shift = np.array([*(xy - final_c[:2]), table_z + SETDOWN_GAP - pivot[2]])
             down = p + shift
-            p_end = (
-                pivot + shift - (SETDOWN_GAP + float(press)) * z_up + r_phi @ (down - pivot - shift)
-            )
+            edge = pivot + shift - (SETDOWN_GAP + float(press)) * z_up
             _, why = ik_q(down, r)
             if not why:
-                _, why = ik_q(p_end, r_phi @ r)
+                _, why = ik_q(edge + r_phi @ (down - pivot - shift), r_phi @ r)
+            return shift, down, edge, why
+
+        previews = [(xy, *plan_at(xy)) for xy in spots]
+        order = [v for v in previews if not v[4]] + [v for v in previews if v[4]]
+        tried: list[str] = []
+        n_piv = max(1, int(math.ceil(abs(phi) / max(1.0, float(pivot_step_deg)))))
+        stood = None
+        for xy, shift, down, edge, preview in order[: int(stage_attempts)]:
+            here_now = _xyz(here())
+            why = line_to(np.array([down[0], down[1], max(here_now[2], down[2])]), r)
+            if not why:
+                why = line_to(down, r)
             if why:
-                tried.append(f"({xy[0]:.3f}, {xy[1]:.3f}): {why}")
+                tried.append(f"({xy[0]:.3f}, {xy[1]:.3f}) set-down: {why}")
                 continue
-            plan = (xy, shift, down)
-            break
-        if plan is None:
+            path = [joints()]
+            for i in range(1, n_piv + 1):
+                turn = axis_angle(cl, phi * i / n_piv)
+                why = step_to(edge + turn @ (down - pivot - shift), turn @ r)
+                if why:
+                    why = f"step {i} of {n_piv}: {why}"
+                    break
+                path.append(joints())
+            if not why:
+                stood = xy
+                break
+            tried.append(
+                f"({xy[0]:.3f}, {xy[1]:.3f}) upright {why}"
+                + (f" [preview: {preview}]" if preview else "")
+            )
+            # Back down flat the way it came, lift a little, and try the next spot.
+            for q in reversed(path[:-1]):
+                if q.size:
+                    to_joints(q)
+            line_to(down + np.array([0.0, 0.0, 0.01]), r)
+        if stood is None:
             return finish(
                 "unreachable",
-                f"after the pitch no spot lets the hand set the tile down and stand it ({'; '.join(tried)}); "
-                "still holding",
+                f"no spot let the hand stand the tile up ({'; '.join(tried[:6]) or 'none tried'}); still holding",
             )
-        xy, shift, down = plan
+        xy = stood
         out["standing_tile"] = standing_pose(
-            xy, math.degrees(math.atan2(a[1], a[0])), table_z, size
+            xy, math.degrees(math.atan2(to_out[1], to_out[0])), table_z, size
         )
-        why = line_to(np.array([down[0], down[1], p[2]]), r)
-        if not why:
-            why = line_to(down, r)
-        if why:
-            return finish("unreachable", f"to the set-down: {why}; still holding")
-
-        # --- upright about the lower edge, pressed onto the table.
-        edge = pivot + shift - (SETDOWN_GAP + float(press)) * z_up
-        n_piv = max(1, int(math.ceil(abs(phi) / max(1.0, float(pivot_step_deg)))))
-        for i in range(1, n_piv + 1):
-            turn = axis_angle(cl, phi * i / n_piv)
-            why = step_to(edge + turn @ (down - pivot - shift), turn @ r)
-            if why:
-                return finish(
-                    "unreachable",
-                    f"turning upright on the table, step {i} of {n_piv}: {why}; still holding",
-                )
+        if tried:
+            notes.append(f"passed over {len(tried)} spot(s): {'; '.join(tried[:3])}")
         why = holding(width())
         if why:
             return finish("dropped", f"turning upright on the table: {why}")
@@ -1444,6 +1475,6 @@ def run(
             return finish("standing", hand_note + "; not checked from depth")
         return check(landed[:2], facing, hand_note)
 
-    if strategy == "joint_pitch":
-        return joint_pitch_run()
+    if strategy == "table_pivot":
+        return table_pivot_run()
     return pose_pitch_run()
