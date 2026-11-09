@@ -28,10 +28,14 @@ Migration status
     Updated to v0.8.0 (MotionPlanner.plan_pose / plan_grasp, native goalset,
     SceneCfg collision world, PoseCostMetric).
 
-Remaining functions (plan_with_grasped_object, …):
+``plan_with_grasped_object``:
+    Updated to v0.8.0 (AttachmentManager.fit_spheres / update / detach on the
+    MotionPlanner's trajopt solver, MORPHIT spheres, explicit failure reasons).
+
+Remaining functions (``solve_ik``, ``batch_grasp_feasibility``, the
+``validate_joint_trajectory_*`` validators, the debug-mesh helpers):
     NOT YET updated — guarded by a try/except on the v0.7 imports so the
-    module still loads cleanly.  They will raise RuntimeError if called.
-    TODO: port to v0.8.0 API.
+    module still loads cleanly.  They raise RuntimeError on a v0.8-only install.
 """
 
 from __future__ import (
@@ -179,11 +183,17 @@ def _load_robot_dict(robot_file: str) -> dict:
     the yaml's directory so curobo's ``join_path`` passes them through unchanged.
     """
     # Prefer the v0.7-stashed loaders: the v0.8 import block rebinds the
-    # module-level ``get_robot_configs_path`` (and ``join_path`` / ``load_yaml``
-    # only exist in v0.7), so use the aliases stashed at import time.
-    _get_cfg_path = globals().get("_v1_get_robot_configs_path", None) or get_robot_configs_path
-    _join = globals().get("_v1_join_path", None) or join_path
-    _load = globals().get("_v1_load_yaml", None) or load_yaml
+    # module-level ``get_robot_configs_path``, and ``join_path`` / ``load_yaml``
+    # are only module-level names on v0.7; v0.8 has them in curobo.config_io.
+    if _V1_AVAILABLE:
+        _get_cfg_path = _v1_get_robot_configs_path
+        _join = _v1_join_path
+        _load = _v1_load_yaml
+    else:
+        from curobo.config_io import join_path as _join
+        from curobo.config_io import load_yaml as _load
+
+        _get_cfg_path = get_robot_configs_path
     project_path = _PROJECT_ROBOT_CONFIGS.get(robot_file)
     if project_path is None:
         return _load(_join(_get_cfg_path(), robot_file))
@@ -1566,246 +1576,330 @@ def _v2_scene_cfg_excluding(
     return _world_to_v2_scene_cfg(fw, device_cfg)
 
 
-def _build_transport_debug_ply(
-    world_config,
-    q_start,
-    robot_file,
-    tensor_args,
-    attached_obstacle,
-    object_name,
-    target_pos,
-    planning_debug,
-    out_dir,
-    tag,
-    post_attach_spheres=None,
-):
-    """Build a combined PLY with world mesh, robot spheres, object at EE, and all trajectories.
+# ---------------------------------------------------------------------------
+# Held-object (attached object) planning — cuRobo v0.8 AttachmentManager.
+# ---------------------------------------------------------------------------
 
-    Returns the combined trimesh mesh, or None if no geometry was built.
+# Sphere slots reserved on the attach link. franka.yml ships 4 for
+# ``attached_object``; the held-object planner raises the link's
+# ``extra_collision_spheres`` to at least this many.
+_ATTACH_SPHERE_SLOTS = 16
+
+# Spheres asked of MORPHIT. At 4ea7736 it often collapses to 2-3 large
+# spheres when asked for more on a small box (30 mm cube: 2 spheres and
+# 11 mm protrusion at 16, 8 spheres and 5 mm at 8; same at 8 for a domino
+# tile), so ask for 8 and let the slots above absorb what it returns.
+_ATTACH_NUM_SPHERES = 8
+
+# Surface samples used to measure (and close) MORPHIT's under-coverage.
+_ATTACH_SURFACE_SAMPLES = 2000
+
+# Fitted spheres are written link-local and read back through FK; anything
+# further than this from where they were fitted means the attach link is not
+# rigidly at the tool frame the AttachmentManager offsets against.
+_ATTACH_READBACK_TOL_M = 1.0e-3
+
+
+class _AttachedPlannerCache(dict):
+    """Held-object MotionPlanners keyed by their creation settings.
+
+    Separate from ``_pose_planner_cache``: these planners carry a raised
+    sphere allocation on the attach link (and the caller's collision buffer
+    and activation distance), so they cannot share a slot with the plain
+    pose planners. ``invalidate`` is what ``tools._cuda_cleanup`` calls.
     """
-    if tensor_args is None:
-        tensor_args = TensorDeviceType()
 
-    scene_parts = []
+    def invalidate(self) -> None:
+        self.clear()
 
-    def _tube(points, radius, color):
-        parts = []
-        for i in range(len(points) - 1):
-            seg = trimesh.creation.cylinder(radius=radius, segment=[points[i], points[i + 1]])
-            seg.visual.vertex_colors = np.tile(color, (len(seg.vertices), 1))
-            parts.append(seg)
-        for p in points:
-            sp = trimesh.creation.icosphere(radius=radius * 1.5)
-            sp.apply_translation(p)
-            sp.visual.vertex_colors = np.tile(color, (len(sp.vertices), 1))
-            parts.append(sp)
-        return parts
 
-    def _marker(pos, radius, color):
-        sp = trimesh.creation.icosphere(radius=radius)
-        sp.apply_translation(pos)
-        sp.visual.vertex_colors = np.tile(color, (len(sp.vertices), 1))
-        return sp
+_attached_planner_cache = _AttachedPlannerCache()
 
-    def _joint_to_ee(joint_traj):
-        """Convert (T, 7) or (N, T, 7) joint traj to list of (T, 3) EE paths."""
-        arr = np.array(joint_traj)
-        if arr.ndim == 2:
-            arr = arr[np.newaxis]  # (1, T, 7)
-        results = []
-        for i in range(arr.shape[0]):
-            try:
-                seed = arr[i]
-                if seed.shape[-1] > 7:
-                    seed = seed[:, :7]
-                ee = joint_trajectory_to_ee_positions(
-                    seed, robot_file=robot_file, tensor_args=tensor_args
-                )
-                if ee.ndim == 1:
-                    ee = ee.reshape(1, 3)
-                if ee.shape[0] > 1:
-                    results.append(ee)
-            except Exception:
-                pass
-        return results
 
-    # 1. World mesh (gray, basket orange)
-    if world_config is not None:
-        exclude_set = {object_name} if object_name else set()
-        for obj in getattr(world_config, "objects", []) or []:
-            if getattr(obj, "name", None) in exclude_set:
-                continue
-            try:
-                m = obj.get_trimesh_mesh()
-                if m is None or len(m.vertices) < 20:
-                    continue
-                m_copy = m.copy()
-                verts = np.array(m_copy.vertices)
-                colors = np.tile([180, 180, 180, 60], (len(verts), 1))
-                basket_mask = (
-                    (verts[:, 0] > 0.40)
-                    & (verts[:, 0] < 0.80)
-                    & (verts[:, 1] > 0.10)
-                    & (verts[:, 1] < 0.45)
-                    & (verts[:, 2] > 0.0)
-                    & (verts[:, 2] < 0.20)
-                )
-                colors[basket_mask] = [255, 140, 0, 180]
-                m_copy.visual.vertex_colors = colors
-                scene_parts.append(m_copy)
-            except Exception:
-                pass
+def _attached_robot_dict(
+    robot_file: str,
+    link_name: str,
+    sphere_slots: int,
+    robot_collision_sphere_buffer: float | None,
+) -> dict:
+    """Robot config dict with ``sphere_slots`` spheres reserved on ``link_name``.
 
-    # 2. Robot + attached object collision spheres
-    # Robot + attached object collision spheres
-    # Get pre-attach spheres (fresh model, no attachment) to identify which are robot body
-    robot_path = join_path(get_robot_configs_path(), robot_file)
-    robot_cfg_dbg = RobotConfig.from_dict(load_yaml(robot_path), tensor_args)
-    robot_model_dbg = CudaRobotModel(robot_cfg_dbg.kinematics)
-    q_t = tensor_args.to_device(torch.from_numpy(q_start.astype(np.float32)).unsqueeze(0))
-    pre_batch = robot_model_dbg.get_robot_as_spheres(q_t, filter_valid=False)
-    # Build set of pre-attach sphere positions (robot body only)
-    pre_attach_positions = set()
-    if pre_batch:
-        for s in pre_batch[0]:
-            if float(s.radius) > 0.001:
-                p = tuple(np.round(np.array(s.position), 5))
-                pre_attach_positions.add(p)
-
-    if post_attach_spheres is not None:
-        for center, radius in post_attach_spheres:
-            if radius < 0.001:
-                continue
-            sph = trimesh.creation.icosphere(radius=radius)
-            sph.apply_translation(center)
-            p_key = tuple(np.round(center, 5))
-            if p_key in pre_attach_positions:
-                # Robot body sphere (blue)
-                sph.visual.vertex_colors = np.tile([70, 130, 200, 80], (len(sph.vertices), 1))
-            else:
-                # Attached object collision sphere (red, opaque)
-                sph.visual.vertex_colors = np.tile([255, 50, 50, 200], (len(sph.vertices), 1))
-            scene_parts.append(sph)
-    else:
-        if pre_batch:
-            for s in pre_batch[0]:
-                r = float(s.radius)
-                if r < 0.005:
-                    continue
-                sph = trimesh.creation.icosphere(radius=r)
-                sph.apply_translation(np.array(s.position))
-                sph.visual.vertex_colors = np.tile([70, 130, 200, 80], (len(sph.vertices), 1))
-                scene_parts.append(sph)
-
-    # 3. Attached object at EE position (yellow)
-    # The mesh from get_trimesh_mesh() has its world pose baked in (table position).
-    # We undo that pose, then apply the current EE pose.
-    if attached_obstacle is not None:
-        try:
-            m = attached_obstacle.get_trimesh_mesh()
-            if m is not None:
-                m_copy = m.copy()
-                from scipy.spatial.transform import Rotation as _R
-
-                # Undo the obstacle's world pose (baked into vertices)
-                pose_list = getattr(attached_obstacle, "pose", None)
-                if pose_list is not None and len(pose_list) >= 7:
-                    # pose_list = [x, y, z, qw, qx, qy, qz]
-                    obj_pos = np.array(pose_list[:3], dtype=np.float64)
-                    obj_quat_wxyz = np.array(pose_list[3:7], dtype=np.float64)
-                    obj_rot = _R.from_quat(np.roll(obj_quat_wxyz, -1)).as_matrix()
-                    obj_inv = np.eye(4)
-                    obj_inv[:3, :3] = obj_rot.T
-                    obj_inv[:3, 3] = -obj_rot.T @ obj_pos
-                    m_copy.apply_transform(obj_inv)
-
-                # Apply EE pose
-                ee_pos_dbg, ee_quat_dbg = robot_joint_position_to_ee_pose(
-                    q_start, robot_file=robot_file, tensor_args=tensor_args
-                )
-                ee_rot = _R.from_quat(np.roll(ee_quat_dbg, -1)).as_matrix()  # wxyz -> xyzw
-                ee_transform = np.eye(4)
-                ee_transform[:3, :3] = ee_rot
-                ee_transform[:3, 3] = ee_pos_dbg
-                m_copy.apply_transform(ee_transform)
-                m_copy.visual.vertex_colors = np.tile([255, 255, 0, 200], (len(m_copy.vertices), 1))
-                scene_parts.append(m_copy)
-        except Exception as e:
-            print(f"[PLY debug] Warning: failed to place object at EE: {e}")
-
-    # 4. Trajectories — all candidates in light orange, final (shortest) in green
-    def _pick_shortest_idx(ee_list):
-        """Return index of shortest path by Cartesian path length."""
-        if not ee_list:
-            return -1
-        best_idx, best_len = 0, float("inf")
-        for i, ee in enumerate(ee_list):
-            plen = float(np.sum(np.linalg.norm(np.diff(ee, axis=0), axis=-1)))
-            if plen < best_len:
-                best_idx, best_len = i, plen
-        return best_idx
-
-    if planning_debug is not None:
-        # Stage colors (distinct, easy to tell apart):
-        #   Graph seeds  = light gray    (thin)
-        #   Trajopt      = orange        (thin)
-        #   Finetune     = cyan/teal     (medium)
-        #   Final (best) = bright green  (thick)
-
-        # 1. Graph seeds — light gray
-        gj = planning_debug.get("graph_plan", {}).get("joint_traj")
-        if gj is not None:
-            for ee in _joint_to_ee(gj):
-                scene_parts.extend(_tube(ee, 0.002, [180, 180, 180, 120]))
-
-        # 2. Trajopt — orange
-        tj = planning_debug.get("trajopt_result", {}).get("joint_traj")
-        if tj is not None:
-            for ee in _joint_to_ee(tj):
-                scene_parts.extend(_tube(ee, 0.003, [255, 140, 0, 180]))
-
-        # 3. Finetune — cyan
-        fj_fine = planning_debug.get("finetune_trajopt_result", {}).get("joint_traj")
-        if fj_fine is not None:
-            for ee in _joint_to_ee(fj_fine):
-                scene_parts.extend(_tube(ee, 0.004, [0, 220, 220, 220]))
-        else:
-            fe = planning_debug.get("finetune_trajopt_result", {}).get("ee_positions")
-            if fe is not None and fe.ndim >= 2 and fe.shape[0] > 1:
-                scene_parts.extend(_tube(fe, 0.004, [0, 220, 220, 220]))
-
-        # 4. Final — pick shortest candidate, draw in bright green (thick)
-        fj_final = planning_debug.get("final_trajectory", {}).get("joint_traj")
-        final_candidates = []
-        if fj_final is not None:
-            final_candidates = _joint_to_ee(fj_final)
-        fin_ee = None
-        if final_candidates:
-            best_idx = _pick_shortest_idx(final_candidates)
-            fin_ee = final_candidates[best_idx]
-        if fin_ee is None:
-            fe = planning_debug.get("final_trajectory", {}).get("ee_positions")
-            if fe is not None and fe.ndim >= 2 and fe.shape[0] > 1:
-                fin_ee = fe
-
-        if fin_ee is not None and fin_ee.ndim >= 2 and fin_ee.shape[0] > 1:
-            scene_parts.extend(_tube(fin_ee, 0.006, [0, 230, 0, 255]))
-            scene_parts.append(_marker(fin_ee[0], 0.012, [0, 230, 0, 255]))
-            scene_parts.append(_marker(fin_ee[-1], 0.012, [0, 150, 0, 255]))
-            min_idx = np.argmin(fin_ee[:, 2])
-            scene_parts.append(_marker(fin_ee[min_idx], 0.01, [255, 0, 255, 255]))
-
-    # 5. Target (red)
-    scene_parts.append(_marker(target_pos, 0.015, [255, 0, 0, 255]))
-
-    if scene_parts:
-        combined = trimesh.util.concatenate(scene_parts)
-        ply_path = pathlib.Path(out_dir) / f"curobo_transport_debug_{tag}.ply"
-        combined.export(str(ply_path))
-        print(
-            f"[plan_with_grasped_object] PLY debug saved to {ply_path} ({ply_path.stat().st_size / 1024 / 1024:.1f} MB)"
+    Raises ``ValueError`` when the robot has no ``link_name`` among its
+    collision links: cuRobo would otherwise build a planner with nowhere to
+    put the object.
+    """
+    robot_dict = _load_robot_dict(robot_file)
+    kin = robot_dict.get("robot_cfg", robot_dict)["kinematics"]
+    known = set(kin.get("collision_link_names") or []) | set(kin.get("extra_links") or {})
+    if link_name not in known:
+        raise ValueError(
+            f"robot '{robot_file}' has no collision link '{link_name}' to attach to "
+            f"(collision links: {sorted(kin.get('collision_link_names') or [])})"
         )
-        return combined
+    extra = dict(kin.get("extra_collision_spheres") or {})
+    extra[link_name] = max(int(extra.get(link_name, 0)), int(sphere_slots))
+    kin["extra_collision_spheres"] = extra
+    if robot_collision_sphere_buffer is not None:
+        kin["collision_sphere_buffer"] = float(robot_collision_sphere_buffer)
+    return robot_dict
+
+
+def _get_attached_planner(
+    robot_file: str,
+    *,
+    link_name: str,
+    with_collision: bool,
+    mesh_cache: int,
+    position_threshold: float,
+    rotation_threshold: float,
+    num_ik_seeds: int,
+    use_cuda_graph: bool,
+    robot_collision_sphere_buffer: float | None,
+    collision_activation_distance: float | None,
+) -> MotionPlanner:
+    """Create (and cache) a v0.8 MotionPlanner for held-object planning."""
+    key = (
+        robot_file,
+        link_name,
+        _ATTACH_SPHERE_SLOTS,
+        with_collision,
+        int(mesh_cache) if with_collision else 0,
+        round(float(position_threshold), 6),
+        round(float(rotation_threshold), 6),
+        int(num_ik_seeds),
+        bool(use_cuda_graph),
+        None
+        if robot_collision_sphere_buffer is None
+        else round(float(robot_collision_sphere_buffer), 6),
+        None
+        if collision_activation_distance is None
+        else round(float(collision_activation_distance), 6),
+    )
+    cached = _attached_planner_cache.get(key)
+    if cached is not None:
+        return cached
+
+    robot_dict = _attached_robot_dict(
+        robot_file, link_name, _ATTACH_SPHERE_SLOTS, robot_collision_sphere_buffer
+    )
+    create_kwargs = dict(
+        robot=robot_dict,
+        self_collision_check=True,
+        device_cfg=DeviceCfg(),
+        num_ik_seeds=num_ik_seeds,
+        position_tolerance=position_threshold,
+        orientation_tolerance=rotation_threshold,
+        use_cuda_graph=use_cuda_graph,
+    )
+    if collision_activation_distance is not None:
+        create_kwargs["optimizer_collision_activation_distance"] = float(
+            collision_activation_distance
+        )
+    if with_collision:
+        create_kwargs["collision_cache"] = {"mesh": int(mesh_cache)}
+    planner = MotionPlanner(MotionPlannerCfg.create(**create_kwargs))
+    _attached_planner_cache[key] = planner
+    print(
+        f"[plan_with_grasped_object] MotionPlanner ready (robot={robot_file}, "
+        f"tool_frames={planner.tool_frames}, attach_link={link_name}, "
+        f"scene_collision={'on' if with_collision else 'off'})"
+    )
+    return planner
+
+
+class _AttachOps:
+    """The torch / cuRobo calls of :func:`plan_with_grasped_object`.
+
+    Kept behind one object so the planning logic (validation, attach/detach
+    pairing, failure reasons) can be unit-tested without a GPU.
+    """
+
+    def start_state(self, planner, q: np.ndarray):
+        n_dof = len(planner.joint_names)
+        cfg = np.asarray(q, dtype=np.float32).flatten()
+        if len(cfg) > n_dof:
+            cfg = cfg[:n_dof]
+        elif len(cfg) < n_dof:
+            cfg = np.concatenate([cfg, np.zeros(n_dof - len(cfg), dtype=np.float32)])
+        return _V2JointState.from_numpy(
+            joint_names=planner.joint_names,
+            position=np.expand_dims(cfg, 0),
+            device_cfg=planner.config.device_cfg,
+        )
+
+    def goal(self, planner, tool_frame: str, position: np.ndarray, quat_wxyz: np.ndarray):
+        device_cfg = planner.config.device_cfg
+        pos_t = device_cfg.to_device(
+            torch.tensor(np.asarray(position, dtype=np.float32).reshape(1, 3))
+        )
+        quat_t = device_cfg.to_device(
+            torch.tensor(np.asarray(quat_wxyz, dtype=np.float32).reshape(1, 4))
+        )
+        pose = _V2Pose(position=pos_t, quaternion=quat_t, name=tool_frame)
+        return GoalToolPose.from_poses(
+            {tool_frame: pose}, ordered_tool_frames=[tool_frame], num_goalset=1
+        )
+
+    @staticmethod
+    def manager(planner):
+        # At 4ea7736 MotionPlanner.attachment_manager reads
+        # trajopt_solver.attachment_manager, which TrajOptSolver does not
+        # expose; the SolverCore it wraps owns the manager.
+        try:
+            return planner.attachment_manager
+        except AttributeError:
+            return planner.trajopt_solver.core.attachment_manager
+
+    def sphere_slots(self, planner, link_name: str) -> int:
+        kparams = planner.kinematics.config.kinematics_config
+        if link_name not in kparams.link_name_to_idx_map:
+            return 0
+        return int(kparams.get_sphere_index_from_link_name(link_name).numel())
+
+    def attach(
+        self,
+        planner,
+        start_state,
+        mesh_ns: Any,
+        link_name: str,
+        num_spheres: int,
+        surface_radius: float,
+    ) -> np.ndarray:
+        """Fit MORPHIT spheres to the held mesh and write them to ``link_name``.
+
+        The fit runs in the mesh's own frame (cached in ``_attach_fit_cache``)
+        and is posed into the robot-base (world) frame here; passing the
+        identity as ``world_objects_pose_offset`` then makes
+        ``AttachmentManager.update`` map the spheres through the inverse
+        tool-frame pose at ``start_state``. Returns the spheres, world frame,
+        ``(n, 4)``.
+        """
+        from curobo._src.geom.sphere_fit import SphereFitType
+        from curobo._src.geom.types import Mesh as _V2Mesh
+
+        device_cfg = planner.config.device_cfg
+        vertices = np.asarray(mesh_ns.vertices, dtype=np.float32).reshape(-1, 3)
+        faces = np.asarray(mesh_ns.faces, dtype=np.int32).reshape(-1, 3)
+        manager = self.manager(planner)
+        key = _fit_key(mesh_ns, num_spheres, surface_radius)
+        local = _attach_fit_cache.get(key)
+        if local is None:
+            obstacle = _V2Mesh(
+                name=str(mesh_ns.name),
+                pose=[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
+                vertices=vertices.tolist(),
+                faces=faces.tolist(),
+                device_cfg=device_cfg,
+            )
+            spheres = manager.fit_spheres(
+                [obstacle],
+                num_spheres=num_spheres,
+                surface_radius=surface_radius,
+                sphere_fit_type=SphereFitType.MORPHIT,
+            )
+            surface = np.asarray(obstacle.get_trimesh_mesh().sample(_ATTACH_SURFACE_SAMPLES))
+            fitted = spheres.detach().cpu().numpy().reshape(-1, 4).astype(np.float64)
+            local = _enclosing_spheres(fitted, surface)
+            if len(_attach_fit_cache) >= 32:
+                _attach_fit_cache.pop(next(iter(_attach_fit_cache)))
+            _attach_fit_cache[key] = local
+        world = _spheres_to_world(local, mesh_ns.pose)
+        identity = _V2Pose(
+            position=device_cfg.to_device(torch.zeros(1, 3)),
+            quaternion=device_cfg.to_device(torch.tensor([[1.0, 0.0, 0.0, 0.0]])),
+        )
+        manager.update(
+            device_cfg.to_device(torch.tensor(world, dtype=torch.float32)),
+            start_state,
+            link_name,
+            world_objects_pose_offset=identity,
+        )
+        return world
+
+    def link_spheres_world(self, planner, start_state, link_name: str, n: int) -> np.ndarray:
+        """The first ``n`` spheres of ``link_name`` at ``start_state``, world frame."""
+        kin = planner.compute_kinematics(start_state)
+        spheres = kin.robot_spheres
+        spheres = spheres.reshape(-1, spheres.shape[-2], 4)[0]
+        kparams = planner.kinematics.config.kinematics_config
+        idx = kparams.get_sphere_index_from_link_name(link_name)[:n]
+        return spheres[idx].detach().cpu().numpy().astype(np.float64)
+
+    def detach(self, planner, link_name: str) -> None:
+        self.manager(planner).detach(link_name)
+
+    def plan(self, planner, goal, start_state, max_attempts: int):
+        return planner.plan_pose(goal, start_state, max_attempts=max_attempts)
+
+    def outcome(self, result, dof: int) -> tuple[bool, np.ndarray | None, str]:
+        """(success, (T, dof) trajectory, failure detail) from a plan_pose result."""
+        if result is None:
+            return False, None, ""
+        if not bool(torch.any(result.success).item()):
+            detail = []
+            for name in ("position_error", "rotation_error"):
+                err = getattr(result, name, None)
+                if err is not None and err.numel() > 0:
+                    detail.append(f"min {name}={float(err.min().item()):.4f}")
+            return False, None, ", ".join(detail)
+        traj_js = result.get_interpolated_plan()
+        if traj_js is None or traj_js.position is None:
+            return True, None, ""
+        arr = np.squeeze(traj_js.position.detach().cpu().numpy())
+        if arr.ndim == 1:
+            arr = arr.reshape(1, -1)
+        return True, arr[:, :dof].astype(np.float64), ""
+
+
+_attach_ops = _AttachOps()
+
+# Enclosing sphere fits in the held mesh's own frame, keyed by its geometry,
+# fit count and surface radius: MORPHIT takes seconds per fit, and the same
+# brick is planned for many times while it is held. A failed plan evicts its
+# fit: MORPHIT is stochastic and the fit decides whether a tight carry is
+# found (YAM over an 8 cm wall: 6/10 fresh fits succeed, a good fit 5/5).
+_attach_fit_cache: dict[tuple, np.ndarray] = {}
+
+
+def _fit_key(mesh_ns: Any, num_spheres: int, surface_radius: float) -> tuple:
+    vertices = np.asarray(mesh_ns.vertices, dtype=np.float32).reshape(-1, 3)
+    faces = np.asarray(mesh_ns.faces, dtype=np.int32).reshape(-1, 3)
+    return (vertices.tobytes(), faces.tobytes(), int(num_spheres), round(float(surface_radius), 6))
+
+
+def _spheres_to_world(local: np.ndarray, pose: Any) -> np.ndarray:
+    """Spheres ``(n, 4)`` in a mesh frame -> world, for a ``[x, y, z, qw, qx, qy, qz]`` pose."""
+    p = [float(v) for v in list(pose)]
+    rot = R_scipy.from_quat([p[4], p[5], p[6], p[3]]).as_matrix()
+    out = np.asarray(local, dtype=np.float64).copy()
+    out[:, :3] = out[:, :3] @ rot.T + np.asarray(p[:3])
+    return out
+
+
+def _enclosing_spheres(spheres: np.ndarray, surface: np.ndarray) -> np.ndarray:
+    """Grow every positive sphere by the deepest uncovered surface point.
+
+    MORPHIT trades coverage against protrusion and leaves parts of the
+    surface outside every sphere; a carry planned around those spheres could
+    scrape the real object. Growing all radii by the largest gap makes the
+    sphere set enclose every sampled surface point.
+    """
+    out = np.asarray(spheres, dtype=np.float64).copy()
+    valid = out[:, 3] > 0.0
+    if not valid.any() or len(surface) == 0:
+        return out
+    centers, radii = out[valid, :3], out[valid, 3]
+    gap = np.min(
+        np.linalg.norm(surface[:, None, :] - centers[None, :, :], axis=-1) - radii[None, :], axis=1
+    )
+    out[valid, 3] += max(0.0, float(gap.max()))
+    return out
+
+
+def _find_world_mesh(world_config: Any, name: str) -> Any | None:
+    for m in list(getattr(world_config, "mesh", None) or []):
+        if getattr(m, "name", None) == name:
+            return m
     return None
 
 
@@ -1830,404 +1924,181 @@ def plan_with_grasped_object(
     link_name: str = "attached_object",
     remove_obstacles_from_world: bool = False,
     debug_out_dir: str | pathlib.Path | None = "curobo_debug2",
-) -> tuple[bool, np.ndarray | None]:
+) -> tuple[bool, np.ndarray | None, str, dict[str, Any]]:
+    """Plan a collision-free carry of a held object to ``target_pose`` (cuRobo v0.8).
+
+    1. Look up ``object_name`` among ``world_config``'s meshes; it is the held
+       object, posed where it is held at ``start_joint_position``.
+    2. Build (or reuse) a MotionPlanner whose ``link_name`` has
+       ``_ATTACH_SPHERE_SLOTS`` sphere slots, and load the scene *without*
+       the held mesh (its world copy would collide with its own spheres).
+    3. ``AttachmentManager.fit_spheres`` (MORPHIT, ``_ATTACH_NUM_SPHERES``) on
+       the held mesh, radii grown until they enclose its sampled surface
+       (:func:`_enclosing_spheres`), then ``AttachmentManager.update`` writes
+       them to ``link_name`` relative to the tool frame at the start
+       configuration.
+    4. Read the spheres back through FK: they must sit where they were fitted
+       (within ``_ATTACH_READBACK_TOL_M``), else the attach link is not at the
+       tool frame and the plan would carry a misplaced object.
+    5. ``MotionPlanner.plan_pose`` to ``target_pose`` (tool frame, robot-base
+       frame) and ``AttachmentManager.detach`` afterwards, whatever happened.
+
+    There is no fallback: a missing object, a robot without the attach link,
+    a misplaced attachment, no collision-free IK, or a failed trajectory
+    optimisation each return ``(False, None, reason, info)``.
+    ``remove_obstacles_from_world`` is accepted for compatibility; the held
+    mesh is always left out of the scene. ``tensor_args`` is unused on v0.8.
+    ``debug_out_dir`` receives the ``events.jsonl`` result log.
+
+    :return: ``(success, trajectory (T, dof) | None, failure_reason, info)``;
+        ``info`` has ``n_spheres``, ``attach_readback_err_m``, ``attach_s``,
+        ``plan_s`` and ``tool_frame`` when they were reached.
     """
-    Plan a collision-free trajectory to move a grasped object to a target pose.
+    global _last_post_attach_spheres
 
-    This function:
-    1. Attaches the object (by name) from world_config to the robot at the current joint state
-    2. Computes IK for the goal pose, selecting the solution closest to the start joint state
-    3. Plans a trajectory in joint space from start to the IK solution
-    4. Returns the joint trajectory
-
-    The object must exist in world_config with the given object_name. After attaching,
-    the object moves with the robot and is checked for collisions with the remaining
-    scene obstacles.
-
-    If planning fails, debug world meshes are saved to debug_out_dir (default: "curobo_debug2"):
-    - start_joint_state_{tag}.obj: World + robot at start configuration
-    - end_joint_state_{tag}.obj: World + robot at IK goal configuration (if IK succeeded)
-
-    :param world_config: CuRobo WorldConfig containing the object (by object_name) and scene obstacles.
-    :param start_joint_position: Current joint positions (7,) or (8,); object is assumed grasped at this state.
-    :param target_pose: (position (3,), quaternion_wxyz (4,)) target pose in robot base (world) frame.
-    :param object_name: Name of the object in world_config to attach to the robot.
-    :param robot_file: Robot config filename under curobo robot configs (default franka.yml).
-    :param tensor_args: Device/dtype; default TensorDeviceType().
-    :param max_attempts: Max planning attempts.
-    :param use_cuda_graph: Whether to use CUDA graph (disable for varying world/start).
-    :param position_threshold: Success threshold for position (m).
-    :param rotation_threshold: Success threshold for orientation.
-    :param position_threshold_z: If set, use max(position_threshold, position_threshold_z).
-    :param num_ik_seeds: Number of IK seeds (default 128).
-    :param use_world_collision: If True, use world_config for collision checking.
-    :param robot_collision_sphere_buffer: Override robot collision_sphere_buffer (m).
-    :param collision_activation_distance: Distance (m) to activate collision cost.
-    :param surface_sphere_radius: Radius (m) for surface spheres when attaching object.
-    :param link_name: Link name to attach object to (default "attached_object").
-    :param remove_obstacles_from_world: Remove attached object from world after attaching.
-    :param debug_out_dir: Directory to save debug meshes on planning failure (default "curobo_debug2"). Set to None to disable.
-    :return: (success, joint_trajectory). joint_trajectory is (T, 7) or None.
-    """
-    if tensor_args is None:
-        tensor_args = TensorDeviceType()
-
-    # Always provide world_config to MotionGen so attach_objects_to_robot can
-    # look up object geometry.  When use_world_collision is False we still pass
-    # the world model (needed for attach) but log that collision avoidance is
-    # effectively bypassed via collision_activation_distance / sphere_buffer.
-    world_model = world_config
-    if not use_world_collision:
-        print(
-            "[plan_with_grasped_object] use_world_collision=False: world model still provided for object attachment, but collision avoidance is relaxed."
+    if not _V2_AVAILABLE:
+        raise RuntimeError(
+            "plan_with_grasped_object: curobo v0.8 (cuRoboV2) is required; the v0.7 "
+            "MotionGen.attach_objects_to_robot API it used was removed."
         )
+    info: dict[str, Any] = {}
+    ops = _attach_ops
 
-    # For pose planning with z variance: use position_threshold for x, y and a large value for z
-    # Set position_threshold_z to a large value to allow any z position
-    if position_threshold_z is None:
-        position_threshold_z = 10.0  # Allow any z by default
-    effective_position_threshold = max(position_threshold, position_threshold_z)
-    if effective_position_threshold > position_threshold:
-        print(
-            f"[plan_with_grasped_object] Using position_threshold={effective_position_threshold:.3f} m (z allowance: position_threshold_z={position_threshold_z:.3f})."
+    def _fail(reason: str) -> tuple[bool, None, str, dict[str, Any]]:
+        print(f"[plan_with_grasped_object] FAILED: {reason}")
+        _log_curobo_event(
+            "transport_plan_result",
+            {
+                "success": False,
+                "failure_reason": reason,
+                "object_name": object_name,
+                "robot_file": robot_file,
+                "function": "plan_with_grasped_object",
+                **info,
+            },
+            override_dir=debug_out_dir,
         )
+        return False, None, reason, info
 
-    # plan_with_grasped_object uses attach_objects_to_robot which mutates
-    # MotionGen state, so we always need a fresh MotionGen for this path.
-    # Invalidate cache to prevent stale attachment state leaking.
-    _motion_gen_cache.invalidate()
-    motion_gen, robot_cfg = _motion_gen_cache.get(
-        robot_file=robot_file,
-        robot_collision_sphere_buffer=robot_collision_sphere_buffer,
-        tensor_args=tensor_args,
-        use_cuda_graph=use_cuda_graph,
-        position_threshold=effective_position_threshold,
-        rotation_threshold=rotation_threshold,
-        num_ik_seeds=num_ik_seeds,
-        collision_activation_distance=collision_activation_distance,
-        world_model=world_model,
-    )
+    if not object_name:
+        return _fail("object_name_required: name the held object's mesh in world_config")
+    held = _find_world_mesh(world_config, object_name)
+    if held is None:
+        names = [getattr(m, "name", "?") for m in list(getattr(world_config, "mesh", None) or [])]
+        return _fail(f"object_not_in_world: '{object_name}' is not a mesh of world_config {names}")
 
-    q_start = np.asarray(start_joint_position, dtype=np.float64)
-    q_start = q_start[:7].flatten()
-    print(f"[plan_with_grasped_object] start_joint_position (7): {q_start.tolist()}")
-    start_state = JointState.from_position(
-        tensor_args.to_device(torch.from_numpy(q_start).unsqueeze(0).float())
-    )
+    effective_position_threshold = position_threshold
+    if position_threshold_z is not None:
+        effective_position_threshold = max(position_threshold, position_threshold_z)
 
-    # Capture attached object reference before attach (so we can add it to debug meshes at EE pose)
-    attached_obstacle = world_config.get_obstacle(object_name) if world_config else None
-
-    # Attach object to robot
-    print(
-        f"[plan_with_grasped_object] Attaching object '{object_name}' to robot at link '{link_name}'..."
-    )
+    others = [m for m in list(getattr(world_config, "mesh", None) or []) if m is not held]
+    has_world = bool(use_world_collision and others)
     try:
-        attach_success = motion_gen.attach_objects_to_robot(
-            start_state,
-            [object_name],
-            surface_sphere_radius=surface_sphere_radius,
+        planner = _get_attached_planner(
+            robot_file,
             link_name=link_name,
-            sphere_fit_type=SphereFitType.VOXEL_VOLUME_SAMPLE_SURFACE,
-            remove_obstacles_from_world_config=remove_obstacles_from_world,
+            with_collision=has_world,
+            mesh_cache=max(len(others) + 4, 32),
+            position_threshold=effective_position_threshold,
+            rotation_threshold=rotation_threshold,
+            num_ik_seeds=num_ik_seeds,
+            use_cuda_graph=use_cuda_graph,
+            robot_collision_sphere_buffer=robot_collision_sphere_buffer,
+            collision_activation_distance=collision_activation_distance,
         )
     except ValueError as e:
-        # CuRobo raises ValueError when the object is not found in the world
-        msg = f"Object '{object_name}' not found in world: {e}"
-        print(f"[plan_with_grasped_object] {msg}")
-        world_names = (
-            [getattr(m, "name", "?") for m in (getattr(world_config, "objects", []) or [])]
-            if world_config
-            else []
-        )
-        _log_curobo_event(
-            "attach_object_not_found",
-            {
-                "object_name": object_name,
-                "world_objects": world_names,
-                "error": str(e),
-                "function": "plan_with_grasped_object",
-            },
-            override_dir=debug_out_dir,
-        )
-        return False, None
-    if not attach_success:
-        msg = f"Failed to attach object '{object_name}'. Check that it exists in world_config."
-        print(f"[plan_with_grasped_object] {msg}")
-        world_names = (
-            [getattr(m, "name", "?") for m in (getattr(world_config, "objects", []) or [])]
-            if world_config
-            else []
-        )
-        _log_curobo_event(
-            "attach_failed",
-            {
-                "object_name": object_name,
-                "world_objects": world_names,
-                "function": "plan_with_grasped_object",
-            },
-            override_dir=debug_out_dir,
-        )
-        return False, None
-    print(f"[plan_with_grasped_object] Successfully attached object '{object_name}' to robot.")
+        return _fail(f"attach_link_missing: {e}")
+    planner.reset_seed()
 
-    # Extract post-attach collision spheres, separating robot body vs attached object
-    # Before attach: attached_object link spheres have radius <= 0 (pre-allocated slots)
-    # After attach: those slots get positive radii from the fitted surface spheres
-    _post_attach_spheres = None
-    _pre_attach_radii = None
-    try:
-        _kin_model = motion_gen.kinematics
-        q_t = tensor_args.to_device(torch.from_numpy(q_start.astype(np.float32)).unsqueeze(0))
-        _sph_batch = _kin_model.get_robot_as_spheres(q_t, filter_valid=False)
-        if _sph_batch:
-            all_spheres = _sph_batch[0]
-            _post_attach_spheres = []
-            for s in all_spheres:
-                r = float(s.radius)
-                if r <= 0.0:
-                    continue
-                pos = np.array(s.position, dtype=np.float64)
-                # Spheres belonging to the attached_object link are at the EE
-                # and were added by attach_objects_to_robot
-                _post_attach_spheres.append((pos, r))
-            print(
-                f"[plan_with_grasped_object] Post-attach collision spheres: {len(_post_attach_spheres)}"
+    if has_world:
+        scene_cfg = _v2_scene_cfg_excluding(world_config, planner.config.device_cfg, [object_name])
+        if scene_cfg is None:
+            raise RuntimeError(
+                "plan_with_grasped_object: the world had obstacle meshes but none "
+                "converted to a v0.8 SceneCfg."
             )
-    except Exception as e:
-        print(f"[plan_with_grasped_object] Warning: failed to get post-attach spheres: {e}")
+        planner.clear_scene_cache()
+        planner.update_world(scene_cfg)
 
-    # Resolve debug output directory
-    _debug_out = _resolve_debug_dir(debug_out_dir)
-    _debug_tag = f"transport_{int(time.time())}"
+    slots = ops.sphere_slots(planner, link_name)
+    if slots <= 0:
+        return _fail(f"attach_link_missing: '{link_name}' has no collision spheres in {robot_file}")
 
-    # Save pre-planning debug: world meshes + robot spheres + attached object
-    # This shows exactly what CuRobo sees for collision checking
+    dof = _get_robot_dof(robot_file)
+    tool_frame = planner.tool_frames[0] if planner.tool_frames else _FRANKA_TOOL_FRAME
+    info["tool_frame"] = tool_frame
+    start_state = ops.start_state(planner, np.asarray(start_joint_position, dtype=np.float64))
+    num_spheres = min(slots, _ATTACH_NUM_SPHERES)
+
+    # The planner is cached: whatever the attach wrote to the link's sphere
+    # slots must be reset before the next call, even when the attach or the
+    # plan raised half-way.
     try:
-        # Get EE pose for attached object visualization
-        ee_pos_dbg, ee_quat_dbg = robot_joint_position_to_ee_pose(
-            q_start, robot_file=robot_file, tensor_args=tensor_args
+        t0 = time.monotonic()
+        try:
+            fitted = ops.attach(
+                planner,
+                start_state,
+                held,
+                link_name,
+                num_spheres=num_spheres,
+                surface_radius=float(surface_sphere_radius),
+            )
+        except Exception as e:  # noqa: BLE001 — cuRobo raises plain exceptions here
+            return _fail(f"attach_failed: {type(e).__name__}: {e}")
+        info["attach_s"] = time.monotonic() - t0
+        valid = fitted[:, 3] > 0.0
+        info["n_spheres"] = int(valid.sum())
+        if not valid.any():
+            return _fail("attach_failed: MORPHIT returned no sphere with a positive radius")
+
+        readback = ops.link_spheres_world(planner, start_state, link_name, len(fitted))
+        err = float(np.max(np.linalg.norm(readback[valid, :3] - fitted[valid, :3], axis=1)))
+        info["attach_readback_err_m"] = err
+        if err > _ATTACH_READBACK_TOL_M:
+            return _fail(
+                f"attach_frame_mismatch: spheres on '{link_name}' land {err * 1000:.1f} mm from "
+                f"where they were fitted; '{link_name}' must be rigidly at tool frame "
+                f"'{tool_frame}'"
+            )
+        _last_post_attach_spheres = [(s[:3].copy(), float(s[3])) for s in fitted[valid]]
+
+        goal = ops.goal(planner, tool_frame, target_pose[0], target_pose[1])
+        t1 = time.monotonic()
+        result = ops.plan(planner, goal, start_state, max_attempts)
+        info["plan_s"] = time.monotonic() - t1
+        ok, trajectory, detail = ops.outcome(result, dof)
+    finally:
+        ops.detach(planner, link_name)
+
+    if result is None or not ok or trajectory is None:
+        _attach_fit_cache.pop(_fit_key(held, num_spheres, float(surface_sphere_radius)), None)
+    if result is None:
+        return _fail(
+            "ik_failed: no collision-free IK solution reaches the target with the object attached"
         )
-        save_world_and_robot_spheres_debug(
-            world_config=world_config,
-            joint_position=q_start,
-            robot_file=robot_file,
-            out_dir=_debug_out,
-            tag=_debug_tag,
-            attached_obstacle=attached_obstacle,
-            attached_obstacle_pose=(ee_pos_dbg, ee_quat_dbg),
-            exclude_obstacle_names=[object_name],
-        )
-        # Also log world mesh names and counts
-        if world_config is not None:
-            mesh_names = [
-                getattr(m, "name", "?") for m in (getattr(world_config, "objects", []) or [])
-            ]
-            print(f"[plan_with_grasped_object] World meshes for collision: {mesh_names}")
-            print(f"[plan_with_grasped_object] use_world_collision={use_world_collision}")
-        print(
-            f"[plan_with_grasped_object] Debug saved to {_debug_out / f'world_and_robot_spheres_{_debug_tag}.obj'}"
-        )
-    except Exception as e:
-        print(f"[plan_with_grasped_object] Warning: failed to save pre-planning debug: {e}")
+    if not ok:
+        return _fail(f"trajopt_failed: {detail}" if detail else "trajopt_failed")
+    if trajectory is None:
+        return _fail("no_trajectory: planner reported success without an interpolated plan")
 
-    # Convert target pose to CuRobo Pose
-    pos = np.asarray(target_pose[0], dtype=np.float64)
-    quat = np.asarray(target_pose[1], dtype=np.float64)
-    print(
-        f"[plan_with_grasped_object] Target pose: position={pos.tolist()}, quat_wxyz={quat.tolist()}"
-    )
-    print(
-        f"[plan_with_grasped_object] Allowing z variance (position_threshold_z={position_threshold_z:.3f} m), matching x, y, orientation"
-    )
-
-    goal_pose = Pose(
-        position=tensor_args.to_device(torch.from_numpy(pos).unsqueeze(0).float()),
-        quaternion=tensor_args.to_device(torch.from_numpy(quat).unsqueeze(0).float()),
-    )
-
-    # Plan directly to pose with z variance enabled
-    # The effective_position_threshold allows z variance while still matching x, y, orientation
-    plan_cfg = MotionGenPlanConfig(
-        pose_cost_metric=PoseCostMetric.reset_metric(),
-        max_attempts=max_attempts,
-        enable_graph_attempt=True,
-    )
-
-    print(
-        f"[plan_with_grasped_object] Planning to pose with z variance (position_threshold={effective_position_threshold:.3f} m)..."
-    )
-    result = motion_gen.plan_single(start_state, goal_pose, plan_cfg)
-
-    success = bool(result.success.item() if result.success is not None else False)
-    status_str = (
-        getattr(result.status, "name", str(result.status))
-        if hasattr(result, "status") and result.status is not None
-        else "N/A"
-    )
-    print(f"[plan_with_grasped_object] Planning result: success={success}, status={status_str}")
-
-    # Log planning result
     _log_curobo_event(
         "transport_plan_result",
         {
-            "success": success,
-            "status": status_str,
+            "success": True,
             "object_name": object_name,
-            "start_joint": q_start.tolist(),
-            "target_pos": pos.tolist(),
-            "use_world_collision": use_world_collision,
-            "surface_sphere_radius": surface_sphere_radius,
-            "collision_activation_distance": collision_activation_distance,
-            "robot_collision_sphere_buffer": robot_collision_sphere_buffer,
-            "n_post_attach_spheres": len(_post_attach_spheres) if _post_attach_spheres else 0,
+            "robot_file": robot_file,
+            "n_waypoints": int(trajectory.shape[0]),
             "function": "plan_with_grasped_object",
+            **info,
         },
         override_dir=debug_out_dir,
     )
-
-    # Expose post-attach spheres for server-side PLY debug
-    global _last_post_attach_spheres
-    _last_post_attach_spheres = _post_attach_spheres
-
-    # Extract intermediate trajectories for debug logging
-    global _last_planning_debug
-    try:
-        _last_planning_debug = extract_planning_debug_trajectories(
-            result,
-            robot_file=robot_file,
-            tensor_args=tensor_args,
-        )
-        _last_planning_debug["metadata"]["planning_function"] = "plan_with_grasped_object"
-        _last_planning_debug["metadata"]["object_name"] = object_name
-    except Exception as e:
-        print(f"[plan_with_grasped_object] Warning: failed to extract debug trajectories: {e}")
-        _last_planning_debug = None
-
-    # Save all intermediate trajectories (joint + EE) + combined PLY
-    try:
-        traj_save = {}
-        if _last_planning_debug is not None:
-            for stage in [
-                "graph_plan",
-                "trajopt_result",
-                "finetune_trajopt_result",
-                "final_trajectory",
-            ]:
-                sd = _last_planning_debug.get(stage, {})
-                if sd.get("available"):
-                    if sd.get("joint_traj") is not None:
-                        traj_save[f"{stage}_joint"] = sd["joint_traj"]
-                    if sd.get("ee_positions") is not None:
-                        traj_save[f"{stage}_ee"] = sd["ee_positions"]
-            traj_save["start_joint"] = q_start
-            traj_save["target_pos"] = pos
-            traj_save["target_quat"] = quat
-        if traj_save:
-            npz_path = _debug_out / f"trajectories_{_debug_tag}.npz"
-            np.savez(str(npz_path), **traj_save)
-            print(f"[plan_with_grasped_object] Trajectory debug saved to {npz_path}")
-
-        # Build combined PLY: world mesh + robot spheres + all trajectories
-        _build_transport_debug_ply(
-            world_config,
-            q_start,
-            robot_file,
-            tensor_args,
-            attached_obstacle,
-            object_name,
-            pos,
-            _last_planning_debug,
-            _debug_out,
-            _debug_tag,
-            post_attach_spheres=_post_attach_spheres,
-        )
-    except Exception as e:
-        print(f"[plan_with_grasped_object] Warning: failed to save trajectory debug: {e}")
-
-    if success and result.interpolated_plan is not None:
-        try:
-            traj_js = result.get_interpolated_plan()
-            if traj_js is not None and traj_js.position is not None:
-                trajectory = np.squeeze(traj_js.position.detach().cpu().numpy())
-                print(
-                    f"[plan_with_grasped_object] Planning succeeded; trajectory shape: {trajectory.shape}"
-                )
-                return True, trajectory
-        except Exception as e:
-            print(
-                f"[plan_with_grasped_object] Warning: failed to extract trajectory despite success: {e}"
-            )
-
-    # Planning failed - save debug meshes if requested
-    if debug_out_dir is not None:
-        tag = f"plan_fail_{int(time.time())}"
-        print(
-            f"[plan_with_grasped_object] Planning failed; saving debug meshes to {debug_out_dir}..."
-        )
-
-        # Save start joint state (include attached object at EE pose)
-        try:
-            ee_pos, ee_quat = robot_joint_position_to_ee_pose(
-                q_start, robot_file=robot_file, tensor_args=tensor_args
-            )
-            save_world_and_robot_spheres_debug(
-                world_config=world_config,
-                joint_position=q_start,
-                robot_file=robot_file,
-                out_dir=debug_out_dir,
-                tag=f"{tag}_start",
-                attached_obstacle=attached_obstacle,
-                attached_obstacle_pose=(ee_pos, ee_quat),
-                exclude_obstacle_names=[object_name],
-            )
-        except Exception as e:
-            print(f"[plan_with_grasped_object] Warning: failed to save start debug mesh: {e}")
-
-        # Try to compute IK for goal pose to save end joint state debug mesh
-        try:
-            ik_world = world_model
-            ik_cfg = IKSolverConfig.load_from_robot_config(
-                robot_cfg,
-                world_model=ik_world,
-                tensor_args=tensor_args,
-                num_seeds=num_ik_seeds,
-                position_threshold=effective_position_threshold,  # Use same threshold as planning
-                rotation_threshold=rotation_threshold,
-                self_collision_check=True,
-            )
-            ik_solver = IKSolver(ik_cfg)
-            retract_cfg = tensor_args.to_device(torch.from_numpy(q_start).unsqueeze(0).float())
-            ik_result = ik_solver.solve_single(goal_pose, retract_config=retract_cfg)
-
-            if bool(ik_result.success.item() if ik_result.success is not None else False):
-                q_sols = ik_result.solution.detach().cpu().numpy()
-                q_sols = np.atleast_2d(q_sols)[:, :7]
-                q_goal_debug = _pick_nearest_solution(q_sols, q_start)
-                ee_pos_end, ee_quat_end = robot_joint_position_to_ee_pose(
-                    q_goal_debug, robot_file=robot_file, tensor_args=tensor_args
-                )
-                save_world_and_robot_spheres_debug(
-                    world_config=world_config,
-                    joint_position=q_goal_debug,
-                    robot_file=robot_file,
-                    out_dir=debug_out_dir,
-                    tag=f"{tag}_end_ik",
-                    attached_obstacle=attached_obstacle,
-                    attached_obstacle_pose=(ee_pos_end, ee_quat_end),
-                    exclude_obstacle_names=[object_name],
-                )
-            else:
-                print(
-                    "[plan_with_grasped_object] IK failed for debug mesh; skipping end state debug mesh."
-                )
-        except Exception as e:
-            print(
-                f"[plan_with_grasped_object] Warning: failed to compute IK and save end debug mesh: {e}"
-            )
-
-    print("[plan_with_grasped_object] Planning failed; returning False, None.")
-    return False, None
+    print(
+        f"[plan_with_grasped_object] success: {trajectory.shape[0]} waypoints, "
+        f"{info['n_spheres']} spheres, plan {info['plan_s']:.2f} s"
+    )
+    return True, trajectory, "", info
 
 
 # ---------------------------------------------------------------------------

@@ -351,15 +351,15 @@ Free-form and yes/no visual question answering against a hosted vision-language 
 
 ### curobo
 
-plan · robots: any, *tuned on* panda · tasks: motion-planning · MIT · v0.1.0 · [`SKILL.md`](tools/curobo/SKILL.md) · [upstream](https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/tools/curobo)
+plan · robots: any, *tuned on* panda · tasks: motion-planning · MIT for this bundle's code (as open-robot-skills declared it); the NVIDIA cuRobo it installs and calls (NVlabs/curobo@4ea7736, nvidia-curobo) is Apache-2.0 · v0.2.0 · [`SKILL.md`](tools/curobo/SKILL.md) · [upstream](https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/tools/curobo)
 
 NVIDIA cuRobo motion planning — collision-free trajectories to grasp goalsets, transport with an attached object, constrained linear moves, single-pose planning, geometric IK, batch grasp feasibility, and joint-trajectory collision validation. Use when a workflow needs GPU-accelerated, collision-aware arm motion plans.
 
 - **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
-- **Note**: Plans for curobo's built-in franka.yml. It knows yam.yml is 6-DoF but does not ship that config; register its path in _PROJECT_ROBOT_CONFIGS before planning for yam.
+- **Note**: Plans for curobo's built-in franka.yml. It knows yam.yml is 6-DoF but does not ship that config; plan_with_grasped_object loads one registered in _PROJECT_ROBOT_CONFIGS, the other v0.8 planners only resolve curobo's built-in configs.
 - **Functions**:
   - `curobo.plan_to_grasp_poses`: Collision-free trajectory to one of several grasp poses (goalset).
-  - `curobo.plan_with_grasped_object`: Transport plan with the grasped object attached to the gripper.
+  - `curobo.plan_with_grasped_object`: Transport plan with the held object attached to the gripper (failure_reason on failure).
   - `curobo.plan_linear`: Straight Cartesian trajectory between two EE poses.
   - `curobo.plan_directed_linear`: Constrained linear motion with axis/orientation holds.
   - `curobo.plan_grasp_motion`: Approach + grasp + lift sequence (three trajectories).

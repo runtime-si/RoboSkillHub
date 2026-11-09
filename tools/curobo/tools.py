@@ -180,6 +180,12 @@ class PlanResult(TypedDict):
     trajectory: Trajectory | None
 
 
+class PlanGraspedResult(TypedDict):
+    success: bool
+    trajectory: Trajectory | None
+    failure_reason: str  # empty on success
+
+
 class PlanLinearResult(TypedDict):
     success: bool
     trajectory: Trajectory | None
@@ -315,14 +321,21 @@ def plan_with_grasped_object(
     link_name: str = "attached_object",
     remove_obstacles_from_world: bool = False,
     debug_out_dir: str | None = None,
-) -> PlanResult:
-    """``object_name`` must name a mesh in ``world_config``; it is attached
-    to the robot at the start configuration and collision-checked against
-    the remaining scene during transport."""
+) -> PlanGraspedResult:
+    """``object_name`` must name a mesh in ``world_config``, posed where it is
+    held at ``start_joint_position``. cuRobo's AttachmentManager fits MORPHIT
+    spheres to it on ``link_name`` (which must be rigidly at the robot's tool
+    frame), the rest of the scene is the obstacle set, and ``target_pose`` is
+    the tool-frame goal in the robot-base frame. The object is detached after
+    every call. A missing object or attach link, a misplaced attachment, no
+    collision-free IK, or a failed optimisation returns ``success=False`` with
+    ``failure_reason``; nothing falls back to planning without the object.
+    ``remove_obstacles_from_world`` is kept for compatibility (the held mesh
+    is always left out of the scene)."""
     impl = _impl()
     try:
         with _LOCK:
-            success, trajectory = impl.plan_with_grasped_object(
+            success, trajectory, reason, _info = impl.plan_with_grasped_object(
                 _world_ns(world_config),
                 _joints(start_joint_position),
                 _pose_tuple(target_pose),
@@ -344,12 +357,13 @@ def plan_with_grasped_object(
             )
     except Exception as e:
         logger.error("plan_with_grasped_object failed: %s\n%s", e, traceback.format_exc())
-        _cuda_cleanup(impl, "_motion_gen_cache", e)
+        _cuda_cleanup(impl, "_attached_planner_cache", e)
         raise PlanningFailed(f"plan_with_grasped_object failed: {e}") from e
 
     return {
         "success": bool(success),
         "trajectory": _traj_out(trajectory) if success else None,
+        "failure_reason": "" if success else (reason or "planning failed"),
     }
 
 
