@@ -156,7 +156,7 @@ class Arm:
         self.q = goal
         return None
 
-    def grasp_frame(self, close_heading_deg, **kw):
+    def grasp_frame(self, close_heading_deg=0.0, **kw):
         r = top_down(close_heading_deg)
         flipped = top_down(close_heading_deg + 180.0)
         return {
@@ -711,6 +711,7 @@ class JointArm(Arm):
         super().__init__(script, **kw)
         self.q = np.array([0.0, 1.6, 1.2, -1.1, 0.0, 0.0])
         self.jump = jump or (lambda point, rot: None)
+        self.base = np.array([0.25, 0.30, TABLE_Z])
         self.ik_ok = ik_ok or (lambda point, rot: True)
         self.asked = []
 
@@ -741,6 +742,10 @@ class JointArm(Arm):
         else:
             dq = goal - self.q
             z = np.array([0.0, 0.0, 1.0])
+            if abs(dq[0]) > 1e-9:
+                turn = self.s.axis_angle(z, math.degrees(dq[0]))
+                self.p = self.base + turn @ (self.p - self.base)
+                self.r = turn @ self.r
             if abs(dq[3]) > 1e-9:
                 a = self.r @ z
                 pivot = self.p - WRIST_LEVER * a
@@ -898,3 +903,89 @@ def test_hinge_tip_moves_the_top_down_hand_on_an_arc_about_the_far_edge(script):
     # The hand kept its top-down rotation and let go over the foot.
     assert abs((arm.r @ np.array([0.0, 0.0, 1.0]))[2]) > 0.999
     assert arm.released_at[0] == pytest.approx(TILE["x"] + end * 0.024, abs=0.012)
+
+
+class TwoArms:
+    """Two fake arms behind one context: tools route on ``arm_id``. The helper (arm 1) stands 0.6 m to the right;
+    its jaws read the tile's thickness when they close, as do this arm's at their second close (the top)."""
+
+    def __init__(self, script, helper_close=0.0075):
+        self.a = JointArm(script)
+        self.b = JointArm(script)
+        self.b.base = np.array([0.25, -0.30, TABLE_Z])
+        self.b.p = np.array([0.45, -0.30, TABLE_Z + 0.25])
+        self.closes = 0
+        self.helper_close = helper_close
+        self.a.close = self.close_a
+        self.b.close = lambda **kw: self._close(self.b, self.helper_close)
+
+    def _close(self, arm, w):
+        arm.closed = True
+        arm.held = w / AT_OPEN
+        return {"position": arm.held}
+
+    def close_a(self, **kw):
+        self.closes += 1
+        return self._close(self.a, 0.024 if self.closes == 1 else 0.0075)
+
+    def gripper(self, arm):
+        def get(**kw):
+            return {"position": arm.held if arm.closed else 1.0}
+
+        return get
+
+    def ctx(self):
+        self.a.get_gripper = self.gripper(self.a)
+        self.b.get_gripper = self.gripper(self.b)
+        ca, cb = self.a.ctx(), self.b.ctx()
+
+        def route(name):
+            def call(**kw):
+                arm = kw.pop("arm_id", 0)
+                return (cb if arm == 1 else ca).tool(name, **kw)
+
+            return call
+
+        names = list(ca._responses)
+        tools = {n: route(n) for n in names}
+
+        def observation(**kw):
+            return {
+                "arms": [
+                    {"joint_state": {"positions": self.a.q.tolist()}},
+                    {"joint_state": {"positions": self.b.q.tolist()}},
+                ],
+                "cameras": [self.a.camera()],
+            }
+
+        tools["robot.get_observation"] = observation
+        return FakeContext(tools)
+
+
+def test_handover_stands_the_tile_with_two_arms(script):
+    arms = TwoArms(script)
+    out = script.run(
+        arms.ctx(),
+        table_z=TABLE_Z,
+        tile_center=TILE,
+        long_axis={"x": 1.0, "y": 0.0, "z": 0.0},
+        park_pose={"position": {"x": 0.40, "y": 0.30, "z": TABLE_Z + 0.2}},
+        strategy="handover",
+        verify=False,
+    )
+    assert out["route"] == "standing", out["detail"]
+    assert out["strategy"] == "handover" and out["picked"] and out["released"]
+    assert out["pitch_turn_deg"] == pytest.approx(90.0, abs=1.0)
+    assert out["tilt_at_release_deg"] < 1.0
+    at = out["standing_tile"]["position"]
+    assert math.hypot(at["x"] - TILE["x"], at["y"] - TILE["y"]) < 0.002
+    # The helper only ever moved with a level approach once it left its start.
+    level = [abs((r @ np.array([0.0, 0.0, 1.0]))[2]) for _, r in arms.b.solutions.values()]
+    assert min(level) < 0.05
+
+
+def test_handover_without_a_helper_is_unreachable(script):
+    arm = JointArm(script)
+    out = joint_stand(script, arm, verify=False, strategy="handover", helper_arm_id=0)
+    assert out["route"] == "unreachable" and "helper" in out["detail"]
+    assert not out["picked"]
