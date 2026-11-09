@@ -92,7 +92,7 @@ YAM station twin the steps of a passing facing moved the joints 0.2-0.5 rad each
 the wrist pitch 1.27 rad onto its 1.5708 limit, and the tile was lost in that step. Allowed 0.9 rad, five of six
 facings that passed still lost the tile in the pitch."""
 
-STRATEGIES = ("table_pivot", "pose_pitch")
+STRATEGIES = ("table_pivot", "pose_pitch", "hinge_tip")
 """table_pivot: find the wrist joint that pitches the hand about a level axis, carry the tile flat into that joint's
 plane far enough out that the upright hand reaches the table, and turn it upright about its inner bottom edge on the
 table by chained IK steps. pose_pitch: the quarter turn in the air in pose steps about the tool centre over the
@@ -138,6 +138,13 @@ the base, a tile lies 0.25-0.40 m out."""
 
 STAGE_ATTEMPTS = 3
 """Spots at which the turn upright is started at most; a turn that fails is backed out the way it came."""
+
+HINGE_OFFSET = 0.016
+"""hinge_tip: how far from the tile's centre toward the end that goes up the jaws pinch [m] (8 mm from that end)."""
+
+HINGE_PRESS = 0.002
+"""hinge_tip: how much shorter than the pin's distance to the far bottom edge the arc's radius is [m], so the pin
+pushes the tile's foot onto the table (tipping-over-a-surface-edge presses while it pulls)."""
 
 JOINT_SETTLE = 0.075
 """A joint move that ends farther than this from its target on any joint did not arrive [rad]: a real YAM station's
@@ -563,6 +570,8 @@ def run(
     stage_step: float = STAGE_STEP,
     stage_reach: float = STAGE_REACH,
     stage_attempts: int = STAGE_ATTEMPTS,
+    hinge_offset: float = HINGE_OFFSET,
+    hinge_press: float = HINGE_PRESS,
     joint_limits: list[list[float]] | None = None,
     verify: bool = True,
     camera_name: str = "",
@@ -842,7 +851,9 @@ def run(
 
     held: dict[str, Any] = {}
 
-    def pick(grasp_point: np.ndarray, g_rot: np.ndarray, e0: np.ndarray) -> Output | None:
+    def pick(
+        grasp_point: np.ndarray, g_rot: np.ndarray, e0: np.ndarray, lift: bool = True
+    ) -> Output | None:
         """Over the grasp point, square the jaws, straight down, close, lift. None when the tile is held; the
         measured grasp height, the hand's rotation at the close and the up end in the hand's frame go in ``held``."""
         why = set_width(grip_open)
@@ -896,6 +907,8 @@ def run(
         held["r"] = r_grip
         held["e"] = r_grip.T @ e0  # the end that goes up, in the hand's frame
         held["at"] = reached
+        if not lift:
+            return None
         why = go("robot.go_to_pose_cartesian", np.array([*reached[:2], lift_z]), quat(r_grip))
         if why:
             return finish("unreachable", f"lift after the grasp: {why}; still holding")
@@ -1513,6 +1526,86 @@ def run(
             return finish("standing", hand_note + "; not checked from depth")
         return check(landed[:2], facing, hand_note)
 
+    def hinge_tip_run() -> Output:
+        """The pinch across the width near one end is a pin: the hand stays top-down and its tool centre moves on
+        an arc about the far end's bottom edge, so the tile turns in the pads until it stands on that end."""
+        out["strategy"] = "hinge_tip"
+        cur = rot_now()
+        order = sorted(grasp_rots, key=lambda g: abs(jaw_error(cur, g)))
+        h = max(0.0, min(float(hinge_offset), tl / 2.0))
+        tried: list[str] = []
+        for e_up in (heading(theta), heading(theta + 180.0)):
+            grasp_point = np.array([*(center[:2] + h * e_up[:2]), table_z + gh])
+            for g in order:
+                if (
+                    ik(grasp_point, g) is None
+                    or ik(np.array([*grasp_point[:2], lift_z]), g) is None
+                ):
+                    tried.append(f"end {math.degrees(math.atan2(e_up[1], e_up[0])):.0f}: grasp")
+                    continue
+                break
+            else:
+                continue
+            break
+        else:
+            return finish(
+                "unreachable",
+                f"no grasp near either end passes the IK preview ({', '.join(tried)})",
+            )
+        why = pick(grasp_point, g, e_up, lift=False)
+        if why is not None:
+            return why
+        g_meas, r_grip, at = held["g"], held["r"], held["at"]
+        # The pin: the middle of the pads' bite on the tile's edge, under the tool centre.
+        bite_low = max(0.0, g_meas - tip_reach)
+        pin0 = np.array([*at[:2], table_z + (bite_low + tt) / 2.0])
+        foot = np.array([*(center[:2] - (tl / 2.0) * e_up[:2]), table_z])
+        k_axis = np.cross(e_up, z_up)
+        k_axis = k_axis / (np.linalg.norm(k_axis) or 1.0)
+        arm_vec = pin0 - foot
+        radius = float(np.linalg.norm(arm_vec))
+        arm_vec = arm_vec * max(0.0, radius - float(hinge_press)) / (radius or 1.0)
+        hand_off = at - pin0
+        n_arc = max(1, int(math.ceil(90.0 / max(1.0, float(pivot_step_deg)))))
+        for i in range(1, n_arc + 1):
+            turn = axis_angle(k_axis, 90.0 * i / n_arc)
+            why = step_to(foot + turn @ arm_vec + hand_off, r_grip)
+            logger.info(
+                "standing-a-lying-domino: hinge arc step %d of %d: %s, jaws %.1f mm",
+                i,
+                n_arc,
+                why or "ok",
+                width() * 1e3,
+            )
+            if why:
+                return finish("unreachable", f"the arc, step {i} of {n_arc}: {why}; still pinched")
+        why = holding(width())
+        if why:
+            return finish("dropped", f"on the arc: {why}")
+        spot_xy = foot[:2] - (tt / 2.0) * e_up[:2]
+        facing = math.degrees(math.atan2(e_up[1], e_up[0]))
+        out["facing_deg"] = float(facing)
+        out["standing_tile"] = standing_pose(spot_xy, facing, table_z, size)
+        out["release_position"] = _vec(np.array([*spot_xy, table_z]))
+        out["pitch_turn_deg"] = 90.0
+        why = set_width(grip_open)
+        if why:
+            try:
+                ctx.tool("robot.open_gripper", **on_arm)
+            except Exception as exc:
+                return finish("unreachable", f"the jaws did not open ({exc}); still pinched")
+        out["released"] = True
+        here_now = _xyz(here())
+        why = line_to(np.array([*here_now[:2], max(lift_z, here_now[2])]), r_grip)
+        if why:
+            return finish("unreachable", f"released, but the rise: {why}")
+        hand_note = f"turned on the pin about the end at ({spot_xy[0]:.3f}, {spot_xy[1]:.3f}), facing {facing:.0f} deg"
+        if not verify:
+            return finish("standing", hand_note + "; not checked from depth")
+        return check(spot_xy, facing, hand_note)
+
     if strategy == "table_pivot":
         return table_pivot_run()
+    if strategy == "hinge_tip":
+        return hinge_tip_run()
     return pose_pitch_run()
