@@ -37,6 +37,12 @@ real arm with exactly the code and weights it was tested with.
 
 ## Quickstart
 
+Looking for additional upstream implementations to adapt? The
+[reviewed source-intake catalog](candidates/README.md) records exact entrypoints,
+licenses, hardware assumptions and adaptation work. `roboskillhub discover "抓取"`
+searches that material; `roboskillhub search` below searches the executable bundle
+registry. Source candidates are not automatically installed or callable skills.
+
 ```bash
 uv sync --extra gap
 uv run --no-sync roboskillhub check     # every bundle, recipe, paper: 0 errors
@@ -87,18 +93,30 @@ roboskillhub fetch path/to/graph/skills.lock --dest ~/roboskillhub-runtime
 RoboSkillHub holds the parts; a runtime runs the policy, in a simulator or on
 the robot.
 
+The first five station-bound capabilities now have a direct agent API:
+`roboskillhub runtime list`, `runtime invoke` and local JSON-lines `runtime serve`.
+They cover measured pose movement, grasp-and-lift, point tracking, planar pushing
+and drawer pulling. [Workcell setup and contracts](docs/workcell-runtime.md)
+explain the versioned YAM TCP bridge, live RGB-D observation and Isaac Core
+adapter. Live camera tracking, model-only YAM protocol/IK, and isolated Isaac 6.2
+YAM movement, pushing, grasp-and-lift and drawer pulling have been exercised.
+The contact scenes use refined fingertip collision geometry; the drawer is a
+controlled prismatic fixture. Hardware manipulation still requires the team's
+target-specific workcell tests.
+
 - **Graph-as-Policy** loads every bundle as it is.
   [docs/how-gap-runs.md](docs/how-gap-runs.md) walks through what it does
   with them at each step, down to the subprocesses it starts.
 - **[Code as Policies](https://code-as-policies.github.io/) and agent tool
   lists.** Tools are typed Python functions, each with a JSON schema, so a
-  generated program or an agent can call them directly. A dedicated adapter
-  is on the roadmap.
+  generated program or an agent can call them directly. The workcell runtime
+  exposes the first five capabilities as schemas plus a common invoke API.
 - **Any simulator.** A skill reaches the world only through `robot.*` tools,
   and `sim.*` ground-truth tools in simulation. Any simulator that provides
   them can run it, and the same skill then runs on the real arm, where only
-  `robot.*` exists. RoboSimStudio provides them today; Isaac Sim and MuJoCo
-  need a connector that does.
+  `robot.*` exists. RoboSimStudio provides them today. The new workcell bundles
+  use their own explicit YAM/Isaac station adapters; those do not provide the
+  entire legacy `robot.*` connector API. MuJoCo remains a separate integration.
 
 ## What is in the library
 

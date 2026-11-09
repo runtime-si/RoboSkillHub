@@ -1,0 +1,1925 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-11-05",
+  "hub_base_commit": "14145c9a16aa87eacfbf61729f2f2b1d004136ee",
+  "scope": "Reviewed upstream implementation materials; not installed or validated robot skills. Code license group does not grant rights to all weights, datasets, assets, or dependencies.",
+  "candidates": [
+    {
+      "id": "isaaclab-open-drawer-state-machine",
+      "name": "抽屉把手接近、抓取和拉动状态机",
+      "category": "articulation",
+      "capabilities": [
+        "approach-handle",
+        "pull-prismatic-handle",
+        "open-drawer-recipe"
+      ],
+      "inputs": "ee_pose、handle_pose、状态停留时间、接近偏移和打开增量",
+      "outputs": "OpenDrawerSm.compute输出末端目标位姿与夹爪命令",
+      "robots": [
+        "Franka IK示例机器人"
+      ],
+      "sensors": [
+        "FrameTransformer提供末端/把手仿真位姿；真实版需替换把手观测"
+      ],
+      "adaptation_steps": [
+        "将已抓持后的沿滑轨拉动提取为局部skill，整状态机保留recipe",
+        "替换把手FrameTransformer真值与Franka action接口",
+        "重新定义位移、时间与开度终止条件",
+        "修核状态语义：当前RELEASE_HANDLE分支仍给CLOSE，不能直接信状态名称"
+      ],
+      "priority": "P1",
+      "existing_overlap": "当前库缺少明确的移动副操作；Isaac原生便于用户先做仿真适配。",
+      "repo": "https://github.com/isaac-sim/IsaacLab",
+      "source_url": "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/scripts/environments/state_machine/open_cabinet_sm.py",
+      "source_revision": "c498443e0b833515e1976db9eb3edcd8dabb4cb7",
+      "artifact_type": "finite_state_controller",
+      "entrypoints": [
+        "OpenDrawerSm.compute(ee_pose, handle_pose)",
+        "infer_state_machine(...)",
+        "OpenDrawerSm.reset_idx(env_ids)"
+      ],
+      "sim_privilege": "yes: 示例注册 Franka 环境，main 从仿真 frame sensor 获取把手位姿。不是视觉模型或开箱即用 YAM 控制器；按固定等待时间转移也需重新验证。务必匹配 IsaacLab 版本，当前 main 已采用 contrib 路径。",
+      "weights": {
+        "availability": "not-required",
+        "url": null,
+        "license": "not-applicable-or-not-confirmed; see availability and notes",
+        "notes": "本条为脚本/控制逻辑，不是学习权重。"
+      },
+      "code_license": {
+        "id": "BSD-3-Clause",
+        "url": "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/LICENSE",
+        "notes": "已核实固定commit的代码许可证；第三方资产、数据与依赖需按其各自条款保留。"
+      },
+      "hub_destination": "skill",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "示例注册 Franka 环境，main 从仿真 frame sensor 获取把手位姿。不是视觉模型或开箱即用 YAM 控制器；按固定等待时间转移也需重新验证。务必匹配 IsaacLab 版本，当前 main 已采用 contrib 路径。",
+        "本轮只检查源码，未安装/执行该仿真、模型或真实YAM；入库前须适配并验收。"
+      ],
+      "evidence_urls": [
+        "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/scripts/environments/state_machine/open_cabinet_sm.py",
+        "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/LICENSE"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "enpire-rgbd-grasp-proposals",
+      "name": "ENPIRE RGB-D包围盒与抓取候选",
+      "category": "grasping",
+      "capabilities": [
+        "grasp proposals",
+        "抓取",
+        "RGB-D",
+        "OBB",
+        "YAM"
+      ],
+      "repo": "https://github.com/NVlabs/ENPIRE",
+      "source_url": "https://github.com/NVlabs/ENPIRE/blob/99ee90acf65b5b18957c8382ad580db999528be3/enpire/env/forge/cap/saved_scripts/skill_library/sample_grasp_pose_3d_bb.py",
+      "source_revision": "99ee90acf65b5b18957c8382ad580db999528be3",
+      "artifact_type": "callable_source",
+      "entrypoints": [
+        "sample_grasp_pose_3d_bb(object_name, camera=\"top\", ...)"
+      ],
+      "inputs": "目标描述、相机、ROI、深度筛选范围、有效点数阈值",
+      "outputs": "world-frame OBB、候选EEF位姿、宽度、分数、观测时间与质量标记",
+      "robots": [
+        "YAM相关harness；需绑定本工位"
+      ],
+      "sensors": [
+        "标定RGB-D"
+      ],
+      "sim_privilege": "所列接口可使用真实观测；实际权限取决于注入的backend/provider，不以函数名证明camera-only",
+      "weights": {
+        "availability": "所列封装无独立权重；感知provider依赖另行提供",
+        "url": null,
+        "license": "dependent-on-provider",
+        "notes": "记录并检查所配置模型的权重条款；源码许可证不覆盖所有依赖权重。"
+      },
+      "code_license": {
+        "id": "Apache-2.0",
+        "url": "https://github.com/NVlabs/ENPIRE/blob/99ee90acf65b5b18957c8382ad580db999528be3/LICENSE",
+        "notes": "核对仓库LICENSE；第三方依赖另见原仓库通知。"
+      },
+      "hub_destination": "tool",
+      "existing_overlap": "与perceiving-objects/proposing-short-axis-grasps重叠，作为可比较的YAM感知/提议后端。",
+      "adaptation_steps": [
+        "接Orbbec标定RGB-D与SAM3服务",
+        "统一OBB extent和姿态约定",
+        "接候选可达性/碰撞检查",
+        "验证细线和遮挡物体，不将候选分数当位姿置信度"
+      ],
+      "priority": "P1",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "只提议，不执行抓取",
+        "可见表面OBB不等于完整物体位姿",
+        "对称物体轴方向有歧义；权重由SAM3等依赖提供"
+      ],
+      "evidence_urls": [
+        "https://github.com/NVlabs/ENPIRE/blob/99ee90acf65b5b18957c8382ad580db999528be3/enpire/env/forge/cap/saved_scripts/skill_library/sample_grasp_pose_3d_bb.py",
+        "https://github.com/NVlabs/ENPIRE/blob/99ee90acf65b5b18957c8382ad580db999528be3/LICENSE"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "repo": "https://github.com/NVlabs/GraspGenX",
+      "source_revision": "b9429097728cb1c430dd78b92edf17ba318aad03",
+      "readiness": "source-reviewed",
+      "verified_date": "2026-11-05",
+      "hub_destination": "tool",
+      "sim_privilege": "推理不要求sim真值；真实端输入与标定由调用者提供",
+      "installation_tested": false,
+      "robot_tested": false,
+      "id": "graspgenx-grasp-proposals",
+      "name": "GraspGenX 跨夹爪抓取候选",
+      "category": "grasping",
+      "capabilities": [
+        "6D抓取生成",
+        "抓取评分",
+        "自定义夹爪条件化"
+      ],
+      "source_url": "https://github.com/NVlabs/GraspGenX/blob/b9429097728cb1c430dd78b92edf17ba318aad03/client-server/README.md",
+      "artifact_type": "源码+公开权重+RPC服务",
+      "entrypoints": [
+        "graspgenx.serving.GraspGenXClient.infer",
+        "graspgenx.grasp_server.GraspGenXSampler",
+        "scripts/gripper_config_wizard.py"
+      ],
+      "inputs": "分割物体点云N×3，夹爪名称或扫掠体积描述；采样数量和筛选参数",
+      "outputs": "M×4×4抓取位姿与M个评分；不是机器人执行指令",
+      "robots": [
+        "夹爪模型可配置；README将YAM夹爪支持列为TODO"
+      ],
+      "sensors": [
+        "标定RGB-D或输入点云"
+      ],
+      "weights": {
+        "availability": "官方README提供公开模型仓库，并支持首次使用自动下载；未下载权重实测",
+        "url": "https://huggingface.co/adithyamurali/GraspGenXModel",
+        "license": "NVIDIA Open Model License",
+        "notes": "代码与权重许可不同；还需单独检查采用的夹爪资产许可并固定权重revision/hash。"
+      },
+      "code_license": {
+        "id": "Apache-2.0",
+        "notes": "根LICENSE已读；第三方与夹爪资产另有许可。",
+        "url": "https://github.com/NVlabs/GraspGenX/blob/b9429097728cb1c430dd78b92edf17ba318aad03/LICENSE"
+      },
+      "existing_overlap": "无同名bundle；可作为现有抓取技能的另一候选生成后端。",
+      "adaptation_steps": [
+        "准备实际YAM夹爪URDF/mesh与开合参数，生成并核验扫掠体积配置",
+        "统一点云坐标、米单位、TCP与夹爪frame",
+        "包装RPC为typed tool；后接可达性/碰撞筛选和YAM执行",
+        "在目标物体域独立评测抓取与持有"
+      ],
+      "priority": "P1",
+      "limitations": [
+        "公开支持跨夹爪不代表YAM已适配",
+        "生成位姿不包含IK/全臂碰撞/执行与抓持确认",
+        "需GPU及模型、资产依赖"
+      ],
+      "usage_class": "permissive_code_custom_model_terms",
+      "evidence_urls": [
+        "https://github.com/NVlabs/GraspGenX/blob/b9429097728cb1c430dd78b92edf17ba318aad03/README.md",
+        "https://huggingface.co/adithyamurali/GraspGenXModel/raw/main/README.md",
+        "https://github.com/NVlabs/GraspGenX/blob/b9429097728cb1c430dd78b92edf17ba318aad03/client-server/README.md",
+        "https://github.com/NVlabs/GraspGenX/blob/b9429097728cb1c430dd78b92edf17ba318aad03/LICENSE"
+      ],
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "aspire-typed-cap-api",
+      "name": "ASPIRE 观测与运动 typed API",
+      "category": "integration",
+      "capabilities": [
+        "localize",
+        "grasp",
+        "motion planning",
+        "机器人接口",
+        "抓取",
+        "YAM"
+      ],
+      "repo": "https://github.com/NVlabs/ASPIRE",
+      "source_url": "https://github.com/NVlabs/ASPIRE/blob/fa00f0ef2bc1d91d594b9aa502c22133c9f538f7/src/cap_harness/api.py",
+      "source_revision": "fa00f0ef2bc1d91d594b9aa502c22133c9f538f7",
+      "artifact_type": "callable_source",
+      "entrypoints": [
+        "CapApi.localize_object",
+        "CapApi.generate_grasps",
+        "CapApi.solve_ik",
+        "CapApi.plan_motion",
+        "CapApi.move_to_pose",
+        "CapApi.set_gripper"
+      ],
+      "inputs": "EnvironmentAdapter、感知/IK/规划provider、结构化观测、目标与手臂选择",
+      "outputs": "LocalizationResult、GraspSet、IKResult、PlanResult、ExecutionResult",
+      "robots": [
+        "由backend决定，须替换或配置YAM adapter"
+      ],
+      "sensors": [
+        "依具体provider配置RGB-D与关节反馈"
+      ],
+      "sim_privilege": "所列接口可使用真实观测；实际权限取决于注入的backend/provider，不以函数名证明camera-only",
+      "weights": {
+        "availability": "所列封装无独立权重；感知provider依赖另行提供",
+        "url": null,
+        "license": "dependent-on-provider",
+        "notes": "记录并检查所配置模型的权重条款；源码许可证不覆盖所有依赖权重。"
+      },
+      "code_license": {
+        "id": "Apache-2.0",
+        "url": "https://github.com/NVlabs/ASPIRE/blob/fa00f0ef2bc1d91d594b9aa502c22133c9f538f7/LICENSE",
+        "notes": "核对仓库LICENSE；第三方依赖另见原仓库通知。"
+      },
+      "hub_destination": "tool",
+      "existing_overlap": "与Hub connector及geometry/规划工具重叠；用于统一适配和结果合同，不直接导入第二套调度器。",
+      "adaptation_steps": [
+        "映射EnvironmentAdapter到当前运动/相机服务",
+        "逐项核对frame、单位、joint顺序和gripper动作",
+        "按需要提取本地组合与异常处理",
+        "验证真实执行反馈与超时"
+      ],
+      "priority": "P1",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "API本身不提供所有底层感知/控制实现",
+        "模型license与权重由各provider决定",
+        "配置了provider不等于服务健康或任务验证"
+      ],
+      "evidence_urls": [
+        "https://github.com/NVlabs/ASPIRE/blob/fa00f0ef2bc1d91d594b9aa502c22133c9f538f7/src/cap_harness/api.py",
+        "https://github.com/NVlabs/ASPIRE/blob/fa00f0ef2bc1d91d594b9aa502c22133c9f538f7/LICENSE"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "lerobot-act-local-policy",
+      "name": "LeRobot ACT：本机演示训练的局部操作策略",
+      "category": "learned-policy",
+      "capabilities": [
+        "通过本机演示学习抓放",
+        "局部接触调整",
+        "重复局部操作的动作块预测"
+      ],
+      "repo": "https://github.com/huggingface/lerobot",
+      "source_url": "https://github.com/huggingface/lerobot/blob/d490e472a5d1a207cfe0255caaaf74b6d66e4656/src/lerobot/policies/act/modeling_act.py",
+      "source_revision": "d490e472a5d1a207cfe0255caaaf74b6d66e4656",
+      "artifact_type": "训练与推理实现；本条没有选定可用于YAM的预训练checkpoint",
+      "entrypoints": [
+        "ACTPolicy.select_action(batch)",
+        "ACTPolicy.predict_action_chunk(batch)",
+        "ACTPolicy.reset()",
+        "examples/tutorial/act/act_training_example.py",
+        "examples/tutorial/act/act_using_example.py"
+      ],
+      "inputs": "与训练一致的相机图像、机器人状态、归一化统计和配置；示例接口通过pre/post processor处理。",
+      "outputs": "一个机器人动作或一段action chunk，维度和单位由训练配置定义。",
+      "robots": [
+        "平台由数据与adapter决定；示例SO100/SO101不能直接代表YAM"
+      ],
+      "sensors": [
+        "训练指定的RGB相机",
+        "对应机器人状态"
+      ],
+      "sim_privilege": "模型接口不要求仿真真值；实际数据和终止判据需按所训练任务核验。",
+      "weights": {
+        "availability": "requires-local-training-or-selected-checkpoint",
+        "url": "https://huggingface.co/docs/lerobot/en/act",
+        "license": "checkpoint-specific",
+        "notes": "ACT是架构与训练代码，本轮未选择并验证YAM任务权重。代码Apache许可证不能自动覆盖第三方HF模型。"
+      },
+      "code_license": {
+        "id": "Apache-2.0",
+        "url": "https://github.com/huggingface/lerobot/blob/d490e472a5d1a207cfe0255caaaf74b6d66e4656/LICENSE",
+        "notes": "核对GitHub许可证与modeling_act.py文件头；具体数据集/权重另查。"
+      },
+      "hub_destination": "policy",
+      "existing_overlap": "当前RoboSkillHub已有pi05-libero/molmoact-libero，但没有本条ACT本机局部策略。",
+      "adaptation_steps": [
+        "确定局部目标、起始分布和成功检查器",
+        "接YAM采集/执行接口，匹配图像、关节顺序和控制频率",
+        "用本机演示训练并保留测试集",
+        "将权重服务、reset、超时和终止器包装成policy bundle并固定摘要"
+      ],
+      "priority": "P1",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "训练实现不是立即可调用的机器人能力",
+        "动作块结束不表示局部任务成功",
+        "更换机器人或相机配置需要适配/训练及验证"
+      ],
+      "evidence_urls": [
+        "https://github.com/huggingface/lerobot/blob/d490e472a5d1a207cfe0255caaaf74b6d66e4656/src/lerobot/policies/act/modeling_act.py",
+        "https://github.com/huggingface/lerobot/blob/d490e472a5d1a207cfe0255caaaf74b6d66e4656/examples/tutorial/act/act_using_example.py",
+        "https://huggingface.co/docs/lerobot/en/act"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "enpire-measured-move",
+      "name": "ENPIRE 位姿运动与实测收敛",
+      "category": "motion",
+      "capabilities": [
+        "move-to-pose",
+        "trajectory execution",
+        "到位检查",
+        "YAM"
+      ],
+      "repo": "https://github.com/NVlabs/ENPIRE",
+      "source_url": "https://github.com/NVlabs/ENPIRE/blob/99ee90acf65b5b18957c8382ad580db999528be3/enpire/env/forge/cap/saved_scripts/skill_library/move_to_pose.py",
+      "source_revision": "99ee90acf65b5b18957c8382ad580db999528be3",
+      "artifact_type": "callable_source",
+      "entrypoints": [
+        "move_to_pose(side, target_pos, target_quat, ...)"
+      ],
+      "inputs": "目标位姿、手臂名、容差、超时、可选有界修正；world米与xyzw四元数",
+      "outputs": "实测位姿/误差、尝试记录；PoseNotReachedError等异常",
+      "robots": [
+        "YAM相关harness；需绑定本工位"
+      ],
+      "sensors": [
+        "关节/末端实测反馈",
+        "规划场景来源"
+      ],
+      "sim_privilege": "所列接口可使用真实观测；实际权限取决于注入的backend/provider，不以函数名证明camera-only",
+      "weights": {
+        "availability": "not-required-for-listed-function",
+        "url": null,
+        "license": "not-applicable",
+        "notes": "所列函数本身不需要学习权重；其他harness感知依赖单独配置。"
+      },
+      "code_license": {
+        "id": "Apache-2.0",
+        "url": "https://github.com/NVlabs/ENPIRE/blob/99ee90acf65b5b18957c8382ad580db999528be3/LICENSE",
+        "notes": "核对仓库LICENSE；第三方依赖另见原仓库通知。"
+      },
+      "hub_destination": "skill",
+      "existing_overlap": "与已有运动执行能力重叠，可借鉴实测到位与结构化反馈，优先改进现有实现。",
+      "adaptation_steps": [
+        "将skill_library.namespace替换成Hub connector",
+        "转换四元数、坐标和夹爪语义",
+        "将异常映射为声明的退出条件",
+        "在本YAM测量跟踪误差和收敛范围"
+      ],
+      "priority": "P1",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "不是接触搜索技能",
+        "末端到位不证明物体被持有或任务完成",
+        "依赖注册的freespace_move规划执行器"
+      ],
+      "evidence_urls": [
+        "https://github.com/NVlabs/ENPIRE/blob/99ee90acf65b5b18957c8382ad580db999528be3/enpire/env/forge/cap/saved_scripts/skill_library/move_to_pose.py",
+        "https://github.com/NVlabs/ENPIRE/blob/99ee90acf65b5b18957c8382ad580db999528be3/LICENSE"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "maniskill-push-object-step",
+      "name": "平面推物一步",
+      "category": "pushing",
+      "capabilities": [
+        "push-object-step",
+        "approach-push-contact"
+      ],
+      "inputs": "物体位姿/几何、支撑面、目标方向和距离；源码使用env.obj.pose与goal_region.pose；Panda TCP姿态与规划器",
+      "outputs": "闭爪、到物体一侧、推动轨迹与最后执行结果；新封装需补moved/not_moved/unknown",
+      "robots": [
+        "Franka Panda"
+      ],
+      "sensors": [
+        "原实现读取仿真真值；真实版需目标与支撑面估计"
+      ],
+      "adaptation_steps": [
+        "去掉solve内环境reset，提取局部推动过程",
+        "把固定X方向和硬编码偏移改成对象相对参数",
+        "以感知替换物体/目标真值，接YAM规划与执行后端",
+        "补新观测的物体位移验证与独立退出条件"
+      ],
+      "priority": "P1",
+      "existing_overlap": "库内有通用抓放/运动，但未见独立平面推物技能。",
+      "repo": "https://github.com/haosulab/ManiSkill",
+      "source_url": "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/mani_skill/examples/motionplanning/panda/solutions/push_cube.py",
+      "source_revision": "62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3",
+      "artifact_type": "scripted_expert",
+      "entrypoints": [
+        "solve(env: PushCubeEnv, seed=None, debug=False, vis=False)",
+        "PandaArmMotionPlanningSolver.move_to_pose_with_screw"
+      ],
+      "sim_privilege": "yes: 该 solve 是完整任务演示脚本，不是已封装的任意场景可调用 skill；方向和偏移具有任务假设。真实端必须替换 env 对象真值，不可直接当视觉策略。",
+      "weights": {
+        "availability": "not-required",
+        "url": null,
+        "license": "not-applicable-or-not-confirmed; see availability and notes",
+        "notes": "本条为脚本/控制逻辑，不是学习权重。"
+      },
+      "code_license": {
+        "id": "Apache-2.0",
+        "url": "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/LICENSE",
+        "notes": "已核实固定commit的代码许可证；第三方资产、数据与依赖需按其各自条款保留。"
+      },
+      "hub_destination": "skill",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "该 solve 是完整任务演示脚本，不是已封装的任意场景可调用 skill；方向和偏移具有任务假设。真实端必须替换 env 对象真值，不可直接当视觉策略。",
+        "本轮只检查源码，未安装/执行该仿真、模型或真实YAM；入库前须适配并验收。"
+      ],
+      "evidence_urls": [
+        "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/mani_skill/examples/motionplanning/panda/solutions/push_cube.py",
+        "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/LICENSE"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "repo": "https://github.com/google-deepmind/tapnet",
+      "source_revision": "ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b",
+      "readiness": "source-reviewed",
+      "verified_date": "2026-11-05",
+      "hub_destination": "tool",
+      "sim_privilege": "推理不要求sim真值；真实端输入与标定由调用者提供",
+      "installation_tested": false,
+      "robot_tested": false,
+      "id": "tapir-point-tracking",
+      "name": "TAPIR / BootsTAPIR 在线点跟踪",
+      "category": "tracking",
+      "capabilities": [
+        "2D目标点跟踪",
+        "遮挡估计",
+        "在线点轨迹"
+      ],
+      "source_url": "https://github.com/google-deepmind/tapnet/blob/ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b/tapnet/live_demo.py",
+      "artifact_type": "源码+公开预训练权重",
+      "entrypoints": [
+        "tapnet.torch.tapir_model.TAPIR.forward",
+        "tapnet/live_demo.py:online_model_init",
+        "tapnet/live_demo.py:online_model_predict"
+      ],
+      "inputs": "RGB视频帧、查询点和初始化帧；在线模式维护因果状态",
+      "outputs": "像素点轨迹及遮挡/可靠性相关输出",
+      "robots": [
+        "感知后端与机器人型号无直接绑定"
+      ],
+      "sensors": [
+        "RGB相机；若需要米制3D还需对齐深度和标定"
+      ],
+      "weights": {
+        "availability": "官方README列出JAX和PyTorch检查点下载；未运行",
+        "url": "https://huggingface.co/google/tapnet",
+        "license": "Apache-2.0（README明确适用于其链接的预训练权重）",
+        "notes": "数据集与原视频许可另查；本条目聚焦TAPIR在线推理，未将新模型名称视为已验证性能。"
+      },
+      "code_license": {
+        "id": "Apache-2.0",
+        "notes": "除另列TAPVid-3D基准内容外，软件与README链接的预训练检查点明确为Apache-2.0。",
+        "url": "https://github.com/google-deepmind/tapnet/blob/ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b/LICENSE"
+      },
+      "existing_overlap": "与tracking-objects有功能关联，作为可替换tracking tool；不重复同义高层技能。",
+      "adaptation_steps": [
+        "为线头/功能点提供初始化与对象身份",
+        "封装stream/session状态、时间戳、失跟和重新初始化",
+        "将像素轨迹与对齐深度结合并输出不确定状态",
+        "验证遮挡、漂移和细线像素分辨率"
+      ],
+      "priority": "P1",
+      "limitations": [
+        "2D点跟踪不自动产生6D位姿、接触或穿孔证据",
+        "遮挡后轨迹预测不能当新观测",
+        "在线时延与分辨率需实测"
+      ],
+      "usage_class": "permissive_code_and_weights",
+      "evidence_urls": [
+        "https://github.com/google-deepmind/tapnet/blob/ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b/README.md",
+        "https://github.com/google-deepmind/tapnet/blob/ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b/tapnet/torch/tapir_model.py",
+        "https://github.com/google-deepmind/tapnet/blob/ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b/tapnet/live_demo.py",
+        "https://github.com/google-deepmind/tapnet/blob/ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b/LICENSE"
+      ],
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "robotwin-swing-hinged-panel",
+      "name": "铰链门打开与换抓点模板",
+      "category": "articulation",
+      "capabilities": [
+        "swing-held-panel-step",
+        "observe-articulation-progress",
+        "regrasp-hinged-panel-recipe"
+      ],
+      "inputs": "预标注contact_point 0/1/2/4、关节qpos/qlimits、固定左臂动作接口",
+      "outputs": "第一次开门、停滞检查、换抓点重试；基于关节开度的成功值",
+      "robots": [
+        "RoboTwin配置中的左臂"
+      ],
+      "sensors": [
+        "仿真关节真值及资产接触点；真实版需铰链/把手/开度估计"
+      ],
+      "adaptation_steps": [
+        "将单次沿铰链运动抽为skill，把换抓点与重试放recipe/G",
+        "移除特定资产质量和摩擦假设",
+        "以真实几何/开度估计替换qpos和资产接触点",
+        "接YAM控制后验证开门力学与持有状态"
+      ],
+      "priority": "P2",
+      "existing_overlap": "当前库未见铰链门专用局部能力；抓持与运动底座可复用。",
+      "repo": "https://github.com/RoboTwin-Platform/RoboTwin",
+      "source_url": "https://github.com/RoboTwin-Platform/RoboTwin/blob/ea8b21121ebb3cd201ff5b3fe361944ac94eda3f/envs/open_microwave.py",
+      "source_revision": "ea8b21121ebb3cd201ff5b3fe361944ac94eda3f",
+      "artifact_type": "scripted_expert",
+      "entrypoints": [
+        "open_microwave.play_once()",
+        "open_microwave.check_success(target=0.6)"
+      ],
+      "sim_privilege": "yes: 程序直接读关节真值，且资产质量/属性为该仿真任务设置；不能直接外推为鲁棒真实开门。内部已有最多 50/30 次循环，迁入固定 K 时应暴露或冻结并计入重试预算。",
+      "weights": {
+        "availability": "not-required",
+        "url": null,
+        "license": "not-applicable-or-not-confirmed; see availability and notes",
+        "notes": "本条为脚本/控制逻辑，不是学习权重。"
+      },
+      "code_license": {
+        "id": "MIT",
+        "url": "https://github.com/RoboTwin-Platform/RoboTwin/blob/ea8b21121ebb3cd201ff5b3fe361944ac94eda3f/LICENSE",
+        "notes": "已核实固定commit的代码许可证；第三方资产、数据与依赖需按其各自条款保留。"
+      },
+      "hub_destination": "recipe",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "程序直接读关节真值，且资产质量/属性为该仿真任务设置；不能直接外推为鲁棒真实开门。内部已有最多 50/30 次循环，迁入固定 K 时应暴露或冻结并计入重试预算。",
+        "本轮只检查源码，未安装/执行该仿真、模型或真实YAM；入库前须适配并验收。"
+      ],
+      "evidence_urls": [
+        "https://github.com/RoboTwin-Platform/RoboTwin/blob/ea8b21121ebb3cd201ff5b3fe361944ac94eda3f/envs/open_microwave.py",
+        "https://github.com/RoboTwin-Platform/RoboTwin/blob/ea8b21121ebb3cd201ff5b3fe361944ac94eda3f/LICENSE"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "isaaclab-factory-contact-assembly",
+      "name": "Factory插销、齿轮啮合与螺母旋拧训练底座",
+      "category": "assembly",
+      "capabilities": [
+        "peg-insert-policy-training",
+        "gear-mesh-policy-training",
+        "nut-thread-policy-training",
+        "task-space-torque-controller"
+      ],
+      "inputs": "Franka关节状态、Jacobian、质量矩阵、末端状态、目标pose和控制增益；固定/持握资产与训练观测配置",
+      "outputs": "compute_dof_torque返回关节力矩与task_wrench；环境提供装配奖励/成功信号；训练产出局部policy",
+      "robots": [
+        "7-DoF Franka；源码显式使用前7关节"
+      ],
+      "sensors": [
+        "训练环境状态及物体真值/带噪估计；迁移需匹配actor观测，不将critic真值带入实机"
+      ],
+      "adaptation_steps": [
+        "作为训练环境候选，不当作现成技能权重",
+        "适配YAM运动学、动力学、夹爪、资产与可用控制模式",
+        "明确actor/critic观测权限并补真实可得状态估计",
+        "训练并冻结policy、模型/归一化/控制器配置后再包装"
+      ],
+      "priority": "P2",
+      "existing_overlap": "为现有几何插接提供学习型接触实现来源；不是同一执行后端的直接替换。",
+      "repo": "https://github.com/isaac-sim/IsaacLab",
+      "source_url": "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/source/isaaclab_tasks/isaaclab_tasks/contrib/factory/factory_control.py",
+      "source_revision": "c498443e0b833515e1976db9eb3edcd8dabb4cb7",
+      "artifact_type": "training_environment_and_controller",
+      "entrypoints": [
+        "factory_control.compute_dof_torque(...)",
+        "factory_control.get_pose_error(...)",
+        "factory_tasks_cfg.PegInsert",
+        "factory_tasks_cfg.GearMesh",
+        "factory_tasks_cfg.NutThread"
+      ],
+      "sim_privilege": "yes: 已核对当前 contrib/factory 的三个实际注册环境、实现与 PPO 配置，并非旧 IsaacGymEnvs 的 template。确认的是可训练代码；默认 load_checkpoint=false、load_path 为空。本次未核验公开训练 checkpoint，更未验证 YAM 策略。",
+      "weights": {
+        "availability": "training-code; matching-checkpoint-unverified",
+        "url": null,
+        "license": "not-applicable-or-not-confirmed; see availability and notes",
+        "notes": "已检查训练/控制入口；未核实与本任务、机器人和固定版本相匹配的公开checkpoint。Factory PPO配置load_checkpoint=false且load_path为空。"
+      },
+      "code_license": {
+        "id": "BSD-3-Clause",
+        "url": "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/LICENSE",
+        "notes": "对应源码头与根LICENSE为BSD-3-Clause；README说明Isaac Sim及未单列资产可能适用其他/专有许可，不把整个依赖栈当BSD。"
+      },
+      "hub_destination": "policy",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "已核对当前 contrib/factory 的三个实际注册环境、实现与 PPO 配置，并非旧 IsaacGymEnvs 的 template。确认的是可训练代码；默认 load_checkpoint=false、load_path 为空。本次未核验公开训练 checkpoint，更未验证 YAM 策略。",
+        "本轮只检查源码，未安装/执行该仿真、模型或真实YAM；入库前须适配并验收。"
+      ],
+      "evidence_urls": [
+        "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/source/isaaclab_tasks/isaaclab_tasks/contrib/factory/factory_control.py",
+        "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/LICENSE",
+        "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/source/isaaclab_tasks/isaaclab_tasks/contrib/factory/factory_env.py",
+        "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/source/isaaclab_tasks/isaaclab_tasks/contrib/factory/factory_tasks_cfg.py",
+        "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/source/isaaclab_tasks/isaaclab_tasks/contrib/factory/__init__.py",
+        "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/source/isaaclab_tasks/isaaclab_tasks/contrib/factory/agents/rl_games_ppo_cfg.yaml",
+        "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/README.md#license"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "maniskill-peg-insertion-side",
+      "name": "侧向插销预对准与插入",
+      "category": "insertion",
+      "capabilities": [
+        "align-held-peg-to-aperture",
+        "advance-peg-into-aperture"
+      ],
+      "inputs": "peg pose/OBB、goal_pose、peg_half_sizes、初始抓取变换；Panda运动规划器",
+      "outputs": "抓取、预插入对齐、3次位姿修正和最后插入轨迹",
+      "robots": [
+        "Franka Panda"
+      ],
+      "sensors": [
+        "直接读取当前peg与孔目标真值；无力反馈"
+      ],
+      "adaptation_steps": [
+        "复用现有功能配合几何，仅比较/提取对准和插入策略",
+        "以真实功能特征估计替换env.goal_pose和env.peg.pose",
+        "分离单步推进、检查与重试，让G组织顺序",
+        "匹配YAM控制误差与孔销容差，补独立插入验证"
+      ],
+      "priority": "P2",
+      "existing_overlap": "与computing-feature-mating-poses/executing-feature-mating有显著重叠；可作可比较实现和任务recipe。",
+      "repo": "https://github.com/haosulab/ManiSkill",
+      "source_url": "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/mani_skill/examples/motionplanning/panda/solutions/peg_insertion_side.py",
+      "source_revision": "62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3",
+      "artifact_type": "scripted_expert",
+      "entrypoints": [
+        "solve(env: PegInsertionSideEnv, seed=None, debug=False, vis=False)",
+        "PandaArmMotionPlanningSolver.move_to_pose_with_screw"
+      ],
+      "sim_privilege": "yes: 代码有直接读取当前 peg pose 的对齐修正；这不是带力反馈的真实插入 controller。孔位精度和模型误差不能由仿真成功替代验证。",
+      "weights": {
+        "availability": "not-required",
+        "url": null,
+        "license": "not-applicable-or-not-confirmed; see availability and notes",
+        "notes": "本条为脚本/控制逻辑，不是学习权重。"
+      },
+      "code_license": {
+        "id": "Apache-2.0",
+        "url": "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/LICENSE",
+        "notes": "已核实固定commit的代码许可证；第三方资产、数据与依赖需按其各自条款保留。"
+      },
+      "hub_destination": "skill",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "代码有直接读取当前 peg pose 的对齐修正；这不是带力反馈的真实插入 controller。孔位精度和模型误差不能由仿真成功替代验证。",
+        "本轮只检查源码，未安装/执行该仿真、模型或真实YAM；入库前须适配并验收。"
+      ],
+      "evidence_urls": [
+        "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/mani_skill/examples/motionplanning/panda/solutions/peg_insertion_side.py",
+        "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/LICENSE"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "maniskill-plug-charger",
+      "name": "插头预插入姿态与插接",
+      "category": "insertion",
+      "capabilities": [
+        "align-connector",
+        "insert-connector"
+      ],
+      "inputs": "charger_base_pose、base尺寸、goal_pose、charger.pose与当前TCP；Panda规划器",
+      "outputs": "倾斜抓取、预插入姿态、refine和插接轨迹",
+      "robots": [
+        "Franka Panda"
+      ],
+      "sensors": [
+        "仿真插头/插座真值；没有提供真实接触观测"
+      ],
+      "adaptation_steps": [
+        "将目标插头/插座改成可感知的功能特征",
+        "提取预插入与插接局部动作，保留整任务为recipe",
+        "替换Panda控制器并重新验证几何公差",
+        "以真实可得证据检查插接结果"
+      ],
+      "priority": "P2",
+      "existing_overlap": "与现有feature-mating链重叠；新增具体资产任务和策略实现，不能仅改名增加skill计数。",
+      "repo": "https://github.com/haosulab/ManiSkill",
+      "source_url": "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/mani_skill/examples/motionplanning/panda/solutions/plug_charger.py",
+      "source_revision": "62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3",
+      "artifact_type": "scripted_expert",
+      "entrypoints": [
+        "solve(env: PlugChargerEnv, seed=None, debug=False, vis=False)",
+        "compute_grasp_info_by_obb"
+      ],
+      "sim_privilege": "yes: 特定资产和插口假设较强，未提供可直接迁移到 YAM 的 RGB-D policy 或接触力控制器。不要将代码存在解释为真实插接能力已就绪。",
+      "weights": {
+        "availability": "not-required",
+        "url": null,
+        "license": "not-applicable-or-not-confirmed; see availability and notes",
+        "notes": "本条为脚本/控制逻辑，不是学习权重。"
+      },
+      "code_license": {
+        "id": "Apache-2.0",
+        "url": "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/LICENSE",
+        "notes": "已核实固定commit的代码许可证；第三方资产、数据与依赖需按其各自条款保留。"
+      },
+      "hub_destination": "skill",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "特定资产和插口假设较强，未提供可直接迁移到 YAM 的 RGB-D policy 或接触力控制器。不要将代码存在解释为真实插接能力已就绪。",
+        "本轮只检查源码，未安装/执行该仿真、模型或真实YAM；入库前须适配并验收。"
+      ],
+      "evidence_urls": [
+        "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/mani_skill/examples/motionplanning/panda/solutions/plug_charger.py",
+        "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/LICENSE"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "diffusion-policy-local-manipulation",
+      "name": "Diffusion Policy：视觉动作块与公开任务checkpoint",
+      "category": "learned-policy",
+      "capabilities": [
+        "Push-T推物策略",
+        "已发布配置下的抓放/装配任务策略",
+        "用自有示范训练局部视觉控制"
+      ],
+      "repo": "https://github.com/real-stanford/diffusion_policy",
+      "source_url": "https://github.com/real-stanford/diffusion_policy/blob/5ba07ac6661db573af695b419a7947ecb704690f/diffusion_policy/policy/diffusion_unet_hybrid_image_policy.py",
+      "source_revision": "5ba07ac6661db573af695b419a7947ecb704690f",
+      "artifact_type": "策略代码、训练/评测脚本、公开实验配置与checkpoint下载目录",
+      "entrypoints": [
+        "DiffusionUnetHybridImagePolicy.predict_action(obs_dict)",
+        "train.py",
+        "eval.py",
+        "eval_real_robot.py",
+        "demo_real_robot.py"
+      ],
+      "inputs": "配置指定的图像/低维观测历史、归一化统计、任务checkpoint。",
+      "outputs": "预测action序列与当前执行窗口；动作语义由任务配置确定。",
+      "robots": [
+        "公开真实Push-T实现为UR5/UR5e",
+        "模拟任务各自指定embodiment"
+      ],
+      "sensors": [
+        "真实Push-T示例为两台RealSense D415",
+        "机器人状态；具体由shape_meta/config定义"
+      ],
+      "sim_privilege": "视觉策略可不读仿真真值；low_dim分支与仿真评估使用的状态需逐配置审计。",
+      "weights": {
+        "availability": "public-experiment-checkpoints",
+        "url": "https://diffusion-policy.cs.columbia.edu/data/experiments/",
+        "license": "not-separately-confirmed-for-downloaded-checkpoints",
+        "notes": "README明确公开best/latest checkpoints与config；未下载大权重，未确认每个外部checkpoint独立许可。"
+      },
+      "code_license": {
+        "id": "MIT",
+        "url": "https://github.com/real-stanford/diffusion_policy/blob/5ba07ac6661db573af695b419a7947ecb704690f/LICENSE",
+        "notes": "第三方环境/数据依赖保留各自许可；模型文件许可单独登记。"
+      },
+      "hub_destination": "policy",
+      "existing_overlap": "当前Hub未包含该原始Diffusion Policy服务。",
+      "adaptation_steps": [
+        "先选择一个具体任务config与checkpoint并固定文件摘要",
+        "将predict_action封装成隔离服务",
+        "对接YAM观测、动作、时间戳与控制频率；通常需要本机数据重新训练",
+        "补局部起止条件和独立成功判据"
+      ],
+      "priority": "P2",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "公开任务checkpoint不等于通用机器人技能",
+        "官方真实后端依赖UR RTDE与特定相机配置",
+        "不要将不同task的action空间混用"
+      ],
+      "evidence_urls": [
+        "https://github.com/real-stanford/diffusion_policy/blob/5ba07ac6661db573af695b419a7947ecb704690f/README.md",
+        "https://github.com/real-stanford/diffusion_policy/blob/5ba07ac6661db573af695b419a7947ecb704690f/diffusion_policy/policy/diffusion_unet_hybrid_image_policy.py",
+        "https://github.com/real-stanford/diffusion_policy/blob/5ba07ac6661db573af695b419a7947ecb704690f/eval_real_robot.py"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "octo-base-policy",
+      "name": "Octo Base 1.5：语言／图像目标条件动作块",
+      "category": "learned-policy",
+      "capabilities": [
+        "语言条件操作",
+        "目标图像条件操作",
+        "新机器人域微调后的局部技能"
+      ],
+      "repo": "https://github.com/octo-models/octo",
+      "source_url": "https://github.com/octo-models/octo/blob/241fb3514b7c40957a86d869fecb7c7fc353f540/octo/model/octo_model.py",
+      "source_revision": "241fb3514b7c40957a86d869fecb7c7fc353f540",
+      "artifact_type": "模型实现、公开预训练checkpoint、微调与机器人评测示例",
+      "entrypoints": [
+        "OctoModel.load_pretrained('hf://rail-berkeley/octo-base-1.5')",
+        "OctoModel.create_tasks(...)",
+        "OctoModel.sample_actions(...)",
+        "examples/04_eval_finetuned_on_robot.py"
+      ],
+      "inputs": "图像观测历史、语言或目标图像、padding masks；动作归一化统计需与所选域匹配。",
+      "outputs": "该base模型预测4步7维动作块；其语义与训练/微调配置相关。",
+      "robots": [
+        "Open X-Embodiment多个训练域",
+        "目标YAM需适配并验证"
+      ],
+      "sensors": [
+        "主RGB相机",
+        "可选腕部RGB相机；模型卡允许观测/任务键子集"
+      ],
+      "sim_privilege": "推理API不要求仿真真值；目标状态/评测需独立定义。",
+      "weights": {
+        "availability": "public-Hugging-Face-checkpoint",
+        "url": "https://huggingface.co/rail-berkeley/octo-base-1.5",
+        "license": "MIT (官方模型卡)",
+        "notes": "权重可公开获取；接入时固定HF revision/digest，支持键子集不代表任意新视角已验证。"
+      },
+      "code_license": {
+        "id": "MIT",
+        "url": "https://github.com/octo-models/octo/blob/241fb3514b7c40957a86d869fecb7c7fc353f540/LICENSE",
+        "notes": "代码与该模型卡均声明MIT；数据与其他第三方依赖独立。"
+      },
+      "hub_destination": "policy",
+      "existing_overlap": "当前Hub未收录Octo；作为另一个实现提供者，而不是按每条自然语言新建一个skill。",
+      "adaptation_steps": [
+        "将JAX推理服务隔离并声明任务/观测schema",
+        "绑定YAM状态和动作归一化、频率与相机输入",
+        "必要时微调动作头/模型",
+        "增加局部终止器、证据与YAM任务域评测"
+      ],
+      "priority": "P2",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "预训练模型覆盖范围与目标工位仍需验证",
+        "history window、mask和动作归一化不可省略",
+        "不会自动输出可执行policy graph"
+      ],
+      "evidence_urls": [
+        "https://github.com/octo-models/octo/blob/241fb3514b7c40957a86d869fecb7c7fc353f540/octo/model/octo_model.py",
+        "https://huggingface.co/rail-berkeley/octo-base-1.5",
+        "https://github.com/octo-models/octo/blob/241fb3514b7c40957a86d869fecb7c7fc353f540/examples/04_eval_finetuned_on_robot.py"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "openvla-7b-policy",
+      "name": "OpenVLA 7B：语言条件机械臂动作模型",
+      "category": "learned-policy",
+      "capabilities": [
+        "语言条件的桌面操作",
+        "已有机器人域上的动作预测",
+        "新工位演示微调后的局部任务"
+      ],
+      "repo": "https://github.com/openvla/openvla",
+      "source_url": "https://github.com/openvla/openvla/blob/c8f03f48af692657d3060c19588038c7220e9af9/vla-scripts/finetune.py",
+      "source_revision": "c8f03f48af692657d3060c19588038c7220e9af9",
+      "artifact_type": "开源模型代码、公开7B权重、微调和机器人评测入口",
+      "entrypoints": [
+        "AutoModelForVision2Seq.from_pretrained('openvla/openvla-7b')",
+        "vla.predict_action(..., unnorm_key=..., do_sample=False)",
+        "vla-scripts/finetune.py::finetune",
+        "experiments/robot/bridge/run_bridgev2_eval.py"
+      ],
+      "inputs": "RGB图像、任务英文指令、机器人/数据集对应动作反归一化统计。",
+      "outputs": "7维末端增量动作(x,y,z,roll,pitch,yaw,gripper)，需按训练域解释。",
+      "robots": [
+        "公开示例BridgeV2/WidowX",
+        "预训练数据涵盖其他指定平台；YAM未在此核实"
+      ],
+      "sensors": [
+        "RGB图像",
+        "执行侧机器人状态与标定"
+      ],
+      "sim_privilege": "视觉语言推理不需要仿真真值；成功检查与执行后端另接。",
+      "weights": {
+        "availability": "public-Hugging-Face-checkpoint",
+        "url": "https://huggingface.co/openvla/openvla-7b",
+        "license": "MIT (官方模型卡声明)",
+        "notes": "模型卡明确代码与checkpoint均MIT；部署前固定模型revision与digest，不使用浮动main。"
+      },
+      "code_license": {
+        "id": "MIT",
+        "url": "https://github.com/openvla/openvla/blob/c8f03f48af692657d3060c19588038c7220e9af9/LICENSE",
+        "notes": "保留模型卡与第三方依赖来源；本轮未下载或执行权重。"
+      },
+      "hub_destination": "policy",
+      "existing_overlap": "当前Hub的两项LIBERO策略之外的新候选，不能视为替代所有现有skills。",
+      "adaptation_steps": [
+        "接独立推理服务并锁定HF模型revision",
+        "为YAM定义数据规范和动作反归一化/执行适配",
+        "采集目标工位演示并微调",
+        "用局部任务范围、超时、终止检查器约束调用"
+      ],
+      "priority": "P2",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "官方模型卡明确不保证零样本泛化到未见robot embodiment/setup",
+        "单步动作输出没有自动提供任务完成检测",
+        "本条未验证YAM可用性"
+      ],
+      "evidence_urls": [
+        "https://huggingface.co/openvla/openvla-7b",
+        "https://github.com/openvla/openvla/blob/c8f03f48af692657d3060c19588038c7220e9af9/vla-scripts/finetune.py",
+        "https://github.com/openvla/openvla/blob/c8f03f48af692657d3060c19588038c7220e9af9/README.md"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "repo": "https://github.com/ompl/ompl",
+      "source_revision": "a41e54534c754518578757c4cb146ad3a02a5cb1",
+      "readiness": "source-reviewed",
+      "verified_date": "2026-11-05",
+      "hub_destination": "tool",
+      "sim_privilege": "推理不要求sim真值；真实端输入与标定由调用者提供",
+      "installation_tested": false,
+      "robot_tested": false,
+      "id": "ompl-motion-planning",
+      "name": "OMPL 采样式运动规划",
+      "category": "motion-planning",
+      "capabilities": [
+        "关节/状态空间路径规划",
+        "约束规划",
+        "路径简化"
+      ],
+      "source_url": "https://github.com/ompl/ompl/blob/a41e54534c754518578757c4cb146ad3a02a5cb1/demos/RigidBodyPlanning.py",
+      "artifact_type": "C++库+Python绑定与示例",
+      "entrypoints": [
+        "ompl.geometric.SimpleSetup",
+        "SimpleSetup.setStateValidityChecker",
+        "SimpleSetup.setStartAndGoalStates",
+        "SimpleSetup.solve",
+        "SimpleSetup.getSolutionPath"
+      ],
+      "inputs": "状态空间、边界、起点/终点、碰撞/约束有效性回调、规划预算",
+      "outputs": "解状态、几何路径；可选路径简化结果",
+      "robots": [
+        "与机器人型号无内置绑定；需YAM状态空间和碰撞/运动学模型"
+      ],
+      "sensors": [
+        "规划本身不需传感器；真实场景模型来自工位观测"
+      ],
+      "weights": {
+        "availability": "不需要模型权重",
+        "url": null,
+        "license": "not-applicable",
+        "notes": "不涉及预训练模型。"
+      },
+      "code_license": {
+        "id": "BSD-3-Clause",
+        "notes": "根LICENSE与demo头部均已读。",
+        "url": "https://github.com/ompl/ompl/blob/a41e54534c754518578757c4cb146ad3a02a5cb1/LICENSE"
+      },
+      "existing_overlap": "与已有cuRobo重叠于运动规划；适合作为CPU/采样式对照后端，非新增任务技能。",
+      "adaptation_steps": [
+        "构建YAM关节空间、限位及碰撞检查器",
+        "适配起终点和附着物体",
+        "补速度/加速度时间参数化、执行与实际到位检查",
+        "记录规划超时、无解与近似解，避免当成已执行成功"
+      ],
+      "priority": "P2",
+      "limitations": [
+        "示例中的玩具有效性条件不是机器人碰撞模型",
+        "几何路径不等于已验证可跟踪轨迹",
+        "默认求解器和碰撞分辨率需显式固定"
+      ],
+      "usage_class": "permissive_code",
+      "evidence_urls": [
+        "https://github.com/ompl/ompl/blob/a41e54534c754518578757c4cb146ad3a02a5cb1/README.md",
+        "https://github.com/ompl/ompl/blob/a41e54534c754518578757c4cb146ad3a02a5cb1/demos/RigidBodyPlanning.py",
+        "https://github.com/ompl/ompl/blob/a41e54534c754518578757c4cb146ad3a02a5cb1/LICENSE"
+      ],
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "maniskill-reorient-held-peg",
+      "name": "抓持长杆抬升与重定向",
+      "category": "reorientation",
+      "capabilities": [
+        "reorient-held-rigid-object",
+        "lift-held-object"
+      ],
+      "inputs": "长杆真实pose/OBB、抓取偏移、目标姿态、Panda TCP",
+      "outputs": "接近、抓取、抬升、固定旋转、下降与释放序列",
+      "robots": [
+        "Franka Panda"
+      ],
+      "sensors": [
+        "仿真pose/OBB；真实端需杆姿态和持有关系估计"
+      ],
+      "adaptation_steps": [
+        "不把整个solve当单个skill；提取已持有物体重定向片段",
+        "将硬编码姿态/距离改成目标相对参数",
+        "复用现有携物规划与执行，在YAM验证旋转可达性",
+        "补目标杆朝向与持有状态检查"
+      ],
+      "priority": "P2",
+      "existing_overlap": "与planning/executing-held-object-motion重叠，应作为新实现/示例或recipe，不优先复制同义bundle。",
+      "repo": "https://github.com/haosulab/ManiSkill",
+      "source_url": "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/mani_skill/examples/motionplanning/panda/solutions/lift_peg_upright.py",
+      "source_revision": "62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3",
+      "artifact_type": "scripted_expert",
+      "entrypoints": [
+        "solve(env: LiftPegUprightEnv, seed=None, debug=False, vis=False)",
+        "get_actor_obb",
+        "compute_grasp_info_by_obb"
+      ],
+      "sim_privilege": "yes: 仍是已知几何和位姿下的程序方案，不是手内旋转或通用重抓策略。solve 包含环境 reset，移入图节点前应拆成无 reset 的技能。",
+      "weights": {
+        "availability": "not-required",
+        "url": null,
+        "license": "not-applicable-or-not-confirmed; see availability and notes",
+        "notes": "本条为脚本/控制逻辑，不是学习权重。"
+      },
+      "code_license": {
+        "id": "Apache-2.0",
+        "url": "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/LICENSE",
+        "notes": "已核实固定commit的代码许可证；第三方资产、数据与依赖需按其各自条款保留。"
+      },
+      "hub_destination": "skill",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "仍是已知几何和位姿下的程序方案，不是手内旋转或通用重抓策略。solve 包含环境 reset，移入图节点前应拆成无 reset 的技能。",
+        "本轮只检查源码，未安装/执行该仿真、模型或真实YAM；入库前须适配并验收。"
+      ],
+      "evidence_urls": [
+        "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/mani_skill/examples/motionplanning/panda/solutions/lift_peg_upright.py",
+        "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/LICENSE"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "maniskill-pull-with-hook-tool",
+      "name": "持L形工具钩拉物体",
+      "category": "tool-use",
+      "capabilities": [
+        "position-hook-behind-target",
+        "pull-with-held-tool"
+      ],
+      "inputs": "L形工具OBB与位姿、目标方块位置、hook_length和cube_half_size；持工具TCP变换和Panda规划器",
+      "outputs": "抓工具、抬起、将钩放到物体后侧、拉回的轨迹序列",
+      "robots": [
+        "Franka Panda"
+      ],
+      "sensors": [
+        "原实现工具与方块位姿为真值；真实版需工具/目标几何估计"
+      ],
+      "adaptation_steps": [
+        "复用现有抓取和携物能力，仅提取定位钩和局部拉动",
+        "标定持工具后的功能点/TCP",
+        "把固定高度、偏移、拉动距离参数化并接YAM后端",
+        "独立检查工具接合与物体实际进展"
+      ],
+      "priority": "P2",
+      "existing_overlap": "工具握持和搬运与现有skill重叠；钩接/拉动是新增局部能力。",
+      "repo": "https://github.com/haosulab/ManiSkill",
+      "source_url": "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/mani_skill/examples/motionplanning/panda/solutions/pull_cube_tool.py",
+      "source_revision": "62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3",
+      "artifact_type": "scripted_expert",
+      "entrypoints": [
+        "solve(env: PullCubeToolEnv, seed=None, debug=False, vis=False)",
+        "get_actor_obb",
+        "compute_grasp_info_by_obb"
+      ],
+      "sim_privilege": "yes: 工具和方块位姿来自环境真值，脚本含指定偏移与拉动距离。并不具备任意工具识别与自适应接触能力，也不是视觉 checkpoint。",
+      "weights": {
+        "availability": "not-required",
+        "url": null,
+        "license": "not-applicable-or-not-confirmed; see availability and notes",
+        "notes": "本条为脚本/控制逻辑，不是学习权重。"
+      },
+      "code_license": {
+        "id": "Apache-2.0",
+        "url": "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/LICENSE",
+        "notes": "已核实固定commit的代码许可证；第三方资产、数据与依赖需按其各自条款保留。"
+      },
+      "hub_destination": "skill",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "工具和方块位姿来自环境真值，脚本含指定偏移与拉动距离。并不具备任意工具识别与自适应接触能力，也不是视觉 checkpoint。",
+        "本轮只检查源码，未安装/执行该仿真、模型或真实YAM；入库前须适配并验收。"
+      ],
+      "evidence_urls": [
+        "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/mani_skill/examples/motionplanning/panda/solutions/pull_cube_tool.py",
+        "https://github.com/haosulab/ManiSkill/blob/62ff3a5896b4d5b4cf0ac4c8d79afe600c9404a3/LICENSE"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "isaaclab-forge-force-aware-assembly",
+      "name": "FORGE力反馈装配训练底座",
+      "category": "assembly",
+      "capabilities": [
+        "force-aware-insertion-policy-training",
+        "contact-limited-assembly",
+        "force-aware-nut-threading"
+      ],
+      "inputs": "Franka状态、目标资产相对pose、ft_force、force_threshold、prev_actions",
+      "outputs": "策略/critic观测、动作到控制目标、接触力惩罚及装配成功指标；训练产出policy",
+      "robots": [
+        "Factory派生Franka配置"
+      ],
+      "sensors": [
+        "force_sensor来自动力学接口，actor使用带噪力；真实端需匹配的力反馈与控制能力"
+      ],
+      "adaptation_steps": [
+        "确认实际YAM力反馈与控制模式；当前顶视RGBD本身不能替代该输入",
+        "重建传感/动力学配置并在用户Isaac版本测试",
+        "针对目标机构训练或适配policy并补可观察终止器",
+        "冻结权重、控制器和归一化后作为学习型局部能力"
+      ],
+      "priority": "P3",
+      "existing_overlap": "当前库没有已验证YAM力反馈装配实现；补的是新硬件/训练能力。",
+      "repo": "https://github.com/isaac-sim/IsaacLab",
+      "source_url": "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/source/isaaclab_tasks/isaaclab_tasks/contrib/forge/forge_env.py",
+      "source_revision": "c498443e0b833515e1976db9eb3edcd8dabb4cb7",
+      "artifact_type": "training_environment_and_controller",
+      "entrypoints": [
+        "ForgeEnv._get_observations()",
+        "ForgeEnv._apply_action()",
+        "ForgeEnv._get_rewards()"
+      ],
+      "sim_privilege": "yes: 已核实当前实现和任务注册，未核实可下载的对应 checkpoint。仿真 force_sensor 真值与噪声模型不能直接替代真机传感；默认 PPO 配置为空 checkpoint 路径。",
+      "weights": {
+        "availability": "training-code; matching-checkpoint-unverified",
+        "url": null,
+        "license": "not-applicable-or-not-confirmed; see availability and notes",
+        "notes": "已检查训练/控制入口；未核实与本任务、机器人和固定版本相匹配的公开checkpoint。Factory PPO配置load_checkpoint=false且load_path为空。"
+      },
+      "code_license": {
+        "id": "BSD-3-Clause",
+        "url": "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/LICENSE",
+        "notes": "对应源码头与根LICENSE为BSD-3-Clause；README说明Isaac Sim及未单列资产可能适用其他/专有许可，不把整个依赖栈当BSD。"
+      },
+      "hub_destination": "policy",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "已核实当前实现和任务注册，未核实可下载的对应 checkpoint。仿真 force_sensor 真值与噪声模型不能直接替代真机传感；默认 PPO 配置为空 checkpoint 路径。",
+        "本轮只检查源码，未安装/执行该仿真、模型或真实YAM；入库前须适配并验收。"
+      ],
+      "evidence_urls": [
+        "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/source/isaaclab_tasks/isaaclab_tasks/contrib/forge/forge_env.py",
+        "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/LICENSE",
+        "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/source/isaaclab_tasks/isaaclab_tasks/contrib/forge/forge_env_cfg.py",
+        "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/source/isaaclab_tasks/isaaclab_tasks/contrib/forge/__init__.py",
+        "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/source/isaaclab_tasks/isaaclab_tasks/contrib/forge/agents/rl_games_ppo_cfg.yaml",
+        "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/source/isaaclab_tasks/isaaclab_tasks/contrib/forge/agents/rl_games_ppo_cfg_nut_thread.yaml",
+        "https://github.com/isaac-sim/IsaacLab/blob/c498443e0b833515e1976db9eb3edcd8dabb4cb7/README.md#license"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "robotwin-bimanual-handover",
+      "name": "双臂交接与重新抓持",
+      "category": "bimanual",
+      "capabilities": [
+        "handover-object",
+        "coordinate-grip-release",
+        "bimanual-transfer-recipe"
+      ],
+      "inputs": "物体真实位姿与标注接触点、中间交接位姿、左右臂规划器",
+      "outputs": "一臂抓持并交接、另一臂抓取、原臂释放、最终放置序列",
+      "robots": [
+        "两个可协调机械臂；当前单臂YAM不满足"
+      ],
+      "sensors": [
+        "仿真物体/功能点真值；真实版需两臂与双夹爪反馈和目标跟踪"
+      ],
+      "adaptation_steps": [
+        "先保留为双臂recipe候选并声明arms=2",
+        "适配双臂同步、碰撞与握持确认",
+        "以观测替换真实功能点与交接位姿假设",
+        "设计第二臂确认持有后原臂释放的验收"
+      ],
+      "priority": "P3",
+      "existing_overlap": "现有单臂抓取可复用；双臂交接为新配置能力。",
+      "repo": "https://github.com/RoboTwin-Platform/RoboTwin",
+      "source_url": "https://github.com/RoboTwin-Platform/RoboTwin/blob/ea8b21121ebb3cd201ff5b3fe361944ac94eda3f/envs/handover_block.py",
+      "source_revision": "ea8b21121ebb3cd201ff5b3fe361944ac94eda3f",
+      "artifact_type": "scripted_expert",
+      "entrypoints": [
+        "handover_block.play_once()",
+        "handover_block.check_success()"
+      ],
+      "sim_privilege": "yes: 需要两个实际操纵器，不能通过软件适配给单臂增加双臂能力。公开任务脚本与 RoboTwin benchmark checkpoints 都不意味着提供 YAM 交接策略。",
+      "weights": {
+        "availability": "not-required",
+        "url": null,
+        "license": "not-applicable-or-not-confirmed; see availability and notes",
+        "notes": "本条为脚本/控制逻辑，不是学习权重。"
+      },
+      "code_license": {
+        "id": "MIT",
+        "url": "https://github.com/RoboTwin-Platform/RoboTwin/blob/ea8b21121ebb3cd201ff5b3fe361944ac94eda3f/LICENSE",
+        "notes": "已核实固定commit的代码许可证；第三方资产、数据与依赖需按其各自条款保留。"
+      },
+      "hub_destination": "recipe",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "需要两个实际操纵器，不能通过软件适配给单臂增加双臂能力。公开任务脚本与 RoboTwin benchmark checkpoints 都不意味着提供 YAM 交接策略。",
+        "本轮只检查源码，未安装/执行该仿真、模型或真实YAM；入库前须适配并验收。"
+      ],
+      "evidence_urls": [
+        "https://github.com/RoboTwin-Platform/RoboTwin/blob/ea8b21121ebb3cd201ff5b3fe361944ac94eda3f/envs/handover_block.py",
+        "https://github.com/RoboTwin-Platform/RoboTwin/blob/ea8b21121ebb3cd201ff5b3fe361944ac94eda3f/LICENSE"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "cloth-funnels-primitives",
+      "name": "Cloth Funnels：布料抓放、拖动、拉伸与抛展原语",
+      "category": "deformable",
+      "capabilities": [
+        "布料pick-and-place",
+        "pick-and-drag",
+        "双端拉伸",
+        "pick-and-fling",
+        "双臂抓放"
+      ],
+      "repo": "https://github.com/real-stanford/cloth-funnels",
+      "source_url": "https://github.com/real-stanford/cloth-funnels/blob/3b355304a62ca96d30d07b4c1a3c68408d2d5135/cloth_funnels/environment/simEnv.py",
+      "source_revision": "3b355304a62ca96d30d07b4c1a3c68408d2d5135",
+      "artifact_type": "PyFlex仿真动作原语、训练/评测代码与作者模型下载脚本",
+      "entrypoints": [
+        "SimEnv.pick_and_place_primitive",
+        "SimEnv.pick_and_drag_primitive",
+        "SimEnv.pick_and_fling_primitive",
+        "SimEnv.double_arm_pick_and_place_primitive",
+        "SimEnv.pick_stretch_drag_primitive",
+        "cloth_funnels/run_sim.py"
+      ],
+      "inputs": "仿真中抓取/放置点、像素到3D对应、布料观测、动作参数与picker状态。",
+      "outputs": "仿真picker动作与布料状态变化；学习模块给候选动作价值图。",
+      "robots": [
+        "仿真picker抽象",
+        "部分原语双臂；尚非YAM机器人运动学"
+      ],
+      "sensors": [
+        "仿真RGB-D/布料mask",
+        "仿真粒子和抓取状态用于环境/奖励与部分逻辑"
+      ],
+      "sim_privilege": "直接使用PyFlex粒子、picker抓持和环境状态；需逐原语分离执行观测与仅评测真值。",
+      "weights": {
+        "availability": "author-download-script",
+        "url": "https://clothfunnels.cs.columbia.edu/data/models/longsleeve_canonicalized_alignment.pth",
+        "license": "not-separately-confirmed-for-downloaded-models",
+        "notes": "download_models.sh列出alignment与keypoint模型；原语提取可以不使用学习权重。此轮未下载大文件。"
+      },
+      "code_license": {
+        "id": "MIT",
+        "url": "https://github.com/real-stanford/cloth-funnels/blob/3b355304a62ca96d30d07b4c1a3c68408d2d5135/LICENSE",
+        "notes": "主仓库MIT；PyFlex/FleX及外部组件单独许可，不能把主仓库许可覆盖全部依赖和模型。"
+      },
+      "hub_destination": "skill",
+      "existing_overlap": "Hub现有cable-routing不覆盖布料这些原语；应提取局部能力，不直接把整套SimEnv当skill。",
+      "adaptation_steps": [
+        "先选单臂可能实现的pick-and-place/drag，双臂fling列为硬件不兼容候选",
+        "将picker/set_grasp替换为真实抓取、持有检查与YAM轨迹接口",
+        "感知端获取抓点/放点及布料形状，不向实机技能泄漏粒子真值",
+        "在Isaac或实际后端重验接触与布料物理；新增可观察的展开/对齐判据"
+      ],
+      "priority": "P3",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "不是Isaac即插即用实现",
+        "README主要发布仿真训练评测流程",
+        "高动态双臂抛展不适配当前单臂配置",
+        "代码存在不等于已有真实布料抓稳和效果验证"
+      ],
+      "evidence_urls": [
+        "https://github.com/real-stanford/cloth-funnels/blob/3b355304a62ca96d30d07b4c1a3c68408d2d5135/cloth_funnels/environment/simEnv.py",
+        "https://github.com/real-stanford/cloth-funnels/blob/3b355304a62ca96d30d07b4c1a3c68408d2d5135/README.md",
+        "https://github.com/real-stanford/cloth-funnels/blob/3b355304a62ca96d30d07b4c1a3c68408d2d5135/download_models.sh",
+        "https://github.com/real-stanford/cloth-funnels/blob/3b355304a62ca96d30d07b4c1a3c68408d2d5135/LICENSE"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "dlo-planning2-shape-planner-mpc",
+      "name": "DLO Planning 2：双臂线缆形状规划与 MPC 跟踪",
+      "category": "deformable",
+      "capabilities": [
+        "给定起终线缆形状与双臂配置的避障路径规划",
+        "DLO 形状路径跟踪",
+        "线缆局部形状误差反馈调整",
+        "离散弹性杆形状投影"
+      ],
+      "repo": "https://github.com/Mingrui-Yu/DLO_planning_2",
+      "source_url": "https://github.com/Mingrui-Yu/DLO_planning_2/blob/e117c3e5b6437d42dc05c1637bde5b3a4d511b37/ws_dlo/src/dlo_arm_planning_pkg/app/example_planner_without_unity.cpp",
+      "source_revision": "e117c3e5b6437d42dc05c1637bde5b3a4d511b37",
+      "artifact_type": "可编译 C++/ROS 规划器与 MPC 控制器源码；提供不依赖 Unity 的规划示例，不是现成穿线技能",
+      "entrypoints": [
+        "PlanningInterface::solve(\"JointBiRRT\", const PlanningRequest&, PlanningResponse&)",
+        "MultiStepMPC::solve(const Scene::Ptr&, const MPCRequest&, MPCResponse&)",
+        "Controller::trackingPath(const Path&, const TrackingOptions&, ExecutionResults&)",
+        "rosrun dlo_arm_planning_pkg example_planner_without_unity",
+        "rosrun dlo_arm_planning_pkg eval_controller"
+      ],
+      "inputs": "规划：线缆长度、起终 DLOState（特征点与两端姿态）、双臂起终关节配置、MoveIt 场景与模型参数。MPC：当前 DLOState、双臂关节状态/上一控制量、期望形状路径、JacobianModel、速度/碰撞/过伸约束。",
+      "outputs": "PlanningResponse 中的成功标志、路径与规划统计；MPCResponse.arm_0_joint_vel / arm_1_joint_vel 输出双臂关节速度。控制接口可发布 /control/dual_arm/joint_vel_command。",
+      "robots": [
+        "原代码为双 UR5、Robotiq 夹爪与两端持线配置；包含 arm_0/arm_1/dual_arm 分组和 UR5 运动学",
+        "单 YAM 无法直接沿用双臂控制问题；固定一端夹具也需重新推导约束与 Jacobian"
+      ],
+      "sensors": [
+        "state/dual_arm/joint_states 关节反馈",
+        "state/dlo/raw_state 线缆特征点、长度和端点姿态；真机需外部感知提供",
+        "MoveIt 障碍物场景；不是从单张 RGB 自动恢复线缆的感知方法"
+      ],
+      "sim_privilege": "当前公开 eval_controller 驱动 Unity 仿真并读结构化 DLOState；example_planner_without_unity 使用手写障碍物和指定起终形状。接口可接真实估计，但本条未验证真实视觉状态估计与 YAM 执行，不可标为 camera-only。",
+      "weights": {
+        "availability": "规划示例不要求 learned policy；MPC 的 RBF Jacobian 参数在仓库中提供",
+        "url": "https://github.com/Mingrui-Yu/DLO_planning_2/tree/e117c3e5b6437d42dc05c1637bde5b3a4d511b37/ws_dlo/src/dlo_arm_planning_pkg/models/rbfWeights/3D/10*6",
+        "license": "仓库根 MIT；未发现模型参数单独许可证，分发参数前需核实适用范围",
+        "notes": "已查到 centres.npy、sigmas.npy、weight_matrix.npy；Controller 构造器调用 JacobianModel::loadAllWeights。不是动作生成策略 checkpoint，不代表新线缆材料与新机器人的模型已适配。"
+      },
+      "code_license": {
+        "id": "MIT",
+        "url": "https://github.com/Mingrui-Yu/DLO_planning_2/blob/e117c3e5b6437d42dc05c1637bde5b3a4d511b37/LICENSE",
+        "notes": "已读作者根 MIT License（Copyright 2023 Mingrui Yu）；package.xml 的 license 仍为 TODO。候选限于作者规划/控制源码，不将 Unity、Obi、机器人资产、定制 MoveIt 与其他第三方目录一并视为 MIT。"
+      },
+      "hub_destination": "tool",
+      "existing_overlap": "补充当前候选中的 DLO/cable 形状规划与反馈控制能力；适合作为策略图中受两端持线条件约束的局部 motion backend，不能直接充当 thread_cable_through_hole。",
+      "adaptation_steps": [
+        "先用无 Unity 的 example_planner_without_unity 验证编译、输入合同和 PlanningResponse，包装为 plan_dlo_shape 工具",
+        "建立线缆中心线/端姿、材料参数与机器人模型的版本化接口；统一 dual_base/world frame 和米单位",
+        "先明确双臂或单臂加夹具设定；更换 UR5 专用运动学、双臂碰撞模型与关节控制接口，单臂不能只删除另一臂输出",
+        "若提取 follow_dlo_shape 技能，保留抓持前提、状态可观测性、误差阈值、超时、过伸与碰撞退出条件；使用闭环真实状态替代 Unity 状态",
+        "MPC 路线需校核/重辨识 RBF Jacobian；在 Isaac 中另建 DLO 状态发布与控制桥接，Unity/Obi 资产不直接搬入",
+        "依赖为 ROS Noetic/catkin、定制 MoveIt、Eigen>=3.4、Ceres2.1、Ipopt/ifopt、cnpy、yaml-cpp0.6.2、FCL；完整仿真另需 Unity2020.03 与 ROS-TCP，分别审核第三方依赖"
+      ],
+      "priority": "P3",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "未安装、编译或运行；没有 YAM/Isaac 验证。",
+        "目标是两端受控的线缆整体形状改变与避障，不能由该代码推断任意穿孔、插接、重抓、松手或打结能力。",
+        "MPC 与规划器不提供鲁棒的真实线缆视觉追踪器；遮挡、接触和状态误差须单独处理。",
+        "ROS1/定制 MoveIt 与 UR5 绑定明显，迁移成本高于普通刚体规划；README 的绝对路径及工作区名称也需修正。",
+        "作者代码许可明确，但 Unity/Obi 等捆绑资产授权未在本次确认；不要整体复制或分发该仿真工程。"
+      ],
+      "evidence_urls": [
+        "https://github.com/Mingrui-Yu/DLO_planning_2/blob/e117c3e5b6437d42dc05c1637bde5b3a4d511b37/LICENSE",
+        "https://github.com/Mingrui-Yu/DLO_planning_2/blob/e117c3e5b6437d42dc05c1637bde5b3a4d511b37/README.md",
+        "https://github.com/Mingrui-Yu/DLO_planning_2/blob/e117c3e5b6437d42dc05c1637bde5b3a4d511b37/ws_dlo/src/dlo_arm_planning_pkg/app/example_planner_without_unity.cpp",
+        "https://github.com/Mingrui-Yu/DLO_planning_2/blob/e117c3e5b6437d42dc05c1637bde5b3a4d511b37/ws_dlo/src/dlo_arm_planning_pkg/include/dlo_arm_planning_pkg/planning_interface.h",
+        "https://github.com/Mingrui-Yu/DLO_planning_2/blob/e117c3e5b6437d42dc05c1637bde5b3a4d511b37/ws_dlo/src/dlo_arm_planning_pkg/include/dlo_arm_planning_pkg/mpc/mpc_base.h",
+        "https://github.com/Mingrui-Yu/DLO_planning_2/blob/e117c3e5b6437d42dc05c1637bde5b3a4d511b37/ws_dlo/src/dlo_arm_planning_pkg/include/dlo_arm_planning_pkg/mpc/multi_step_mpc.h",
+        "https://github.com/Mingrui-Yu/DLO_planning_2/blob/e117c3e5b6437d42dc05c1637bde5b3a4d511b37/ws_dlo/src/dlo_arm_planning_pkg/src/controller.cpp",
+        "https://github.com/Mingrui-Yu/DLO_planning_2/blob/e117c3e5b6437d42dc05c1637bde5b3a4d511b37/ws_dlo/src/dlo_arm_planning_pkg/src/real_time_interface.cpp",
+        "https://github.com/Mingrui-Yu/DLO_planning_2/blob/e117c3e5b6437d42dc05c1637bde5b3a4d511b37/ws_dlo/src/dlo_arm_planning_pkg/CMakeLists.txt",
+        "https://github.com/Mingrui-Yu/DLO_planning_2/blob/e117c3e5b6437d42dc05c1637bde5b3a4d511b37/ws_dlo/src/dlo_arm_planning_pkg/package.xml",
+        "https://github.com/Mingrui-Yu/DLO_planning_2/blob/e117c3e5b6437d42dc05c1637bde5b3a4d511b37/simulator_unity_ros/Assets/Obi/README.rtf"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "installation_tested": false,
+      "robot_tested": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "openpi-aloha-towel",
+      "name": "π0 ALOHA towel：毛巾折叠专家权重",
+      "category": "deformable",
+      "capabilities": [
+        "平铺小毛巾折叠",
+        "双臂布料操作策略研究"
+      ],
+      "repo": "https://github.com/Physical-Intelligence/openpi",
+      "source_url": "https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/examples/aloha_real/README.md",
+      "source_revision": "215abfb217dbac7d5f1273282331b9b1866c0479",
+      "artifact_type": "公开任务专家checkpoint、ALOHA运行示例、policy serving代码",
+      "entrypoints": [
+        "scripts/serve_policy.py",
+        "policy_config.create_trained_policy(config, checkpoint_dir)",
+        "Policy.infer(obs)",
+        "examples.aloha_real.main"
+      ],
+      "inputs": "ALOHA配置的多相机图像、双臂状态和任务prompt；毛巾初始为大致平铺居中。",
+      "outputs": "ALOHA动作序列；不是YAM单臂关节/末端指令。",
+      "robots": [
+        "ALOHA双臂配置"
+      ],
+      "sensors": [
+        "ALOHA示例配置的RealSense相机",
+        "双臂关节/夹爪状态"
+      ],
+      "sim_privilege": "真实机器人示例基于图像和状态，不要求仿真真值。",
+      "weights": {
+        "availability": "public-GCS-checkpoint-listed-by-authors",
+        "url": "gs://openpi-assets/checkpoints/pi0_aloha_towel",
+        "license": "checkpoint-specific terms require confirmation; repository includes Gemma Terms",
+        "notes": "官方README列出下载路径。代码Apache-2.0不能简单当作所有权重唯一许可；已核对LICENSE_GEMMA.txt。未下载权重。"
+      },
+      "code_license": {
+        "id": "Apache-2.0",
+        "url": "https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/LICENSE",
+        "notes": "仓库另外提供LICENSE_GEMMA.txt，分开保存代码与权重/骨干条款。"
+      },
+      "hub_destination": "policy",
+      "existing_overlap": "Hub已含pi05-libero，可复用policy服务思路；本条是不同任务/embodiment的专家权重，不重复LIBERO bundle。",
+      "adaptation_steps": [
+        "先作为ALOHA专属候选登记与固定权重摘要/许可信息",
+        "复用隔离服务而非复制另一套模型代码",
+        "若目标是单臂YAM，重新定义可完成的局部布料动作并采集数据适配",
+        "补毛巾状态与折叠完成检查，验收后再公开能力声明"
+      ],
+      "priority": "P3",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "当前已确认单臂YAM不能直接运行双臂ALOHA策略",
+        "官方场景建议要求毛巾大致平铺；不等于任意皱团整理能力",
+        "黑盒任务级policy可能吞掉想研究的G编排空间"
+      ],
+      "evidence_urls": [
+        "https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/README.md",
+        "https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/examples/aloha_real/README.md",
+        "https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/LICENSE_GEMMA.txt"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "id": "capx-rgbd-geometry-helpers",
+      "name": "CaP-X RGB-D几何与抓取选择",
+      "category": "geometry",
+      "capabilities": [
+        "point cloud",
+        "RGB-D",
+        "坐标变换",
+        "top-down grasp",
+        "抓取候选选择"
+      ],
+      "repo": "https://github.com/capgym/cap-x",
+      "source_url": "https://github.com/capgym/cap-x/blob/53e9966d7a8e2fa7494676772bccc35280f5c0ed/capx/integrations/franka/control_reduced_skill_library.py",
+      "source_revision": "53e9966d7a8e2fa7494676772bccc35280f5c0ed",
+      "artifact_type": "callable_source",
+      "entrypoints": [
+        "mask_to_world_points",
+        "pixel_to_world_point",
+        "transform_points",
+        "interpolate_segment",
+        "select_top_down_grasp"
+      ],
+      "inputs": "图像mask、depth、相机内外参、几何点或候选抓取",
+      "outputs": "世界点云、变换结果、插值路径或候选抓取与分数",
+      "robots": [
+        "由backend决定，须替换或配置YAM adapter"
+      ],
+      "sensors": [
+        "标定RGB-D"
+      ],
+      "sim_privilege": "所列接口可使用真实观测；实际权限取决于注入的backend/provider，不以函数名证明camera-only",
+      "weights": {
+        "availability": "not-required-for-listed-function",
+        "url": null,
+        "license": "not-applicable",
+        "notes": "所列函数本身不需要学习权重；其他harness感知依赖单独配置。"
+      },
+      "code_license": {
+        "id": "MIT",
+        "url": "https://github.com/capgym/cap-x/blob/53e9966d7a8e2fa7494676772bccc35280f5c0ed/LICENSE",
+        "notes": "核对仓库LICENSE；第三方依赖另见原仓库通知。"
+      },
+      "hub_destination": "tool",
+      "existing_overlap": "与现有geometry和grasp proposal工具高度重叠；只作为实现对照，不重复新建同义skill。",
+      "adaptation_steps": [
+        "对齐相机投影和坐标系",
+        "统一四元数及候选数据类型",
+        "提取纯计算部分并测试已知几何案例"
+      ],
+      "priority": "P3",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "原类位于Franka integration，不能原样作为YAM controller",
+        "几何候选仍需真实可达性/碰撞和抓持检查"
+      ],
+      "evidence_urls": [
+        "https://github.com/capgym/cap-x/blob/53e9966d7a8e2fa7494676772bccc35280f5c0ed/capx/integrations/franka/control_reduced_skill_library.py",
+        "https://github.com/capgym/cap-x/blob/53e9966d7a8e2fa7494676772bccc35280f5c0ed/LICENSE"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "repo": "https://github.com/NVlabs/contact_graspnet",
+      "source_revision": "721706067cc7f7889c32afe7b4f7955eb90bd866",
+      "readiness": "source-reviewed",
+      "verified_date": "2026-11-05",
+      "hub_destination": "tool",
+      "sim_privilege": "推理不要求sim真值；真实端输入与标定由调用者提供",
+      "installation_tested": false,
+      "robot_tested": false,
+      "id": "contact-graspnet-proposals",
+      "name": "Contact-GraspNet 场景抓取候选",
+      "category": "grasping",
+      "capabilities": [
+        "杂乱场景6D抓取分布",
+        "对象分割条件候选筛选"
+      ],
+      "source_url": "https://github.com/NVlabs/contact_graspnet/blob/721706067cc7f7889c32afe7b4f7955eb90bd866/contact_graspnet/inference.py",
+      "artifact_type": "TensorFlow源码+公开权重链接",
+      "entrypoints": [
+        "contact_grasp_estimator.GraspEstimator.predict_scene_grasps",
+        "contact_grasp_estimator.GraspEstimator.predict_scene_grasps_from_depth_K_and_2d_seg"
+      ],
+      "inputs": "米制点云，或深度图+K+可选分割图",
+      "outputs": "相机系抓取位姿、评分、接触点",
+      "robots": [
+        "抓取模型与夹爪几何相关；不是YAM执行实现"
+      ],
+      "sensors": [
+        "标定深度/RGB-D"
+      ],
+      "weights": {
+        "availability": "官方README提供Google Drive模型下载",
+        "url": "https://drive.google.com/drive/folders/1tBHKf60K8DLM5arm-Chyf7jxkzOr5zGl",
+        "license": "未确认独立权重许可；源码许可仅非商业研究/评估",
+        "notes": "本轮未下载checkpoint；可作为研究baseline材料。"
+      },
+      "code_license": {
+        "id": "LicenseRef-NVIDIA-NonCommercial",
+        "notes": "已提取并核对License.pdf第3.3条的非商业研究/评估限制。",
+        "url": "https://github.com/NVlabs/contact_graspnet/blob/721706067cc7f7889c32afe7b4f7955eb90bd866/License.pdf"
+      },
+      "existing_overlap": "与GraspGenX等是同一候选能力的不同实现；不应把多个抓取模型当多个任务阶段。",
+      "adaptation_steps": [
+        "确认许可用途",
+        "隔离旧TensorFlow/CUDA自定义算子环境",
+        "转换相机坐标与夹爪/TCP几何",
+        "增加IK/碰撞/夹持验证"
+      ],
+      "priority": "P3",
+      "limitations": [
+        "源码非商业限制",
+        "原示例依赖Python3.7/TF2.2/CUDA11.1测试栈，需隔离或迁移",
+        "候选接触点不等于实际抓稳"
+      ],
+      "usage_class": "research_only_source",
+      "evidence_urls": [
+        "https://github.com/NVlabs/contact_graspnet/blob/721706067cc7f7889c32afe7b4f7955eb90bd866/README.md",
+        "https://github.com/NVlabs/contact_graspnet/blob/721706067cc7f7889c32afe7b4f7955eb90bd866/contact_graspnet/inference.py",
+        "https://github.com/NVlabs/contact_graspnet/blob/721706067cc7f7889c32afe7b4f7955eb90bd866/License.pdf"
+      ],
+      "invocable_in_hub": false,
+      "intake_group": "research-only"
+    },
+    {
+      "repo": "https://github.com/NVlabs/GraspGen",
+      "source_revision": "2dd8852e1be60f5f9d277fafcc621835cdf59110",
+      "readiness": "source-reviewed",
+      "verified_date": "2026-11-05",
+      "hub_destination": "tool",
+      "sim_privilege": "推理不要求sim真值；真实端输入与标定由调用者提供",
+      "installation_tested": false,
+      "robot_tested": false,
+      "id": "graspgen-grasp-proposals",
+      "name": "GraspGen 指定夹爪6D抓取候选",
+      "category": "grasping",
+      "capabilities": [
+        "点云抓取生成",
+        "抓取评分",
+        "场景碰撞过滤"
+      ],
+      "source_url": "https://github.com/NVlabs/GraspGen/blob/2dd8852e1be60f5f9d277fafcc621835cdf59110/client-server/README.md",
+      "artifact_type": "源码+权重+ZMQ服务",
+      "entrypoints": [
+        "grasp_gen.serving.zmq_client.GraspGenClient.infer",
+        "grasp_gen.grasp_server.GraspGenSampler"
+      ],
+      "inputs": "N×3点云、选定夹爪配置、候选数量与阈值",
+      "outputs": "M×4×4抓取位姿及评分",
+      "robots": [
+        "发布配置支持Franka Panda、Robotiq 2f-140、吸盘；YAM需额外工作"
+      ],
+      "sensors": [
+        "点云或RGB-D"
+      ],
+      "weights": {
+        "availability": "官方链接提供HF模型与示例数据",
+        "url": "https://huggingface.co/adithyamurali/GraspGenModels",
+        "license": "模型卡未独立声明许可；源码NVIDIA非商业限制",
+        "notes": "不把模型卡的数据集CC-BY许可移用到模型/代码。"
+      },
+      "code_license": {
+        "id": "LicenseRef-NVIDIA-NonCommercial",
+        "notes": "根LICENSE 3.3明确非商业研究/评估；资产LICENSE_ASSETS另列。",
+        "url": "https://github.com/NVlabs/GraspGen/blob/2dd8852e1be60f5f9d277fafcc621835cdf59110/LICENSE"
+      },
+      "existing_overlap": "现有抓取候选的替代后端；与GraspGenX二选一先接，避免重复适配。",
+      "adaptation_steps": [
+        "先解决目标用途许可",
+        "优先用独立RPC进程隔离CUDA依赖",
+        "匹配实际夹爪；接可达性、全臂碰撞和抓持验证",
+        "为模型和配置固定版本"
+      ],
+      "priority": "P3",
+      "limitations": [
+        "源码非商业限制",
+        "原版模型按夹爪训练，非任意YAM夹爪即用",
+        "抓取评分不是任务成功率"
+      ],
+      "usage_class": "research_only_source",
+      "evidence_urls": [
+        "https://github.com/NVlabs/GraspGen/blob/2dd8852e1be60f5f9d277fafcc621835cdf59110/README.md",
+        "https://huggingface.co/adithyamurali/GraspGenModels/raw/main/README.md",
+        "https://github.com/NVlabs/GraspGen/blob/2dd8852e1be60f5f9d277fafcc621835cdf59110/client-server/README.md",
+        "https://github.com/NVlabs/GraspGen/blob/2dd8852e1be60f5f9d277fafcc621835cdf59110/LICENSE"
+      ],
+      "invocable_in_hub": false,
+      "intake_group": "research-only"
+    },
+    {
+      "repo": "https://github.com/NVlabs/M2T2",
+      "source_revision": "be2e5f6feae2f961615ab0f7b643f0f98b0c3a50",
+      "readiness": "source-reviewed",
+      "verified_date": "2026-11-05",
+      "hub_destination": "tool",
+      "sim_privilege": "推理不要求sim真值；真实端输入与标定由调用者提供",
+      "installation_tested": false,
+      "robot_tested": false,
+      "id": "m2t2-pick-place-proposals",
+      "name": "M2T2 抓取与朝向感知放置",
+      "category": "grasping",
+      "capabilities": [
+        "物体级6D抓取候选",
+        "朝向条件放置候选",
+        "可选语言条件候选"
+      ],
+      "source_url": "https://github.com/NVlabs/M2T2/blob/be2e5f6feae2f961615ab0f7b643f0f98b0c3a50/demo.py",
+      "artifact_type": "源码+预训练权重链接",
+      "entrypoints": [
+        "m2t2.m2t2.M2T2.infer",
+        "demo.py:load_and_predict"
+      ],
+      "inputs": "场景点云/RGB等配置所需数据；放置分支需持有物体相关输入；语言模型需语言条件",
+      "outputs": "抓取/放置位姿、mask与候选相关输出",
+      "robots": [
+        "发布示例含真实数据与RLBench；YAM动作适配未提供保证"
+      ],
+      "sensors": [
+        "RGB-D/点云"
+      ],
+      "weights": {
+        "availability": "官方README链接generic及language模型",
+        "url": "https://huggingface.co/wentao-yuan/m2t2",
+        "license": "权重独立许可本轮未确认；代码NVIDIA非商业限制",
+        "notes": "m2t2.pth与m2t2_language.pth任务范围不同；接入需分别记录。"
+      },
+      "code_license": {
+        "id": "LicenseRef-NVIDIA-NonCommercial",
+        "notes": "根LICENSE 3.3明确非商业研究/评估。",
+        "url": "https://github.com/NVlabs/M2T2/blob/be2e5f6feae2f961615ab0f7b643f0f98b0c3a50/LICENSE"
+      },
+      "existing_overlap": "与现有抓取/放置几何功能重叠，提供学习型候选后端，不等于可执行transport skill。",
+      "adaptation_steps": [
+        "先确认许可",
+        "按demo构造输入字典并固定帧和单位",
+        "拆分抓取候选/放置候选typed tool",
+        "接YAM规划执行和独立放置检查"
+      ],
+      "priority": "P3",
+      "limitations": [
+        "源码非商业限制",
+        "输出目标位姿而非完整机械臂控制",
+        "需核验夹爪形状与训练域；不保证柔性物体效果"
+      ],
+      "usage_class": "research_only_source",
+      "evidence_urls": [
+        "https://github.com/NVlabs/M2T2/blob/be2e5f6feae2f961615ab0f7b643f0f98b0c3a50/README.md",
+        "https://github.com/NVlabs/M2T2/blob/be2e5f6feae2f961615ab0f7b643f0f98b0c3a50/m2t2/m2t2.py",
+        "https://github.com/NVlabs/M2T2/blob/be2e5f6feae2f961615ab0f7b643f0f98b0c3a50/demo.py",
+        "https://github.com/NVlabs/M2T2/blob/be2e5f6feae2f961615ab0f7b643f0f98b0c3a50/LICENSE"
+      ],
+      "invocable_in_hub": false,
+      "intake_group": "research-only"
+    },
+    {
+      "id": "openpi-aloha-pen-uncap",
+      "name": "π0 ALOHA pen-uncap：双臂拔笔帽专家与训练示例",
+      "category": "learned-policy",
+      "capabilities": [
+        "双臂握持与分离",
+        "拔笔帽任务微调与数据转换"
+      ],
+      "repo": "https://github.com/Physical-Intelligence/openpi",
+      "source_url": "https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/examples/aloha_real/README.md",
+      "source_revision": "215abfb217dbac7d5f1273282331b9b1866c0479",
+      "artifact_type": "任务checkpoint列表、公开数据转换/训练配置、模型服务",
+      "entrypoints": [
+        "scripts/serve_policy.py",
+        "src/openpi/training/config.py::pi0_aloha_pen_uncap configuration",
+        "examples/aloha_real/convert_aloha_data_to_lerobot.py",
+        "scripts/train.py"
+      ],
+      "inputs": "ALOHA双臂相机/状态、任务指令、匹配的归一化统计。",
+      "outputs": "双臂动作chunk，执行笔身保持与笔帽分离的任务行为。",
+      "robots": [
+        "ALOHA双臂"
+      ],
+      "sensors": [
+        "训练配置一致的多相机RGB",
+        "双臂关节和夹爪状态"
+      ],
+      "sim_privilege": "真实示范训练与推理不要求仿真真值。",
+      "weights": {
+        "availability": "public-GCS-checkpoint-listed-by-authors",
+        "url": "gs://openpi-assets/checkpoints/pi0_aloha_pen_uncap",
+        "license": "checkpoint-specific terms require confirmation; repository includes Gemma Terms",
+        "notes": "官方根README列出checkpoint；ALOHA文档给公开BiPlay转换数据与训练配置。数据许可需要单独核对。"
+      },
+      "code_license": {
+        "id": "Apache-2.0",
+        "url": "https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/LICENSE",
+        "notes": "同时记录LICENSE_GEMMA.txt；不把代码许可直接等同于checkpoint全部许可。"
+      },
+      "hub_destination": "policy",
+      "existing_overlap": "共享openpi服务但属于新的专家任务；不能把同一底层模型重复计成独立新算法。",
+      "adaptation_steps": [
+        "锁定专家权重、数据和配置来源",
+        "先在匹配双臂平台复现实验",
+        "若单臂YAM使用固定夹具替代另一只手，需要重新采集/训练而非简单动作切片",
+        "将持续持有、笔帽分离等结果验证作为外部能力合同"
+      ],
+      "priority": "P3",
+      "readiness": "source-reviewed",
+      "limitations": [
+        "双臂动作不是截取一半就可迁移单臂",
+        "训练数据和动作归一化绑定平台",
+        "预训练不提供可靠任务终止器"
+      ],
+      "evidence_urls": [
+        "https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/README.md",
+        "https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/examples/aloha_real/README.md",
+        "https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/src/openpi/training/config.py",
+        "https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/LICENSE_GEMMA.txt"
+      ],
+      "verified_date": "2026-11-05",
+      "invocable_in_hub": false,
+      "intake_group": "open-source-code"
+    },
+    {
+      "repo": "https://github.com/NVlabs/FoundationPose",
+      "source_revision": "a1b694b83e633c2cb6115b9063d940a687759392",
+      "readiness": "source-reviewed",
+      "verified_date": "2026-11-05",
+      "hub_destination": "tool",
+      "sim_privilege": "推理不要求sim真值；真实端输入与标定由调用者提供",
+      "installation_tested": false,
+      "robot_tested": false,
+      "id": "foundationpose-rigid-pose",
+      "name": "FoundationPose 刚体6D位姿与跟踪",
+      "category": "pose-estimation",
+      "capabilities": [
+        "刚体6D位姿估计",
+        "逐帧位姿跟踪"
+      ],
+      "source_url": "https://github.com/NVlabs/FoundationPose/blob/a1b694b83e633c2cb6115b9063d940a687759392/run_demo.py",
+      "artifact_type": "源码+公开链接的研究权重",
+      "entrypoints": [
+        "estimater.FoundationPose.register",
+        "estimater.FoundationPose.track_one"
+      ],
+      "inputs": "RGB、米制深度、相机内参、初始化对象mask；典型路径还需对象mesh/模型点与法向",
+      "outputs": "刚体相对于相机的位姿估计与跟踪状态",
+      "robots": [
+        "感知模块，无YAM执行适配"
+      ],
+      "sensors": [
+        "标定RGB-D"
+      ],
+      "weights": {
+        "availability": "官方README提供scorer/refiner的Google Drive下载",
+        "url": "https://drive.google.com/drive/folders/1DFezOAD0oD1BblsXVxqDsl8fj0qzB82i",
+        "license": "权重单独许可本轮未确认；代码明确非商业研究/评估限制",
+        "notes": "发布权重不含README所述受限扩散增强训练版本；不能据公开链接推定部署许可。"
+      },
+      "code_license": {
+        "id": "LicenseRef-NVIDIA-NonCommercial",
+        "notes": "LICENSE 3.3明确仅非商业研究/评估；不属于可无条件商业复用的开源代码。",
+        "url": "https://github.com/NVlabs/FoundationPose/blob/a1b694b83e633c2cb6115b9063d940a687759392/LICENSE"
+      },
+      "existing_overlap": "补充现有geometry/perceiving/registering的刚体位姿后端。",
+      "adaptation_steps": [
+        "先确认目标用途的许可",
+        "准备或重建刚体几何与初始化mask",
+        "转换camera/base/TCP坐标并包装状态与失跟出口",
+        "将刚体端头与柔性线缆其余部分区分"
+      ],
+      "priority": "P3",
+      "limitations": [
+        "代码有明确非商业限制",
+        "不是通用柔性线缆姿态估计器",
+        "需模型/重建准备、CUDA渲染与模型依赖"
+      ],
+      "usage_class": "research_only_source",
+      "evidence_urls": [
+        "https://github.com/NVlabs/FoundationPose/blob/a1b694b83e633c2cb6115b9063d940a687759392/readme.md",
+        "https://github.com/NVlabs/FoundationPose/blob/a1b694b83e633c2cb6115b9063d940a687759392/estimater.py",
+        "https://github.com/NVlabs/FoundationPose/blob/a1b694b83e633c2cb6115b9063d940a687759392/run_demo.py",
+        "https://github.com/NVlabs/FoundationPose/blob/a1b694b83e633c2cb6115b9063d940a687759392/LICENSE"
+      ],
+      "invocable_in_hub": false,
+      "intake_group": "research-only"
+    },
+    {
+      "repo": "https://github.com/facebookresearch/co-tracker",
+      "source_revision": "82e02e8029753ad4ef13cf06be7f4fc5facdda4d",
+      "readiness": "source-reviewed",
+      "verified_date": "2026-11-05",
+      "hub_destination": "tool",
+      "sim_privilege": "推理不要求sim真值；真实端输入与标定由调用者提供",
+      "installation_tested": false,
+      "robot_tested": false,
+      "id": "cotracker-point-tracking",
+      "name": "CoTracker3 多点视频跟踪",
+      "category": "tracking",
+      "capabilities": [
+        "稀疏/稠密点跟踪",
+        "在线/离线轨迹",
+        "可见性预测"
+      ],
+      "source_url": "https://github.com/facebookresearch/co-tracker/blob/82e02e8029753ad4ef13cf06be7f4fc5facdda4d/cotracker/predictor.py",
+      "artifact_type": "PyTorch源码+公开权重",
+      "entrypoints": [
+        "torch.hub.load(..., cotracker3_online)",
+        "CoTrackerOnlinePredictor.forward",
+        "CoTrackerPredictor.forward"
+      ],
+      "inputs": "RGB视频、查询点或网格；在线会话状态",
+      "outputs": "2D像素轨迹和可见性",
+      "robots": [
+        "感知模块，与机器人型号无直接绑定"
+      ],
+      "sensors": [
+        "RGB；3D需要另接深度"
+      ],
+      "weights": {
+        "availability": "官方README提供HF的scaled/baseline在线和离线checkpoint",
+        "url": "https://huggingface.co/facebook/cotracker3",
+        "license": "CC-BY-NC-4.0 项目许可；采用具体权重时保留模型卡条款",
+        "notes": "主项目非商业；部分依赖另有MIT/Apache许可不能替代主项目许可。"
+      },
+      "code_license": {
+        "id": "CC-BY-NC-4.0",
+        "notes": "README说明项目主体CC-BY-NC；LICENSE.md已读。",
+        "url": "https://github.com/facebookresearch/co-tracker/blob/82e02e8029753ad4ef13cf06be7f4fc5facdda4d/LICENSE.md"
+      },
+      "existing_overlap": "与TAPIR为可替换跟踪后端，优先先接许可匹配的一个。",
+      "adaptation_steps": [
+        "确认非商业研究用途",
+        "封装在线状态和时间戳",
+        "接目标身份、深度与失跟判定",
+        "与已有tracking-objects比较"
+      ],
+      "priority": "P3",
+      "limitations": [
+        "主项目非商业限制",
+        "2D跟踪不自动提供3D接触或穿孔证据",
+        "点漂移和遮挡预测需验证"
+      ],
+      "usage_class": "research_only_source",
+      "evidence_urls": [
+        "https://github.com/facebookresearch/co-tracker/blob/82e02e8029753ad4ef13cf06be7f4fc5facdda4d/README.md",
+        "https://github.com/facebookresearch/co-tracker/blob/82e02e8029753ad4ef13cf06be7f4fc5facdda4d/cotracker/predictor.py",
+        "https://github.com/facebookresearch/co-tracker/blob/82e02e8029753ad4ef13cf06be7f4fc5facdda4d/LICENSE.md"
+      ],
+      "invocable_in_hub": false,
+      "intake_group": "research-only"
+    }
+  ]
+}

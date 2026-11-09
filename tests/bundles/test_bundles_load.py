@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -36,11 +37,29 @@ def test_four_tool_bundles_discovered(skills_registry):
         assert info.meta.tools, f"{bundle}: SKILL.md declares no gap.tools"
 
 
-def test_lazy_import_no_heavy_deps_in_sys_modules(skills_registry):
+def test_lazy_import_no_heavy_deps_in_sys_modules():
     """Importing every bundle's tools.py must not pull GPU/ML deps."""
-    loaded_roots = {name.split(".")[0] for name in sys.modules}
-    leaked = _FORBIDDEN_TOP_LEVEL & loaded_roots
-    assert not leaked, f"bundle import pulled heavy deps eagerly: {sorted(leaked)}"
+    # Real tracker tests legitimately import torch. Check loader side effects in
+    # a clean interpreter so the result does not depend on test collection order.
+    script = """
+import sys
+from gap.skills import load_skills
+registry = load_skills(sys.argv[1])
+for info in registry._skills.values():
+    path = info.bundle_dir / "tools.py"
+    if info.tools_module is None and path.is_file():
+        registry._import_module(path, f"gap_skills.{info.namespace}.{info.name}.tools")
+forbidden = set(sys.argv[2:])
+leaked = forbidden & {name.split(".")[0] for name in sys.modules}
+assert not leaked, f"bundle import pulled heavy deps eagerly: {sorted(leaked)}"
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(SKILLS_ROOT), *sorted(_FORBIDDEN_TOP_LEVEL)],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_declared_tools_match_registered_tools(skills_registry, tool_registry):

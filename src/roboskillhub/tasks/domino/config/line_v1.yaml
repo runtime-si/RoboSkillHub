@@ -1,0 +1,26 @@
+# Domino straight-line placement thresholds (tolerances_ref: tasks/domino/config/line_v1.yaml).
+# Requests may only tighten these (thresholds_override); release_gap_m and
+# release_clearance_m are motion parameters and cannot be overridden.
+# Values tied to placing-an-upright-domino-beside-neighbours are checked against that
+# skill's constants by tests/tasks/test_domino_geometry.py; the rest are labelled choices.
+version: line_v1
+piece: {class: domino, size_m: [0.048, 0.024, 0.0075]}
+calibration: "not station-calibrated: YAM station twin values; re-derive per station"
+thresholds:
+  position_tolerance_m: 0.008        # place_domino.POSITION_TOLERANCE (10 deg lean moves a 48 mm top 8.3 mm; camera RMS 5.4 mm)
+  tilt_tolerance_rad: 0.17453292519943295   # 10 deg: predicators domino fallen_threshold (place_domino provenance)
+  yaw_tolerance_rad: 0.06981317007977318    # 4 deg: place_domino.YAW_TOLERANCE_DEG (servo 3 deg + 1)
+  support_height_tolerance_m: 0.006  # place_domino.DESCENT_TOLERANCE
+  tcp_tolerance_m: 0.006             # place_domino.DESCENT_TOLERANCE: a descent ending this high stopped on something
+  drift_tolerance_m: 0.002           # choice: under the twin's 0.1-1.9 mm placement spread
+  drift_tilt_tolerance_rad: 0.03490658503988659   # choice: 2 deg
+  neighbor_displacement_tolerance_m: 0.003        # choice (twin: undisturbed neighbours moved < 0.01 mm)
+  neighbor_tilt_tolerance_rad: 0.08726646259971647 # choice: 5 deg
+  settle_window_s: 0.5               # choice: the twin's settle time before measuring
+  min_window_samples: 3              # choice: distinct frames
+  max_observation_age_s: 1.0         # workcell runtime Limits.max_state_age_s default
+  min_identity_confidence: 0.5       # choice
+  max_holding_std_m: 0.004           # choice: half the position tolerance
+  release_clearance_m: 0.004         # place_domino.RELEASE_CLEARANCE (4 mm a side)
+  release_gap_m: 0.0015              # place_domino.RELEASE_GAP
+  waypoint_step_m: 0.005             # choice: straight legs sent as waypoints this far apart
