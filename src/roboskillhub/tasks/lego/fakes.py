@@ -48,11 +48,21 @@ class FakeObserver:
     ``T_TCP_object`` that may differ from the one the skill was told (a grasp offset), plus
     a scripted per-call perturbation. Labelled ``unit_or_dryrun``."""
 
-    def __init__(self, clock: FakeClock, motion: FakeMotion, t_tcp_object_true: dict, *,
-                 sigma_m: float = 0.0001, source: str = "fake-wrist-camera",
-                 kind: str = "measured", age_s: float = 0.0,
-                 perturb: Callable[[int, g.Matrix], g.Matrix] | None = None,
-                 visible: bool = True, occluded: bool = False, frame_id: str = "world"):
+    def __init__(
+        self,
+        clock: FakeClock,
+        motion: FakeMotion,
+        t_tcp_object_true: dict,
+        *,
+        sigma_m: float = 0.0001,
+        source: str = "fake-wrist-camera",
+        kind: str = "measured",
+        age_s: float = 0.0,
+        perturb: Callable[[int, g.Matrix], g.Matrix] | None = None,
+        visible: bool = True,
+        occluded: bool = False,
+        frame_id: str = "world",
+    ):
         self.clock, self.motion = clock, motion
         self.t_true = g.matrix(t_tcp_object_true)
         self.sigma_m, self.source, self.kind, self.age_s = sigma_m, source, kind, age_s
@@ -61,8 +71,11 @@ class FakeObserver:
         self.calls = 0
 
     def describe(self) -> dict[str, Any]:
-        return {"observer_id": self.source, "evidence_level": "unit_or_dryrun",
-                "uncertainty_m": self.sigma_m}
+        return {
+            "observer_id": self.source,
+            "evidence_level": "unit_or_dryrun",
+            "uncertainty_m": self.sigma_m,
+        }
 
     def observe(self, object_id: str, *, not_before_s: float, timeout_s: float) -> dict:
         self.calls += 1
@@ -73,22 +86,40 @@ class FakeObserver:
             if self.perturb is not None:
                 t = self.perturb(self.calls, t)
             value = g.to_pose(t, self.frame_id)
-        return {"obs_id": f"obs-{self.calls}", "source": self.source, "kind": self.kind,
-                "frame_id": self.frame_id, "timestamp_s": self.clock() - self.age_s,
-                "value": value, "uncertainty_m": self.sigma_m, "uncertainty_deg": 0.05,
-                "occluded": self.occluded, "privileged": self.kind == "sim_truth"}
+        return {
+            "obs_id": f"obs-{self.calls}",
+            "source": self.source,
+            "kind": self.kind,
+            "frame_id": self.frame_id,
+            "timestamp_s": self.clock() - self.age_s,
+            "value": value,
+            "uncertainty_m": self.sigma_m,
+            "uncertainty_deg": 0.05,
+            "occluded": self.occluded,
+            "privileged": self.kind == "sim_truth",
+        }
 
 
 class FakeContact:
     """Replays a scripted contact trace; counts guarded_move calls."""
 
-    def __init__(self, *, capabilities: list[str] | None = None, samples: list[dict] | None = None,
-                 stop_reason: str = "force_threshold", stop_confirmed: bool = True,
-                 controller_kind: str = "admittance", max_force_N: float = 30.0,
-                 evidence_level: str = "unit_or_dryrun", rate_hz: float = 500.0):
+    def __init__(
+        self,
+        *,
+        capabilities: list[str] | None = None,
+        samples: list[dict] | None = None,
+        stop_reason: str = "force_threshold",
+        stop_confirmed: bool = True,
+        controller_kind: str = "admittance",
+        max_force_N: float = 30.0,
+        evidence_level: str = "unit_or_dryrun",
+        rate_hz: float = 500.0,
+    ):
         self.capabilities = sorted(
-            capabilities if capabilities is not None else
-            ["pose_feedback", "contact_force_feedback", "guarded_motion", "stop_confirmation"])
+            capabilities
+            if capabilities is not None
+            else ["pose_feedback", "contact_force_feedback", "guarded_motion", "stop_confirmation"]
+        )
         self.samples = samples or []
         self.stop_reason, self.stop_confirmed = stop_reason, stop_confirmed
         self.controller_kind, self.max_force_N = controller_kind, max_force_N
@@ -100,26 +131,47 @@ class FakeContact:
             "backend_id": "fake-contact",
             "evidence_level": self.evidence_level,
             "capabilities": self.capabilities,
-            "contact_signal": {"source": "scripted", "quantity": "axial_force", "unit": "N",
-                               "frame_id": "tcp", "rate_hz": self.rate_hz,
-                               "max_latency_s": 0.01, "calibration_id": "fake-cal"},
+            "contact_signal": {
+                "source": "scripted",
+                "quantity": "axial_force",
+                "unit": "N",
+                "frame_id": "tcp",
+                "rate_hz": self.rate_hz,
+                "max_latency_s": 0.01,
+                "calibration_id": "fake-cal",
+            },
             "controller": {"kind": self.controller_kind, "loop_hz": 500, "process": "fake"},
-            "limits": {"max_force_N": self.max_force_N, "max_speed_m_s": 0.02,
-                       "max_travel_m": 0.03},
+            "limits": {
+                "max_force_N": self.max_force_N,
+                "max_speed_m_s": 0.02,
+                "max_travel_m": 0.03,
+            },
         }
 
     def guarded_move(self, **kw: Any) -> dict[str, Any]:
         self.calls.append(kw)
-        return {"command_issued": True, "stop_reason": self.stop_reason,
-                "stop_confirmed": self.stop_confirmed, "samples": self.samples, "fault": ""}
+        return {
+            "command_issued": True,
+            "stop_reason": self.stop_reason,
+            "stop_confirmed": self.stop_confirmed,
+            "samples": self.samples,
+            "fault": "",
+        }
 
     def stop(self) -> dict[str, Any]:
         return {"confirmed": self.stop_confirmed}
 
 
-def press_trace(seat_travel_m: float, stud_height_m: float, *, final_shortfall_m: float = 0.0,
-                peak_N: float = 10.0, onset_travel_m: float | None = None, dt: float = 0.002,
-                step_m: float = 0.0002) -> list[dict]:
+def press_trace(
+    seat_travel_m: float,
+    stud_height_m: float,
+    *,
+    final_shortfall_m: float = 0.0,
+    peak_N: float = 10.0,
+    onset_travel_m: float | None = None,
+    dt: float = 0.002,
+    step_m: float = 0.0002,
+) -> list[dict]:
     """A synthetic force/travel trace: free motion until ``onset`` (default the stud tops),
     then force rising linearly to ``peak_N`` at the final travel."""
     onset = seat_travel_m - stud_height_m if onset_travel_m is None else onset_travel_m

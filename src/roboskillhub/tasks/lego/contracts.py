@@ -120,8 +120,14 @@ class Observation:
         }
 
 
-def usable(obs: Observation, *, now_s: float, max_age_s: float, frame_id: str,
-           not_after_s: float | None = None) -> str:
+def usable(
+    obs: Observation,
+    *,
+    now_s: float,
+    max_age_s: float,
+    frame_id: str,
+    not_after_s: float | None = None,
+) -> str:
     """Empty string if ``obs`` can serve as evidence now, else a reason code."""
     if obs.kind in ("commanded", "planned"):
         return "commanded_not_observed"
@@ -211,8 +217,15 @@ class SkillResult:
         if obs.privileged:
             self.privileged_observation = True
 
-    def finish(self, status: str, reason_code: str, message: str = "", *,
-               failure_type: str = "", next_allowed: list[str] | None = None) -> SkillResult:
+    def finish(
+        self,
+        status: str,
+        reason_code: str,
+        message: str = "",
+        *,
+        failure_type: str = "",
+        next_allowed: list[str] | None = None,
+    ) -> SkillResult:
         assert status in STATUSES, status
         if status == "rejected" and self.motion_issued:
             raise AssertionError("rejected is only for results where no motion was issued")
@@ -254,15 +267,21 @@ def ids(request: Any, skill_id: str, version: str) -> SkillResult:
     """Start a result; reject requests without request/connection identity."""
     rid = request.get("request_id") if isinstance(request, dict) else None
     cid = request.get("connection_id") if isinstance(request, dict) else None
-    res = SkillResult(skill_id, version, rid if isinstance(rid, str) else "",
-                      cid if isinstance(cid, str) else "")
+    res = SkillResult(
+        skill_id, version, rid if isinstance(rid, str) else "", cid if isinstance(cid, str) else ""
+    )
     if not isinstance(request, dict):
         raise _Early(res, Rejected("invalid_input", "request must be a JSON object"))
     if not res.request_id or not res.connection_id:
         raise _Early(res, Rejected("invalid_input", "request_id and connection_id are required"))
     if request.get("skill_version", version) != version:
-        raise _Early(res, Rejected(
-            "version_mismatch", f"request is for {request.get('skill_version')}, this is {version}"))
+        raise _Early(
+            res,
+            Rejected(
+                "version_mismatch",
+                f"request is for {request.get('skill_version')}, this is {version}",
+            ),
+        )
     return res
 
 

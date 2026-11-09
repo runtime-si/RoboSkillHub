@@ -270,7 +270,9 @@ def top_in_plate(
     """``T_plate_brickTop``: brick top centre (stud bases), brick axes."""
     pitch, h = bt.system.stud_pitch_m, bt.system.brick_height_m
     fx, fy = footprint(bt, cell.rotation)
-    topleft = tr(-plate_studs[0] * pitch / 2 + bias_m[0], -plate_studs[1] * pitch / 2 + bias_m[1], 0)
+    topleft = tr(
+        -plate_studs[0] * pitch / 2 + bias_m[0], -plate_studs[1] * pitch / 2 + bias_m[1], 0
+    )
     offset = tr(cell.x * pitch, cell.y * pitch, cell.layer * h)
     cx, cy = fx * pitch / 2, fy * pitch / 2
     c = math.cos(math.radians(cell.rotation))
@@ -296,8 +298,10 @@ class Plate:
 
 def seat_pose(plate: Plate, bt: BrickType, cell: Cell) -> dict:
     """World pose of the brick's bottom centre when seated (brick axes; z up the studs)."""
-    t = mul(mul(matrix(plate.pose), top_in_plate(plate.studs, bt, cell, plate.bias_m)),
-            tr(0.0, 0.0, -bt.system.brick_height_m))
+    t = mul(
+        mul(matrix(plate.pose), top_in_plate(plate.studs, bt, cell, plate.bias_m)),
+        tr(0.0, 0.0, -bt.system.brick_height_m),
+    )
     return to_pose(t, plate.frame_id)
 
 
@@ -376,20 +380,29 @@ def connection_checks(
     out: list[dict[str, Any]] = []
     if bt.system.name != plate.system.name:
         out.append(
-            {"name": "interface_match", "ok": False,
-             "detail": f"{bt.system.name} brick on a {plate.system.name} plate: studs do not mate"}
+            {
+                "name": "interface_match",
+                "ok": False,
+                "detail": f"{bt.system.name} brick on a {plate.system.name} plate: studs do not mate",
+            }
         )
         return out
     out.append({"name": "interface_match", "ok": True, "detail": bt.system.name})
     mine = cells(bt, cell)
     off = [c for c in mine if not (0 <= c[0] < plate.studs[0] and 0 <= c[1] < plate.studs[1])]
     ok = cell.layer >= 1 and not off
-    out.append({"name": "on_plate", "ok": ok,
-                "detail": "" if ok else f"layer {cell.layer} or cells off the plate {off[:2]}"})
+    out.append(
+        {
+            "name": "on_plate",
+            "ok": ok,
+            "detail": "" if ok else f"layer {cell.layer} or cells off the plate {off[:2]}",
+        }
+    )
     occ = occupied_cells(build)
     hits = sorted({occ[c] for c in mine if c in occ})
-    out.append({"name": "collision_free", "ok": not hits,
-                "detail": f"occupied by {hits}" if hits else ""})
+    out.append(
+        {"name": "collision_free", "ok": not hits, "detail": f"occupied by {hits}" if hits else ""}
+    )
     if cell.layer == 1:
         out.append({"name": "supported", "ok": True, "detail": "stands on the plate"})
     else:
@@ -397,17 +410,23 @@ def connection_checks(
         frac = len(below) / len(mine)
         need = max(support_required_fraction, 1e-9)
         ok = frac >= need
-        out.append({
-            "name": "supported", "ok": ok,
-            "detail": f"{len(below)}/{len(mine)} studs engage layer {cell.layer - 1}"
-            + ("" if ok else f" (need >= {need:.2f})"),
-        })
+        out.append(
+            {
+                "name": "supported",
+                "ok": ok,
+                "detail": f"{len(below)}/{len(mine)} studs engage layer {cell.layer - 1}"
+                + ("" if ok else f" (need >= {need:.2f})"),
+            }
+        )
     top = max([c[2] for c in occ] + [cell.layer])
     blocked = sorted({occ[c] for c in finger_cells(bt, cell, close_axis, top) if c in occ})
-    out.append({
-        "name": "approach_clear_of_build", "ok": not blocked,
-        "detail": f"jaws would strike {blocked}" if blocked else "",
-    })
+    out.append(
+        {
+            "name": "approach_clear_of_build",
+            "ok": not blocked,
+            "detail": f"jaws would strike {blocked}" if blocked else "",
+        }
+    )
     return out
 
 
@@ -418,8 +437,12 @@ def tcp_target(t_world_brick: Matrix, t_tcp_object: Matrix) -> Matrix:
 
 
 def choose_yaw(
-    bt: BrickType, cell: Cell, t_world_seat_nominal: Matrix, t_world_tcp_now: Matrix,
-    t_tcp_object: Matrix, ambiguity_deg: float = 10.0,
+    bt: BrickType,
+    cell: Cell,
+    t_world_seat_nominal: Matrix,
+    t_world_tcp_now: Matrix,
+    t_tcp_object: Matrix,
+    ambiguity_deg: float = 10.0,
 ) -> tuple[int, list[dict[str, float]]]:
     """Among the pattern-symmetric yaws of the target, the one needing the least wrist turn
     from the current hand. Raises ``GeometryError`` if the two best are within

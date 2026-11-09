@@ -72,9 +72,11 @@ def _axis(req: dict, alignment: dict) -> list[float]:
     v = [x / n for x in v]
     c = sum(a * b for a, b in zip(v, planned["vector"], strict=True))
     if c < math.cos(math.radians(2.0)):
-        raise Rejected("axis_mismatch",
-                       f"axis is {math.degrees(math.acos(max(-1, min(1, c)))):.1f} deg off the "
-                       "connection's engagement axis")
+        raise Rejected(
+            "axis_mismatch",
+            f"axis is {math.degrees(math.acos(max(-1, min(1, c)))):.1f} deg off the "
+            "connection's engagement axis",
+        )
     return v
 
 
@@ -83,8 +85,15 @@ def check_contact_capabilities(desc: dict) -> list[str]:
     caps = set(desc.get("capabilities", []))
     missing = sorted(CONTACT_CAPABILITIES - caps)
     sig = desc.get("contact_signal") or {}
-    for k in ("source", "quantity", "unit", "frame_id", "rate_hz", "max_latency_s",
-              "calibration_id"):
+    for k in (
+        "source",
+        "quantity",
+        "unit",
+        "frame_id",
+        "rate_hz",
+        "max_latency_s",
+        "calibration_id",
+    ):
         if not sig.get(k):
             missing.append(f"contact_signal.{k}")
     if sig.get("unit") and sig.get("unit") != "N":
@@ -121,8 +130,9 @@ def guarded_seat(
     res.check("pre", "aligned", True, f"alignment {p['alignment']['invocation_id']}")
     if contact is None:
         res.evidence["missing_capabilities"] = sorted(CONTACT_CAPABILITIES)
-        return res.finish("rejected", "missing_capabilities",
-                          "no contact backend; " + NOT_FORCE_CONTROL).to_dict()
+        return res.finish(
+            "rejected", "missing_capabilities", "no contact backend; " + NOT_FORCE_CONTROL
+        ).to_dict()
     desc = contact.describe()
     res.backend = desc
     missing = check_contact_capabilities(desc)
@@ -135,31 +145,41 @@ def guarded_seat(
         return res.finish("rejected", "missing_capabilities", msg).to_dict()
     lim = desc["limits"]
     if p["force_limit_N"] > float(lim["max_force_N"]):
-        return res.finish("rejected", "force_limit_unsupported",
-                          f"force_limit_N {p['force_limit_N']} > backend max "
-                          f"{lim['max_force_N']}").to_dict()
+        return res.finish(
+            "rejected",
+            "force_limit_unsupported",
+            f"force_limit_N {p['force_limit_N']} > backend max {lim['max_force_N']}",
+        ).to_dict()
     if lim.get("max_travel_m") and p["max_travel_m"] > float(lim["max_travel_m"]):
         return res.finish("rejected", "travel_unsupported", "max_travel_m beyond backend").to_dict()
     if lim.get("max_speed_m_s") and p["speed_m_s"] > float(lim["max_speed_m_s"]):
         return res.finish("rejected", "speed_unsupported", "speed_m_s beyond backend").to_dict()
     if p["torque_limit_Nm"] is not None and "contact_torque_feedback" not in desc["capabilities"]:
-        return res.finish("rejected", "torque_limit_unsupported",
-                          "torque_limit_Nm given but the backend measures no torque").to_dict()
+        return res.finish(
+            "rejected",
+            "torque_limit_unsupported",
+            "torque_limit_Nm given but the backend measures no torque",
+        ).to_dict()
 
     res.phase = "press"
     res.motion_issued = True
     started = clock()
-    trace = contact.guarded_move(axis={"frame_id": p["frame_id"], "vector": p["axis"]},
-                                 max_travel_m=p["max_travel_m"], speed_m_s=p["speed_m_s"],
-                                 force_limit_N=p["force_limit_N"], hold_s=p["hold_s"],
-                                 timeout_s=p["timeout_s"])
+    trace = contact.guarded_move(
+        axis={"frame_id": p["frame_id"], "vector": p["axis"]},
+        max_travel_m=p["max_travel_m"],
+        speed_m_s=p["speed_m_s"],
+        force_limit_N=p["force_limit_N"],
+        hold_s=p["hold_s"],
+        timeout_s=p["timeout_s"],
+    )
     if not trace.get("command_issued", True):
         res.motion_issued = False
     res.stop = {"reason": trace.get("stop_reason"), "confirmed": bool(trace.get("stop_confirmed"))}
     res.evidence_level = desc.get("evidence_level", "unit_or_dryrun")
     res.privileged_observation = bool(desc.get("privileged", False))
-    res.trace.append({"event": "guarded_move", "t_s": started,
-                      "n_samples": len(trace.get("samples", []))})
+    res.trace.append(
+        {"event": "guarded_move", "t_s": started, "n_samples": len(trace.get("samples", []))}
+    )
     res.evidence["contact_trace"] = trace.get("samples", [])
     return _classify(res, p, trace, desc).to_dict()
 
@@ -177,6 +197,11 @@ def _params(req: dict) -> dict[str, Any]:
     if sysname not in SYSTEMS:
         raise Rejected("invalid_input", f"system must be one of {sorted(SYSTEMS)}")
     s = SYSTEMS[sysname]
+    if str(plan.get("brick_type", "")).split(":")[0] != sysname:
+        raise Rejected(
+            "evidence_mismatch",
+            f"alignment was for {plan.get('brick_type')!r}, press is for {sysname}",
+        )
     axis = _axis(req, plan)
     pre_h = plan.get("preassembly_height_m")
     if not isinstance(pre_h, (int, float)):
@@ -186,9 +211,11 @@ def _params(req: dict) -> dict[str, Any]:
             raise Rejected("invalid_input", f"{k} is required (no default contact limits)")
     max_travel = number(req["max_travel_m"], "max_travel_m", 1e-4, 0.05)
     if max_travel > pre_h + OVERTRAVEL_FRACTION * s.stud_height_m:
-        raise Rejected("travel_too_long",
-                       f"max_travel_m {max_travel * 1e3:.2f} mm exceeds the seat "
-                       f"({pre_h * 1e3:.2f} mm) by more than half a stud height")
+        raise Rejected(
+            "travel_too_long",
+            f"max_travel_m {max_travel * 1e3:.2f} mm exceeds the seat "
+            f"({pre_h * 1e3:.2f} mm) by more than half a stud height",
+        )
     if max_travel < pre_h:
         raise Rejected("travel_too_short", "max_travel_m does not reach the seat")
     return {
@@ -201,8 +228,11 @@ def _params(req: dict) -> dict[str, Any]:
         "speed_m_s": number(req["speed_m_s"], "speed_m_s", 1e-5, 0.05),
         "timeout_s": number(req["timeout_s"], "timeout_s", 0.1, 60),
         "force_limit_N": number(req["force_limit_N"], "force_limit_N", 0.1, 200),
-        "torque_limit_Nm": (number(req["torque_limit_Nm"], "torque_limit_Nm", 0.01, 20)
-                            if "torque_limit_Nm" in req else None),
+        "torque_limit_Nm": (
+            number(req["torque_limit_Nm"], "torque_limit_Nm", 0.01, 20)
+            if "torque_limit_Nm" in req
+            else None
+        ),
         "hold_s": number(req.get("hold_s", 0.0), "hold_s", 0, 5),
         "limits_source": str(req["limits_source"]),
     }
@@ -215,76 +245,128 @@ def _classify(res: SkillResult, p: dict, trace: dict, desc: dict) -> SkillResult
     confirmed = bool(trace.get("stop_confirmed"))
     after = ["bounded_retreat_if_state_fresh", "reobserve", "human"]
     if not confirmed:
-        return res.finish("failed", "stop_unconfirmed",
-                          f"backend stopped for {stop_reason!r} but did not confirm the stop",
-                          next_allowed=["human"])
+        return res.finish(
+            "failed",
+            "stop_unconfirmed",
+            f"backend stopped for {stop_reason!r} but did not confirm the stop",
+            next_allowed=["human"],
+        )
     if not samples:
         if res.motion_issued:
-            return res.finish("unverified", "no_contact_record",
-                              "motion issued but no contact samples returned",
-                              next_allowed=["reobserve", "human"])
-        return res.finish("failed", "not_executed", str(trace.get("fault", "")),
-                          next_allowed=after)
+            return res.finish(
+                "unverified",
+                "no_contact_record",
+                "motion issued but no contact samples returned",
+                next_allowed=["reobserve", "human"],
+            )
+        return res.finish("failed", "not_executed", str(trace.get("fault", "")), next_allowed=after)
     # Signal integrity: monotonic time, gaps within the declared latency.
     max_gap = float(desc["contact_signal"]["max_latency_s"])
     ts = [float(x["t_s"]) for x in samples]
-    gaps = [b - a for a, b in zip(ts, ts[1:])]
-    if any(gp <= 0 for gp in gaps) or (gaps and max(gaps) > max_gap) or stop_reason == "signal_lost":
-        return res.finish("unverified", "contact_signal_lost",
-                          f"contact signal gap {max(gaps, default=0):.3f} s > {max_gap} s or "
-                          "non-monotonic; the press outcome is not established",
-                          next_allowed=["reobserve", "human"])
+    gaps = [b - a for a, b in zip(ts, ts[1:], strict=False)]
+    if (
+        any(gp <= 0 for gp in gaps)
+        or (gaps and max(gaps) > max_gap)
+        or stop_reason == "signal_lost"
+    ):
+        return res.finish(
+            "unverified",
+            "contact_signal_lost",
+            f"contact signal gap {max(gaps, default=0):.3f} s > {max_gap} s or "
+            "non-monotonic; the press outcome is not established",
+            next_allowed=["reobserve", "human"],
+        )
     travel = [float(x["travel_m"]) for x in samples]
     force = [float(x["force_N"]) for x in samples]
     peak = max(force)
     final = travel[-1]
     seat = p["seat_travel_m"]
     fl = p["force_limit_N"]
-    onset = next((t for t, f in zip(travel, force) if f > CONTACT_FRACTION * fl), None)
+    onset = next(
+        (t for t, f in zip(travel, force, strict=False) if f > CONTACT_FRACTION * fl), None
+    )
     stud_top_travel = seat - s.stud_height_m
     res.evidence.update(
-        peak_force_N=peak, final_travel_m=final, seat_travel_m=seat,
-        contact_onset_travel_m=onset, force_limit_N=fl, limits_source=p["limits_source"],
+        peak_force_N=peak,
+        final_travel_m=final,
+        seat_travel_m=seat,
+        contact_onset_travel_m=onset,
+        force_limit_N=fl,
+        limits_source=p["limits_source"],
         shortfall_m=seat - final,
     )
-    res.check("post", "force_within_limit", peak <= FORCE_OVERSHOOT * fl,
-              f"peak {peak:.2f} N, limit {fl:.2f} N")
+    res.check(
+        "post",
+        "force_within_limit",
+        peak <= FORCE_OVERSHOOT * fl,
+        f"peak {peak:.2f} N, limit {fl:.2f} N",
+    )
     if peak > FORCE_OVERSHOOT * fl:
-        return res.finish("failed", "force_limit_exceeded",
-                          f"peak {peak:.2f} N over {FORCE_OVERSHOOT}x the {fl:.2f} N limit",
-                          next_allowed=["human"])
+        return res.finish(
+            "failed",
+            "force_limit_exceeded",
+            f"peak {peak:.2f} N over {FORCE_OVERSHOOT}x the {fl:.2f} N limit",
+            next_allowed=["human"],
+        )
     if stop_reason == "fault":
-        return res.finish("failed", "backend_fault", str(trace.get("fault", "")),
-                          next_allowed=after)
-    if onset is not None and onset < stud_top_travel - EARLY_CONTACT_MARGIN_FRACTION * s.stud_height_m:
-        return res.finish("failed", "early_contact",
-                          f"contact at {onset * 1e3:.2f} mm travel, studs expected from "
-                          f"{stud_top_travel * 1e3:.2f} mm: obstacle or wrong seat height",
-                          next_allowed=after)
+        return res.finish(
+            "failed", "backend_fault", str(trace.get("fault", "")), next_allowed=after
+        )
+    if (
+        onset is not None
+        and onset < stud_top_travel - EARLY_CONTACT_MARGIN_FRACTION * s.stud_height_m
+    ):
+        return res.finish(
+            "failed",
+            "early_contact",
+            f"contact at {onset * 1e3:.2f} mm travel, studs expected from "
+            f"{stud_top_travel * 1e3:.2f} mm: obstacle or wrong seat height",
+            next_allowed=after,
+        )
     if stop_reason == "timeout":
         return res.finish("failed", "timeout", "press timed out", next_allowed=after)
     if onset is None:
-        return res.finish("failed", "no_contact",
-                          f"travelled {final * 1e3:.2f} mm without contact: brick missing, "
-                          "slipped in the grasp, or seat lower than planned",
-                          next_allowed=["reobserve", "human"])
+        return res.finish(
+            "failed",
+            "no_contact",
+            f"travelled {final * 1e3:.2f} mm without contact: brick missing, "
+            "slipped in the grasp, or seat lower than planned",
+            next_allowed=["reobserve", "human"],
+        )
     shortfall = seat - final
-    res.check("post", "reached_seat_depth", abs(shortfall) <= SEAT_FRACTION * s.stud_height_m,
-              f"{shortfall * 1e3:+.2f} mm short of the seat")
+    res.check(
+        "post",
+        "reached_seat_depth",
+        abs(shortfall) <= SEAT_FRACTION * s.stud_height_m,
+        f"{shortfall * 1e3:+.2f} mm short of the seat",
+    )
     if shortfall >= RESTING_FRACTION * s.stud_height_m:
-        return res.finish("failed", "blocked_on_studs",
-                          f"stopped {shortfall * 1e3:.2f} mm short (stud {s.stud_height_m * 1e3:.1f}"
-                          " mm): walls on the stud tops, misaligned", next_allowed=after)
+        return res.finish(
+            "failed",
+            "blocked_on_studs",
+            f"stopped {shortfall * 1e3:.2f} mm short (stud {s.stud_height_m * 1e3:.1f}"
+            " mm): walls on the stud tops, misaligned",
+            next_allowed=after,
+        )
     if shortfall > SEAT_FRACTION * s.stud_height_m:
-        return res.finish("failed", "not_pressed_fully",
-                          f"stopped {shortfall * 1e3:.2f} mm short at {peak:.2f} N",
-                          next_allowed=after)
+        return res.finish(
+            "failed",
+            "not_pressed_fully",
+            f"stopped {shortfall * 1e3:.2f} mm short at {peak:.2f} N",
+            next_allowed=after,
+        )
     if stop_reason != "force_threshold":
-        return res.finish("unverified", "seat_depth_without_threshold",
-                          f"reached seat depth on {stop_reason!r} without the force rise of a "
-                          "press-fit; whether the clutch engaged is not established",
-                          next_allowed=["release_and_retreat", "lego.verify_connection"])
+        return res.finish(
+            "unverified",
+            "seat_depth_without_threshold",
+            f"reached seat depth on {stop_reason!r} without the force rise of a "
+            "press-fit; whether the clutch engaged is not established",
+            next_allowed=["release_and_retreat", "lego.verify_connection"],
+        )
     res.evidence["operation_complete"] = True
-    return res.finish("succeeded", "press_complete",
-                      "bounded press completed at seat depth; connection NOT yet verified",
-                      next_allowed=["release_and_retreat", "lego.verify_connection"])
+    return res.finish(
+        "succeeded",
+        "press_complete",
+        "bounded press completed at seat depth; connection NOT yet verified",
+        next_allowed=["release_and_retreat", "lego.verify_connection"],
+    )

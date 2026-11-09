@@ -48,28 +48,64 @@ CANDIDATE_GRAPH: dict[str, Any] = {
         },
     },
     "edges": [
-        {"from": "confirm_grasp", "on": "succeeded", "to": "align",
-         "guard": "held object == connection's brick; T_TCP_object known"},
+        {
+            "from": "confirm_grasp",
+            "on": "succeeded",
+            "to": "align",
+            "guard": "held object == connection's brick; T_TCP_object known",
+        },
         {"from": "confirm_grasp", "on": "*", "to": "halt_replan"},
-        {"from": "align", "on": "succeeded", "to": "seat",
-         "guard": "fresh independent observation within xy/yaw tolerance"},
-        {"from": "align", "on": "rejected", "to": "halt_replan",
-         "guard": "error detected before approach: nothing moved"},
-        {"from": "align", "on": "failed:alignment_not_converged", "to": "align",
-         "guard": "retry from a re-observed state"},
-        {"from": "align", "on": "unverified", "to": "align",
-         "guard": "re-observe once; unknown is not success"},
+        {
+            "from": "align",
+            "on": "succeeded",
+            "to": "seat",
+            "guard": "fresh independent observation within xy/yaw tolerance",
+        },
+        {
+            "from": "align",
+            "on": "rejected",
+            "to": "halt_replan",
+            "guard": "error detected before approach: nothing moved",
+        },
+        {
+            "from": "align",
+            "on": "failed:alignment_not_converged",
+            "to": "align",
+            "guard": "retry from a re-observed state",
+        },
+        {
+            "from": "align",
+            "on": "unverified",
+            "to": "align",
+            "guard": "re-observe once; unknown is not success",
+        },
         {"from": "align", "on": "*", "to": "halt_human"},
-        {"from": "seat", "on": "succeeded", "to": "release_retreat",
-         "guard": "operation_complete; connection still unverified"},
+        {
+            "from": "seat",
+            "on": "succeeded",
+            "to": "release_retreat",
+            "guard": "operation_complete; connection still unverified",
+        },
         {"from": "seat", "on": "unverified:seat_depth_without_threshold", "to": "release_retreat"},
-        {"from": "seat", "on": "rejected", "to": "halt_replan",
-         "guard": "missing contact capability: no position-only fallback"},
-        {"from": "seat", "on": "*", "to": "halt_human",
-         "guard": "stop; bounded retreat only with fresh state (not implemented)"},
+        {
+            "from": "seat",
+            "on": "rejected",
+            "to": "halt_replan",
+            "guard": "missing contact capability: no position-only fallback",
+        },
+        {
+            "from": "seat",
+            "on": "*",
+            "to": "halt_human",
+            "guard": "stop; bounded retreat only with fresh state (not implemented)",
+        },
         {"from": "release_retreat", "on": "succeeded", "to": "verify"},
-        {"from": "release_retreat", "on": "*", "to": "halt_human",
-         "guard": "holding/contact state uncertain: no blind release or lift"},
+        {
+            "from": "release_retreat",
+            "on": "*",
+            "to": "halt_human",
+            "guard": "holding/contact state uncertain: no blind release or lift",
+        },
         {"from": "verify", "on": "succeeded", "to": "done"},
         {"from": "verify", "on": "unverified", "to": "verify", "guard": "re-observe once"},
         {"from": "verify", "on": "failed", "to": "halt_repair_unsupported"},
@@ -109,31 +145,64 @@ def run_graph(
     for _ in range(max_steps):
         spec = graph["nodes"][node]
         if "terminal" in spec:
-            return {"terminal": node, "status": spec["terminal"], "first_failure": first_failure,
-                    "history": history, "elapsed_s": clock() - t0}
+            return {
+                "terminal": node,
+                "status": spec["terminal"],
+                "first_failure": first_failure,
+                "history": history,
+                "elapsed_s": clock() - t0,
+            }
         if clock() >= deadline:
             node = graph["on_deadline"]
             first_failure = first_failure or {"node": "graph", "reason_code": "deadline_exceeded"}
             continue
-        ctx = {"history": list(history), "results": dict(results),
-               "remaining_s": deadline - clock(), "attempt": spent.get(node, 0)}
+        ctx = {
+            "history": list(history),
+            "results": dict(results),
+            "remaining_s": deadline - clock(),
+            "attempt": spent.get(node, 0),
+        }
         out = nodes[node](ctx)
         status, reason = out.get("status", ""), out.get("reason_code", "")
         results[node] = out
-        history.append({"node": node, "status": status, "reason_code": reason,
-                        "attempt": spent.get(node, 0), "t_s": clock() - t0})
+        history.append(
+            {
+                "node": node,
+                "status": status,
+                "reason_code": reason,
+                "attempt": spent.get(node, 0),
+                "t_s": clock() - t0,
+            }
+        )
         if status != "succeeded" and first_failure is None:
             first_failure = {"node": node, "status": status, "reason_code": reason}
-        nxt = next((e["to"] for e in graph["edges"]
-                    if e["from"] == node and _matches(e["on"], status, reason)), None)
+        nxt = next(
+            (
+                e["to"]
+                for e in graph["edges"]
+                if e["from"] == node and _matches(e["on"], status, reason)
+            ),
+            None,
+        )
         if nxt is None:
             nxt = graph["on_budget_exhausted"]
         if nxt == node:
             spent[node] = spent.get(node, 0) + 1
             if spent[node] > int(spec.get("retry_budget", 0)):
-                history.append({"node": node, "status": "budget_exhausted",
-                                "reason_code": "retry_budget_exhausted", "t_s": clock() - t0})
+                history.append(
+                    {
+                        "node": node,
+                        "status": "budget_exhausted",
+                        "reason_code": "retry_budget_exhausted",
+                        "t_s": clock() - t0,
+                    }
+                )
                 nxt = graph["on_budget_exhausted"]
         node = nxt
-    return {"terminal": None, "status": "failed", "first_failure": first_failure or {
-        "reason_code": "max_steps"}, "history": history, "elapsed_s": clock() - t0}
+    return {
+        "terminal": None,
+        "status": "failed",
+        "first_failure": first_failure or {"reason_code": "max_steps"},
+        "history": history,
+        "elapsed_s": clock() - t0,
+    }
