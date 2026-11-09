@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import math
 import time
+from collections.abc import Mapping
 from typing import Any, Protocol
 
 import numpy as np
@@ -87,7 +88,7 @@ class PhaseFailed(RuntimeError):
 # ----------------------------------------------------------------------------- planning (pure)
 
 
-def plan_place(request: dict) -> dict:
+def plan_place(request: dict, limits: Mapping[str, Any] | None = None) -> dict:
     """Validate a request and compute every pose and clearance before anything moves.
     Raises RequestRejected with a module fault code."""
     pd, pl = upstream.place(), upstream.layout()
@@ -306,10 +307,82 @@ def plan_place(request: dict) -> dict:
         request.get("descent_speed_m_s", min(speed, 0.01)), "descent_speed_m_s", 1e-4, speed
     )
     timeout = finite(request.get("timeout_s"), "timeout_s", 0.1, 600)
-    # Per-primitive cap: the workcell runtime's default Limits.max_timeout_s.
+    lim = dict(limits or {})
+    # Per-primitive cap: the station's max_timeout_s (ctx.limits), else the runtime default.
     primitive_timeout = finite(
-        request.get("primitive_timeout_s", 30.0), "primitive_timeout_s", 0.1, 120
+        request.get("primitive_timeout_s", lim.get("max_timeout_s", 30.0)),
+        "primitive_timeout_s",
+        0.1,
+        float(lim.get("max_timeout_s", 120.0)),
     )
+
+    # Contact mode (rsh-task/1.1 guarded_press): stop the held tile on the support by force.
+    contact = None
+    if mode == "contact_feedback":
+        c = request.get("contact") or {}
+        search = finite(
+            c.get("search_m", th["support_height_tolerance_m"] + gap),
+            "contact.search_m",
+            0.001,
+            0.05,
+        )
+        contact = {
+            "force_limit_N": finite(c.get("force_limit_N"), "contact.force_limit_N", 0.01, 100.0),
+            "search_m": search,
+            "max_travel_m": finite(
+                c.get("max_travel_m", 2.0 * search), "contact.max_travel_m", search, 0.1
+            ),
+            "speed_m_s": finite(
+                c.get("speed_m_s", min(d_speed, 0.005)), "contact.speed_m_s", 1e-5, d_speed
+            ),
+            "precontact": geo.translated(tcp_goal, normal * search),
+        }
+
+    # The station's own limits, before anything moves (the runtime would refuse later,
+    # possibly after earlier primitives already moved the arm).
+    if lim:
+        if lim.get("frame_id") not in (None, frame):
+            raise RequestRejected(
+                "invalid_request", f"station frame is {lim['frame_id']!r}, not {frame!r}"
+            )
+        vmax = lim.get("max_speed_m_s")
+        if vmax is not None and max(speed, d_speed) > float(vmax):
+            raise RequestRejected(
+                "invalid_request",
+                f"speed {max(speed, d_speed)} m/s is over the station's {vmax} m/s",
+            )
+        wlo, whi = lim.get("workspace_min_m"), lim.get("workspace_max_m")
+        if wlo is not None and whi is not None:
+            for name, p in (
+                ("preplace", preplace),
+                ("release", release_pose),
+                ("retreat", retreat_pose),
+            ):
+                if not all(
+                    float(a) <= v <= float(b)
+                    for a, v, b in zip(wlo, p["position_m"], whi, strict=True)
+                ):
+                    raise RequestRejected(
+                        "infeasible_geometry", f"{name} TCP pose is outside the station workspace"
+                    )
+        gmin, gmax = lim.get("gripper_min_width_m"), lim.get("gripper_max_width_m")
+        if gmin is not None and gmax is not None and not float(gmin) <= width <= float(gmax):
+            raise RequestRejected(
+                "infeasible_geometry",
+                f"release width {width} m is outside the station's gripper range",
+            )
+        if contact is not None:
+            fmax = float(lim.get("max_contact_force_N", 0.0) or 0.0)
+            if contact["force_limit_N"] > fmax:
+                raise RequestRejected(
+                    "capability_missing" if fmax <= 0 else "invalid_request",
+                    f"contact.force_limit_N {contact['force_limit_N']} N is over the station's max_contact_force_N {fmax} N",
+                )
+            if contact["max_travel_m"] > float(lim.get("max_contact_distance_m", 1.0)):
+                raise RequestRejected(
+                    "invalid_request",
+                    "contact.max_travel_m is over the station's max_contact_distance_m",
+                )
     need = a_dist / d_speed + r_dist / d_speed + th["settle_window_s"]
     if need > timeout:
         raise RequestRejected(
@@ -333,11 +406,6 @@ def plan_place(request: dict) -> dict:
             geo.pose(frame, pa + (pb - pa) * k / n, b["quaternion_xyzw"]) for k in range(1, n + 1)
         ]
 
-    if mode == "contact_feedback":
-        raise RequestRejected(
-            "capability_missing",
-            "contact_feedback mode needs a guarded-descent primitive that rsh-task/1 does not define yet",
-        )
     return {
         "frame_id": frame,
         "target_id": target_id,
@@ -360,7 +428,8 @@ def plan_place(request: dict) -> dict:
             "retreat": retreat_pose,
             "tcp_goal": tcp_goal,
         },
-        "descent_waypoints": leg(preplace, release_pose),
+        "descent_waypoints": leg(preplace, contact["precontact"] if contact else release_pose),
+        "contact": contact,
         "retreat_waypoints": leg(release_pose, retreat_pose),
         "speed_m_s": speed,
         "descent_speed_m_s": d_speed,
@@ -390,7 +459,7 @@ def place_upright(request: dict, ctx: TaskContext) -> dict:
         trace.append({"phase": phase, "t_s": ctx.now(), **kw})
 
     try:
-        plan = plan_place(request)
+        plan = plan_place(request, getattr(ctx, "limits", None))
         missing = sorted(plan["requires"] - set(ctx.capabilities))
         if missing:
             raise RequestRejected("capability_missing", f"backend lacks {missing}")
@@ -404,6 +473,7 @@ def place_upright(request: dict, ctx: TaskContext) -> dict:
         result["recovery_hints"] = RECOVERY_HINTS[result["recovery"]["action"]]
         return result
     log("validate", ok=True)
+    result["evidence"]["evidence_level"] = getattr(ctx, "evidence_level", None)
     result["requires"] = sorted(plan["requires"])
     result["evidence"]["plan"] = {
         k: plan[k]
@@ -604,7 +674,11 @@ def place_upright(request: dict, ctx: TaskContext) -> dict:
         fn = getattr(ctx, "state", None)
         if fn is None:
             return None
-        s = fn()
+        try:
+            s = fn()
+        except Exception as exc:  # a context without station state (offline, refused)
+            log("state", ok=False, error=f"{type(exc).__name__}: {exc}")
+            return None
         g = s.get("gripper") if isinstance(s, dict) else None
         if isinstance(g, dict) and g.get("source"):
             gripper_states.append(g)
@@ -708,7 +782,16 @@ def place_upright(request: dict, ctx: TaskContext) -> dict:
         for nb in plan["neighbors"]:
             rec = got.get(nb["id"])
             baseline.append(rec if obs_pose(rec) is not None else nb["observation"])
-        events["action_start_s"] = ctx.now()
+        # The action starts after the baseline was observed, on the observer's clock too:
+        # a backend stamp a hair ahead of ctx.now() must not post-date the baseline.
+        events["action_start_s"] = max(
+            [ctx.now()]
+            + [
+                float(b["timestamp_s"])
+                for b in baseline
+                if isinstance(b.get("timestamp_s"), (int, float))
+            ]
+        )
 
         # --- carry to preplace (runtime checks the held tile follows), then our own check
         carry = [P["preplace"]]
@@ -758,7 +841,68 @@ def place_upright(request: dict, ctx: TaskContext) -> dict:
                 "speed_m_s": plan["descent_speed_m_s"],
             },
         )
-        tcp = converged("descent", r, P["release"], "tcp_not_converged")
+        if plan["contact"] is None:
+            tcp = converged("descent", r, P["release"], "tcp_not_converged")
+        else:
+            # rsh-task/1.1 guarded_press: from just above the expected contact, move the held
+            # tile down until the controller stops on force (or runs out of travel).
+            C = plan["contact"]
+            converged("descent", r, C["precontact"], "tcp_not_converged")
+            r = invoke(
+                "contact",
+                "guarded_press",
+                {
+                    "axis": {"frame_id": frame, "vector": [float(-x) for x in normal]},
+                    "max_travel_m": C["max_travel_m"],
+                    "speed_m_s": C["speed_m_s"],
+                    "force_limit_N": C["force_limit_N"],
+                },
+            )
+            ev = r.get("evidence") or {}
+            stop = ev.get("stop_reason")
+            m = r.get("_measured") or ev.get("measured_pose")
+            if not isinstance(m, dict):
+                raise PhaseFailed(
+                    "support_unconfirmed",
+                    "support_check",
+                    "guarded_press gave no measured pose",
+                    "unverified",
+                    failure_type="evidence_missing",
+                )
+            tcp = check_pose(m, "measured_pose", frame)
+            dz = float(np.subtract(tcp["position_m"], P["tcp_goal"]["position_m"]) @ normal)
+            log(
+                "support_check",
+                contact_stop=stop,
+                max_force_N=ev.get("max_force_N"),
+                contact_offset_m=dz,
+                support_offset_m=dz,
+            )
+            if stop == "travel_limit":
+                raise PhaseFailed(
+                    "support_mismatch",
+                    "support_check",
+                    f"no contact within {C['max_travel_m'] * 1e3:.1f} mm: the support is lower than calibrated (or absent); not released",
+                )
+            if stop != "force_threshold":
+                raise PhaseFailed(
+                    "support_unconfirmed",
+                    "support_check",
+                    f"guarded_press ended {stop}; not released",
+                    "unverified",
+                    failure_type="evidence_missing",
+                )
+            if abs(dz) > th["support_height_tolerance_m"]:
+                raise PhaseFailed(
+                    "support_mismatch",
+                    "support_check",
+                    f"contact {dz * 1e3:.1f} mm from where the calibrated support puts it; not released",
+                )
+            result["evidence"]["support_contact"] = {
+                "stop_reason": stop,
+                "offset_m": dz,
+                "max_force_N": ev.get("max_force_N"),
+            }
 
         # --- support assessment before letting go
         sup_id = plan["support"].get("observation_id")
@@ -780,7 +924,7 @@ def place_upright(request: dict, ctx: TaskContext) -> dict:
                     "support_check",
                     f"observed support is {dz * 1e3:.1f} mm from the calibrated plane; not released",
                 )
-        else:
+        elif plan["contact"] is None:
             result["unverified"].append("support_contact_not_sensed_before_release")
         held_pose = obs_pose(got.get(target))
         if held_pose is not None:
@@ -886,31 +1030,56 @@ def place_upright(request: dict, ctx: TaskContext) -> dict:
             }
         )
         result["evidence"]["verification"] = {
-            k: verdict[k] for k in ("status", "failure", "faults", "unknowns", "invocation_id")
+            k: verdict.get(k) for k in ("status", "failure", "faults", "unknowns", "invocation_id")
         }
-        result["evidence"]["postcondition"] = verdict["evidence"]["postcondition"]
-        for k in ("window", "target", "neighbors", "release", "evidence_tier", "evidence_tiers"):
-            if k in verdict["evidence"]:
-                result["evidence"][k] = verdict["evidence"][k]
-        result["observations"] = verdict["observations"]
-        result["privileged_inputs"] = verdict["privileged_inputs"]
-        result["unverified"] += verdict["unverified"]
-        result["status"] = verdict["status"]
-        if verdict["status"] == "succeeded":
-            result["outputs"] = {
-                "placed_object_id": target,
-                "final_pose": verdict["evidence"]["target"]["final_pose"],
-            }
-        if verdict["failure"]:
-            f = verdict["failure"]
+        if verdict["status"] == "rejected":
+            # The observer refused its inputs; motion has happened, so the placement is
+            # not established either way.
+            vf = verdict.get("failure") or {}
+            result["observations"] = [
+                r for r in seen if r.get("timestamp_s", 0) > events.get("release_s", 0)
+            ]
+            result["status"] = "unverified"
             set_failure(
                 result,
-                f["code"],
-                f["phase"],
-                f["detail"],
-                **{k: v for k, v in f.items() if k not in ("code", "phase", "detail")},
+                "verification_rejected",
+                "verify",
+                f"verify_stable_placement rejected its request ({vf.get('code')}): {vf.get('detail')}",
+                verification_code=vf.get("code"),
             )
-            result["failure_type"] = verdict["failure_type"]
+            result["unverified"].append("verification_rejected")
+        else:
+            ev = verdict.get("evidence") or {}
+            result["evidence"]["postcondition"] = ev.get("postcondition")
+            for k in (
+                "window",
+                "target",
+                "neighbors",
+                "release",
+                "evidence_tier",
+                "evidence_tiers",
+            ):
+                if k in ev:
+                    result["evidence"][k] = ev[k]
+            result["observations"] = verdict.get("observations", [])
+            result["privileged_inputs"] = bool(verdict.get("privileged_inputs"))
+            result["unverified"] += verdict.get("unverified", [])
+            result["status"] = verdict["status"]
+            if verdict["status"] == "succeeded":
+                result["outputs"] = {
+                    "placed_object_id": target,
+                    "final_pose": ev["target"]["final_pose"],
+                }
+            if verdict.get("failure"):
+                f = verdict["failure"]
+                set_failure(
+                    result,
+                    f["code"],
+                    f["phase"],
+                    f["detail"],
+                    **{k: v for k, v in f.items() if k not in ("code", "phase", "detail")},
+                )
+                result["failure_type"] = verdict["failure_type"]
         result["phase"] = "verify"
 
     if any(r.get("privileged") for r in seen):

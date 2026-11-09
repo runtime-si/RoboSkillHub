@@ -199,7 +199,56 @@ class FakeTaskContext:
             if reported:
                 return {**out, "status": "failed", "failure_type": "release_failed"}
             return out
+        if capability == "guarded_press":
+            if not {"contact_force_feedback", "compliant_motion"} <= self.capabilities:
+                return {**out, "status": "rejected", "failure_type": "capability_missing"}
+            reply = self.guarded_move(
+                axis=request["axis"],
+                max_travel_m=request["max_travel_m"],
+                speed_m_s=request["speed_m_s"],
+                force_limit_N=request["force_limit_N"],
+            )
+            out["evidence"] = {
+                **reply,
+                "measured_pose": copy.deepcopy(self.tcp),
+                "state_timestamp_s": self.now(),
+            }
+            return out
         raise AssertionError(f"unexpected primitive {capability}")
+
+    def guarded_move(
+        self, *, axis, max_travel_m, speed_m_s, force_limit_N, hold_s=0.0, timeout_s=1.0
+    ) -> dict:
+        """Move along ``axis`` until the held tile meets the real table (force) or the travel ends."""
+        d = np.asarray(axis["vector"], dtype=float)
+        start = np.asarray(self.tcp["position_m"], dtype=float)
+        travel, samples, stop = 0.0, [], "travel_limit"
+        while travel < max_travel_m - 1e-12:
+            step = min(0.0002, max_travel_m - travel)
+            probe = geo.pose(FRAME, start + d * (travel + step), self.tcp["quaternion_xyzw"])
+            low = (
+                geo.lowest_point_height(
+                    geo.object_from_tcp(probe, self.true_T), SIZE, [0, 0, self.table_z], [0, 0, 1]
+                )
+                if self.held
+                else 1.0
+            )
+            if low < 0:
+                stop = "force_threshold"
+                break
+            travel += step
+            samples.append({"travel_m": travel, "force_N": 0.0})
+        self.tcp = geo.pose(FRAME, start + d * travel, self.tcp["quaternion_xyzw"])
+        self.t += travel / max(speed_m_s, 1e-6) + 0.05
+        samples.append(
+            {"travel_m": travel, "force_N": force_limit_N if stop == "force_threshold" else 0.0}
+        )
+        return {
+            "stop_reason": stop,
+            "stop_confirmed": True,
+            "samples": samples,
+            "max_force_N": samples[-1]["force_N"],
+        }
 
     def release_to(self, width_m: float) -> bool:
         """Open to ``width_m``; returns what the jaw sensor reports as holding."""
@@ -264,7 +313,10 @@ class FakeTaskContext:
                 if self.released and "wrong_identity" in self.faults:
                     rec["confidence"] = 0.2
             elif oid in self.neighbors:
-                rec = observation(oid, self.neighbors[oid], t)
+                # "clock_ahead": the backend stamps a fraction of a millisecond ahead of ctx.now()
+                rec = observation(
+                    oid, self.neighbors[oid], t + (0.0003 if "clock_ahead" in self.faults else 0.0)
+                )
             elif oid == "table":
                 rec = observation(
                     "table",

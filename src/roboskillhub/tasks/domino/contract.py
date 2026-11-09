@@ -49,6 +49,7 @@ FAILURE_TYPE = {
     "target_occluded": "object_not_observed",
     "support_unconfirmed": "evidence_missing",
     "privileged_observation": "evidence_missing",
+    "verification_rejected": "evidence_missing",
     "timeout": "timeout",
     "cancelled": "cancelled",
     "backend_error": "backend_error",
@@ -74,6 +75,7 @@ PHASE = {
     "carry_check": "transport",
     "descent": "descend",
     "support_check": "contact",
+    "contact": "contact",
     "release": "release",
     "release_check": "release",
     "retreat": "retreat",
@@ -105,7 +107,7 @@ def place_requires(mode: str, descent_path: str) -> frozenset[str]:
     if descent_path == "linear":
         extra.add("linear_cartesian_motion")
     if mode == "contact_feedback":
-        extra.add("contact_force_feedback")
+        extra |= {"contact_force_feedback", "compliant_motion"}
     return PLACE_REQUIRES | extra
 
 

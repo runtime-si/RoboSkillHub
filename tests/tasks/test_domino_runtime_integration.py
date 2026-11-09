@@ -29,7 +29,24 @@ class FakeDominoStation:
 
     def describe(self) -> dict:
         caps = set(self.world.capabilities) | {"gripper_feedback"}
-        return {"name": "fake-domino-station", "frame_id": FRAME, "capabilities": sorted(caps)}
+        d = {
+            "name": "fake-domino-station",
+            "frame_id": FRAME,
+            "capabilities": sorted(caps),
+            "evidence_level": "kinematic_sim",
+        }
+        if "contact_force_feedback" in caps:
+            d["contact_signal"] = {
+                "source": "synthetic:contact",
+                "unit": "N",
+                "rate_hz": 500.0,
+                "max_latency_s": 0.01,
+            }
+            d["controller"] = {"kind": "admittance"}
+        return d
+
+    def guarded_move(self, **kw) -> dict:
+        return self.world.guarded_move(**kw)
 
     def get_state(self, *, timeout_s: float) -> dict:
         w, now = self.world, time.time()
@@ -76,15 +93,18 @@ LIMITS = Limits.from_dict(
         "max_contact_distance_m": 0.2,
         "gripper_min_width_m": 0.0,
         "gripper_max_width_m": 0.1,
+        "max_contact_force_N": 5.0,
     }
 )
 
 
-def run(faults=()):
-    world = FakeTaskContext(faults=set(faults), real_time=True)
+def run(faults=(), capabilities=None, table_z=0.0, **over):
+    world = FakeTaskContext(
+        faults=set(faults), real_time=True, capabilities=capabilities, table_z=table_z
+    )
     station = FakeDominoStation(world)
     runtime = Runtime(station, LIMITS)
-    req = request(world, speed_m_s=0.5, descent_speed_m_s=0.5, timeout_s=30.0)
+    req = request(world, speed_m_s=0.5, descent_speed_m_s=0.5, timeout_s=30.0, **over)
     with runtime.task_lease("domino-it", 60.0) as lease:
         ctx = primitive_skill_context(runtime, lease, request_id="domino-it/n1/a1")
         out = run_task_skill(PLACE, req, ctx)
@@ -126,3 +146,19 @@ def test_capability_gate_of_the_runtime():
         out = run_task_skill(PLACE, request(world, timeout_s=30.0), ctx)
     assert out["status"] == "rejected" and out["failure_type"] == "capability_missing"
     assert out["children"] == []
+
+
+def test_contact_mode_through_guarded_press_on_the_real_runtime():
+    from roboskillhub.tasks.domino.contract import CAPABILITIES
+
+    kw = {
+        "capabilities": CAPABILITIES["contact_feedback"],
+        "mode": "contact_feedback",
+        "contact": {"force_limit_N": 2.0, "speed_m_s": 0.05},
+    }
+    out, station = run(**kw)
+    assert out["status"] == "succeeded", (out.get("failure"), out.get("error"))
+    assert out["evidence"]["support_contact"]["stop_reason"] == "force_threshold"
+    assert out["evidence"]["evidence_level"] == "kinematic_sim"
+    out, station = run(table_z=-0.012, **kw)
+    assert (out["status"], out["failure_type"]) == ("failed", "domino.support_mismatch")

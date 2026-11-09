@@ -180,6 +180,7 @@ def verify_stable_placement(request: dict, ctx: Any = None) -> dict:
             base_poses[nid] = p
     except RequestRejected as exc:
         set_failure(result, exc.code, "validate", str(exc), "rejected")
+        result.update(faults=[], unknowns=[], unverified=[])
         return result
 
     normal = support["normal"]

@@ -95,3 +95,34 @@ def test_place_without_a_station_is_rejected_not_success():
     ctx = offline_context()
     out = run_task_skill(by_id["domino.place_upright"], request(FakeTaskContext()), ctx)
     assert out["status"] == "rejected" and out["failure_type"] == "capability_missing"
+
+
+def test_without_the_skill_scripts_entries_reject_clearly_and_the_observer_still_works(
+    monkeypatch, tmp_path
+):
+    # As from a wheel: no skills/ anywhere the loader looks.
+    from test_domino_layout import req as layout_req
+    from test_domino_verify import req as verify_req
+    from test_domino_verify import stream
+
+    from roboskillhub.tasks.domino import upstream
+
+    monkeypatch.setattr(upstream, "candidate_roots", lambda: [tmp_path / "skills"])
+    upstream.load.cache_clear()
+    try:
+        by_id = {s.skill_id: s for s in SKILLS}
+        out = run_task_skill(by_id["domino.plan_straight_layout"], layout_req(), offline_context())
+        assert out["status"] == "rejected" and out["failure_type"] == "precondition_unmet"
+        assert "place_domino.py is not installed" in out["error"]["message"]
+        assert "ROBOSKILLHUB_ROOT" in out["error"]["message"]
+        ctx = FakeTaskContext()
+        out = place_upright(request(ctx), ctx)
+        assert out["status"] == "rejected" and out["failure_type"] == "precondition_unmet"
+        assert [c for c in ctx.calls if c != "observe_objects"] == []
+        assert upstream.available()["layout"]
+        out = run_task_skill(
+            by_id["domino.verify_stable_placement"], verify_req(stream()), offline_context()
+        )
+        assert out["status"] == "succeeded"
+    finally:
+        upstream.load.cache_clear()

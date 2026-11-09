@@ -8,9 +8,18 @@
   ``poly_distance``, the arm-corridor rule ``in_corridor``, the toppling physics
   ``critical_gap``, ``contact``; the far-first build-order rule).
 
+Where the scripts are looked for, in order:
+
+1. ``$ROBOSKILLHUB_ROOT/skills`` (a hub checkout named explicitly);
+2. ``roboskillhub/_skills/`` inside the installed package, if the wheel ships the two
+   scripts there (a build-config change requested from Agent 05; not in place yet);
+3. the source checkout this file sits in (``<repo>/skills``).
+
 Both scripts import ``gap.NodeContext`` (the ``gap`` extra) and plan_layout needs scipy.
-When they cannot be loaded the caller gets :class:`UpstreamUnavailable`, which the
-task functions turn into a ``rejected`` result naming the missing dependency.
+When a script is absent or cannot be imported the caller gets
+:class:`UpstreamUnavailable`, which every entry that needs it turns into
+``rejected / precondition_unmet`` naming what is missing and where it looked.
+``verify_stable_placement`` and ``plan_recovery`` never need these scripts.
 """
 
 from __future__ import annotations
@@ -26,31 +35,45 @@ SCRIPTS = {
     "place": ("placing-an-upright-domino-beside-neighbours", "place_domino.py"),
     "layout": ("planning-a-domino-layout", "plan_layout.py"),
 }
+PACKAGED = Path(__file__).resolve().parents[2] / "_skills"
 
 
 class UpstreamUnavailable(RuntimeError):
     """A hub skill script this module reuses could not be found or imported."""
 
 
-def skills_root() -> Path:
-    """The hub's ``skills/``: $ROBOSKILLHUB_ROOT/skills, else the checkout this file is in."""
+def candidate_roots() -> list[Path]:
+    roots = []
     env = os.environ.get("ROBOSKILLHUB_ROOT")
     if env:
-        return Path(env) / "skills"
+        roots.append(Path(env) / "skills")
+    roots.append(PACKAGED)
     for parent in Path(__file__).resolve().parents:
-        if (parent / "skills" / SCRIPTS["place"][0]).is_dir():
-            return parent / "skills"
+        if (parent / "skills").is_dir() and (parent / "pyproject.toml").is_file():
+            roots.append(parent / "skills")
+            break
+    return roots
+
+
+def script_path(name: str) -> Path:
+    bundle, script = SCRIPTS[name]
+    tried = []
+    for root in candidate_roots():
+        path = root / bundle / "scripts" / script
+        if path.is_file():
+            return path
+        tried.append(str(path))
     raise UpstreamUnavailable(
-        "no RoboSkillHub skills/ directory found (set ROBOSKILLHUB_ROOT to a hub checkout)"
+        f"skills/{bundle}/scripts/{script} is not installed (looked in: {', '.join(tried)}). "
+        "This entry reuses that hub skill's code in place: run from a RoboSkillHub checkout or "
+        "set ROBOSKILLHUB_ROOT to one; a wheel does not ship skills/."
     )
 
 
 @functools.cache
 def load(name: str) -> ModuleType:
     bundle, script = SCRIPTS[name]
-    path = skills_root() / bundle / "scripts" / script
-    if not path.is_file():
-        raise UpstreamUnavailable(f"{bundle}/scripts/{script} is missing")
+    path = script_path(name)
     module_name = f"roboskillhub_domino_upstream_{name}"
     spec = importlib.util.spec_from_file_location(module_name, path)
     if spec is None or spec.loader is None:
@@ -62,7 +85,7 @@ def load(name: str) -> ModuleType:
     except ImportError as exc:
         sys.modules.pop(module_name, None)
         raise UpstreamUnavailable(
-            f"{bundle} needs {exc.name or exc} (install the hub's 'gap' extra and scipy)"
+            f"{path} needs {exc.name or exc} (install the hub's 'gap' extra and scipy)"
         ) from exc
     return module
 
@@ -73,6 +96,18 @@ def place() -> ModuleType:
 
 def layout() -> ModuleType:
     return load("layout")
+
+
+def available() -> dict[str, str]:
+    """{name: "" if loadable else why} without raising (for describe / diagnostics)."""
+    out = {}
+    for name in SCRIPTS:
+        try:
+            load(name)
+            out[name] = ""
+        except UpstreamUnavailable as exc:
+            out[name] = str(exc)
+    return out
 
 
 def provenance() -> dict[str, str]:

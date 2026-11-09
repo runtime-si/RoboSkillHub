@@ -83,11 +83,86 @@ def test_linear_descent_needs_linear_cartesian_motion():
     )
 
 
-def test_contact_mode_is_rejected_until_a_guarded_primitive_exists():
-    caps = CAPABILITIES["contact_feedback"]
-    out, ctx = run(mode="contact_feedback", capabilities=caps)
+CONTACT_CAPS = CAPABILITIES["contact_feedback"]
+
+
+def test_contact_mode_needs_force_feedback_and_compliance():
+    out, ctx = run(mode="contact_feedback", contact={"force_limit_N": 2.0})
     assert out["status"] == "rejected" and out["failure_type"] == "capability_missing"
+    assert {"contact_force_feedback", "compliant_motion"} <= set(
+        out["requires"] if "requires" in out else CONTACT_CAPS
+    )
     assert motions(ctx) == []
+
+
+def test_contact_mode_confirms_the_support_by_guarded_press():
+    out, ctx = run(
+        mode="contact_feedback", contact={"force_limit_N": 2.0}, capabilities=CONTACT_CAPS
+    )
+    assert out["status"] == "succeeded", out["failure"]
+    assert motions(ctx) == [
+        "move_waypoints",
+        "move_waypoints",
+        "guarded_press",
+        "set_gripper",
+        "move_waypoints",
+    ]
+    press = next(r for c, r in ctx.requests if c == "guarded_press")
+    assert press["axis"]["vector"] == [0.0, 0.0, -1.0] and press["force_limit_N"] == 2.0
+    assert abs(out["evidence"]["support_contact"]["offset_m"]) < 1e-3
+    assert "support_contact_not_sensed_before_release" not in out["unverified"]
+
+
+@pytest.mark.parametrize("table_z", [-0.012, 0.010])
+def test_contact_mode_refuses_to_release_off_the_calibrated_support(table_z):
+    out, ctx = run(
+        mode="contact_feedback",
+        contact={"force_limit_N": 2.0},
+        capabilities=CONTACT_CAPS,
+        table_z=table_z,
+    )
+    assert out["status"] == "failed" and out["failure_type"] == "domino.support_mismatch"
+    assert "set_gripper" not in ctx.calls
+    assert "table_calibration" in causes(out)
+
+
+@pytest.mark.parametrize(
+    "limits, over, code",
+    [
+        ({"max_speed_m_s": 0.05}, {}, "invalid_request"),
+        ({"gripper_min_width_m": 0.0, "gripper_max_width_m": 0.03}, {}, "infeasible_geometry"),
+        (
+            {"workspace_min_m": (0.0, -0.5, 0.0), "workspace_max_m": (0.8, 0.5, 0.08)},
+            {},
+            "infeasible_geometry",
+        ),
+        (
+            {"max_contact_force_N": 0.0},
+            {"mode": "contact_feedback", "contact": {"force_limit_N": 2.0}},
+            "capability_missing",
+        ),
+        (
+            {"max_contact_force_N": 1.0},
+            {"mode": "contact_feedback", "contact": {"force_limit_N": 2.0}},
+            "invalid_request",
+        ),
+        ({"frame_id": "other"}, {}, "invalid_request"),
+    ],
+)
+def test_station_limits_reject_before_any_command(limits, over, code):
+    ctx = FakeTaskContext(capabilities=CONTACT_CAPS)
+    ctx.limits = limits
+    out = place_upright(request(ctx, **over), ctx)
+    assert out["status"] == "rejected" and out["failure"]["code"] == code, out["failure"]
+    assert ctx.calls == []
+
+
+def test_primitive_timeout_follows_the_station_limit():
+    ctx = FakeTaskContext()
+    ctx.limits = {"max_timeout_s": 7.0}
+    out = place_upright(request(ctx), ctx)
+    assert out["status"] == "succeeded"
+    assert all(r["timeout_s"] <= 7.0 for _, r in ctx.requests)
 
 
 def test_missed_grasp_rejected_before_motion():
@@ -329,3 +404,31 @@ def test_carry_rises_before_crossing_and_keeps_transit_clearance():
     assert len(descent) > 1 and all(
         w["position_m"][:2] == pytest.approx(descent[-1]["position_m"][:2]) for w in descent
     )
+
+
+def test_baseline_stamped_just_after_now_does_not_break_the_verdict():
+    # Agent 05's integration: neighbour stamps a fraction of a ms after ctx.now() made the
+    # observer reject its own request and place_upright raise KeyError('faults').
+    out, _ = run(faults={"clock_ahead"})
+    assert out["status"] == "succeeded", out["failure"]
+
+
+def test_a_rejected_verdict_becomes_a_structured_unverified_result(monkeypatch):
+    from roboskillhub.runtime.task import validate
+    from roboskillhub.tasks.domino import place as place_mod
+
+    real = place_mod.verify_stable_placement
+
+    def baseline_after_start(req, *a, **k):
+        return real({**req, "events": {**req["events"], "action_start_s": 0.0}}, *a, **k)
+
+    monkeypatch.setattr(place_mod, "verify_stable_placement", baseline_after_start)
+    ctx = FakeTaskContext()
+    out = place_upright(request(ctx), ctx)
+    assert out["status"] == "unverified" and out["failure_type"] == "evidence_missing"
+    assert out["failure"]["code"] == "verification_rejected"
+    assert out["failure"]["verification_code"] == "invalid_request"
+    assert "baseline was observed after the action started" in out["failure"]["detail"]
+    assert out["evidence"]["verification"]["status"] == "rejected"
+    assert out["recovery"]["action"] == "reobserve"
+    validate("SkillResult", out)

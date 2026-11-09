@@ -67,6 +67,7 @@ PLACE_SCHEMA = _schema(
         "workspace": _OBJ,
         "mode": {"enum": ["geometric", "contact_feedback"]},
         "descent_path": {"enum": ["dense_waypoints", "linear"]},
+        "contact": _OBJ,
         "speed_m_s": _NUM,
         "descent_speed_m_s": _NUM,
         "timeout_s": _NUM,
