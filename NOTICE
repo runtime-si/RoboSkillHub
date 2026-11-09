@@ -364,6 +364,13 @@ onset-detection rules of docs/envs/domino/continuous-perception.md), MIT
 License, Copyright (c) 2022 Rohan Chitnis and Tom Silver; the file's header
 lists the changes, and the license is
 skills/verifying-a-domino-cascade-from-video/LICENSE.predicators.
+skills/triggering-a-domino-chain-by-push/scripts/trigger_domino.py is adapted
+from predicators (https://github.com/BasisResearch/predicators, commit
+afb6f2918091f5ca372a75b9a335aea317a8a209:
+predicators/ground_truth_models/skill_factories/push.py and
+predicators/ground_truth_models/domino/options.py), MIT License, Copyright (c)
+2022 Rohan Chitnis and Tom Silver; the file's header lists the changes, and
+the license is skills/triggering-a-domino-chain-by-push/LICENSE.predicators.
 skills/pressing-a-brick-onto-studs/scripts/press_brick.py is adapted from
 BrickSim (https://github.com/intelligent-control-lab/BrickSim,
 python/bricksim/envs/assemble_brick/expert.py, commit

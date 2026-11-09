@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-18 tools, 103 skills, 2 policies, 1 recipe and 1 paper.
+18 tools, 104 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -120,6 +120,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`threading-a-cable-tip-through-a-ring`](#threading-a-cable-tip-through-a-ring) | execute | Threads the free tip of a held cable through a standing ring. | any |
 | [`tipping-over-a-surface-edge`](#tipping-over-a-surface-edge) | execute | Turn a body over on the surface it rests on instead of carrying it. | any, *tuned on* yam_i2rt, 2 arms, **sim only** |
 | [`transporting-objects`](#transporting-objects) | execute | Move the currently-held object to a destination and release. | any, *tuned on* panda |
+| [`triggering-a-domino-chain-by-push`](#triggering-a-domino-chain-by-push) | execute | Topples the first domino of a standing line so the chain runs. | any |
 | [`turning-by-wrist-ratchet`](#turning-by-wrist-ratchet) | execute | Tightens or loosens a screw lid or cap by wrist ratchet. | any |
 | [`wiping-a-region`](#wiping-a-region) | execute | Wipes a flat region of a surface with back-and-forth strokes. | any |
 | [`checking-dual-arm-clearance`](#checking-dual-arm-clearance) | verify | Predicts, before a move is sent, the minimum clearance between the two arms along the planned path. | any, 2 arms |
@@ -1641,6 +1642,23 @@ Move the currently-held object to a destination and release. The gripper enters 
 - **Exits**:
   - `placed`: Object released at the destination.
   - `blocked`: Path blocked or motion failed; aborted before release. Coordinator routes to abort.
+
+### triggering-a-domino-chain-by-push
+
+execute · robots: any · tasks: domino · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/triggering-a-domino-chain-by-push/SKILL.md) · [upstream](https://github.com/BasisResearch/predicators/blob/afb6f2918091f5ca372a75b9a335aea317a8a209/predicators/ground_truth_models/skill_factories/push.py)
+
+Topples the first domino of a standing line so the chain runs - closes the hand with the blades across the tile, comes down behind the tile (against its facing) to a contact height on its upper half, pushes slowly along the facing a short computed stroke that carries the tile past its tipping angle without reaching the next tile, backs off along the stroke and rises, then checks from depth that the first slot no longer stands. Use after a domino line or curve is built (planning-a-domino-layout's slot 0 is the trigger tile), to start the cascade; hand the clip to verifying-a-domino-cascade-from-video to judge the whole chain.
+
+- **In**: `slot` Se3Pose, `table_z` float
+- **Out**: `pushed` bool, `contact_height` float, `tip_travel` float, `push_travel` float, `stroke_length` float, `stroke_time` float, `stroke_speed` float, `stroke_steps` int, `trigger_time` float, `push_direction` Vec3, `verified` bool, `first_standing` bool, `next_standing` bool
+- **Calls**: connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.solve_ik`
+- **Scripts**: [`trigger_domino`](skills/triggering-a-domino-chain-by-push/scripts/trigger_domino.py)
+- **Exits**:
+  - `triggered`: The stroke ran, the hand backed off, rose and parked, and the depth check sees no tile standing at the slot (`next_standing` says whether the next tile still stands); with verify=false, the stroke carried the blade front at least the tipping travel past the tile's back face (what the hand did only).
+  - `no_contact`: The tile still stands at the slot after the stroke - the stroke ended inside the servo's arrival tolerance but short of the tipping travel and the tile rocked back (`pushed` false), or the hand passed over or beside it, or it is not where the slot says (`pushed` true) - or nothing stood at the slot before the push (nothing moved then).
+  - `blocked`: The descent behind the tile stopped high (something stands where the hand comes down; lifted back), or the stroke was held - it timed out or ended more than 5 mm short of its end - before the blade reached the tipping travel (a tile that does not give, or the arm at a limit); the hand backed off and rose.
+  - `unverified`: The stroke ran, but no camera saw the slot whole and unoccluded after the push; `pushed` says whether the blade reached the tipping travel.
+  - `unreachable`: Nothing was pushed - the contact height is outside its band, the stroke would reach the next tile (the line is too tight to push the first tile alone) or the hand would come down on the tile behind, the stroke's start or end failed the IK preview for both wrist solutions, or a move before the stroke was refused.
 
 ### turning-by-wrist-ratchet
 
