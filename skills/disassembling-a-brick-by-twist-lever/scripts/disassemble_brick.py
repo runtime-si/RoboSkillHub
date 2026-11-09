@@ -16,7 +16,8 @@
 # twist is commanded in small steps about that edge, each read back: the hand
 # lagging its command (or a joint-effort residual where the observation carries
 # efforts) stands in for a force sensor, so a brick that holds is "stuck" and
-# a lag that rises and falls again marks the studs letting go. ICL's 2.8 mm
+# a lag that rises and falls again, with the jaws still holding after the lift,
+# marks the studs letting go. ICL's 2.8 mm
 # descent into the grab pose becomes a 1 mm press after the close (bounded by
 # the lag). A straight pull and a wiggle (alternate small levers about both
 # edges) are added as strategies and as fallbacks, a slipped grip is regrasped,
