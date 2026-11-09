@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-24 tools, 129 skills, 2 policies, 1 recipe and 1 paper.
+24 tools, 130 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -45,6 +45,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 
 | Skill | Stage | What it does | Robots |
 | --- | --- | --- | --- |
+| [`calibrating-arm-to-arm-base-transform`](#calibrating-arm-to-arm-base-transform) | perceive | Measures where one arm's base sits in the other arm's base frame. | any |
 | [`calibrating-baseplate-stud-grid`](#calibrating-baseplate-stud-grid) | perceive | Estimates a LEGO or DUPLO baseplate's pose (the plate frame computing-brick-pose-from-stud-grid takes, and APEX-MR's… | any |
 | [`detecting-contact-from-joint-effort`](#detecting-contact-from-joint-effort) | perceive | Feels for contact without a force sensor. | any |
 | [`estimating-cut-grid-from-pieces`](#estimating-cut-grid-from-pieces) | perceive | Estimates a jigsaw's real cut grid (cols x rows) and cell size from the piece count printed on the box, the board's… | any |
@@ -503,6 +504,21 @@ Geometric yes/no judgments over poses and boxes the graph already holds -- is a 
   - `predicates.upright`: Whether a body's local axis points up, within a tilt bound.
 
 ## Skill details
+
+### calibrating-arm-to-arm-base-transform
+
+perceive · robots: any · tasks: bimanual, pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/calibrating-arm-to-arm-base-transform/SKILL.md) · [upstream](https://github.com/opencv/opencv/blob/4.x/modules/calib3d/src/calibration_handeye.cpp)
+
+Measures where one arm's base sits in the other arm's base frame - each arm in turn visits a list of joint configurations, its wrist camera poses a ChArUco board (or ArUco marker) fixed in the cell, or one fixed camera poses a marker each gripper carries; each arm's views are solved as robot-world / hand-eye (AX = ZB, Shah's closed form plus least squares) and the two "board in my base" results compose into base0 -&gt; base1, with per-view residuals and a leave-one-view-out spread. Use when a two-arm task (handover, holding a part while the other arm works, one shared grid for both arms) needs the arms' relative placement measured instead of the nominal layout, or to check it after a base was moved.
+
+- **In**: -
+- **Out**: `yaw_deg` float, `tilt_deg` float, `jackknife_mm` float, `jackknife_deg` float, `reason` string
+- **Calls**: connector `robot.get_ee_pose`, `robot.get_observation`, `robot.move_to_joints`
+- **Scripts**: [`calibrate_arms`](skills/calibrating-arm-to-arm-base-transform/scripts/calibrate_arms.py)
+- **Exits**:
+  - `calibrated`: Both arms posed the target in at least min_views (6) views, each arm's views agree on it within max_rms_mm (6 mm) / max_rms_deg (1.5 deg) RMS, and leaving any one view out moves base0 -&gt; base1 by at most max_jackknife_mm (5 mm); T_base0_base1 is arm 1's base in arm 0's base frame.
+  - `residual_too_high`: Solved, but an arm's views disagree (RMS over the limits) or one view decides the result (leave-one-out over 5 mm); T_base0_base1 and the numbers are filled in - add views from more varied angles, or check the kinematics / camera intrinsics.
+  - `tag_not_seen`: An arm posed the target in fewer than min_views views (moves refused, no frame, target not found); nothing is solved and `reason` lists the misses.
 
 ### calibrating-baseplate-stud-grid
 
