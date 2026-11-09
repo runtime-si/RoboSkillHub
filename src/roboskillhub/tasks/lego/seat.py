@@ -10,6 +10,27 @@ the station has.
 ``succeeded`` means the declared bounded operation completed with sufficient evidence
 (``operation_complete``). It never means the brick is connected: that is
 lego.verify_connection's job (``connection_verified`` is always false here).
+
+Success criterion (station-agnostic). After a confirmed stop within the force limit, with the
+contact where the stud tops are expected:
+
+1. **Seated pose** - if an independent observation of the pressed brick, taken after the
+   press, is usable (fresh, after the press started, same frame, not commanded, its 2-sigma band
+   narrower than the seat band): its bottom must lie within ``seat_depth_tolerance_m`` of the
+   seat height and its lateral / yaw / tilt error within ``lego.verify_connection``'s bands
+   (``verify._thresholds``: the same geometry + 2 sigma). The observed brick decides; the TCP
+   travel does not (a brick can move in the grasp, e.g. a simulator that snaps it to the seat).
+2. **Force rise** - required only when the station declares that its force signal shows the
+   press-fit (``contact_signal.insertion_force_observable``, default true): then the press must
+   also have stopped on ``force_threshold``. A station whose clutch model has no insertion
+   travel or force (BrickSim snaps the brick to the seat) declares false, and the pose alone
+   decides.
+3. Without a usable observation: a force-observable station falls back to the measured travel
+   (stop on force_threshold within ``seat_depth_tolerance_m`` of the seat travel); a station
+   that cannot show the press-fit force returns ``unverified/seat_unobserved``.
+
+``seat_depth_tolerance_m`` is declared by the request (press limits) or defaults to the
+documented ``SEAT_FRACTION`` x stud height; the value and its source are always in the evidence.
 """
 
 from __future__ import annotations
@@ -19,9 +40,11 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from .contracts import Rejected, SkillResult, _Early, ids, number
+from . import geometry as g
+from .contracts import Observation, Rejected, SkillResult, _Early, ids, number, usable
 from .geometry import SYSTEMS
 from .ports import CONTACT_CAPABILITIES, ContactBackend
+from .verify import _thresholds as seat_bands
 
 SKILL_ID = "lego.guarded_seat"
 VERSION = "0.1.0"
@@ -51,6 +74,9 @@ FORCE_OVERSHOOT = 1.25
 
 CONTACT_FRACTION = 0.2
 """Contact onset: the first sample whose force exceeds this fraction of force_limit_N."""
+
+POST_PRESS_MAX_AGE_S = 2.0
+"""A post-press observation older than this (or taken before the press began) is not used."""
 
 
 def _axis(req: dict, alignment: dict) -> list[float]:
@@ -114,6 +140,7 @@ def guarded_seat(
     contact: ContactBackend | None,
     *,
     clock: Callable[[], float] = time.time,
+    observe: Callable[[], dict | None] | None = None,
 ) -> dict[str, Any]:
     """Execute lego.guarded_seat. Returns the SkillResult wire dict."""
     try:
@@ -181,6 +208,15 @@ def guarded_seat(
         {"event": "guarded_move", "t_s": started, "n_samples": len(trace.get("samples", []))}
     )
     res.evidence["contact_trace"] = trace.get("samples", [])
+    post = None
+    if observe is not None and res.motion_issued:
+        try:
+            post = observe()
+        except Exception as exc:  # an observer failure is evidence missing, not a press result
+            res.evidence["post_press_observation_error"] = repr(exc)
+    p["post_press"] = post
+    p["press_started_s"] = started
+    p["now_s"] = clock()
     return _classify(res, p, trace, desc).to_dict()
 
 
@@ -235,6 +271,22 @@ def _params(req: dict) -> dict[str, Any]:
         ),
         "hold_s": number(req.get("hold_s", 0.0), "hold_s", 0, 5),
         "limits_source": str(req["limits_source"]),
+        "seat_depth_tolerance_m": (
+            number(
+                req["seat_depth_tolerance_m"],
+                "seat_depth_tolerance_m",
+                1e-5,
+                RESTING_FRACTION * s.stud_height_m,
+            )
+            if "seat_depth_tolerance_m" in req
+            else SEAT_FRACTION * s.stud_height_m
+        ),
+        "seat_depth_tolerance_source": (
+            f"request ({req['limits_source']})"
+            if "seat_depth_tolerance_m" in req
+            else f"lego.guarded_seat default: SEAT_FRACTION {SEAT_FRACTION} x stud height"
+        ),
+        "plan": plan,
     }
 
 
@@ -334,12 +386,57 @@ def _classify(res: SkillResult, p: dict, trace: dict, desc: dict) -> SkillResult
             next_allowed=["reobserve", "human"],
         )
     shortfall = seat - final
+    depth_tol = p["seat_depth_tolerance_m"]
+    force_observable = bool(desc["contact_signal"].get("insertion_force_observable", True))
+    res.evidence["seat_check"] = {
+        "seat_depth_tolerance_m": depth_tol,
+        "seat_depth_tolerance_source": p["seat_depth_tolerance_source"],
+        "insertion_force_observable": force_observable,
+        "tcp_shortfall_m": shortfall,
+    }
+    seated = _seated_by_observation(res, p, s)
+    done = ["release_and_retreat", "lego.verify_connection"]
+    if seated is not None:
+        ok, d, th = seated
+        res.evidence["seat_check"].update(basis="post_press_observation", delta=d, bands=th)
+        # The brick may have moved in the grasp (e.g. snapped to the seat): report the gap
+        # between the TCP travel and the observed brick depth, but judge the brick.
+        res.evidence["seat_check"]["brick_vs_tcp_m"] = shortfall - d["dz_m"]
+        if not ok:
+            return _off_seat(res, d, th, depth_tol, s, after)
+        if force_observable and stop_reason != "force_threshold":
+            return res.finish(
+                "unverified",
+                "seated_without_force_rise",
+                f"brick observed seated ({d['dz_m'] * 1e3:+.2f} mm) but the press ended on "
+                f"{stop_reason!r}: the station declares a force signal that shows a press-fit "
+                "and none was seen",
+                next_allowed=["release_and_retreat", "lego.verify_connection"],
+            )
+        res.evidence["operation_complete"] = True
+        basis = "observed seated pose" + (" and force threshold" if force_observable else "")
+        return res.finish(
+            "succeeded",
+            "press_complete",
+            f"bounded press completed; {basis}; connection NOT yet verified",
+            next_allowed=done,
+        )
     res.check(
         "post",
         "reached_seat_depth",
-        abs(shortfall) <= SEAT_FRACTION * s.stud_height_m,
-        f"{shortfall * 1e3:+.2f} mm short of the seat",
+        abs(shortfall) <= depth_tol,
+        f"{shortfall * 1e3:+.2f} mm short of the seat (TCP travel; no usable brick observation)",
     )
+    if not force_observable:
+        res.evidence["seat_check"]["basis"] = "none"
+        return res.finish(
+            "unverified",
+            "seat_unobserved",
+            "the station's force signal cannot show a press-fit and no usable post-press "
+            "observation of the brick exists: seating is not established",
+            next_allowed=["reobserve", "lego.verify_connection"],
+        )
+    res.evidence["seat_check"]["basis"] = "tcp_travel_and_force"
     if shortfall >= RESTING_FRACTION * s.stud_height_m:
         return res.finish(
             "failed",
@@ -348,7 +445,7 @@ def _classify(res: SkillResult, p: dict, trace: dict, desc: dict) -> SkillResult
             " mm): walls on the stud tops, misaligned",
             next_allowed=after,
         )
-    if shortfall > SEAT_FRACTION * s.stud_height_m:
+    if shortfall > depth_tol:
         return res.finish(
             "failed",
             "not_pressed_fully",
@@ -361,12 +458,108 @@ def _classify(res: SkillResult, p: dict, trace: dict, desc: dict) -> SkillResult
             "seat_depth_without_threshold",
             f"reached seat depth on {stop_reason!r} without the force rise of a "
             "press-fit; whether the clutch engaged is not established",
-            next_allowed=["release_and_retreat", "lego.verify_connection"],
+            next_allowed=done,
         )
     res.evidence["operation_complete"] = True
     return res.finish(
         "succeeded",
         "press_complete",
         "bounded press completed at seat depth; connection NOT yet verified",
-        next_allowed=["release_and_retreat", "lego.verify_connection"],
+        next_allowed=done,
+    )
+
+
+def _seated_by_observation(res: SkillResult, p: dict, s: Any) -> tuple[bool, dict, dict] | None:
+    """(seated, pose delta, bands) from a usable post-press observation of the brick, else None
+    (the reason is recorded)."""
+    post = p.get("post_press")
+    plan = p["plan"]
+    if post is None:
+        res.evidence["seat_check_observation"] = "none"
+        return None
+    try:
+        obs = Observation.from_dict(post, "post_press_observation")
+        seat_pose = plan["seat_pose"]
+        bt = _brick_type(plan, s)
+    except (Rejected, KeyError, g.GeometryError) as exc:
+        res.evidence["seat_check_observation"] = f"unusable: {exc}"
+        return None
+    why = usable(
+        obs,
+        now_s=p["now_s"],
+        max_age_s=POST_PRESS_MAX_AGE_S,
+        frame_id=seat_pose["frame_id"],
+        not_after_s=p["press_started_s"],
+    )
+    if not why and obs.value is None:
+        why = "brick_not_visible"
+    if why:
+        res.evidence["seat_check_observation"] = f"unusable: {why}"
+        return None
+    pose = obs.value["pose"] if isinstance(obs.value, dict) and "pose" in obs.value else obs.value
+    th = seat_bands(bt, obs.uncertainty_m, obs.uncertainty_deg)
+    if th["sigma_band_m"] >= p["seat_depth_tolerance_m"]:
+        res.evidence["seat_check_observation"] = (
+            "unusable: observation too uncertain for the seat band"
+        )
+        return None
+    res.use(obs)
+    res.evidence["seat_check_observation"] = obs.obs_id
+    d = g.pose_delta(g.matrix(seat_pose), g.matrix(pose))
+    period = 90.0 if bt.studs[0] == bt.studs[1] else 180.0
+    d["yaw_deg"] = (d["yaw_deg"] + period / 2) % period - period / 2
+    depth_ok = abs(d["dz_m"]) <= p["seat_depth_tolerance_m"]
+    lat_ok = d["lateral_m"] <= th["lateral_m"]
+    yaw_ok = abs(d["yaw_deg"]) <= th["yaw_deg"]
+    tilt_ok = d["tilt_deg"] <= th["tilt_deg"]
+    res.check("post", "seat_depth_observed", depth_ok, f"{d['dz_m'] * 1e3:+.2f} mm over the seat")
+    res.check("post", "seat_lateral_observed", lat_ok, f"{d['lateral_m'] * 1e3:.2f} mm")
+    res.check("post", "seat_yaw_observed", yaw_ok, f"{d['yaw_deg']:+.2f} deg")
+    res.check("post", "seat_tilt_observed", tilt_ok, f"{d['tilt_deg']:.2f} deg")
+    return depth_ok and lat_ok and yaw_ok and tilt_ok, d, th
+
+
+def _brick_type(plan: dict, s: Any) -> g.BrickType:
+    """The aligned brick type from the alignment plan (``system:NxM@version``)."""
+    tid = str(plan["brick_type"])
+    studs = tid.split(":", 1)[1].split("@", 1)[0]
+    return g.brick_type(s.name, studs)
+
+
+def _off_seat(
+    res: SkillResult, d: dict, th: dict, depth_tol: float, s: Any, after: list
+) -> SkillResult:
+    dz = d["dz_m"]
+    if d["lateral_m"] > th["wrong_cell_m"] or abs(d["yaw_deg"]) > th["yaw_deg"]:
+        return res.finish(
+            "failed",
+            "blocked_on_studs"
+            if dz >= RESTING_FRACTION * s.stud_height_m
+            else "seat_pose_misaligned",
+            f"brick observed {d['lateral_m'] * 1e3:.2f} mm / {d['yaw_deg']:+.2f} deg off its seat, "
+            f"{dz * 1e3:+.2f} mm over it",
+            next_allowed=after,
+        )
+    if dz >= RESTING_FRACTION * s.stud_height_m:
+        return res.finish(
+            "failed",
+            "blocked_on_studs",
+            f"brick observed {dz * 1e3:+.2f} mm over its seat (stud {s.stud_height_m * 1e3:.1f} mm): "
+            "on the stud tops",
+            next_allowed=after,
+        )
+    if dz > depth_tol:
+        return res.finish(
+            "failed",
+            "not_pressed_fully",
+            f"brick observed {dz * 1e3:+.2f} mm over its seat (tolerance {depth_tol * 1e3:.2f} mm)",
+            next_allowed=after,
+        )
+    return res.finish(
+        "failed",
+        "seat_pose_misaligned",
+        f"brick at seat depth ({dz * 1e3:+.2f} mm) but {d['lateral_m'] * 1e3:.2f} mm / "
+        f"{d['yaw_deg']:+.2f} deg / tilt {d['tilt_deg']:.2f} deg off (bands {th['lateral_m'] * 1e3:.2f} mm, "
+        f"{th['yaw_deg']:.2f} deg, {th['tilt_deg']:.2f} deg)",
+        next_allowed=after,
     )

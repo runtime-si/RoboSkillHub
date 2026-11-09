@@ -138,6 +138,10 @@ class LegoPhysicsStation:
             "rate_hz": round(1.0 / self.physics.control_dt),
             "max_latency_s": 2.0 * self.physics.control_dt,
             "calibration_id": "sim:tare-at-press-start",
+            # BrickSim moves the brick to its seat the step the clutch triggers (align policy
+            # MoveHoleCC): no insertion travel, no press-fit force rise for this signal to show.
+            "insertion_force_observable": False,
+            "insertion_model": "bricksim_snap_to_seat",
         }
 
     def contact_description(self) -> dict:

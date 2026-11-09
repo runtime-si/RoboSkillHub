@@ -94,6 +94,8 @@ def test_describe_declares_signal_controller_and_limits():
     d = station().describe()
     sig = d["contact_signal"]
     assert sig["unit"] == "N" and sig["rate_hz"] == 120 and 0 < sig["max_latency_s"] <= 0.02
+    # BrickSim snaps the brick to its seat: the force signal cannot show a press-fit
+    assert sig["insertion_force_observable"] is False
     assert d["controller"]["kind"] in ("force", "admittance", "impedance", "hybrid")
     assert {"contact_force_feedback", "compliant_motion"} <= set(d["capabilities"])
     assert "NOT a YAM arm" in d["robot"] and "DexMate" in d["robot"]

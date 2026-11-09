@@ -76,6 +76,9 @@ FAILURE_TYPES: dict[str, str] = {
     "no_contact_record": "evidence_missing",
     "invalid_corners": "evidence_missing",
     "seat_depth_without_threshold": "lego.seat_depth_without_threshold",
+    "seated_without_force_rise": "lego.seated_without_force_rise",
+    "seat_unobserved": "lego.seat_unobserved",
+    "seat_pose_misaligned": "lego.misaligned",
     # execution
     "alignment_not_converged": "motion_not_converged",
     "correction_budget_exhausted": "lego.misaligned",

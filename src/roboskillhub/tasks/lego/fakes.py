@@ -114,6 +114,7 @@ class FakeContact:
         max_force_N: float = 30.0,
         evidence_level: str = "unit_or_dryrun",
         rate_hz: float = 500.0,
+        insertion_force_observable: bool | None = None,
     ):
         self.capabilities = sorted(
             capabilities
@@ -124,6 +125,7 @@ class FakeContact:
         self.stop_reason, self.stop_confirmed = stop_reason, stop_confirmed
         self.controller_kind, self.max_force_N = controller_kind, max_force_N
         self.evidence_level, self.rate_hz = evidence_level, rate_hz
+        self.insertion_force_observable = insertion_force_observable
         self.calls: list[dict] = []
 
     def describe(self) -> dict[str, Any]:
@@ -139,6 +141,11 @@ class FakeContact:
                 "rate_hz": self.rate_hz,
                 "max_latency_s": 0.01,
                 "calibration_id": "fake-cal",
+                **(
+                    {}
+                    if self.insertion_force_observable is None
+                    else {"insertion_force_observable": self.insertion_force_observable}
+                ),
             },
             "controller": {"kind": self.controller_kind, "loop_hz": 500, "process": "fake"},
             "limits": {

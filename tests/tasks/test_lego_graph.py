@@ -216,7 +216,9 @@ def test_tilted_grasp_routes_to_regrasp():
             "connection_failed",
             ("verify", "failed", "lego.lifted_with_gripper"),
         ),
-        ({"slip_m": 0.0009}, "connection_failed", ("verify", "failed", "lego.not_seated")),
+        # The brick slipped 0.9 mm up in the grasp: the TCP reached seat depth, the brick did not.
+        # guarded_seat judges the observed brick, so the press itself fails (before: only verify saw it).
+        ({"slip_m": 0.0009}, "stop_human", ("seat", "failed", "lego.not_seated")),
     ],
 )
 def test_failure_episodes_stop_with_their_reason(scenario, terminal, last):

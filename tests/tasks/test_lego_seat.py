@@ -252,3 +252,127 @@ def test_sim_backend_level_is_carried(alignment):
         alignment, press_trace(PRE_H, LEGO.stud_height_m), evidence_level="dynamic_sim_observed"
     )
     assert out["evidence_level"] == "dynamic_sim_observed"
+
+
+# ------------------------------------------------------------ post-press seated pose (sim snap / slip)
+
+NOW = 100.0
+
+
+def _seat_obs(alignment, *, dz=0.0, dx=0.0, yaw_deg=0.0, t=NOW, sigma=0.0001):
+    """An independent post-press observation of the pressed brick, offset from its seat."""
+
+    from roboskillhub.tasks.lego import geometry as g
+
+    seat = alignment["evidence"]["plan"]["seat_pose"]
+    m = g.mul(g.matrix(seat), g.mul(g.tr(dx, 0.0, dz), g.rz(yaw_deg)))
+    return {
+        "obs_id": f"camera:brick@{t}",
+        "source": "camera",
+        "kind": "measured",
+        "frame_id": seat["frame_id"],
+        "timestamp_s": t,
+        "value": g.to_pose(m, seat["frame_id"]),
+        "uncertainty_m": sigma,
+        "uncertainty_deg": 0.05,
+    }
+
+
+def _press_obs(alignment, samples, obs, *, observable=None, **kw):
+    contact = FakeContact(samples=samples, insertion_force_observable=observable, **kw)
+    return guarded_seat(seat_request(alignment), contact, clock=lambda: NOW, observe=lambda: obs)
+
+
+@pytest.mark.parametrize("observable", [False, True, None])
+def test_regression_firm_grip_snap_tcp_short_but_brick_seated_succeeds(alignment, observable):
+    # 15 N grip in BrickSim: the clutch snapped the brick 1.66 mm down to its seat, the hand did not
+    # follow; the press stopped on force 1.09 mm short (TCP). Before: "blocked"/"not_seated".
+    samples = press_trace(PRE_H, LEGO.stud_height_m, final_shortfall_m=0.00109, peak_N=6.0)
+    out = _press_obs(alignment, samples, _seat_obs(alignment), observable=observable)
+    assert out["status"] == "succeeded" and out["reason_code"] == "press_complete", out["message"]
+    sc = out["evidence"]["seat_check"]
+    assert sc["basis"] == "post_press_observation"
+    assert sc["tcp_shortfall_m"] == pytest.approx(0.00109)
+    assert sc["brick_vs_tcp_m"] == pytest.approx(0.00109, abs=1e-6)
+    assert out["evidence"]["connection_verified"] is False
+
+
+def test_snap_station_travel_stop_with_seated_brick_succeeds_with_declared_threshold(alignment):
+    out = _press_obs(
+        alignment,
+        press_trace(PRE_H, LEGO.stud_height_m, peak_N=5.0),
+        _seat_obs(alignment, dz=0.0002),
+        observable=False,
+        stop_reason="travel_limit",
+    )
+    assert out["status"] == "succeeded"
+    sc = out["evidence"]["seat_check"]
+    assert sc["seat_depth_tolerance_m"] == pytest.approx(0.35 * LEGO.stud_height_m)
+    assert "SEAT_FRACTION" in sc["seat_depth_tolerance_source"]
+
+
+def test_force_observable_station_needs_the_force_rise_even_when_seated(alignment):
+    out = _press_obs(
+        alignment,
+        press_trace(PRE_H, LEGO.stud_height_m, peak_N=5.0),
+        _seat_obs(alignment),
+        observable=True,
+        stop_reason="travel_limit",
+    )
+    assert out["status"] == "unverified" and out["reason_code"] == "seated_without_force_rise"
+
+
+@pytest.mark.parametrize(
+    "obs_kw, code",
+    [
+        ({"dz": 0.0017}, "blocked_on_studs"),
+        ({"dz": 0.0009}, "not_pressed_fully"),
+        ({"dx": 0.001}, "seat_pose_misaligned"),
+        ({"dx": 0.004}, "seat_pose_misaligned"),
+        ({"yaw_deg": 4.0}, "seat_pose_misaligned"),
+    ],
+)
+def test_observed_brick_off_its_seat_fails_whatever_the_tcp_says(alignment, obs_kw, code):
+    # The TCP reached the seat and the force rose: the observed brick still decides.
+    out = _press_obs(
+        alignment, press_trace(PRE_H, LEGO.stud_height_m), _seat_obs(alignment, **obs_kw)
+    )
+    assert out["status"] == "failed" and out["reason_code"] == code, out["message"]
+
+
+def test_slip_in_the_grasp_is_caught_by_the_seat_check(alignment):
+    # TCP at seat depth with the force rise, brick 0.9 mm high in the grasp: not seated.
+    out = _press_obs(
+        alignment, press_trace(PRE_H, LEGO.stud_height_m), _seat_obs(alignment, dz=0.0009)
+    )
+    assert out["reason_code"] == "not_pressed_fully"
+
+
+def test_no_observation_on_a_snap_station_is_unverified_not_success(alignment):
+    out = _press_obs(alignment, press_trace(PRE_H, LEGO.stud_height_m), None, observable=False)
+    assert out["status"] == "unverified" and out["reason_code"] == "seat_unobserved"
+
+
+@pytest.mark.parametrize(
+    "obs_kw",
+    [{"t": NOW - 10.0}, {"sigma": 0.001}],  # before the press / 2-sigma wider than the seat band
+)
+def test_unusable_observation_falls_back_to_force_and_travel(alignment, obs_kw):
+    out = _press_obs(
+        alignment, press_trace(PRE_H, LEGO.stud_height_m), _seat_obs(alignment, **obs_kw)
+    )
+    assert out["evidence"]["seat_check"]["basis"] == "tcp_travel_and_force"
+    assert out["evidence"]["seat_check_observation"].startswith("unusable")
+    assert out["status"] == "succeeded"  # force-observable default, seat depth, force threshold
+
+
+def test_declared_seat_depth_tolerance_is_used_and_cited(alignment):
+    req = seat_request(alignment, seat_depth_tolerance_m=0.0003)
+    out = guarded_seat(
+        req,
+        FakeContact(samples=press_trace(PRE_H, LEGO.stud_height_m)),
+        clock=lambda: NOW,
+        observe=lambda: _seat_obs(alignment, dz=0.0004),
+    )
+    assert out["reason_code"] == "not_pressed_fully"
+    assert out["evidence"]["seat_check"]["seat_depth_tolerance_source"].startswith("request")

@@ -63,6 +63,9 @@
       "no_contact_record": "evidence_missing",
       "invalid_corners": "evidence_missing",
       "seat_depth_without_threshold": "lego.seat_depth_without_threshold",
+      "seated_without_force_rise": "lego.seated_without_force_rise",
+      "seat_unobserved": "lego.seat_unobserved",
+      "seat_pose_misaligned": "lego.misaligned",
       "alignment_not_converged": "motion_not_converged",
       "correction_budget_exhausted": "lego.misaligned",
       "deadline_exceeded": "timeout",
@@ -204,7 +207,7 @@
       },
       "postcondition": {
         "name": "bounded_press_complete",
-        "criterion": "controller stopped on force_limit_N within 0.35 stud heights of the seat, peak <= 1.25 x limit, stop confirmed; connection NOT verified here"
+        "criterion": "stop confirmed, peak <= 1.25 x force_limit_N, contact at the stud tops; the pressed brick observed after the press within seat_depth_tolerance_m (default 0.35 stud height) of its seat and within verify's lateral/yaw/tilt bands; plus a force_threshold stop when the station declares an insertion-observable force signal; without a usable observation a force-observable station falls back to TCP travel. Connection NOT verified here"
       },
       "summary": "Bounded contact press along the engagement axis with a measured force signal; returns the contact trace and stop reason; operation_complete only.",
       "pure_entrypoint": "roboskillhub.tasks.lego.seat:guarded_seat",

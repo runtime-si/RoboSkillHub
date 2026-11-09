@@ -152,6 +152,12 @@ class _Contact:
         return {"confirmed": False}
 
 
+def _type_parts(plan: dict) -> tuple[str, str]:
+    """``system:NxM@version`` -> (system, "NxM")."""
+    sysname, rest = str(plan["brick_type"]).split(":", 1)
+    return sysname, rest.split("@", 1)[0]
+
+
 def _rejected(skill: Any, ctx: Any, connection_id: str, exc: Rejected, phase="precheck") -> dict:
     res = SkillResult(skill.skill_id, skill.version, ctx.request_id, connection_id or "")
     res.phase = phase
@@ -277,8 +283,11 @@ class GuardedSeat:
     requires = CONTACT_CAPABILITIES
     postcondition_name = "bounded_press_complete"
     criterion = (
-        "controller stopped on force_limit_N within 0.35 stud heights of the seat, "
-        "peak <= 1.25 x limit, stop confirmed; connection NOT verified here"
+        "stop confirmed, peak <= 1.25 x force_limit_N, contact at the stud tops; the pressed brick "
+        "observed after the press within seat_depth_tolerance_m (default 0.35 stud height) of its "
+        "seat and within verify's lateral/yaw/tilt bands; plus a force_threshold stop when the "
+        "station declares an insertion-observable force signal; without a usable observation a "
+        "force-observable station falls back to TCP travel. Connection NOT verified here"
     )
     input_schema = _schema(
         ["connection_id", "alignment", "press_limits"],
@@ -303,17 +312,22 @@ class GuardedSeat:
             **lim,
         }
         contact = _Contact(ctx)
-        out = guarded_seat(internal_req, contact, clock=ctx.now)
-        observations: list[dict] = []
+        observer = None
+        observe = None
+        if "object_feedback" in ctx.capabilities and al.get("held_object_id"):
+            try:
+                height = g.brick_type(*_type_parts(plan)).system.brick_height_m
+            except (g.GeometryError, IndexError, ValueError):
+                height = None
+            observer = _Observer(ctx, height)
+
+            def observe() -> dict | None:
+                # Independent post-press observation of the pressed brick (judged in guarded_seat).
+                return observer.observe_many([al["held_object_id"]])[al["held_object_id"]]
+
+        out = guarded_seat(internal_req, contact, clock=ctx.now, observe=observe)
+        observations: list[dict] = observer.used if observer is not None else []
         ev = out["evidence"]
-        if (
-            out["motion_issued"]
-            and "object_feedback" in ctx.capabilities
-            and al.get("held_object_id")
-        ):
-            obs = _Observer(ctx, None)
-            obs.observe_many([al["held_object_id"]])
-            observations = obs.used
         press = {}
         if "final_travel_m" in ev and plan.get("engagement_axis"):
             axis = plan["engagement_axis"]["vector"]
@@ -338,7 +352,7 @@ class GuardedSeat:
                 k: ev.get(k)
                 for k in ("final_travel_m", "seat_travel_m", "peak_force_N", "shortfall_m")
             }
-            | {"stop": out.get("stop")},
+            | {"stop": out.get("stop"), "seat_check": ev.get("seat_check")},
             str(lim.get("limits_source", "")),
         )
         outputs = {

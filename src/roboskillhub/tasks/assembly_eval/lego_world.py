@@ -271,6 +271,8 @@ def physics_lego_world(
             "timeout_s": 20.0,
             "force_limit_N": force_limit_n,
             "hold_s": 0.2,
+            # declared seat band for lego.guarded_seat's post-press check: 0.35 x 1.7 mm stud height
+            "seat_depth_tolerance_m": 0.000595,
             "limits_source": "assembly_eval lego_world v1: press stop set per run (default 6 N, 6x BrickSim's "
             "1 N trigger); station max 10 N",
         },
