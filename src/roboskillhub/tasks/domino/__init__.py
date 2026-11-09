@@ -1,28 +1,28 @@
 """Domino task module (Agent 02): upright placement, independent stability check,
 failure classification, bounded recovery plans and a straight-row layout tool.
 
-Entry points (all return a result dict with ``status`` in succeeded / failed /
-unverified / rejected):
+Aligned to the shared contract rsh-task/1. ``SKILLS`` lists the TaskSkill entries
+Agent 05 registers; nothing here registers itself in the runtime/API.
 
-- :func:`place_upright` (needs a :class:`PlacementBackend`; capability-gated)
-- :func:`verify_stable_placement` (pure; observations in, verdict out)
-- :func:`plan_straight_layout` (pure; target poses and build order, no motion)
-- :func:`plan_recovery` (pure; a bounded plan, never executed here)
-
-Not registered in the runtime/API yet: Agent 05 owns that wiring.
+- ``domino.place_upright`` (skill; ctx.invoke move_waypoints / set_gripper,
+  ctx.observe; capability-gated)
+- ``domino.verify_stable_placement`` (tool; observations in, verdict out)
+- ``domino.plan_straight_layout`` (tool; target poses and build order, no motion)
+- ``domino.plan_recovery`` (tool; a bounded plan, never executed here)
 """
 
 from .contract import CAPABILITIES, CONTRACT_VERSION, threshold_profile
 from .layout import plan_straight_layout
-from .place import Clock, PlacementBackend, place_upright, plan_place
+from .place import TaskContext, place_upright, plan_place
 from .recovery import plan_recovery
+from .skills import SKILLS
 from .verify import verify_stable_placement
 
 __all__ = [
     "CAPABILITIES",
     "CONTRACT_VERSION",
-    "Clock",
-    "PlacementBackend",
+    "SKILLS",
+    "TaskContext",
     "place_upright",
     "plan_place",
     "plan_recovery",

@@ -19,7 +19,15 @@ import numpy as np
 
 from . import geometry as geo
 from . import upstream
-from .contract import RequestRejected, check_geometry, finite, result_skeleton, vec
+from .contract import (
+    DEFAULT_TOLERANCES,
+    RequestRejected,
+    check_geometry,
+    envelope,
+    finite,
+    set_failure,
+    vec,
+)
 
 ORDERS = ("far_first", "forward", "reverse")
 """far_first is planning-a-domino-layout's rule (farthest from the arm first, from
@@ -31,11 +39,11 @@ def _upstream_size(g: dict) -> dict[str, float]:
 
 
 def plan_straight_layout(request: dict) -> dict:
-    result = result_skeleton("plan_straight_layout", request.get("request_id"))
+    result = envelope("domino.plan_straight_layout", request, kind="tool")
     try:
         pd, pl = upstream.place(), upstream.layout()
     except upstream.UpstreamUnavailable as exc:
-        result["failure"] = {"code": "dependency_missing", "detail": str(exc)}
+        set_failure(result, "dependency_missing", "validate", str(exc), "rejected")
         return result
     try:
         frame = request.get("frame_id")
@@ -84,7 +92,7 @@ def plan_straight_layout(request: dict) -> dict:
                 )
             existing.append((str(e.get("id")), geo.xy_facing(p)))
     except RequestRejected as exc:
-        result["failure"] = {"code": exc.code, "detail": str(exc)}
+        set_failure(result, exc.code, "validate", str(exc), "rejected")
         return result
 
     along = np.array([math.cos(math.radians(heading)), math.sin(math.radians(heading))])
@@ -93,7 +101,9 @@ def plan_straight_layout(request: dict) -> dict:
     slots = [
         {
             "index": k,
-            "pose": geo.pose(frame, [*xy[k], table_z], geo.yaw_quat(math.radians(heading))),
+            "pose": geo.pose(
+                frame, [*xy[k], table_z - geo.bottom_z(g)], geo.yaw_quat(math.radians(heading))
+            ),
         }
         for k in range(n)
     ]
@@ -120,7 +130,7 @@ def plan_straight_layout(request: dict) -> dict:
         if ws is not None and not (np.all(feet[k] >= ws[0]) and np.all(feet[k] <= ws[1])):
             problems.append(f"slot {k} is outside the workspace")
     if problems:
-        result["failure"] = {"code": "infeasible_geometry", "detail": "; ".join(problems)}
+        set_failure(result, "infeasible_geometry", "validate", "; ".join(problems), "rejected")
         return result
 
     # --- cascade physics, reported (enforced only on request)
@@ -131,10 +141,13 @@ def plan_straight_layout(request: dict) -> dict:
         margin = crit - face_gap
         result["evidence"]["cascade"] = {"critical_gap_m": crit, "margin_m": margin, "friction": mu}
         if cascade.get("require") and margin < float(cascade.get("margin_m", pl.TOPPLE_MARGIN_MIN)):
-            result["failure"] = {
-                "code": "infeasible_geometry",
-                "detail": f"face gap {face_gap * 1e3:.1f} mm does not carry a cascade (critical {crit * 1e3:.1f} mm)",
-            }
+            set_failure(
+                result,
+                "infeasible_geometry",
+                "validate",
+                f"face gap {face_gap * 1e3:.1f} mm does not carry a cascade (critical {crit * 1e3:.1f} mm)",
+                "rejected",
+            )
             return result
 
     # --- orders: each step's open hand clears the tiles standing then, and the arm does
@@ -193,15 +206,43 @@ def plan_straight_layout(request: dict) -> dict:
             chosen = (name, steps)
     result["evidence"]["order_candidates"] = candidates
     if chosen is None:
-        result["failure"] = {
-            "code": "retreat_blocked",
-            "detail": "no candidate order keeps the hand and arm clear: "
+        set_failure(
+            result,
+            "retreat_blocked",
+            "validate",
+            "no candidate order keeps the hand and arm clear: "
             + "; ".join(f"{k}: {v['reason']}" for k, v in candidates.items()),
-        }
+            "rejected",
+        )
         return result
     result["evidence"]["order_name"] = chosen[0]
     result["evidence"]["build_order"] = [s["slot_index"] for s in chosen[1]]
     result["evidence"]["build_steps"] = chosen[1]
+    rank = {k: i for i, k in enumerate(result["evidence"]["build_order"])}
+    result["evidence"]["layout_target"] = {
+        "kind": "domino_layout",
+        "layout_id": str(request.get("layout_id") or f"line{n}"),
+        "frame_id": frame,
+        "piece": {"class": "domino", "size_m": [g["height_m"], g["width_m"], g["thickness_m"]]},
+        "slots": [
+            {
+                "slot_id": f"s{k}",
+                "order": rank[k],
+                "pose": slots[k]["pose"],
+                "neighbours": [f"s{j}" for j in (k - 1, k + 1) if 0 <= j < n],
+            }
+            for k in range(n)
+        ],
+        "tolerances_ref": request.get("tolerances_ref") or DEFAULT_TOLERANCES,
+    }
+    result["evidence"]["postcondition"] = {
+        "name": "layout_feasible",
+        "passed": True,
+        "criterion": "footprints apart, open hand clear of standing tiles at every step, arm corridor clear",
+        "measured": {"center_pitch_m": pitch, "face_gap_m": face_gap, "order": chosen[0]},
+        "thresholds_ref": None,
+    }
+    result["phase"] = "verify"
     result["status"] = "succeeded"
     result["unverified"] = ["plan only: no motion, no observation"]
     return result

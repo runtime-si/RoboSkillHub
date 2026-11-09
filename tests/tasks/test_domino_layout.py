@@ -34,7 +34,7 @@ def test_line_poses_spacing_and_facing():
     assert len(ev["slots"]) == 5
     assert ev["face_gap_m"] == pytest.approx(0.04 - 0.0075)
     p = ev["slots"][3]["pose"]
-    assert p["frame_id"] == "station" and p["position_m"] == pytest.approx([0.40, 0.12, 0.0])
+    assert p["frame_id"] == "station" and p["position_m"] == pytest.approx([0.40, 0.12, 0.024])
     assert geo.facing_deg_of(p) == pytest.approx(90.0)
     same = plan_straight_layout(req(spacing={"face_gap_m": 0.0325}))
     assert same["evidence"]["center_pitch_m"] == pytest.approx(0.04)
@@ -96,3 +96,12 @@ def test_cascade_physics_only_enforced_on_request():
     out = plan_straight_layout({**loose, "cascade": {"require": True}})
     assert out["status"] == "rejected"
     assert out["evidence"]["cascade"]["critical_gap_m"] < 0.07 - 0.0075
+
+
+def test_emits_a_rsh_task_layout_target():
+    out = plan_straight_layout(req(arm_base_xy_m=[0.0, 0.0]))
+    t = out["evidence"]["layout_target"]
+    assert t["kind"] == "domino_layout" and t["piece"]["size_m"] == [0.048, 0.024, 0.0075]
+    assert sorted(s["order"] for s in t["slots"]) == list(range(5))
+    assert t["slots"][0]["neighbours"] == ["s1"] and t["slots"][2]["neighbours"] == ["s1", "s3"]
+    assert out["evidence"]["postcondition"]["passed"]

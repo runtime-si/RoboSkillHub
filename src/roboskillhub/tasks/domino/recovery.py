@@ -12,7 +12,7 @@ from typing import Any
 
 OBSERVE = {
     "step": "observe_scene",
-    "capability": "object_pose_feedback",
+    "capability": "observe_objects",
     "why": "fresh target + neighbour poses; recovery starts from these",
 }
 REGRASP = {
@@ -32,7 +32,7 @@ PLACE = {
 }
 RETREAT_HOLDING = {
     "step": "retreat_holding",
-    "capability": "linear_cartesian_motion",
+    "capability": "move_waypoints",
     "why": "back straight off the support, gripper unchanged",
 }
 VERIFY = {
@@ -146,7 +146,7 @@ def plan_recovery(result: dict, *, attempts_used: int, max_attempts: int) -> dic
                 "restore the disturbed neighbours, then the target if it is down; each tile its own bounded attempt",
             ),
         }
-    if code in ("descent_blocked", "support_mismatch") or (
+    if code in ("descent_blocked", "support_mismatch", "tcp_not_converged") or (
         code == "placement_error" and phase in ("carry", "descent", "support_check")
     ):
         return {
@@ -158,7 +158,7 @@ def plan_recovery(result: dict, *, attempts_used: int, max_attempts: int) -> dic
                     OBSERVE,
                     {
                         "step": "check_support_calibration",
-                        "capability": "object_pose_feedback",
+                        "capability": "observe_objects",
                         "why": "measure the table under the target",
                     },
                     PLACE,
@@ -177,7 +177,7 @@ def plan_recovery(result: dict, *, attempts_used: int, max_attempts: int) -> dic
                 "the tile left the hand in transit; locate and regrasp it",
             ),
         }
-    if code == "release_not_confirmed":
+    if code in ("release_failed", "not_resting_on_support"):
         return {
             **base,
             **_plan(
@@ -186,7 +186,7 @@ def plan_recovery(result: dict, *, attempts_used: int, max_attempts: int) -> dic
                     OBSERVE,
                     {
                         "step": "release",
-                        "capability": "gripper_release",
+                        "capability": "set_gripper",
                         "why": "one more bounded opening",
                     },
                     RETREAT_HOLDING,

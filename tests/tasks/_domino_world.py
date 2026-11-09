@@ -1,214 +1,268 @@
-"""A synthetic, kinematic table world for the domino task's contract tests.
+"""A synthetic, kinematic table world and a fake rsh-task/1 task context for the domino
+contract tests.
 
 Not a simulator and not a robot: rigid poses moved by rules, with injectable faults.
-Every observation it emits is labelled ``synthetic_contract_test``. The faults change
-the *world* (where the tile and neighbours end up); the observer and classifier must
-infer them from observations, never from the fault labels.
+Every observation it emits has ``source: "synthetic:kinematic-world"`` (tier
+synthetic_contract_test). The faults change the *world* (where tiles end up, what the
+gripper does); the skill under test must infer them from observations and primitive
+results, never from the fault labels. ``FakeTaskContext`` mimics the primitives Agent 05
+specified (move_waypoints, set_gripper, observe_objects) closely enough to exercise the
+composition; it is not the runtime.
 """
 
 from __future__ import annotations
 
 import copy
 import math
+import uuid
 
 import numpy as np
 
 from roboskillhub.tasks.domino import geometry as geo
-from roboskillhub.tasks.domino.contract import CAPABILITIES, threshold_profile
+from roboskillhub.tasks.domino.contract import CAPABILITIES
 
 FRAME = "station"
-GEOMETRY = {
-    "height_m": 0.048,
-    "width_m": 0.024,
-    "thickness_m": 0.0075,
-    "origin": "bottom_face_center",
-    "yaw_symmetry_deg": 180.0,
-}
+H, W, T = 0.048, 0.024, 0.0075
+GEOMETRY = {"size_m": [H, W, T], "yaw_symmetry_deg": 180.0}
+SIZE = {"height_m": H, "width_m": W, "thickness_m": T, "origin": "geometric_center"}
 T0 = 1_800_000_000.0
 DOWN = [1.0, 0.0, 0.0, 0.0]  # TCP z pointing down (180 deg about x), xyzw
 GRASP_HANG = 0.030  # TCP this far over the tile's bottom (place_domino.GRASP_HEIGHT)
+SOURCE = "synthetic:kinematic-world"
 
 
-class FakeClock:
-    def __init__(self):
-        self.t = 0.0
-
-    def wall(self) -> float:
-        return T0 + self.t
-
-    def mono(self) -> float:
-        return self.t
-
-    def sleep(self, dt: float) -> None:
-        self.t += max(0.0, dt)
-
-
-def tile_pose(x: float, y: float, yaw_deg: float = 90.0, z: float = 0.0) -> dict:
-    return geo.pose(FRAME, [x, y, z], geo.yaw_quat(math.radians(yaw_deg)))
+def tile_pose(x: float, y: float, yaw_deg: float = 90.0, table_z: float = 0.0) -> dict:
+    """A standing tile's geometric-centre pose."""
+    return geo.pose(FRAME, [x, y, table_z + H / 2], geo.yaw_quat(math.radians(yaw_deg)))
 
 
 def t_tcp_object(dx: float = 0.0) -> dict:
-    """The tile's pose in the TCP frame: TCP points down, tile bottom GRASP_HANG below it."""
-    # In the TCP frame (z down), the object's up axis is -z: rotate 180 about x.
-    return geo.pose("tcp", [dx, 0.0, GRASP_HANG], [1.0, 0.0, 0.0, 0.0])
+    """The tile's pose in the TCP frame: TCP z points down, the tile's bottom GRASP_HANG
+    below the TCP, so its centre GRASP_HANG - H/2 below."""
+    return geo.pose("tcp", [dx, 0.0, GRASP_HANG - H / 2], [1.0, 0.0, 0.0, 0.0])
 
 
-def lying(p: dict) -> dict:
+def lying(p: dict, table_z: float = 0.0) -> dict:
     """The tile fallen on its broad face, along its facing."""
     t = geo.to_matrix(p)
-    r = np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]], dtype=float)  # +90 about local y
+    r = np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]], dtype=float)  # +90 deg about local y
     t2 = t.copy()
     t2[:3, :3] = t[:3, :3] @ r
-    t2[2, 3] = t[2, 3] + GEOMETRY["thickness_m"] / 2.0
+    t2[:3, 3] += t[:3, :3] @ np.array([H / 2, 0, 0])
+    t2[2, 3] = table_z + T / 2
     return geo.from_matrix(t2, FRAME)
 
 
-class SyntheticStation:
+def observation(oid: str, p: dict | None, t: float, **kw) -> dict:
+    rec = {
+        "object_id": oid,
+        "class": "domino",
+        "frame_id": FRAME,
+        "position_m": None if p is None else list(p["position_m"]),
+        "quaternion_xyzw": None if p is None else list(p["quaternion_xyzw"]),
+        "timestamp_s": t,
+        "source": SOURCE,
+        "privileged": False,
+        "confidence": 0.95,
+        "uncertainty": {"position_m": 0.001, "rotation_rad": 0.01},
+        "visibility": "visible",
+        "state_label": None,
+    }
+    rec.update(kw)
+    return rec
+
+
+class FakeTaskContext:
     def __init__(
         self,
-        clock: FakeClock,
         *,
         faults: set[str] | None = None,
         capabilities=None,
         grasp_dx: float = 0.0,
         table_z: float = 0.0,
-        neighbors: dict | None = None,
+        cancel_after_s: float | None = None,
     ):
-        self.clock = clock
+        self.t = 0.0
+        self.task_id, self.request_id = "task-1", "task-1/n1/a1"
+        self.privileged_allowed = False
         self.faults = set(faults or ())
-        self.capabilities = set(CAPABILITIES["geometric"] if capabilities is None else capabilities)
+        self.capabilities = frozenset(
+            CAPABILITIES["geometric"] if capabilities is None else capabilities
+        )
         self.table_z = table_z
         self.true_T = t_tcp_object(grasp_dx)
         self.target = "d2"
-        self.neighbors = copy.deepcopy(
-            neighbors
-            if neighbors is not None
-            else {"d0": tile_pose(0.40, 0.00), "d1": tile_pose(0.40, 0.04)}
-        )
+        self.neighbors = {"d0": tile_pose(0.40, 0.00), "d1": tile_pose(0.40, 0.04)}
         self.tcp = geo.pose(FRAME, [0.30, 0.10, 0.20], DOWN)
         self.held = "missed_grasp" not in self.faults
         self.tile = None if self.held else lying(tile_pose(0.25, -0.1))
         self.calls: list[str] = []
-        self.seq = 0
-        self.frozen = None
         self.released = False
-        self.in_lease = False
+        self.frozen_t: float | None = None
+        self.cancel_after_s = cancel_after_s
 
-    # -- helpers
-    def _tick(self, dt: float = 0.05) -> None:
-        self.clock.sleep(dt)
+    # -- clock
+    def now(self) -> float:
+        return T0 + self.t
 
+    def sleep(self, dt: float) -> None:
+        self.t += max(0.0, dt)
+
+    def cancelled(self) -> bool:
+        return self.cancel_after_s is not None and self.t > self.cancel_after_s
+
+    # -- world rules
     def tile_pose(self) -> dict:
         return geo.object_from_tcp(self.tcp, self.true_T) if self.held else self.tile
 
-    # -- PlacementBackend
-    def describe(self) -> dict:
-        return {
-            "name": "synthetic-domino-world",
-            "mode": "synthetic_contract_test",
-            "frame_id": FRAME,
-            "capabilities": sorted(self.capabilities),
-        }
-
-    def begin_transaction(self, *, timeout_s: float) -> None:
-        self.calls.append("begin")
-        self.in_lease = True
-
-    def end_transaction(self) -> None:
-        self.calls.append("end")
-        self.in_lease = False
-
-    def move(self, pose: dict, *, linear: bool, speed_m_s: float, timeout_s: float) -> dict:
-        assert self.in_lease
-        self.calls.append(f"move:{'linear' if linear else 'free'}")
+    def _move(self, pose: dict, speed: float) -> None:
         target = copy.deepcopy(pose)
-        if "tcp_offset" in self.faults and linear and not self.released:
+        leaving_start = self.tcp["position_m"][2] > 0.15
+        if "tcp_offset" in self.faults and not self.released and target["position_m"][2] < 0.06:
             target["position_m"][0] += 0.012
-        dist = float(np.linalg.norm(np.subtract(target["position_m"], self.tcp["position_m"])))
-        self._tick(max(0.05, dist / speed_m_s))
+        self.t += max(
+            0.02,
+            float(np.linalg.norm(np.subtract(target["position_m"], self.tcp["position_m"])))
+            / speed,
+        )
         if self.held:
-            obj = geo.object_from_tcp(target, self.true_T)
-            low = geo.lowest_point_height(obj, GEOMETRY, [0, 0, self.table_z], [0, 0, 1])
-            if low < 0:  # the tile stops on the real table
+            low = geo.lowest_point_height(
+                geo.object_from_tcp(target, self.true_T), SIZE, [0, 0, self.table_z], [0, 0, 1]
+            )
+            if low < 0:  # the held tile stops on the real table
                 target["position_m"][2] -= low
         self.tcp = target
-        if "drop_in_transit" in self.faults and not linear and self.held:
+        if "drop_in_transit" in self.faults and self.held and leaving_start:
             self.held = False
-            self.tile = lying(tile_pose(0.33, 0.12, z=self.table_z))
-        if self.released and linear and "retreat_knocks" in self.faults:
-            self.neighbors["d1"] = lying(self.neighbors["d1"])
-        if self.released and linear and "still_holding" in self.faults:
-            pass
-        return {"ok": True}
+            self.tile = lying(tile_pose(0.33, 0.12), self.table_z)
+        if self.released and "retreat_knocks" in self.faults:
+            self.neighbors["d1"] = lying(tile_pose(0.40, 0.04), self.table_z)
 
-    def guarded_descent(self, pose, *, max_travel_m, speed_m_s, timeout_s):
-        return self.move(pose, linear=True, speed_m_s=speed_m_s, timeout_s=timeout_s)
-
-    def release(self, width_m: float, *, timeout_s: float) -> dict:
-        self.calls.append("release")
-        self._tick()
-        if "still_holding" in self.faults:
-            return {"ok": True}
-        p = self.tile_pose()
-        drop = geo.lowest_point_height(p, GEOMETRY, [0, 0, self.table_z], [0, 0, 1])
-        rest = geo.translated(p, [0, 0, -drop])
-        self.held, self.released = False, True
-        self.tile = lying(rest) if (drop > 0.008 or "fall_on_release" in self.faults) else rest
-        return {"ok": True}
-
-    def get_state(self, *, timeout_s: float) -> dict:
-        self._tick(0.01)
-        return {"pose": copy.deepcopy(self.tcp), "timestamp_s": self.clock.wall()}
-
-    def observe(self, *, timeout_s: float) -> dict:
-        self._tick(0.1)
-        if self.frozen is not None:
-            return copy.deepcopy(self.frozen)
-        if self.released and "fall_in_settle" in self.faults and self.tcp["position_m"][2] > 0.06:
-            self.tile = lying(self.tile) if geo.tilt_rad(self.tile, [0, 0, 1]) < 0.1 else self.tile
-        self.seq += 1
-        tile = self.tile_pose()
-        objects = {
-            self.target: {"pose": copy.deepcopy(tile), "identity_confidence": 0.95, "visible": True}
+    # -- rsh-task/1 primitives (as Agent 05 specified them)
+    def invoke(self, capability: str, request: dict) -> dict:
+        self.calls.append(capability)
+        out = {
+            "invocation_id": str(uuid.uuid4()),
+            "capability": capability,
+            "status": "succeeded",
+            "failure_type": None,
+            "evidence": {},
         }
-        if "no_orientation" in self.faults and self.released:
-            objects[self.target]["pose"] = None
-        if "wrong_identity" in self.faults and self.released:
-            objects[self.target]["identity_confidence"] = 0.2
-        for k, p in self.neighbors.items():
-            objects[k] = {"pose": copy.deepcopy(p), "identity_confidence": 0.95, "visible": True}
-        obs = {
-            "sample_id": f"syn-{self.seq}",
-            "timestamp_s": self.clock.wall(),
-            "frame_id": FRAME,
-            "source": "synthetic-domino-world",
-            "source_kind": "synthetic_contract_test",
-            "objects": objects,
-            "gripper": {"holding": self.held, "source": "synthetic-jaw-gap"},
-            "tcp_pose": copy.deepcopy(self.tcp),
-        }
-        if "observe_support" in self.faults:
-            obs["support_plane"] = {
-                "point_m": [0.0, 0.0, self.table_z],
-                "normal": [0, 0, 1],
-                "source": "synthetic-depth-plane",
+        if capability == "move_waypoints":
+            if request.get("linear") and "linear_cartesian_motion" not in self.capabilities:
+                return {**out, "status": "rejected", "failure_type": "capability_missing"}
+            for wp in request["waypoints"]:
+                self._move(wp, float(request.get("speed_m_s", 0.03)))
+            self.t += 0.01
+            err = float(
+                np.linalg.norm(
+                    np.subtract(self.tcp["position_m"], request["waypoints"][-1]["position_m"])
+                )
+            )
+            out["evidence"] = {
+                "measured_pose": copy.deepcopy(self.tcp),
+                "state_timestamp_s": self.now(),
+                "position_error_m": err,
             }
-        if "gripper_unknown" in self.faults:
-            obs["gripper"] = {"holding": None, "source": "synthetic-jaw-gap"}
-        if ("stale_obs" in self.faults and self.released) or (
-            "repeated_frames" in self.faults and self.released and self.tcp["position_m"][2] > 0.06
+            if err > 0.010:
+                return {**out, "status": "failed", "failure_type": "motion_not_converged"}
+            held = request.get("held")
+            if held:
+                obj = self.tile_pose()
+                pred = geo.object_from_tcp(self.tcp, held["T_TCP_object"])
+                if (
+                    not self.held
+                    or float(np.linalg.norm(np.subtract(obj["position_m"], pred["position_m"])))
+                    > 0.02
+                ):
+                    return {**out, "status": "failed", "failure_type": "held_object_slipped"}
+            return out
+        if capability == "set_gripper":
+            assert request["purpose"] == "release"
+            self.t += 0.2
+            if "still_holding" not in self.faults:
+                p = self.tile_pose()
+                drop = geo.lowest_point_height(p, SIZE, [0, 0, self.table_z], [0, 0, 1])
+                rest = geo.translated(p, [0, 0, -drop])
+                self.tile = (
+                    lying(rest, self.table_z)
+                    if (drop > 0.008 or "fall_on_release" in self.faults)
+                    else rest
+                )
+                self.released = True
+                self.held = "sticky_release" in self.faults
+            reported = self.held and "sticky_release" not in self.faults
+            out["evidence"] = {
+                "gripper": {
+                    "holding": reported,
+                    "width_m": request["width_m"],
+                    "timestamp_s": self.now(),
+                    "source": "synthetic:jaw-gap",
+                }
+            }
+            if reported:
+                return {**out, "status": "failed", "failure_type": "release_failed"}
+            return out
+        raise AssertionError(f"unexpected primitive {capability}")
+
+    def observe(self, object_ids, *, require_orientation: bool = False) -> list[dict]:
+        self.t += 0.1
+        t = self.now()
+        if self.released and (
+            "stale_obs" in self.faults
+            or ("repeated_frames" in self.faults and self.tcp["position_m"][2] > 0.06)
         ):
-            self.frozen = copy.deepcopy(obs)
-            if "stale_obs" in self.faults:
-                self.frozen["sample_id"] = "frozen"
-        return obs
+            self.frozen_t = self.frozen_t or t
+            t = self.frozen_t
+        if (
+            self.released
+            and "fall_in_settle" in self.faults
+            and self.tcp["position_m"][2] > 0.06
+            and geo.tilt_rad(self.tile, [0, 0, 1]) < 0.1
+        ):
+            self.tile = lying(self.tile, self.table_z)
+        out = []
+        for oid in object_ids:
+            if oid == self.target:
+                rec = observation(oid, self.tile_pose(), t)
+                if self.released and "no_orientation" in self.faults:
+                    rec["quaternion_xyzw"] = None
+                if self.released and "wrong_identity" in self.faults:
+                    rec["confidence"] = 0.2
+            elif oid in self.neighbors:
+                rec = observation(oid, self.neighbors[oid], t)
+            elif oid == "table":
+                rec = observation(
+                    "table",
+                    geo.pose(FRAME, [0.4, 0.08, self.table_z], [0, 0, 0, 1]),
+                    t,
+                    **{"class": "support"},
+                )
+            else:
+                rec = observation(oid, None, t, visibility="not_found")
+            out.append(rec)
+        return out
 
-    def stop(self) -> None:
-        self.calls.append("stop")
+    def state(self) -> dict:
+        self.t += 0.01
+        holding = (
+            None
+            if "gripper_unknown" in self.faults
+            else self.held and not ("sticky_release" in self.faults and self.released)
+        )
+        return {
+            "tcp_pose": copy.deepcopy(self.tcp),
+            "timestamp_s": self.now(),
+            "gripper": {
+                "holding": holding,
+                "timestamp_s": self.now(),
+                "source": "synthetic:jaw-gap",
+            },
+        }
 
 
-def request(clock: FakeClock, **over) -> dict:
-    now = clock.wall()
+def request(ctx: FakeTaskContext, **over) -> dict:
+    now = ctx.now()
     req = {
         "request_id": "req-1",
         "scene_version": "synthetic-row-v1",
@@ -216,14 +270,16 @@ def request(clock: FakeClock, **over) -> dict:
         "target_id": "d2",
         "geometry": dict(GEOMETRY),
         "target_object_pose": tile_pose(0.40, 0.08),
-        "holding": {
+        "held": {
             "object_id": "d2",
             "gripper_id": "left",
-            "T_tcp_object": t_tcp_object(),
-            "position_std_m": 0.001,
-            "orientation_std_rad": 0.02,
-            "source": "agent01.synthetic_holding_estimate",
+            "T_TCP_object": t_tcp_object(),
+            "estimate": "grasp_geometry_prior",
             "timestamp_s": now,
+            "uncertainty": {"position_m": 0.001, "rotation_rad": 0.02},
+            "collision_geometry": {"type": "box", "size_m": [H, W, T]},
+            "valid": True,
+            "invalidated_reason": None,
         },
         "support": {
             "frame_id": FRAME,
@@ -235,18 +291,16 @@ def request(clock: FakeClock, **over) -> dict:
             "region_max_m": [0.7, 0.3],
         },
         "neighbors": [
-            {"id": "d0", "pose": tile_pose(0.40, 0.00), "timestamp_s": now, "source": "synthetic"},
-            {"id": "d1", "pose": tile_pose(0.40, 0.04), "timestamp_s": now, "source": "synthetic"},
+            observation("d0", tile_pose(0.40, 0.00), now),
+            observation("d1", tile_pose(0.40, 0.04), now),
         ],
         "approach": {"distance_m": 0.05},
         "retreat": {"distance_m": 0.06},
         "hand": {"max_open_width_m": 0.094, "tip_reach_m": 0.0102},
         "workspace": {"min_m": [0.0, -0.5, 0.0], "max_m": [0.8, 0.5, 0.5]},
-        "mode": "geometric",
         "speed_m_s": 0.1,
         "timeout_s": 60.0,
         "max_recovery_attempts": 2,
-        "thresholds": threshold_profile(),
     }
     req.update(over)
     return req

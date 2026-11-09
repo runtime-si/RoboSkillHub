@@ -68,10 +68,27 @@ def test_yaw_symmetry_folds_only_when_declared():
     assert math.degrees(geo.yaw_error_rad(a, c, [0, 0, 1], 180.0)) == pytest.approx(10)
 
 
-def test_lowest_point_is_measured_from_the_bottom_face_origin():
-    g = check_geometry({"height_m": 0.048, "width_m": 0.024, "thickness_m": 0.0075})
-    p = geo.pose(F, [0, 0, 0.002], geo.yaw_quat(0.3))
+def test_lowest_point_follows_the_declared_origin():
+    g = check_geometry({"size_m": [0.048, 0.024, 0.0075]})
+    assert g["origin"] == "geometric_center" and g["height_m"] == 0.048
+    p = geo.pose(F, [0, 0, 0.026], geo.yaw_quat(0.3))
     assert geo.lowest_point_height(p, g, [0, 0, 0], [0, 0, 1]) == pytest.approx(0.002)
+    b = check_geometry({"size_m": [0.048, 0.024, 0.0075], "origin": "bottom_face_center"})
+    p = geo.pose(F, [0, 0, 0.002], geo.yaw_quat(0.3))
+    assert geo.lowest_point_height(p, b, [0, 0, 0], [0, 0, 1]) == pytest.approx(0.002)
+
+
+def test_threshold_config_matches_the_placing_skill_constants():
+    from roboskillhub.tasks.domino import upstream
+    from roboskillhub.tasks.domino.contract import threshold_profile
+
+    pd = upstream.place()
+    th = threshold_profile()
+    assert th["position_tolerance_m"] == pd.POSITION_TOLERANCE
+    assert th["yaw_tolerance_rad"] == pytest.approx(math.radians(pd.YAW_TOLERANCE_DEG))
+    assert th["support_height_tolerance_m"] == th["tcp_tolerance_m"] == pd.DESCENT_TOLERANCE
+    assert th["release_clearance_m"] == pd.RELEASE_CLEARANCE
+    assert th["release_gap_m"] == pd.RELEASE_GAP
 
 
 @pytest.mark.parametrize(

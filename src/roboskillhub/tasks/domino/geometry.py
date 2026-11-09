@@ -4,10 +4,11 @@ Poses are ``{"frame_id", "position_m", "quaternion_xyzw"}`` (the workcell runtim
 format). ``T_A_B`` maps coordinates in frame B to frame A, so
 ``T_station_object = T_station_tcp * T_tcp_object``.
 
-The domino's object frame (fixed, :data:`OBJECT_FRAME`): origin at the centre of the
-support face (the bottom end of a standing tile), +z the up axis along its height,
-+x the facing (the broad faces' normal, the way it topples and the row runs; the
-placing skill's convention), +y across its width.
+The domino's object frame (:data:`OBJECT_FRAME`): origin at the tile's geometric
+centre (shared contract rsh-task/1, DominoLayoutTarget), +z the up axis along its
+height, +x the facing (the broad faces' normal, the way it topples and the row runs;
+the placing skill's convention), +y across its width. ``geometry.origin =
+"bottom_face_center"`` is accepted for callers that pose the support face instead.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from typing import Any
 import numpy as np
 
 OBJECT_FRAME = {
-    "origin": "bottom_face_center",
+    "origin": "geometric_center",
     "up_axis": "+z",
     "facing_axis": "+x",
     "width_axis": "+y",
@@ -178,15 +179,22 @@ def height_over_plane(point: Any, plane_point: Any, plane_normal: Any) -> float:
     )
 
 
+def bottom_z(size: dict) -> float:
+    """The support face's z in the object frame: -h/2 for the shared contract's
+    geometric-centre origin, 0 for a bottom-face origin."""
+    return 0.0 if size.get("origin") == "bottom_face_center" else -size["height_m"] / 2.0
+
+
 def lowest_point_height(p: dict, size: dict, plane_point: Any, plane_normal: Any) -> float:
     """Signed height of the object's lowest box corner over the support plane."""
     t = to_matrix(p)
     hx, hy = size["thickness_m"] / 2.0, size["width_m"] / 2.0
+    z0 = bottom_z(size)
     corners = [
         t[:3, :3] @ np.array([sx * hx, sy * hy, z]) + t[:3, 3]
         for sx in (-1, 1)
         for sy in (-1, 1)
-        for z in (0.0, size["height_m"])
+        for z in (z0, z0 + size["height_m"])
     ]
     return min(height_over_plane(c, plane_point, plane_normal) for c in corners)
 

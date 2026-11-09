@@ -1,7 +1,6 @@
-"""verify_stable_placement on synthetic observation streams (tier: synthetic_contract_test).
-
-Each case builds what a camera would have reported; the observer gets no hint of the
-intended outcome."""
+"""verify_stable_placement on synthetic rsh-task/1 Observation streams (tier:
+synthetic_contract_test). Each case builds what a camera would have reported; the
+observer gets no hint of the intended outcome."""
 
 from __future__ import annotations
 
@@ -10,59 +9,30 @@ import math
 
 import numpy as np
 import pytest
-from _domino_world import FRAME, GEOMETRY, T0, lying, tile_pose
+from _domino_world import FRAME, GEOMETRY, SOURCE, T0, lying, observation, tile_pose
 
-from roboskillhub.tasks.domino import verify_stable_placement
-from roboskillhub.tasks.domino.contract import threshold_profile
+from roboskillhub.tasks.domino import SKILLS, verify_stable_placement
 
 TARGET = tile_pose(0.40, 0.08)
 N0, N1 = tile_pose(0.40, 0.00), tile_pose(0.40, 0.04)
 RELEASE, RETREAT = T0 + 1.0, T0 + 2.0
 
 
-def sample(
-    t,
-    target=TARGET,
-    n1=N1,
-    *,
-    sid=None,
-    holding=False,
-    kind="synthetic_contract_test",
-    conf=0.95,
-    tcp_z=0.15,
-    **target_rec,
-):
-    objs = {
-        "d2": {
-            "pose": copy.deepcopy(target),
-            "identity_confidence": conf,
-            "visible": True,
-            **target_rec,
-        },
-        "d0": {"pose": copy.deepcopy(N0), "identity_confidence": 0.95, "visible": True},
-        "d1": {"pose": copy.deepcopy(n1), "identity_confidence": 0.95, "visible": True},
-    }
-    return {
-        "sample_id": sid or f"f{t:.3f}",
-        "timestamp_s": t,
-        "frame_id": FRAME,
-        "source": "synthetic-camera",
-        "source_kind": kind,
-        "objects": objs,
-        "gripper": {"holding": holding, "source": "jaw-gap"},
-        "tcp_pose": {
-            "frame_id": FRAME,
-            "position_m": [0.4, 0.08, tcp_z],
-            "quaternion_xyzw": [1, 0, 0, 0],
-        },
-    }
+def frame(t, target=TARGET, n1=N1, **target_kw):
+    return [
+        observation("d2", target, t, **target_kw),
+        observation("d0", N0, t),
+        observation("d1", n1, t),
+    ]
 
 
 def stream(**kw):
-    return [sample(RELEASE + 0.5, **kw)] + [sample(RETREAT + 0.25 * k, **kw) for k in range(4)]
+    return [
+        r for t in [RELEASE + 0.5] + [RETREAT + 0.25 * k for k in range(4)] for r in frame(t, **kw)
+    ]
 
 
-def req(observations, **over):
+def req(observations, *, holding=False, tcp_z=0.15, **over):
     r = {
         "request_id": "v1",
         "frame_id": FRAME,
@@ -76,13 +46,23 @@ def req(observations, **over):
             "height_std_m": 0.001,
             "calibration_version": "c1",
         },
-        "neighbors_baseline": {
-            "d0": {"pose": N0, "timestamp_s": T0 - 1, "source": "synthetic-camera"},
-            "d1": {"pose": N1, "timestamp_s": T0 - 1, "source": "synthetic-camera"},
-        },
+        "neighbors_baseline": [observation("d0", N0, T0 - 1), observation("d1", N1, T0 - 1)],
         "events": {"action_start_s": T0, "release_s": RELEASE, "retreat_done_s": RETREAT},
         "observations": observations,
-        "thresholds": threshold_profile(),
+        "gripper_states": []
+        if holding is None
+        else [{"holding": holding, "timestamp_s": RELEASE + 0.1, "source": "jaw-gap"}],
+        "tcp_states": [
+            {
+                "pose": {
+                    "frame_id": FRAME,
+                    "position_m": [0.4, 0.08, tcp_z],
+                    "quaternion_xyzw": [1, 0, 0, 0],
+                },
+                "timestamp_s": RETREAT,
+                "source": "move",
+            }
+        ],
         "now_s": RETREAT + 1.0,
         "gripper_tip_reach_m": 0.0102,
     }
@@ -93,14 +73,21 @@ def req(observations, **over):
 def test_fresh_stable_stream_succeeds():
     out = verify_stable_placement(req(stream()))
     assert out["status"] == "succeeded", (out["failure"], out["unknowns"])
+    assert out["contract_version"] == "rsh-task/1" and out["kind"] == "tool"
+    assert out["evidence"]["postcondition"]["passed"] and out["observations"]
     assert out["evidence"]["evidence_tier"] == "synthetic_contract_test"
-    assert out["evidence"]["window"]["samples"] == 4
+    assert out["evidence"]["window"]["usable_samples"] == 4
     assert out["evidence"]["release"]["confirmed"]
 
 
+def test_registered_tool_entry():
+    entry = next(s for s in SKILLS if s.skill_id == "domino.verify_stable_placement")
+    assert entry.kind == "tool" and entry.requires == frozenset()
+    assert entry.run(req(stream()))["status"] == "succeeded"
+
+
 def test_one_frame_repeated_does_not_fill_the_window():
-    s = sample(RETREAT + 0.1, sid="same")
-    obs = [sample(RELEASE + 0.5)] + [dict(s) for _ in range(4)]
+    obs = frame(RELEASE + 0.5) + [r for _ in range(4) for r in frame(RETREAT + 0.1)]
     out = verify_stable_placement(req(obs))
     assert out["status"] == "unverified"
     assert {"observation_repeated", "insufficient_settle_window"} <= set(out["unverified"])
@@ -108,78 +95,86 @@ def test_one_frame_repeated_does_not_fill_the_window():
 
 def test_stale_stream_is_not_success():
     out = verify_stable_placement(req(stream(), now_s=RETREAT + 30))
-    assert out["status"] == "unverified" and "observation_stale" in out["unverified"]
+    assert out["status"] == "unverified" and out["failure_type"] == "stale_observation"
 
 
 def test_short_window_is_not_success():
-    obs = [sample(RETREAT + 0.05 * k) for k in range(3)]
+    obs = [r for k in range(3) for r in frame(RETREAT + 0.05 * k)]
     out = verify_stable_placement(req(obs))
     assert out["status"] == "unverified" and "insufficient_settle_window" in out["unverified"]
 
 
 def test_position_only_or_wrong_identity_is_not_success():
-    out = verify_stable_placement(req(stream(target=None)))
+    obs = stream()
+    for r in obs:
+        if r["object_id"] == "d2":
+            r["quaternion_xyzw"], r["source"] = None, "rgbd_centroid"
+    out = verify_stable_placement(req(obs))
     assert out["status"] == "unverified" and "orientation_missing" in out["unverified"]
-    out = verify_stable_placement(req(stream(conf=0.1)))
-    assert out["status"] == "unverified" and "identity_mismatch" in out["unverified"]
+    out = verify_stable_placement(req(stream(confidence=0.1)))
+    assert out["status"] == "unverified" and out["failure_type"] == "perception.low_confidence"
+    sensor = stream(confidence=None, source="rgbd_pose")
+    assert verify_stable_placement(req(sensor))["failure"]["code"] == "identity_mismatch"
+
+
+def test_occluded_target_is_not_success():
+    out = verify_stable_placement(req(stream(visibility="occluded")))
+    assert out["status"] == "unverified" and out["failure_type"] == "object_not_observed"
 
 
 def test_unknown_release_is_not_success():
-    obs = stream(holding=None, tcp_z=0.05)
-    out = verify_stable_placement(req(obs))
+    out = verify_stable_placement(req(stream(), holding=None, tcp_z=0.05))
     assert out["status"] == "unverified" and "release_not_confirmed" in out["unverified"]
     # The measured TCP well clear of the tile's top is release evidence on its own.
-    out = verify_stable_placement(req(stream(holding=None, tcp_z=0.12)))
+    out = verify_stable_placement(req(stream(), holding=None, tcp_z=0.12))
     assert out["status"] == "succeeded" and out["evidence"]["release"]["by"].startswith(
         "measured_tcp"
     )
 
 
 def test_gripper_still_holding_fails():
-    out = verify_stable_placement(req(stream(holding=True)))
-    assert out["status"] == "failed" and out["failure"]["code"] == "release_not_confirmed"
+    out = verify_stable_placement(req(stream(), holding=True))
+    assert out["status"] == "failed" and out["failure_type"] == "release_failed"
 
 
 def test_hanging_tile_is_not_resting_on_the_support():
     hung = copy.deepcopy(TARGET)
-    hung["position_m"][2] = 0.02
-    out = verify_stable_placement(req(stream(target=hung, holding=None)))
-    assert out["status"] == "failed" and out["failure"]["code"] == "release_not_confirmed"
+    hung["position_m"][2] += 0.02
+    out = verify_stable_placement(req(stream(target=hung), holding=None))
+    assert out["status"] == "failed" and out["failure_type"] == "domino.not_resting_on_support"
 
 
 def test_right_xyz_but_lying_fails():
     flat = lying(TARGET)
     flat["position_m"] = list(TARGET["position_m"])
     out = verify_stable_placement(req(stream(target=flat)))
-    assert out["status"] == "failed" and out["failure"]["code"] == "unstable_after_release"
+    assert out["status"] == "failed" and out["failure_type"] == "domino.toppled_after_release"
 
 
 def test_fell_between_release_and_retreat_is_located():
-    obs = [sample(RELEASE + 0.5, target=lying(TARGET))] + [
-        sample(RETREAT + 0.25 * k, target=lying(TARGET)) for k in range(4)
-    ]
-    out = verify_stable_placement(req(obs))
+    out = verify_stable_placement(req(stream(target=lying(TARGET))))
     assert (
         out["failure"]["code"] == "unstable_after_release" and out["failure"]["phase"] == "release"
     )
 
 
 def test_drift_in_the_window_fails():
-    obs = [sample(RELEASE + 0.5)]
+    obs = frame(RELEASE + 0.5)
     for k in range(4):
         p = copy.deepcopy(TARGET)
         p["position_m"][1] += 0.0015 * k
-        obs.append(sample(RETREAT + 0.25 * k, target=p))
+        obs += frame(RETREAT + 0.25 * k, target=p)
     out = verify_stable_placement(req(obs))
     assert out["status"] == "failed" and out["failure"]["code"] == "unstable_after_release"
 
 
 def test_target_ok_but_neighbour_down_fails_and_locates_retreat():
-    obs = [sample(RELEASE + 0.5)] + [sample(RETREAT + 0.25 * k, n1=lying(N1)) for k in range(4)]
+    obs = frame(RELEASE + 0.5) + [
+        r for k in range(4) for r in frame(RETREAT + 0.25 * k, n1=lying(N1))
+    ]
     out = verify_stable_placement(req(obs))
-    assert out["status"] == "failed"
-    assert out["failure"]["code"] == "neighbor_disturbed" and out["failure"]["neighbor_id"] == "d1"
-    assert out["failure"]["phase"] == "retreat"
+    assert out["status"] == "failed" and out["failure_type"] == "domino.neighbour_disturbed"
+    assert out["failure"]["neighbor_id"] == "d1" and out["failure"]["phase"] == "retreat"
 
 
 def test_snapshot_diff_report_counts_as_neighbour_evidence():
@@ -193,7 +188,7 @@ def test_offset_and_yaw_errors():
     off = copy.deepcopy(TARGET)
     off["position_m"][0] += 0.012
     out = verify_stable_placement(req(stream(target=off)))
-    assert out["failure"]["code"] == "placement_error"
+    assert out["failure_type"] == "domino.pose_out_of_tolerance"
     flipped = tile_pose(0.40, 0.08, yaw_deg=270.0)
     assert verify_stable_placement(req(stream(target=flipped)))["status"] == "succeeded"
     g360 = {**GEOMETRY, "yaw_symmetry_deg": 360.0}
@@ -203,65 +198,87 @@ def test_offset_and_yaw_errors():
     )
 
 
-def test_future_wrong_frame_and_unlabelled_samples_are_dropped():
+def test_wrong_frame_future_and_unlabelled_records_are_dropped():
     bad = stream()
-    for s in bad:
-        s["frame_id"] = "camera"
-    out = verify_stable_placement(req(bad))
-    assert out["status"] == "unverified"
+    for r in bad:
+        r["frame_id"] = "camera"
+    assert verify_stable_placement(req(bad))["status"] == "unverified"
     unlabelled = stream()
-    for s in unlabelled:
-        s["source_kind"] = None
+    for r in unlabelled:
+        del r["privileged"]
     assert verify_stable_placement(req(unlabelled))["status"] == "unverified"
+    future = stream()
+    for r in future:
+        r["timestamp_s"] += 100
+    assert verify_stable_placement(req(future))["status"] == "unverified"
 
 
-def test_simulation_truth_is_labelled_and_can_be_refused():
-    obs = stream(kind="simulation_truth")
+def test_privileged_truth_is_labelled_and_can_be_refused():
+    obs = stream(source="simulation_truth", privileged=True)
     out = verify_stable_placement(req(obs))
-    assert out["status"] == "succeeded" and out["evidence"]["evidence_tier"] == "simulation_truth"
-    assert verify_stable_placement(req(obs, require_sensor_source=True))["status"] == "unverified"
+    assert out["status"] == "succeeded" and out["privileged_inputs"] is True
+    assert "simulation_truth" in out["evidence"]["evidence_tiers"]
+    assert verify_stable_placement(req(obs, require_unprivileged=True))["status"] == "unverified"
 
 
 def test_baseline_taken_after_the_action_is_rejected():
     r = req(stream())
-    r["neighbors_baseline"]["d0"]["timestamp_s"] = T0 + 5
-    out = verify_stable_placement(r)
-    assert out["status"] == "rejected"
+    r["neighbors_baseline"][0]["timestamp_s"] = T0 + 5
+    assert verify_stable_placement(r)["status"] == "rejected"
 
 
-def test_depth_check_seeing_no_standing_tile_fails_without_a_pose():
-    obs = stream(
-        target=None,
-        depth_upright={"seen": True, "standing": False, "why": "its top is 8 mm over the table"},
+def test_thresholds_only_tighten():
+    assert (
+        verify_stable_placement(req(stream(), thresholds_override={"tilt_tolerance_rad": 1.0}))[
+            "status"
+        ]
+        == "rejected"
     )
-    out = verify_stable_placement(req(obs))
+    off = copy.deepcopy(TARGET)
+    off["position_m"][0] += 0.005
+    assert verify_stable_placement(req(stream(target=off)))["status"] == "succeeded"
+    tight = verify_stable_placement(
+        req(stream(target=off), thresholds_override={"position_tolerance_m": 0.003})
+    )
+    assert tight["failure"]["code"] == "placement_error"
+
+
+def test_state_label_fall_without_a_pose():
+    out = verify_stable_placement(
+        req(
+            stream(
+                target=None, state_label="lying", source="depth_top_check:overhead", confidence=None
+            )
+        )
+    )
     assert out["status"] == "failed" and out["failure"]["code"] == "unstable_after_release"
-    # ...but a depth "standing" alone is not an orientation: unverified.
-    obs = stream(target=None, depth_upright={"seen": True, "standing": True})
-    assert verify_stable_placement(req(obs))["status"] == "unverified"
+    # ...but "standing" without an orientation is not an upright proof.
+    out = verify_stable_placement(req(stream(target=None, state_label="standing", confidence=None)))
+    assert out["status"] == "unverified"
 
 
-def test_depth_record_reuses_the_placing_skill_judge():
-    from roboskillhub.tasks.domino.depth import depth_upright_record
+def test_depth_observation_reuses_the_placing_skill_judge():
+    from roboskillhub.tasks.domino.depth import depth_upright_observation
 
-    f, cz = 600.0, 1.0
-    h, w = 480, 640
+    f, cz, h, w = 600.0, 1.0, 480, 640
     k = np.array([[f, 0, w / 2], [0, f, h / 2], [0, 0, 1]])
     depth = np.full((h, w), cz)
-    # a standing tile's top at (0.40, 0.08): 24 mm along x (width, facing +y), 7.5 along y
-    cx, cy = 0.40, 0.08
     top = cz - 0.048  # pinhole back-projection at the top's depth
     vv, uu = np.mgrid[0:h, 0:w]
     x, y = (uu - w / 2) * top / f, -(vv - h / 2) * top / f
-    depth[(np.abs(x - cx) <= 0.012) & (np.abs(y - cy) <= 0.00375)] = top
+    depth[(np.abs(x - 0.40) <= 0.012) & (np.abs(y - 0.08) <= 0.00375)] = top
     cam_pose = np.eye(4)
     cam_pose[:3, :3] = np.diag([1.0, -1.0, -1.0])
     cam_pose[2, 3] = cz
     obs = {"cameras": {"overhead": {"depth": depth, "intrinsics": k, "pose": cam_pose}}}
-    rec = depth_upright_record(obs, TARGET, 0.0, GEOMETRY)
-    assert rec["pose"] is None and rec["depth_upright"]["seen"]
-    assert rec["depth_upright"]["standing"], rec
-    assert rec["depth_upright"]["top"] == pytest.approx(0.048, abs=0.002)
-    rec = depth_upright_record(obs, tile_pose(0.30, 0.0), 0.0, GEOMETRY)
-    assert rec["depth_upright"]["seen"] and not rec["depth_upright"]["standing"]
-    assert math.isfinite(rec["depth_upright"]["top"])
+    g = {"height_m": 0.048, "width_m": 0.024, "thickness_m": 0.0075}
+    rec = depth_upright_observation(obs, "d2", TARGET, 0.0, g, timestamp_s=T0)
+    assert (
+        rec["quaternion_xyzw"] is None
+        and rec["confidence"] is None
+        and rec["state_label"] == "standing"
+    )
+    assert rec["depth_check"]["top"] == pytest.approx(0.048, abs=0.002)
+    rec = depth_upright_observation(obs, "dX", tile_pose(0.30, 0.0), 0.0, g, timestamp_s=T0)
+    assert rec["state_label"] == "lying" and math.isfinite(rec["depth_check"]["top"])
+    assert rec["source"].startswith("depth_top_check") and SOURCE not in rec["source"]

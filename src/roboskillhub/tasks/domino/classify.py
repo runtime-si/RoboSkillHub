@@ -10,50 +10,29 @@ from __future__ import annotations
 
 from typing import Any
 
-import numpy as np
-
-from . import geometry as geo
-
 
 def _h(cause: str, confidence: str, evidence: str) -> dict[str, str]:
     return {"cause": cause, "confidence": confidence, "evidence": evidence}
 
 
-def _pre_release_offset(observations: list[dict], plan: dict, trace: list[dict]) -> float | None:
-    """How far the held tile was observed from where T_tcp_object predicts it, at the
-    last observation before the release (support check)."""
-    tcp = next(
+def _pre_release_offset(trace: list[dict]) -> float | None:
+    """How far the held tile was observed from where T_TCP_object predicts it, at the
+    support check just before the release (logged by place_upright)."""
+    e = next(
         (
-            e["measured_tcp"]
+            e
             for e in reversed(trace)
-            if e.get("phase") == "descent" and "measured_tcp" in e
+            if e.get("phase") == "support_check" and e.get("held_offset_m") is not None
         ),
         None,
     )
-    obs = next(
-        (
-            o
-            for o in reversed(observations)
-            if any(
-                e.get("phase") == "support_check" and e.get("observation") == o.get("sample_id")
-                for e in trace
-            )
-        ),
-        None,
-    )
-    if tcp is None or obs is None:
-        return None
-    rec = (obs.get("objects") or {}).get(plan["target_id"])
-    if not isinstance(rec, dict) or not isinstance(rec.get("pose"), dict):
-        return None
-    pred = geo.object_from_tcp(tcp, plan["T_tcp_object"])
-    return float(np.linalg.norm(np.subtract(rec["pose"]["position_m"], pred["position_m"])))
+    return None if e is None else float(e["held_offset_m"])
 
 
 def classify(result: dict, observations: list[dict], plan: dict | None) -> list[dict[str, Any]]:
     failure = result.get("failure") or {}
     code, phase = failure.get("code"), failure.get("phase")
-    trace = result.get("phase_trace") or []
+    trace = result.get("trace") or []
     if result.get("status") == "succeeded" or not code or plan is None:
         return []
     th = plan["thresholds"]
@@ -79,6 +58,9 @@ def classify(result: dict, observations: list[dict], plan: dict | None) -> list[
                 )
             )
         return out
+    if code == "tcp_not_converged":
+        out.append(_h("tcp_tracking", "high", failure.get("detail", "")))
+        return out
     if code == "object_dropped":
         out.append(
             _h("slip", "medium", "tile left the hand between the pre-check and the preplace check")
@@ -86,10 +68,7 @@ def classify(result: dict, observations: list[dict], plan: dict | None) -> list[
         out.append(_h("grasp_offset", "low", "a marginal grasp also drops tiles in transit"))
         return out
     if code == "placement_error":
-        if phase in ("carry", "descent"):
-            out.append(_h("tcp_tracking", "high", failure.get("detail", "")))
-            return out
-        off = _pre_release_offset(observations, plan, trace)
+        off = _pre_release_offset(trace)
         if off is not None and off > th["position_tolerance_m"] / 2:
             out.append(
                 _h(
@@ -163,7 +142,7 @@ def classify(result: dict, observations: list[dict], plan: dict | None) -> list[
                 )
             )
         return out
-    if code == "release_not_confirmed":
+    if code in ("release_failed", "not_resting_on_support"):
         out.append(_h("gripper_release_fault", "medium", failure.get("detail", "")))
         return out
     if code == "retreat_blocked":
