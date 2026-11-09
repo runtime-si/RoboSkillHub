@@ -23,7 +23,11 @@ from pathlib import Path
 
 from roboskillhub.tasks.assembly_eval.domino_baseline import COMMAND_FAULTS, OBSERVER_FAULTS
 from roboskillhub.tasks.assembly_eval.domino_runner import run_episode
-from roboskillhub.tasks.assembly_eval.domino_scene import DominoSceneSpec
+from roboskillhub.tasks.assembly_eval.domino_scene import (
+    DominoSceneSpec,
+    check_scene,
+    scene_summary,
+)
 
 
 def seeds(text: str) -> list[int]:
@@ -41,8 +45,11 @@ def main() -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    ap.add_argument("--backend", choices=("mujoco", "isaac"), required=True)
-    ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--backend", choices=("mujoco", "isaac"))
+    ap.add_argument("--out", type=Path)
+    ap.add_argument(
+        "--check-only", action="store_true", help="CPU scene checks and derived poses; no simulator"
+    )
     ap.add_argument("--seeds", default="0-2")
     ap.add_argument(
         "--faults", default="none", help="comma list (name or name:offset_m), 'all', or 'none'"
@@ -56,6 +63,11 @@ def main() -> int:
         if args.scene
         else DominoSceneSpec(n_tiles=args.n_tiles)
     )
+    if args.check_only:
+        print(json.dumps({"issues": check_scene(spec), **scene_summary(spec)}, indent=1))
+        return 1 if check_scene(spec) else 0
+    if not (args.backend and args.out):
+        ap.error("--backend and --out are required unless --check-only")
     faults = (
         ["none", *COMMAND_FAULTS, *OBSERVER_FAULTS]
         if args.faults == "all"
