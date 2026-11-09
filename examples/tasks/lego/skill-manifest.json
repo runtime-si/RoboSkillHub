@@ -1,0 +1,496 @@
+{
+  "module": "roboskillhub.tasks.lego",
+  "owner": "agent-03",
+  "hub_base": "d015358cb7881bc215ada1aec419c787a79b1f12",
+  "contract_version": "rsh-task/1",
+  "conventions": {
+    "contract": "rsh-task/1 (Agent 05 contract-v1); results are its SkillResult envelope, module detail under evidence.lego",
+    "units": "metres, seconds, quaternion_xyzw; thresholds in m and deg",
+    "frames": "T_A_B maps B to A; T_TCP_object = object pose in the TCP frame",
+    "lego_brick_frame": "bottom-face centre, z up through the studs, x along studs[0]",
+    "T_W_baseplate": "top-surface centre (stud bases), z out of the studs",
+    "placement.layer": "0 = standing on the plate",
+    "added_target_fields": [
+      "baseplate.studs",
+      "baseplate.calibration_id",
+      "baseplate.system?",
+      "baseplate.bias_m?",
+      "brick.system?"
+    ],
+    "failure_types": {
+      "invalid_input": "invalid_request",
+      "invalid_geometry": "invalid_request",
+      "invalid_observation": "invalid_request",
+      "version_mismatch": "invalid_request",
+      "axis_mismatch": "invalid_request",
+      "travel_too_long": "invalid_request",
+      "travel_too_short": "invalid_request",
+      "unlabelled_privileged": "invalid_request",
+      "frame_mismatch": "invalid_request",
+      "unknown_reference": "precondition_unmet",
+      "identity_mismatch": "precondition_unmet",
+      "evidence_mismatch": "precondition_unmet",
+      "not_aligned": "precondition_unmet",
+      "uncalibrated": "precondition_unmet",
+      "tolerance_exceeds_capture": "precondition_unmet",
+      "out_of_plate": "precondition_unmet",
+      "target_occupied": "precondition_unmet",
+      "interface_mismatch": "lego.interface_mismatch",
+      "insufficient_support": "lego.insufficient_support",
+      "would_damage_build": "lego.would_damage_build",
+      "ambiguous_orientation": "perception.symmetry_ambiguous",
+      "unreachable": "unreachable",
+      "grasp_unconfirmed": "precondition_unmet",
+      "missing_capabilities": "capability_missing",
+      "resolution_insufficient": "perception.low_confidence",
+      "force_limit_unsupported": "lego.contact_control_unavailable",
+      "torque_limit_unsupported": "lego.contact_control_unavailable",
+      "speed_unsupported": "lego.contact_control_unavailable",
+      "travel_unsupported": "lego.contact_control_unavailable",
+      "stale_observation": "stale_observation",
+      "predates_action": "stale_observation",
+      "timestamp_in_future": "evidence_missing",
+      "commanded_not_observed": "evidence_missing",
+      "occluded": "object_not_observed",
+      "brick_not_visible": "object_not_observed",
+      "no_usable_observation": "object_not_observed",
+      "orientation_missing": "evidence_missing",
+      "uncertainty_unknown": "evidence_missing",
+      "window_incomplete": "evidence_missing",
+      "release_unconfirmed": "evidence_missing",
+      "neighbour_unobserved": "evidence_missing",
+      "contact_signal_lost": "evidence_missing",
+      "no_contact_record": "evidence_missing",
+      "invalid_corners": "evidence_missing",
+      "seat_depth_without_threshold": "lego.seat_depth_without_threshold",
+      "seated_without_force_rise": "lego.seated_without_force_rise",
+      "seat_unobserved": "lego.seat_unobserved",
+      "seat_pose_misaligned": "lego.misaligned",
+      "alignment_not_converged": "motion_not_converged",
+      "correction_budget_exhausted": "lego.misaligned",
+      "deadline_exceeded": "timeout",
+      "timeout": "timeout",
+      "motion_failed": "backend_error",
+      "backend_fault": "backend_error",
+      "not_executed": "backend_error",
+      "stop_unconfirmed": "lego.stop_unconfirmed",
+      "held_brick_tilted": "held_object_slipped",
+      "force_limit_exceeded": "lego.force_limit_exceeded",
+      "early_contact": "lego.early_contact",
+      "no_contact": "lego.no_contact",
+      "blocked_on_studs": "lego.misaligned",
+      "lateral_offset": "lego.misaligned",
+      "wrong_cell": "lego.misaligned",
+      "angle_error": "lego.misaligned",
+      "not_pressed_fully": "lego.not_seated",
+      "resting_on_studs": "lego.not_seated",
+      "off_studs": "lego.not_seated",
+      "below_seat": "lego.insufficient_support",
+      "partial_engagement": "lego.partially_seated",
+      "tilted": "lego.partially_seated",
+      "lifted_on_release": "lego.lifted_with_gripper",
+      "moved_after_release": "lego.moved_after_release",
+      "brick_missing": "lego.brick_missing",
+      "build_disturbed": "lego.structure_damaged",
+      "release_failed": "release_failed"
+    }
+  },
+  "skills": [
+    {
+      "skill_id": "lego.align_connection",
+      "version": "0.1.0",
+      "kind": "skill",
+      "readiness": "unit-tested",
+      "evidence_level": "unit_or_dryrun",
+      "entrypoint": "roboskillhub.tasks.lego.skills:AlignConnection",
+      "requires": [
+        "cartesian_motion",
+        "object_feedback",
+        "object_pose_feedback",
+        "pose_feedback",
+        "stop"
+      ],
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "connection_id",
+          "target",
+          "held",
+          "limits"
+        ],
+        "properties": {
+          "connection_id": {
+            "type": "string"
+          },
+          "target": {
+            "$ref": "#/schemas/LegoMatingTarget"
+          },
+          "held": {
+            "$ref": "#/schemas/HeldObject"
+          },
+          "build": {
+            "type": "array",
+            "items": {
+              "$ref": "#/schemas/LegoMatingTarget"
+            }
+          },
+          "limits": {
+            "type": "object"
+          },
+          "close_axis": {
+            "enum": [
+              0,
+              1
+            ]
+          }
+        }
+      },
+      "postcondition": {
+        "name": "held_brick_aligned",
+        "criterion": "fresh independent observation of the held brick, after the last move, within xy_tolerance_m and yaw_tolerance_deg of the hover pose"
+      },
+      "summary": "Non-contact pre-alignment of a held brick over its target studs with bounded correction from fresh independent observations of the brick.",
+      "pure_entrypoint": "roboskillhub.tasks.lego.align:align_connection",
+      "inputs": "connection_id, target (LegoMatingTarget), held (HeldObject), build[], limits{xy_tolerance_m, yaw_tolerance_deg, workspace_min_m, workspace_max_m, limits_source, preassembly_height_m?, max_corrections?, max_total_correction_m?, speed_m_s?, deadline_s?, max_obs_age_s?, support_required_fraction?}, close_axis?",
+      "preconditions": [
+        "held.valid and fresh",
+        "interface match",
+        "cell on the plate",
+        "target cells free",
+        "support under layer > 0",
+        "jaw rows clear of the build",
+        "unambiguous symmetric orientation",
+        "hover inside workspace",
+        "observer resolves the tolerance",
+        "tolerance within the press's known capture",
+        "mating_pose agrees with placement"
+      ],
+      "executable": false,
+      "executable_note": "runs on any backend with object_pose_feedback; none declares it unprivileged today (Isaac only with privileged truth)"
+    },
+    {
+      "skill_id": "lego.guarded_seat",
+      "version": "0.1.0",
+      "kind": "skill",
+      "readiness": "unit-tested",
+      "evidence_level": "unit_or_dryrun",
+      "entrypoint": "roboskillhub.tasks.lego.skills:GuardedSeat",
+      "requires": [
+        "compliant_motion",
+        "contact_force_feedback",
+        "pose_feedback",
+        "stop"
+      ],
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "connection_id",
+          "alignment",
+          "press_limits"
+        ],
+        "properties": {
+          "connection_id": {
+            "type": "string"
+          },
+          "alignment": {
+            "type": "object"
+          },
+          "press_limits": {
+            "type": "object"
+          },
+          "axis": {
+            "type": "object"
+          }
+        }
+      },
+      "postcondition": {
+        "name": "bounded_press_complete",
+        "criterion": "stop confirmed, peak <= 1.25 x force_limit_N, contact at the stud tops; the pressed brick observed after the press within seat_depth_tolerance_m (default 0.35 stud height) of its seat, no bottom corner above that band, lateral/yaw within verify's bands (strict tilt is verify's, after the release); plus a force_threshold stop when the station declares an insertion-observable force signal; without a usable observation a force-observable station falls back to TCP travel. Connection NOT verified here"
+      },
+      "summary": "Bounded contact press along the engagement axis with a measured force signal; returns the contact trace and stop reason; operation_complete only.",
+      "pure_entrypoint": "roboskillhub.tasks.lego.seat:guarded_seat",
+      "inputs": "connection_id, alignment (align outputs), press_limits{max_travel_m, speed_m_s, timeout_s, force_limit_N, limits_source, hold_s?, torque_limit_Nm?}, axis?",
+      "control_statement": "position-only press (move_pose / travel limit / tracking lag / joint effort) is NOT compliant force control and is not accepted by lego.guarded_seat",
+      "needs_from_runtime": [
+        "primitive guarded_press",
+        "SkillContext.contact_description"
+      ],
+      "executable": false,
+      "executable_note": "no backend declares contact_force_feedback + compliant_motion; the guarded_press primitive does not exist yet"
+    },
+    {
+      "skill_id": "lego.release_and_retreat",
+      "version": "0.1.0",
+      "kind": "skill",
+      "readiness": "unit-tested",
+      "evidence_level": "unit_or_dryrun",
+      "entrypoint": "roboskillhub.tasks.lego.skills:ReleaseAndRetreat",
+      "requires": [
+        "cartesian_motion",
+        "gripper",
+        "gripper_feedback",
+        "object_feedback",
+        "object_pose_feedback",
+        "pose_feedback",
+        "stop"
+      ],
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "connection_id",
+          "object_id",
+          "press",
+          "open_width_m",
+          "retreat_height_m"
+        ],
+        "properties": {
+          "connection_id": {
+            "type": "string"
+          },
+          "object_id": {
+            "type": "string"
+          },
+          "press": {
+            "type": "object"
+          },
+          "open_width_m": {
+            "type": "number"
+          },
+          "retreat_height_m": {
+            "type": "number"
+          },
+          "speed_m_s": {
+            "type": "number"
+          }
+        }
+      },
+      "postcondition": {
+        "name": "released_and_retreated",
+        "criterion": "set_gripper(release) measured holding=false, then the measured TCP rose at least half of retreat_height_m along the engagement axis"
+      },
+      "summary": "set_gripper(release) with measured holding=false, then a bounded retreat along the engagement axis; observes the brick before and after.",
+      "inputs": "connection_id, object_id, press (seat outputs), open_width_m, retreat_height_m, speed_m_s?",
+      "executable": false,
+      "executable_note": "retreat path is backend-defined (no linear_cartesian_motion)"
+    },
+    {
+      "skill_id": "lego.verify_connection",
+      "version": "0.1.0",
+      "kind": "skill",
+      "readiness": "unit-tested",
+      "evidence_level": "unit_or_dryrun",
+      "entrypoint": "roboskillhub.tasks.lego.skills:VerifyConnection",
+      "requires": [
+        "object_feedback",
+        "object_pose_feedback"
+      ],
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "connection_id",
+          "target",
+          "executor_id",
+          "release"
+        ],
+        "properties": {
+          "connection_id": {
+            "type": "string"
+          },
+          "target": {
+            "$ref": "#/schemas/LegoMatingTarget"
+          },
+          "build": {
+            "type": "array",
+            "items": {
+              "$ref": "#/schemas/LegoMatingTarget"
+            }
+          },
+          "executor_id": {
+            "type": "string"
+          },
+          "release": {
+            "type": "object"
+          },
+          "pre_release_observation": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "must_observe_neighbours": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "window": {
+            "type": "object"
+          },
+          "observations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/schemas/Observation"
+            }
+          }
+        }
+      },
+      "postcondition": {
+        "name": "geometric_seating",
+        "criterion": "after release and retreat, independent observations over window_s show the brick on its cell within lateral/yaw/tilt/height bands (stud geometry + 2 sigma), stable, and the listed neighbours undisturbed; no retention test"
+      },
+      "summary": "Executor-independent verdict satisfied/violated/unknown on stud cell, yaw, engagement height, tilt, post-release stability and the surrounding build.",
+      "pure_entrypoint": "roboskillhub.tasks.lego.verify:verify_connection",
+      "inputs": "connection_id, target, build[], executor_id, release (release outputs), pre_release_observation?, must_observe_neighbours?, window?, observations? (offline)",
+      "verdict_to_status": {
+        "satisfied": "succeeded",
+        "violated": "failed",
+        "unknown": "unverified"
+      },
+      "claim_on_success": "geometric_seating_verified (never retention force or interlock)",
+      "executable": false,
+      "executable_note": "meaningful only with an observer whose 2 sigma is under 0.35 stud heights (0.6 mm LEGO, 1.6 mm DUPLO); the pure function runs offline"
+    }
+  ],
+  "suggested_bundle": {
+    "name": "assembling-lego-connections",
+    "capabilities": [
+      "lego.align_connection",
+      "lego.guarded_seat",
+      "lego.release_and_retreat",
+      "lego.verify_connection"
+    ],
+    "registered": false,
+    "note": "Agent 05 decides registration; no SKILL.md created"
+  },
+  "systems": {
+    "lego": "8 mm pitch, 9.6 mm bricks, 1.7 mm studs",
+    "duplo": "16 mm pitch, 19.2 mm bricks, 4.5 mm studs (not standard LEGO evidence)"
+  },
+  "provenance": [
+    {
+      "id": "rsh-pressing-a-brick-onto-studs",
+      "repository": "https://github.com/runtime-si/RoboSkillHub",
+      "revision": "d015358cb7881bc215ada1aec419c787a79b1f12",
+      "path": "skills/pressing-a-brick-onto-studs/scripts/press_brick.py",
+      "sha256": "256076099325a1b5f4f1f9e43bc15ccbdb94feb69643c6be58f9d492f4dba6c8",
+      "symbols": [
+        "PRESETS",
+        "FOOTPRINT_PLAY",
+        "SEAT_FRACTION",
+        "RESTING_FRACTION",
+        "MISALIGNED_FRACTION",
+        "PRESS_DEPTH"
+      ],
+      "license": "MIT (bundle; upstream BrickSim MIT, ICL Robotic_Lego_Manipulation MIT)",
+      "use": "constants re-stated (LEGO/DUPLO presets, seat/resting bands, overtravel bound from PRESS_DEPTH idea); capture evidence (DUPLO 1 mm seated, 2 mm refused) quoted. Its position/lag press is NOT reused as contact control.",
+      "reuse": "adapted_constants"
+    },
+    {
+      "id": "rsh-computing-brick-pose-from-stud-grid",
+      "repository": "https://github.com/runtime-si/RoboSkillHub",
+      "revision": "d015358cb7881bc215ada1aec419c787a79b1f12",
+      "path": "skills/computing-brick-pose-from-stud-grid/scripts/brick_pose.py",
+      "sha256": "09623ac2a06b7c787883ba1fa5759b880062fb78d150c5ed9a290bd606a49264",
+      "symbols": [
+        "_brick_top_in_plate",
+        "_footprint",
+        "_cells",
+        "finger_cells (in run)",
+        "the inverse (nearest cell + residual)",
+        "collides/unsupported/ungraspable"
+      ],
+      "license": "MIT (bundle; upstream ICL Robotic_Lego_Manipulation Lego::calc_brick_loc, MIT, commit 9bc91654e708e4d8428ecfa76840103cacb2a19a)",
+      "use": "grid chain ported to pure Python (no numpy) and cross-checked to 1e-9 m against the original in tests when numpy+gap are importable",
+      "reuse": "ported"
+    },
+    {
+      "id": "rsh-verifying-build-against-model",
+      "repository": "https://github.com/runtime-si/RoboSkillHub",
+      "revision": "d015358cb7881bc215ada1aec419c787a79b1f12",
+      "path": "skills/verifying-build-against-model/scripts/verify_build.py",
+      "sha256": "5bf32d1fe70081a84e71e7a6ea67762556bc5ac4f8840f53adc656d017d23fe3",
+      "symbols": [
+        "unseated / 'one end' rule",
+        "SEAT_SIGMAS idea"
+      ],
+      "license": "MIT (bundle; upstream LTRON MIT)",
+      "use": "concept only: unseated = top high by about a stud, one-end = partial; thresholds widened by observation sigmas. Its LTRON matching is not used here (that skill stays the whole-build checker).",
+      "reuse": "reference"
+    },
+    {
+      "id": "rsh-checking-design-connectivity-and-collisions",
+      "repository": "https://github.com/runtime-si/RoboSkillHub",
+      "revision": "d015358cb7881bc215ada1aec419c787a79b1f12",
+      "path": "skills/checking-design-connectivity-and-collisions/scripts/check_design.py",
+      "sha256": "1611f77f08b109c91bec8352ebba95844a3d60ace6b53952fbb4a35d4ddbc8ef",
+      "symbols": [
+        "_brick_floats",
+        "_connected_to_ground",
+        "_overlap"
+      ],
+      "license": "MIT (bundle; upstream BrickGPT MIT)",
+      "use": "concept only: voxel collision and 'supported by the layer below' rules re-expressed per connection",
+      "reuse": "reference"
+    },
+    {
+      "id": "rsh-calibrating-baseplate-stud-grid",
+      "repository": "https://github.com/runtime-si/RoboSkillHub",
+      "revision": "d015358cb7881bc215ada1aec419c787a79b1f12",
+      "path": "skills/calibrating-baseplate-stud-grid/scripts/stud_lattice.py",
+      "sha256": "24d7732c5ea7989d4eca786fd16bfc27575326641faa6e462fc5143a2d7785a6",
+      "symbols": [
+        "plate pose / lattice"
+      ],
+      "license": "MIT (bundle; upstream APEX-MR MIT)",
+      "use": "upstream producer of plate.pose + calibration_id; no code used",
+      "reuse": "consumer_of_output"
+    },
+    {
+      "id": "lego-apexmr",
+      "repository": "https://github.com/intelligent-control-lab/APEX-MR",
+      "revision": "46a9448d9eaac5bd5973e0cd064623c5e7f5254e",
+      "path": "src/lego_policy.cpp",
+      "symbols": [
+        "LegoPolicy::pressdown",
+        "LegoPolicy::checkForce"
+      ],
+      "license": "MIT",
+      "license_evidence": "https://github.com/intelligent-control-lab/APEX-MR/blob/46a9448d9eaac5bd5973e0cd064623c5e7f5254e/LICENSE",
+      "use": "structure only (approach / force-checked press / exit); no code, thresholds, tool transforms or distances copied (GP4 + F/T settings are not YAM defaults)",
+      "reuse": "reference"
+    },
+    {
+      "id": "lego-aidf",
+      "repository": "https://github.com/intelligent-control-lab/AIDF",
+      "revision": "2a2221f79e0e1cadbcd3809cfefa76f6ca4f6291",
+      "path": "skillgraph/api/skills.hpp; skillgraph/src/lego/lego_skillgraph.cpp",
+      "symbols": [
+        "Skill/AtomicSkill/MetaSkill",
+        "LegoSkillGraph::is_feasible"
+      ],
+      "license": "license_unknown (package.xml <license>TODO</license>)",
+      "use": "concept only: fixed K with feasibility preconditions, G over it; no code",
+      "reuse": "reference_only_license_unknown"
+    },
+    {
+      "id": "lego-brickcraft",
+      "repository": "https://intelligent-control-lab.github.io/BrickCraft/",
+      "revision": null,
+      "license": "no public code",
+      "use": "concept only: reference brick + relative xy/theta connection; not a dependency",
+      "reuse": "reference_only"
+    },
+    {
+      "id": "lego-roco",
+      "repository": "https://github.com/rocochallenge/RoCo_BrickAssembly",
+      "revision": "8e7ad4dae651fd96cad5b8aa145f3fe81d3a48f3",
+      "license": "MIT (devkit only; BrickSim engine license/contact model unchecked)",
+      "use": "not used by this module; Agent 04's scene/contact backend",
+      "reuse": "none"
+    }
+  ]
+}
