@@ -125,6 +125,7 @@ class World:
         self.push_block = push_block
         self.closed = False
         self.free = None  # a released piece's reference point
+        self.pressed_at = []  # where closed fingertips came down on its top
 
     def tilt(self, r=None):
         r = self.r if r is None else r
@@ -227,6 +228,7 @@ class World:
         inside = float(np.linalg.norm(tip[:2] - self.free[:2])) < PIECE_R
         if inside and was[2] >= top - 1e-9 and tip[2] < top:
             self.p[2] += top - tip[2]
+            self.pressed_at.append(self.p[:2].copy())
             return True
         if inside and tip[2] < top and self.s is not None:
             d = float(np.dot(tip[:2] - self.free[:2], self.s[:2]))
@@ -365,6 +367,20 @@ def test_on_the_slot_it_drops_at_once_and_is_seated(script):
     fine = [m for m in world.moves if m[2]]
     assert fine and all(m[2] == {"tolerance": 0.0002, "max_steps": 90} for m in fine)
     assert out["moves"] > 0 and out["elapsed_s"] >= 0.0
+
+
+def test_after_the_release_the_closed_fingertips_push_the_top_down(script):
+    world = World()
+    out = run(script, world, push_down_offset={"x": 0.0, "y": 0.004, "z": 0.0})
+    assert out["route"] == "seated", out["detail"]
+    assert world.closed
+    assert "pushed down, its top met 2.00 mm" in out["detail"]
+    assert world.pressed_at
+    assert world.pressed_at[0] == pytest.approx(SLOT[:2] + [0.0, 0.004], abs=1e-6)
+    skipped = World()
+    out = run(script, skipped, push_down=False)
+    assert out["route"] == "seated" and not skipped.closed
+    assert "pushed down" not in out["detail"]
 
 
 def test_a_lateral_error_is_found_by_the_probes(script):

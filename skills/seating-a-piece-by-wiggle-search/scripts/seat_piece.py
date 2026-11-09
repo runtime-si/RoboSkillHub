@@ -200,6 +200,12 @@ trailing edge [m], 1 mm over the mat (the design note), push through the slot by
 PUSH_OVER more, and a push stopping more than PUSH_SLACK short of the slot is
 jammed [m]."""
 
+PUSH_DOWN_DEPTH = 0.0005
+"""After the release the closed fingertips push the piece's top until the
+command leads the stopped hand by this much [m] (puzzle_bot's last step:
+release, then push down). On the YAM station twin a piece released half in,
+tilted 5 deg, otherwise read 1.2 mm high on the flush check."""
+
 APPROACHES = ("wiggle", "tilt_first", "offset_push")
 
 REFUSALS = ("unreachable", "bad_speed_scale")
@@ -486,6 +492,8 @@ def run(
     piece_radius: float = PIECE_RADIUS,
     push_offset: float = PUSH_OFFSET,
     finger_reach: float = TIP_REACH,
+    push_down: bool = True,
+    push_down_offset: dict[str, float] | None = None,
     arm_id: int = 0,
 ) -> Output:
     t_start = time.monotonic()
@@ -494,6 +502,7 @@ def run(
         raise ValueError(f"thickness must be positive, got {thickness!r}")
     if approach not in APPROACHES:
         raise ValueError(f"approach must be one of {APPROACHES}, got {approach!r}")
+    push_xy = _xyz(push_down_offset)[:2] if push_down_offset is not None else np.zeros(2)
     s_dir = np.zeros(3)
     if approach != "wiggle":
         if seam_direction is None:
@@ -669,11 +678,12 @@ def run(
                 kept.append(e)
         return np.mean(kept, axis=0) if kept else None
 
-    def feel(distance: float, press: bool = True) -> dict[str, Any]:
+    def feel(distance: float, press: bool = True, press_to: float | None = None) -> dict[str, Any]:
         """Fine steps straight down from where the hand stands. Contact is the
         hand lagging its command lag_thr more than in free motion (or a joint
         effort residual); with ``press`` it goes on until the command leads the
-        hand by press_depth (a light press), else it stops there."""
+        hand by press_depth (or ``press_to``), else it stops there."""
+        depth = float(press_depth if press_to is None else press_to)
         p0, r = arm.still()
         start = p0.copy()
         lags = [0.0]
@@ -717,7 +727,7 @@ def run(
                 res.update(contact=True, first=p.copy(), signal=signal)
                 if not press:
                     return res
-            if res["contact"] and over >= float(press_depth):
+            if res["contact"] and over >= depth:
                 return res
             if not fired:
                 lags.append(lag)
@@ -767,6 +777,32 @@ def run(
                 return res
             lags.append(lag)
         return res
+
+    def pushdown(xy: np.ndarray) -> dict[str, Any]:
+        """puzzle_bot's push after the release: closed fingertips down on the
+        piece's top at ``xy`` until the command leads the hand by
+        PUSH_DOWN_DEPTH, then back up. Returns the height over the mat where
+        they met the top (``top``) and whether they did (``contact``), or why
+        it stopped (``refused``)."""
+        hover_z = slot[2] + thick + float(approach_height) + float(finger_reach)
+        _, r_here = arm.read()
+        ctx.tool("robot.close_gripper", **arm.on_arm)
+        why = go("robot.go_to_pose", np.array([xy[0], xy[1], hover_z]), r_here)
+        if why:
+            return {"refused": f"the move over the piece to push it down: {why}"}
+        window = slot[2] + thick + float(contact_window) + float(finger_reach)
+        arm.move("robot.go_to_pose_cartesian", np.array([xy[0], xy[1], window]), r_here)
+        p_now, _ = arm.still()
+        res = feel(
+            max(step, p_now[2] - float(finger_reach) - slot[2] + OVERTRAVEL_FRACTION * thick),
+            press_to=PUSH_DOWN_DEPTH,
+        )
+        top = float(res.get("first", res["at"])[2] - float(finger_reach) - slot[2])
+        p_up = unpress()
+        go("robot.go_to_pose_cartesian", np.array([p_up[0], p_up[1], hover_z]), r_here)
+        if "refused" in res:
+            return {"refused": f"the push-down was refused: {res['refused']}"}
+        return {"contact": bool(res["contact"]), "top": top}
 
     def push_in() -> Output:
         """approach="offset_push": set the piece down flat push_offset short of
@@ -844,28 +880,17 @@ def run(
                 how
                 + f": stopped {(expected - pushed) * 1e3:.1f} mm short of the slot, something is in the way",
             )
-        # The press: closed fingertips down on the piece's centre (its top).
-        why = go("robot.go_to_pose", np.array([slot[0], slot[1], hover_z]), r_here)
-        if why:
-            return finish("unreachable", how + f"; the move over the slot: {why}")
-        top_window = slot[2] + thick + float(contact_window) + float(finger_reach)
-        arm.move("robot.go_to_pose_cartesian", np.array([slot[0], slot[1], top_window]), r_here)
-        p_now, _ = arm.still()
-        res = feel(
-            max(step, p_now[2] - float(finger_reach) - slot[2] + OVERTRAVEL_FRACTION * thick)
-        )
-        if "refused" in res:
-            return finish("unreachable", how + f"; the press was refused: {res['refused']}")
-        top = float(res["at"][2] - float(finger_reach) - slot[2])
+        pd = pushdown(slot[:2] + push_xy)
+        if "refused" in pd:
+            return finish("unreachable", how + f"; {pd['refused']}")
+        top = float(pd["top"])
         out["stop_height"] = top - thick
-        p_up = unpress()
-        go("robot.go_to_pose_cartesian", np.array([p_up[0], p_up[1], hover_z]), r_here)
-        if not res["contact"]:
+        if not pd["contact"]:
             return finish(
                 "piece_lost",
                 how + f"; the press went {-top * 1e3:.1f} mm under the mat: no piece at the slot",
             )
-        how += f"; pressed its centre, its top stopped {top * 1e3:.2f} mm over the mat"
+        how += f"; pressed it down, its top met {top * 1e3:.2f} mm over the mat"
         out["seated_position"] = _vec(slot)
         if not verify:
             return finish("unverified", how + "; not checked (verify=false)")
@@ -1187,6 +1212,14 @@ def run(
     how = search + ("; dropped, released" if seat_found() else "; released at the best probe")
     if retreat:
         how += f"; the retreat: {retreat}"
+    elif push_down:
+        pd = pushdown(piece[:2] + push_xy)
+        if "refused" in pd:
+            how += f"; not pushed down ({pd['refused']})"
+        elif pd["contact"]:
+            how += f"; pushed down, its top met {pd['top'] * 1e3:.2f} mm over the mat"
+        else:
+            how += "; the push-down met nothing"
     if not verify:
         return finish("unverified", how + "; not checked (verify=false)")
     return _check(ctx, arm, out, finish, how, piece, slot, thick, top_radius, camera, check_reach)

@@ -9,7 +9,7 @@ description: Seats a held jigsaw piece in its slot among already-placed
   finishing with a scoot-and-wiggle at the best spot (Mark Rober's puzzle
   robot's routine, reimplemented without its spring and encoder). Releases a
   dropped piece and reads its top with the wrist depth camera to confirm it is
-  flush. Use when a jigsaw piece (or any thin flat part with a matching
+  flush. Options - tilted tab-first, or set down short and pushed in. Use when a jigsaw piece (or any thin flat part with a matching
   cut-out) is held over its slot with the slot pose known to a millimetre or
   two and a few degrees, the neighbours fixed around it, and fingers clear of
   the neighbours.
