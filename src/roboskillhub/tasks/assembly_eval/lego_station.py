@@ -3,7 +3,9 @@
 
 Same structure as 4b's ``domino_station.DominoPhysicsStation`` (and reusing its TCP helpers): a **floating
 parallel-jaw hand** (x/y/z prismatic + yaw mount, two force-limited pads) above a table, serving only top-down
-TCP poses. It is NOT a YAM arm and not RoCo's DexMate Vega U: no arm kinematics, reach or wrist limits.
+TCP poses; any other orientation is refused before motion (``ok: false, refused_before_motion: true,
+failure_type: "unreachable"`` with the reason; a non-world frame is ``invalid_request``; contract 1.3) and kept
+in ``refusals``. Motion and gripper replies carry ``sim_time_s`` (contract 1.4, additive). It is NOT a YAM arm and not RoCo's DexMate Vega U: no arm kinematics, reach or wrist limits.
 
 Contract rsh-task/1.2 surface: ``describe / get_state / move_pose / set_gripper / stop`` (the runtime builds
 ``grasp``, ``move_waypoints``, ``set_gripper(open|close|release)`` and ``observe_objects`` on these) plus
@@ -42,6 +44,15 @@ Q_BRICKSIM_TO_CONTRACT = q_from_axis_angle([0.0, 0.0, 1.0], math.pi / 2)
 4-stud side of a 2x4; the contract's x runs along studs[0] = 2)."""
 
 PLATE_HEIGHT_M = 0.0032
+STATION_FAULTS = (
+    "perception_offset",  # the carried brick is observed 3 mm off along x until its release
+    "perception_yaw",  # ... observed turned 9 deg until its release
+    "force_bias",  # the contact signal reads 5 N high during that brick's press
+    "stuck_jaws",  # the release command for that brick does not open the jaws
+    "retreat_deviation",  # after the release the hand first slides 25 mm along -y at release height
+    "lost_target",  # after the release the brick is missing from the observations
+)
+"""Station faults (world/hardware, never the skills or the evaluator) on placement ``fault_index``."""
 BRICK_SIZE_M = (0.016, 0.032, 0.0096)  # contract frame x, y, z of a 2x4
 
 
@@ -62,7 +73,15 @@ class LegoPhysicsStation:
         force_limit_max_n: float = 10.0,
         max_press_travel_m: float = 0.02,
         max_press_speed_m_s: float = 0.02,
+        fault: str | None = None,
+        fault_index: int = 0,
     ):
+        if fault is not None and fault not in STATION_FAULTS:
+            raise ValueError(f"unknown station fault {fault!r}")
+        self.fault, self.fault_index = fault, fault_index
+        self.grasps = 0  # closes that ended holding a brick: placement k = grasp k
+        self._fault_brick: str | None = None  # brick carried in the faulted placement
+        self._fault_released = False
         self.physics = physics
         self.scene = scene
         self.paths = physics.reset(scene, breakage=breakage)
@@ -79,6 +98,7 @@ class LegoPhysicsStation:
         self.engine_events: list[dict] = []
         self.snapshots: list[dict] = []
         self.command_log: list[dict] = []
+        self.refusals: list[dict] = []
         self._after_close = False
         self._after_release = False
         self._held_at_release: str | None = None
@@ -164,15 +184,33 @@ class LegoPhysicsStation:
     def move_pose(self, target: dict, *, speed_m_s: float, timeout_s: float, linear: bool) -> dict:
         self._catch_up()
         if target.get("frame_id") != "world":
-            return {"ok": False, "error": "frame must be world"}
+            return self._refuse("move_pose", target, "frame must be world", "invalid_request")
         yaw, off_down = yaw_from_tcp(target["quaternion_xyzw"])
         if off_down > math.radians(3):
-            return {
-                "ok": False,
-                "error": f"floating hand serves top-down TCP poses only "
+            return self._refuse(
+                "move_pose",
+                target,
+                f"floating hand serves top-down TCP poses only "
                 f"({math.degrees(off_down):.1f} deg off vertical)",
-            }
+            )
         goal = [*target["position_m"], yaw]
+        if (
+            self.fault == "retreat_deviation"
+            and self._after_release
+            and self._fault_released
+            and goal[2] > self.hand_cmd[2] + 0.002
+        ):
+            side = list(self.hand_cmd)
+            side[1] -= 0.025
+            self.events.append(
+                {
+                    "event": "fault",
+                    "fault": "retreat_deviation",
+                    "sim_s": self.sim_t,
+                    "wall_s": time.time(),
+                }
+            )
+            self._drive(side, self.open_cmd, speed=0.03, timeout_s=timeout_s)
         ok = self._drive(goal, self.open_cmd, speed=max(1e-3, speed_m_s), timeout_s=timeout_s)
         self.command_log.append(
             {"wall_s": time.time(), "sim_s": self.sim_t, "move": goal, "ok": ok}
@@ -183,7 +221,9 @@ class LegoPhysicsStation:
         if self._after_release:
             self._after_release = False
             self._snap("retreated")
-        return {"ok": ok} if ok else {"ok": False, "error": "timeout before arrival"}
+        if ok:
+            return {"ok": True, "sim_time_s": self.sim_t}
+        return {"ok": False, "error": "timeout before arrival", "sim_time_s": self.sim_t}
 
     def set_gripper(self, width_m: float, *, timeout_s: float) -> dict:
         self._catch_up()
@@ -193,6 +233,26 @@ class LegoPhysicsStation:
             self._held_at_release = held
         elif not widening:
             self._snap("pick_start")
+        if widening and held is not None and self._faulted() and self.fault == "stuck_jaws":
+            self.events.append(
+                {
+                    "event": "fault",
+                    "fault": "stuck_jaws",
+                    "sim_s": self.sim_t,
+                    "wall_s": time.time(),
+                }
+            )
+            self._held_at_release = None
+            self._advance(0.5)
+            self.command_log.append(
+                {
+                    "wall_s": time.time(),
+                    "sim_s": self.sim_t,
+                    "grip": width_m,
+                    "ignored": "stuck_jaws",
+                }
+            )
+            return {"ok": True, "sim_time_s": self.sim_t}
         start = self._measured_open()
         dur = max(0.2, abs(width_m - start) / 2 / self.physics.hand_spec.finger_speed) + 0.3
         self._ramp_gripper(start, width_m, dur)
@@ -206,20 +266,27 @@ class LegoPhysicsStation:
                 }
             )
             self._snap("released", brick=self._held_at_release)
+            if self._held_at_release == self._fault_brick:
+                self._fault_released = True
             self._held_at_release = None
             self._after_release = True
         elif not widening:
+            got = self._held_brick()
+            if got is not None:
+                self.grasps += 1
+                if self.grasps - 1 == self.fault_index and self.fault is not None:
+                    self._fault_brick = got
             self.events.append(
                 {
                     "event": "close",
-                    "brick": self._held_brick(),
+                    "brick": got,
                     "sim_s": self.sim_t,
                     "wall_s": time.time(),
                 }
             )
             self._after_close = True
         self.command_log.append({"wall_s": time.time(), "sim_s": self.sim_t, "grip": width_m})
-        return {"ok": True}
+        return {"ok": True, "sim_time_s": self.sim_t}
 
     def stop(self) -> None:
         pose, opening = self.physics.hand()
@@ -234,21 +301,35 @@ class LegoPhysicsStation:
         self._catch_up()
         v = axis["vector"]
         n = math.sqrt(sum(c * c for c in v))
+        why = None
         if axis.get("frame_id") != "world" or n < 1e-9 or -v[2] / n < math.cos(math.radians(2.0)):
+            why = "the floating hand presses only along world -z"
+        elif force_limit_N > self.force_limit_max_n or max_travel_m > self.max_press_travel_m:
+            why = "request beyond the station's contact limits"
+        if why is not None:
+            # Same refusal record as move_pose; guarded_move replies keep the ContactBackend fields.
+            self.refusals.append(
+                {
+                    "wall_s": time.time(),
+                    "sim_s": self.sim_t,
+                    "call": "guarded_move",
+                    "request": {
+                        "axis": axis,
+                        "max_travel_m": max_travel_m,
+                        "force_limit_N": force_limit_N,
+                    },
+                    "reason": why,
+                }
+            )
             return {
                 "command_issued": False,
                 "stop_reason": "fault",
                 "stop_confirmed": True,
                 "samples": [],
-                "fault": "the floating hand presses only along world -z",
-            }
-        if force_limit_N > self.force_limit_max_n or max_travel_m > self.max_press_travel_m:
-            return {
-                "command_issued": False,
-                "stop_reason": "fault",
-                "stop_confirmed": True,
-                "samples": [],
-                "fault": "request beyond the station's contact limits",
+                "fault": why,
+                "failure_type": "unreachable",
+                "refused_before_motion": True,
+                "sim_time_s": self.sim_t,
             }
         dt = self.physics.control_dt
         speed = min(speed_m_s, self.max_press_speed_m_s)
@@ -273,6 +354,8 @@ class LegoPhysicsStation:
         for _ in range(tare_n):
             self._step(cmd)
             tare += self._drive_force(cmd[2]) / tare_n
+        # force_bias fault: a miscalibrated signal reads 5 N high throughout this press
+        bias = 5.0 if self.fault == "force_bias" and self._faulted() else 0.0
         t0 = self.sim_t
         deadline = time.time() + max(0.1, timeout_s)
         samples: list[dict] = []
@@ -284,7 +367,7 @@ class LegoPhysicsStation:
                 break
             cmd[2] = max(z0 - max_travel_m, cmd[2] - speed * dt)
             self._step(cmd)
-            f = self._drive_force(cmd[2]) - tare
+            f = self._drive_force(cmd[2]) - tare + bias
             z = self.physics.hand()[0][2]
             samples.append({"t_s": self.sim_t, "travel_m": z0 - z, "force_N": f, **diag()})
             if f >= force_limit_N:
@@ -305,7 +388,7 @@ class LegoPhysicsStation:
                 {
                     "t_s": self.sim_t,
                     "travel_m": z0 - z,
-                    "force_N": self._drive_force(cmd[2]) - tare,
+                    "force_N": self._drive_force(cmd[2]) - tare + bias,
                     **diag(),
                 }
             )
@@ -355,6 +438,29 @@ class LegoPhysicsStation:
         return {"probe_max_lift_m": rise, "probe_force_n": force, "mass_kg": m}
 
     # ---- internals ---------------------------------------------------------
+    def _faulted(self) -> bool:
+        """The faulted placement is in progress (its brick grasped, not yet released)."""
+        return self.fault is not None and self._fault_brick is not None and not self._fault_released
+
+    def _refuse(self, what: str, request, reason: str, failure_type: str = "unreachable") -> dict:
+        """Decline a target before commanding anything (contract 1.3 station refusal)."""
+        self.refusals.append(
+            {
+                "wall_s": time.time(),
+                "sim_s": self.sim_t,
+                "call": what,
+                "request": request,
+                "reason": reason,
+            }
+        )
+        return {
+            "ok": False,
+            "error": reason,
+            "failure_type": failure_type,
+            "refused_before_motion": True,
+            "sim_time_s": self.sim_t,
+        }
+
     def _drive_force(self, z_cmd: float) -> float:
         h = self.physics.hand_spec
         z = self.physics.hand()[0][2]
@@ -477,6 +583,20 @@ class LegoPhysicsStation:
                 confidence=1.0,
                 visibility="visible",
                 uncertainty={"position_m": 0.0001, "rotation_rad": 0.001},
+            )
+        b = self._fault_brick
+        if b in out and self._faulted() and self.fault == "perception_offset":
+            out[b]["position_m"][0] += 0.003  # observed 3 mm off along world x while carried
+        if b in out and self._faulted() and self.fault == "perception_yaw":
+            out[b]["quaternion_xyzw"] = q_mul(
+                q_from_axis_angle([0.0, 0.0, 1.0], math.radians(9.0)), out[b]["quaternion_xyzw"]
+            )
+        if b in out and self._fault_released and self.fault == "lost_target":
+            out[b].update(
+                position_m=None,
+                quaternion_xyzw=None,
+                visibility="not_found",
+                reason="injected: target dropped from the observations",
             )
         return out
 

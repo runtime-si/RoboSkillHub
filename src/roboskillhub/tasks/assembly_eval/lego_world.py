@@ -131,6 +131,8 @@ def physics_lego_world(
     grip_force_n: float = 2.0,
     force_limit_n: float = 6.0,
     fix_baseplate: bool = True,
+    fault: str | None = None,
+    fault_index: int | None = None,
 ) -> dict:
     physics = make_physics()
     goal_topo, prebuilt, ids, order = _topologies(scene)
@@ -175,7 +177,13 @@ def physics_lego_world(
             "position_tolerance": cfg["clutch_model"]["assembly"]["position_tolerance_m"],
         },
     }
-    station = LegoPhysicsStation(physics, scene_cfg, breakage=breakage)
+    station = LegoPhysicsStation(
+        physics,
+        scene_cfg,
+        breakage=breakage,
+        fault=fault,
+        fault_index=len(order) - 1 if fault_index is None else fault_index,
+    )
     station._snap("start")
 
     # Goal poses (BrickSim part frame, bottom centre) from the target topology and the plate's actual pose
@@ -235,6 +243,10 @@ def physics_lego_world(
     inputs = {
         "targets": targets,
         "feeder": {"pieces": [f["id"] for f in feeder]},
+        # Integration (Agent 5): the plate lattice for perception.classify_object_state and the
+        # pre-built bricks for core.bind_target (graph builds align/verify ``build`` from them).
+        "lattice": {"T_W_baseplate": plate_pose, "plate_studs": [32, 32]},
+        "prebuilt": prebuilt_matings,
         "gripper_id": "floating_parallel_gripper",
         "table_z": 0.0,
         "grasp": {
@@ -258,10 +270,6 @@ def physics_lego_world(
             "xy_tolerance_m": 0.0005,
             "yaw_tolerance_deg": 2.0,
             "preassembly_height_m": 0.01,
-            # The graph hands align the HeldObject from pick (stamped at the lift); align checks that stamp
-            # against max_obs_age_s (default 0.5 s), which transport always exceeds (Agent 5 is adding a
-            # re-confirm). 10 s (align's upper bound) keeps the harness out of that until then.
-            "max_obs_age_s": 10.0,
             "workspace_min_m": [0.0, -0.35, 0.0],
             "workspace_max_m": [0.6, 0.35, 0.3],
             "limits_source": "assembly_eval lego_world v1 (simulated station; not calibrated hardware)",
@@ -307,6 +315,8 @@ def physics_lego_world(
         "breakage": breakage,
         "grip_force_N": grip_force_n,
         "press_force_limit_N": force_limit_n,
+        "fault": fault,
+        "fault_index": station.fault_index,
         "baseplate": "fixed to the table (fixed joint)"
         if fix_baseplate
         else "free on the table (as RoCo)",

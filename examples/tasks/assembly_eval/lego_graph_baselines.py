@@ -11,9 +11,8 @@ Isaac venv:
 Modes: ``smoke`` (one fixed-script episode per seed and scene), ``baselines`` (fixed_script / online_replan /
 simulation_search via ``baselines.compare`` on one scene), ``negatives`` (fixed script with breakage on/off).
 
-Context shim (local to this harness, see integration-note): ``lego.guarded_seat`` reads
-``ctx.contact_description`` which the runtime's SkillContext does not provide; the harness sets it from the
-station's own ``describe()`` (contact signal, controller, limits). Nothing else is added to the context.
+The runtime's SkillContext carries ``contact_description`` (contract rsh-task/1.4); the harness adds
+nothing to the context.
 """
 
 from __future__ import annotations
@@ -73,10 +72,12 @@ class LegoPhysicsEnv:
         grip_force_n: float = 2.0,
         force_limit_n: float = 6.0,
         fix_baseplate: bool = True,
+        fault: str | None = None,
     ):
         self.registry, self.scene, self.out, self.breakage = registry, scene, out, breakage
         self.grip_force_n, self.force_limit_n = grip_force_n, force_limit_n
         self.fix_baseplate = fix_baseplate
+        self.fault = fault
         self.episodes_run = 0
 
     def __call__(self, graph: dict, seed: int) -> dict:
@@ -87,6 +88,7 @@ class LegoPhysicsEnv:
             grip_force_n=self.grip_force_n,
             force_limit_n=self.force_limit_n,
             fix_baseplate=self.fix_baseplate,
+            fault=self.fault,
         )
         runtime = Runtime(built["backend"], built["limits"])
         loaded = load_graph(graph, self.registry)
@@ -95,13 +97,10 @@ class LegoPhysicsEnv:
         with runtime.task_lease(task_id, loaded["budgets"]["timeout_s"]) as lease:
 
             def make_context(node: str, request_id: str, timeout_s: float):
-                ctx = primitive_skill_context(
+                # contact_description now comes from the runtime (contract 1.4); no shim.
+                return primitive_skill_context(
                     runtime, lease, request_id=request_id, privileged_allowed=True
                 )
-                ctx.contact_description = built[
-                    "contact_description"
-                ]  # harness shim (integration-note)
-                return ctx
 
             episode = run_graph(
                 loaded, self.registry, built["inputs"], make_context, task_id=task_id
@@ -138,7 +137,8 @@ class LegoPhysicsEnv:
             .replace("}", "")
         )
         d = d / (
-            f"seed_{seed}{'_breakage' if self.breakage else ''}_grip{self.grip_force_n:g}"
+            (f"{self.fault}_" if self.fault else "")
+            + f"seed_{seed}{'_breakage' if self.breakage else ''}_grip{self.grip_force_n:g}"
             f"_f{self.force_limit_n:g}{'_freeplate' if not self.fix_baseplate else ''}"
         )
         d.mkdir(parents=True, exist_ok=True)
@@ -232,6 +232,9 @@ def main() -> None:
     ap.add_argument(
         "--free-baseplate", action="store_true", help="plate free on the table (as RoCo)"
     )
+    ap.add_argument(
+        "--fault", default=None, help="lego_station.STATION_FAULTS, on the last placement"
+    )
     ap.add_argument("--out", type=Path, required=True)
     args = ap.parse_args()
     K, unavailable = load_registry()
@@ -247,6 +250,7 @@ def main() -> None:
         grip_force_n=args.grip_force,
         force_limit_n=args.force_limit,
         fix_baseplate=not args.free_baseplate,
+        fault=args.fault,
     )
     summary = args.out / "summary.jsonl"
     try:

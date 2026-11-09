@@ -197,3 +197,172 @@ def test_observations_are_privileged_truth_in_contract_frames():
     assert p["position_m"][2] == pytest.approx(0.0032)
     assert st["objects"]["table"]["class"] == "support"
     assert math.isclose(st["timestamp_s"], b["timestamp_s"])
+
+
+# ---- contract 1.3/1.4 station refusals (same shape as domino_station) ----------------------------
+
+
+def _tilted(deg: float) -> list[float]:
+    from roboskillhub.tasks.assembly_eval.domino_station import tcp_quaternion
+    from roboskillhub.tasks.assembly_eval.lego_geometry import q_from_axis_angle, q_mul
+
+    return q_mul(q_from_axis_angle([1.0, 0.0, 0.0], math.radians(deg)), tcp_quaternion(0.0))
+
+
+def test_non_top_down_pose_is_refused_before_motion_and_logged():
+    s = station()
+    z0, cmd0 = s.physics._z, list(s.hand_cmd)
+    target = {"frame_id": "world", "position_m": [0.3, 0.0, 0.05], "quaternion_xyzw": _tilted(10.0)}
+    r = s.move_pose(target, speed_m_s=0.05, timeout_s=5.0, linear=False)
+    assert r["ok"] is False and r["refused_before_motion"] is True
+    assert (
+        r["failure_type"] == "unreachable" and "top-down" in r["error"] and "10.0 deg" in r["error"]
+    )
+    assert "sim_time_s" in r
+    assert s.physics._z == pytest.approx(z0) and s.hand_cmd == cmd0
+    assert (
+        s.refusals
+        and s.refusals[-1]["call"] == "move_pose"
+        and s.refusals[-1]["reason"] == r["error"]
+    )
+
+
+def test_non_world_frame_is_invalid_request_before_motion():
+    s = station()
+    r = s.move_pose(
+        {"frame_id": "camera", "position_m": [0.3, 0.0, 0.05], "quaternion_xyzw": _tilted(0.0)},
+        speed_m_s=0.05,
+        timeout_s=5.0,
+        linear=False,
+    )
+    assert (r["ok"], r["refused_before_motion"], r["failure_type"]) == (
+        False,
+        True,
+        "invalid_request",
+    )
+    assert len(s.refusals) == 1
+
+
+def test_top_down_pose_moves_and_replies_carry_sim_time():
+    s = station()
+    r = s.move_pose(
+        {"frame_id": "world", "position_m": [0.3, 0.0, 0.08], "quaternion_xyzw": _tilted(1.0)},
+        speed_m_s=0.05,
+        timeout_s=5.0,
+        linear=False,
+    )
+    assert r["ok"] is True and r["sim_time_s"] > 0 and "refused_before_motion" not in r
+    g = s.set_gripper(0.03, timeout_s=5.0)
+    assert g["ok"] is True and g["sim_time_s"] >= r["sim_time_s"]
+    assert s.refusals == []
+
+
+def test_refused_press_is_logged_with_the_same_record():
+    s = station()
+    r = s.guarded_move(
+        axis={"frame_id": "world", "vector": [1.0, 0.0, 0.0]},
+        max_travel_m=0.005,
+        speed_m_s=0.004,
+        force_limit_N=4.0,
+        hold_s=0.0,
+        timeout_s=10.0,
+    )
+    assert r["refused_before_motion"] is True and r["failure_type"] == "unreachable"
+    assert s.refusals[-1]["call"] == "guarded_move"
+
+
+# ---- station-injected faults (world/hardware only, on placement fault_index) --------------------
+
+
+def faulted(fault: str) -> LegoPhysicsStation:
+    phys = FakePhysics(pad_contact=({"brick_0"}, {"brick_0"}))
+    scene = {
+        "plate_id": "baseplate",
+        "feeder": [{"id": "brick_0"}],
+        "hand_start": (0.3, 0.0, 0.1, 0.0),
+    }
+    return LegoPhysicsStation(phys, scene, fault=fault, fault_index=0)
+
+
+def _grasp(s):
+    s.set_gripper(0.010, timeout_s=5.0)
+    assert s.get_state(timeout_s=1.0)["gripper"]["holding"]
+
+
+def _release(s):
+    s.set_gripper(0.030, timeout_s=5.0)
+    s.physics.contacts = (set(), set())
+
+
+def test_unknown_fault_is_refused():
+    with pytest.raises(ValueError):
+        faulted("teleport")
+
+
+def test_perception_offset_shifts_the_carried_brick_until_release():
+    s = faulted("perception_offset")
+    assert s.get_state(timeout_s=1.0)["objects"]["brick_0"]["position_m"][0] == pytest.approx(0.2)
+    _grasp(s)
+    assert s.get_state(timeout_s=1.0)["objects"]["brick_0"]["position_m"][0] == pytest.approx(0.203)
+    _release(s)
+    assert s.get_state(timeout_s=1.0)["objects"]["brick_0"]["position_m"][0] == pytest.approx(0.2)
+
+
+def test_perception_yaw_turns_the_carried_brick():
+    s = faulted("perception_yaw")
+    _grasp(s)
+    q = s.get_state(timeout_s=1.0)["objects"]["brick_0"]["quaternion_xyzw"]
+    x = q_rotate(q, [1.0, 0.0, 0.0])
+    assert math.degrees(math.atan2(x[1], x[0])) == pytest.approx(99.0, abs=1e-6)
+
+
+def test_force_bias_reads_high_during_the_faulted_press():
+    s = faulted("force_bias")
+    _grasp(s)
+    r = s.guarded_move(
+        axis=DOWN,
+        max_travel_m=0.005,
+        speed_m_s=0.004,
+        force_limit_N=4.0,
+        hold_s=0.0,
+        timeout_s=10.0,
+    )
+    assert r["stop_reason"] == "force_threshold" and r["samples"][0]["force_N"] >= 4.9
+
+
+def test_stuck_jaws_ignore_the_release():
+    s = faulted("stuck_jaws")
+    _grasp(s)
+    s.set_gripper(0.030, timeout_s=5.0)
+    assert s.physics._open == pytest.approx(0.010)
+    assert s.get_state(timeout_s=1.0)["gripper"]["holding"]
+    assert any(e.get("fault") == "stuck_jaws" for e in s.events)
+
+
+def test_lost_target_after_release():
+    s = faulted("lost_target")
+    _grasp(s)
+    assert s.get_state(timeout_s=1.0)["objects"]["brick_0"]["visibility"] == "visible"
+    _release(s)
+    o = s.get_state(timeout_s=1.0)["objects"]["brick_0"]
+    assert o["visibility"] == "not_found" and o["position_m"] is None
+
+
+def test_retreat_deviation_slides_before_rising():
+    s = faulted("retreat_deviation")
+    _grasp(s)
+    _release(s)
+    y0 = s.hand_cmd[1]
+    s.move_pose(
+        {
+            "frame_id": "world",
+            "position_m": [s.hand_cmd[0], y0, 0.2],
+            "quaternion_xyzw": _tilted(0.0),
+        },
+        speed_m_s=0.05,
+        timeout_s=10.0,
+        linear=False,
+    )
+    assert any(e.get("fault") == "retreat_deviation" for e in s.events)
+    moves = [c["move"] for c in s.command_log if "move" in c]
+    assert moves[-1][1] == pytest.approx(y0)  # the commanded goal itself is unchanged
