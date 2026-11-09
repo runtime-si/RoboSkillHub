@@ -232,7 +232,12 @@ def plan_place(request: dict) -> dict:
     release_pose = geo.translated(tcp_goal, normal * gap)
     approach = request.get("approach") or {}
     a_dir = geo.unit(approach.get("direction", list(-normal)))
-    a_dist = finite(approach.get("distance_m", 0.05), "approach.distance_m", 0.005, 0.5)
+    # Default: the held tile's bottom ends the carry TRANSIT_CLEARANCE over the standing
+    # tops (the placing skill's transit height), straight over the release pose.
+    transit = float(pd.TRANSIT_CLEARANCE)
+    a_dist = finite(
+        approach.get("distance_m", g["height_m"] + transit), "approach.distance_m", 0.005, 0.5
+    )
     retreat = request.get("retreat") or {}
     r_dir = geo.unit(retreat.get("direction", list(normal)))
     r_dist = finite(retreat.get("distance_m", 0.05), "retreat.distance_m", 0.005, 0.5)
@@ -269,6 +274,14 @@ def plan_place(request: dict) -> dict:
                     hits.append(nb["id"])
         return sorted(set(hits))
 
+    if neighbors:
+        bottom = geo.height_over_plane(preplace["position_m"], support["point_m"], normal) - hang
+        if bottom < g["height_m"] + transit - 1e-9:
+            raise RequestRejected(
+                "neighbor_clearance",
+                f"the carry ends with the held tile's bottom {(bottom - g['height_m']) * 1e3:.1f} mm over the "
+                f"standing tops; the placing skill keeps {transit * 1e3:.0f} mm (raise approach.distance_m)",
+            )
     if r_dir @ normal < 1 - 1e-6 and (hit := sweep(release_pose, retreat_pose, False)):
         raise RequestRejected(
             "retreat_blocked", f"the retreat sweeps the open hand through neighbour(s) {hit}"
@@ -596,11 +609,20 @@ def place_upright(request: dict, ctx: TaskContext) -> dict:
         events["action_start_s"] = ctx.now()
 
         # --- carry to preplace (runtime checks the held tile follows), then our own check
+        carry = [P["preplace"]]
+        here = (s0 or {}).get("tcp_pose")
+        if isinstance(here, dict) and here.get("frame_id") == frame:
+            up = geo.height_over_plane(
+                P["preplace"]["position_m"], plan["support"]["point_m"], normal
+            ) - geo.height_over_plane(here["position_m"], plan["support"]["point_m"], normal)
+            if up > 1e-3:  # rise first, as the placing skill does, then cross at transit height
+                rise = np.asarray(here["position_m"]) + normal * up
+                carry = [geo.pose(frame, rise, here["quaternion_xyzw"]), P["preplace"]]
         r = invoke(
             "carry",
             "move_waypoints",
             {
-                "waypoints": [P["preplace"]],
+                "waypoints": carry,
                 "linear": False,
                 "held": held_req,
                 "speed_m_s": plan["speed_m_s"],

@@ -1,0 +1,107 @@
+{
+ "request_id": "demo-place",
+ "scene_version": "demo-line5",
+ "frame_id": "station",
+ "geometry": {
+  "size_m": [
+   0.048,
+   0.024,
+   0.0075
+  ],
+  "yaw_symmetry_deg": 180.0
+ },
+ "held": {
+  "gripper_id": "left",
+  "T_TCP_object": {
+   "frame_id": "tcp",
+   "position_m": [
+    0.0,
+    0.0,
+    0.005999999999999998
+   ],
+   "quaternion_xyzw": [
+    1.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  "estimate": "grasp_geometry_prior",
+  "uncertainty": {
+   "position_m": 0.001,
+   "rotation_rad": 0.02
+  },
+  "collision_geometry": {
+   "type": "box",
+   "size_m": [
+    0.048,
+    0.024,
+    0.0075
+   ]
+  },
+  "valid": true,
+  "invalidated_reason": null
+ },
+ "support": {
+  "frame_id": "station",
+  "point_m": [
+   0,
+   0,
+   0
+  ],
+  "normal": [
+   0,
+   0,
+   1
+  ],
+  "height_std_m": 0.001,
+  "calibration_version": "EXAMPLE-not-a-station-calibration",
+  "region_min_m": [
+   0.1,
+   -0.3
+  ],
+  "region_max_m": [
+   0.7,
+   0.3
+  ]
+ },
+ "neighbor_template": {
+  "class": "domino",
+  "frame_id": "station",
+  "source": "synthetic:example",
+  "privileged": false,
+  "confidence": 0.9,
+  "uncertainty": {
+   "position_m": 0.002,
+   "rotation_rad": 0.03
+  },
+  "visibility": "visible",
+  "state_label": "standing"
+ },
+ "retreat": {
+  "distance_m": 0.06
+ },
+ "hand": {
+  "max_open_width_m": 0.094,
+  "tip_reach_m": 0.0102
+ },
+ "workspace": {
+  "min_m": [
+   0.0,
+   -0.5,
+   0.0
+  ],
+  "max_m": [
+   0.8,
+   0.5,
+   0.5
+  ]
+ },
+ "mode": "geometric",
+ "descent_path": "dense_waypoints",
+ "speed_m_s": 0.05,
+ "descent_speed_m_s": 0.01,
+ "timeout_s": 60.0,
+ "tolerances_ref": "tasks/domino/config/line_v1.yaml",
+ "max_recovery_attempts": 2
+}

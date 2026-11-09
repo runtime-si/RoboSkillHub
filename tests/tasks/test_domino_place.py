@@ -203,7 +203,7 @@ def test_orientation_missing_or_identity_lost_after_release():
 
 
 def test_deadline_covers_the_whole_sequence():
-    out, ctx = run(timeout_s=12.0)
+    out, ctx = run(timeout_s=15.0)
     assert out["status"] == "failed" and out["failure_type"] == "timeout"
     assert out["recovery"]["action"] == "abort"
 
@@ -240,7 +240,8 @@ def test_context_exception_is_failure_not_success():
         ({"release": {"width_m": 0.2}}, "infeasible_geometry"),
         ({"workspace": {"min_m": [0, -0.5, 0], "max_m": [0.8, 0.5, 0.06]}}, "infeasible_geometry"),
         ({"retreat": {"direction": [0, -0.8, 0.6], "distance_m": 0.06}}, "retreat_blocked"),
-        ({"approach": {"direction": [0, 0.6, -0.8], "distance_m": 0.06}}, "neighbor_clearance"),
+        ({"approach": {"direction": [0, 0.6, -0.8], "distance_m": 0.09}}, "neighbor_clearance"),
+        ({"approach": {"distance_m": 0.05}}, "neighbor_clearance"),
     ],
 )
 def test_offline_checks_reject_before_any_command(over, code):
@@ -300,3 +301,22 @@ def test_tilted_or_floating_target_rejected():
 def test_recovery_budget_is_bounded():
     out, _ = run(faults={"fall_on_release"}, recovery_attempts_used=2, max_recovery_attempts=2)
     assert out["recovery"]["action"] == "abort" and out["recovery"]["steps"] == []
+
+
+def test_carry_rises_before_crossing_and_keeps_transit_clearance():
+    ctx = FakeTaskContext()
+    ctx.tcp["position_m"] = [0.30, 0.10, 0.05]
+    out = place_upright(request(ctx), ctx)
+    assert out["status"] == "succeeded"
+    cap, carry = ctx.requests[0]
+    rise, preplace = carry["waypoints"]
+    assert rise["position_m"][:2] == pytest.approx([0.30, 0.10]) and rise["position_m"][
+        2
+    ] == pytest.approx(preplace["position_m"][2])
+    assert carry["held"]["object_id"] == "d2" and carry["linear"] is False
+    # the held tile's bottom over the standing tops at the end of the carry: 20 mm
+    assert preplace["position_m"][2] - 0.030 - 0.048 == pytest.approx(0.020 + 0.0015)
+    descent = ctx.requests[1][1]["waypoints"]
+    assert len(descent) > 1 and all(
+        w["position_m"][:2] == pytest.approx(descent[-1]["position_m"][:2]) for w in descent
+    )

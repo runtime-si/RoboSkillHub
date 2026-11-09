@@ -97,6 +97,7 @@ class FakeTaskContext:
         self.held = "missed_grasp" not in self.faults
         self.tile = None if self.held else lying(tile_pose(0.25, -0.1))
         self.calls: list[str] = []
+        self.requests: list[tuple[str, dict]] = []
         self.released = False
         self.frozen_t: float | None = None
         self.cancel_after_s = cancel_after_s
@@ -141,6 +142,7 @@ class FakeTaskContext:
     # -- rsh-task/1 primitives (as Agent 05 specified them)
     def invoke(self, capability: str, request: dict) -> dict:
         self.calls.append(capability)
+        self.requests.append((capability, copy.deepcopy(request)))
         out = {
             "invocation_id": str(uuid.uuid4()),
             "capability": capability,
@@ -294,7 +296,6 @@ def request(ctx: FakeTaskContext, **over) -> dict:
             observation("d0", tile_pose(0.40, 0.00), now),
             observation("d1", tile_pose(0.40, 0.04), now),
         ],
-        "approach": {"distance_m": 0.05},
         "retreat": {"distance_m": 0.06},
         "hand": {"max_open_width_m": 0.094, "tip_reach_m": 0.0102},
         "workspace": {"min_m": [0.0, -0.5, 0.0], "max_m": [0.8, 0.5, 0.5]},
