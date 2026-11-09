@@ -604,3 +604,12 @@ src/orchestrator/sort_cycle.py, src/orchestrator/routing.py and
 src/demo_brickognize/brickognize_client.py), MIT License, Copyright (c) 2026
 Matt Brickner; the file's header lists the changes, and the license is
 skills/routing-parts-to-sort-bins-by-id-and-colour/LICENSE.lego-sorter.
+skills/seating-a-piece-by-wiggle-search/scripts/seat_piece.py re-expresses the
+seating routine of Mark Rober's puzzle robot
+(https://github.com/markroberyoutube/puzzle_bot, src/application.py: the fully
+/ nearly placed thresholds, the pick-up-and-wiggle grid and spiral and the
+scoot-and-wiggle), which has no license; none of its code is used. Its
+tilt_first approach follows Algorithm 2 (InsertTilt) of Watson, Miller and
+Correll, "Autonomous Industrial Assembly using Force, Torque, and RGB-D
+sensing" (arXiv:2002.02580; paper only, no code). Its pose, lag, depth and
+wrist-camera helpers follow skills/pressing-a-brick-onto-studs.
