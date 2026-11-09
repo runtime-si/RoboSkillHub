@@ -188,6 +188,8 @@ def load_graph(spec: Mapping, registry: Mapping[str, TaskSkill]) -> dict:
         errors.append(f"cycle {component} has no node with max_visits")
     if errors:
         raise GraphError("; ".join(errors))
+    if not isinstance(g.setdefault("state", {}), dict):
+        raise GraphError("state must be an object of initial values")
     g["graph_version"] = GRAPH_VERSION
     return g
 
@@ -258,7 +260,11 @@ def run_graph(
     task_id = task_id or f"task-{uuid.uuid4().hex[:8]}"
     budgets = g["budgets"]
     started = clock()
-    scope: dict[str, Any] = {"input": copy.deepcopy(dict(inputs)), "state": {}, "last": {}}
+    scope: dict[str, Any] = {
+        "input": copy.deepcopy(dict(inputs)),
+        "state": copy.deepcopy(g["state"]),
+        "last": {},
+    }
     visits: dict[str, int] = {}
     steps: list[dict] = []
     attempts_used = 0
