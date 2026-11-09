@@ -197,6 +197,7 @@ def run_episode(
     feeders = feeder_poses_for_seed(spec, seed)
     record["initial_feeder_poses"] = feeders
     backend.reset(spec, feeders)
+    record["backend"] = backend.describe()
     observer = Observer(spec.physics.observe_hz, fault if fault in OBSERVER_FAULTS else None)
     cmd_log = []
     planning_s = 0.0

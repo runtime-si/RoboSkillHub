@@ -44,7 +44,9 @@ def main() -> int:
     ap.add_argument("--backend", choices=("mujoco", "isaac"), required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--seeds", default="0-2")
-    ap.add_argument("--faults", default="none", help="comma list, 'all', or 'none'")
+    ap.add_argument(
+        "--faults", default="none", help="comma list (name or name:offset_m), 'all', or 'none'"
+    )
     ap.add_argument("--n-tiles", type=int, default=4)
     ap.add_argument("--scene", type=Path, help="scene spec JSON (default: built-in v1)")
     ap.add_argument("--render-dir", type=Path, help="isaac only: save a few RGB frames per episode")
@@ -72,14 +74,21 @@ def main() -> int:
     try:
         for fault in faults:
             for seed in seeds(args.seeds):
-                label = fault
+                label = fault.replace(":", "@")
                 d = root / label / f"seed_{seed}"
                 if (d / "record.json").exists():
                     rec = json.loads((d / "record.json").read_text())
                 else:
                     try:
+                        name, _, off = fault.partition(":")
                         rec = run_episode(
-                            backend, spec, seed, d, fault=None if fault == "none" else fault
+                            backend,
+                            spec,
+                            seed,
+                            d,
+                            fault=None if name == "none" else name,
+                            fault_offset=float(off) if off else None,
+                            label=label,
                         )
                     except Exception:
                         d.mkdir(parents=True, exist_ok=True)
