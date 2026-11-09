@@ -21,10 +21,10 @@ from typing import Any
 import numpy as np
 
 from . import _hub
-from .contract import ObjectObservation
-from .frames import T_to_pose, inv_T, rotation_angle
+from .contract import ObjectObservation, jsonable
+from .frames import T_to_pose, inv_T, pose_to_T, rotation_angle
 from .grasp import GraspCandidate
-from .objects import ObjectSpec, symmetry_rotations
+from .objects import ObjectSpec, from_contract_frame, symmetry_rotations, to_contract_frame
 
 #: Slip tolerances. pose6d from the wrist D405 is within 0.5 deg / 0.3 mm (p90) and
 #: from overhead with support 2.4-5 deg / 1 mm (its SKILL.md table); 3 mm / 5 deg
@@ -37,6 +37,22 @@ WIDTH_TOL_M = 0.0015
 SYNC_TOL_S = 0.05
 #: An estimate older than this is no longer the held state [s].
 MAX_AGE_S = 2.0
+
+
+#: Our invalidation kinds -> the v1 ``invalidated_reason`` enum (integration
+#: request: add ``grasp_lost`` and ``stale`` so the last four map exactly).
+V1_INVALID = {
+    "slip": "slip_detected",
+    "occluded": "occlusion",
+    "identity_changed": "identity_changed",
+    "released": "released",
+    "regrasped": "regrasped",
+    "width_drop": "slip_detected",
+    "width_open": "slip_detected",
+    "stale": "occlusion",
+    "unsynchronised": "occlusion",
+    "unusable_observation": "occlusion",
+}
 
 
 @dataclass(frozen=True)
@@ -54,24 +70,66 @@ class HeldObject:
     privileged: bool = False
     quality: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> dict[str, Any]:
+    @property
+    def invalid_kind(self) -> str | None:
+        return self.invalid_reason.split(":", 1)[0] if self.invalid_reason else None
+
+    def to_v1(self) -> dict[str, Any]:
+        """The contract's ``HeldObject``. Kinds the v1 enum lacks map to its nearest
+        value; the exact kind and text are kept in ``invalidated_detail``."""
+        if self.source == "geometric_prior":
+            estimate = "grasp_geometry_prior"
+        elif self.privileged:
+            estimate = "privileged_sim"
+        else:
+            estimate = "estimated_from_observation"
+        u = self.quality.get("observation") or self.quality.get("planned_on") or {}
+        pos = u.get("position_m", u.get("position_std_m"))
+        rot = u.get("rotation_rad", u.get("rotation_std_rad"))
         return {
             "object_id": self.object_id,
-            "object_class": self.object_class,
             "gripper_id": self.gripper_id,
-            "T_TCP_object": T_to_pose(self.T_tcp_object, f"tcp:{self.gripper_id}"),
-            "source": self.source,
-            "timestamp_s": self.timestamp_s,
-            "expected_width_m": self.expected_width_m,
+            "T_TCP_object": T_to_pose(
+                to_contract_frame(self.T_tcp_object, self.object_class), "tcp"
+            ),
+            "estimate": estimate,
+            "timestamp_s": float(self.timestamp_s),
+            "uncertainty": None
+            if pos is None and rot is None
+            else {"position_m": pos, "rotation_rad": rot},
+            "collision_geometry": {"type": "box", "size_m": [float(v) for v in self.spec.size_m]},
             "valid": self.valid,
-            "invalid_reason": self.invalid_reason,
+            "invalidated_reason": None
+            if self.valid
+            else V1_INVALID.get(self.invalid_kind or "", "slip_detected"),
+            "invalidated_detail": self.invalid_reason or None,
+            "class": self.object_class,
+            "expected_width_m": self.expected_width_m,
             "privileged": self.privileged,
-            "quality": self.quality,
-            "collision_geometry": {
-                "box_m": [float(v) for v in self.spec.size_m],
-                "frame": "object (box centre)",
-            },
+            "quality": jsonable(self.quality),
         }
+
+    to_dict = to_v1
+
+    @classmethod
+    def from_v1(cls, d: dict[str, Any], spec: ObjectSpec) -> HeldObject:
+        source = "geometric_prior" if d["estimate"] == "grasp_geometry_prior" else "estimated"
+        return cls(
+            object_id=d["object_id"],
+            object_class=d.get("class", spec.object_class),
+            spec=spec,
+            gripper_id=d["gripper_id"],
+            T_tcp_object=from_contract_frame(
+                pose_to_T(d["T_TCP_object"], "tcp"), d.get("class", spec.object_class)
+            ),
+            source=source,
+            timestamp_s=float(d["timestamp_s"]),
+            expected_width_m=float(d.get("expected_width_m", sorted(spec.size_m)[0])),
+            valid=bool(d["valid"]),
+            invalid_reason=d.get("invalidated_detail") or (d.get("invalidated_reason") or ""),
+            privileged=bool(d.get("privileged")) or d["estimate"] == "privileged_sim",
+            quality=dict(d.get("quality") or {}),
+        )
 
 
 def prior_from_grasp(

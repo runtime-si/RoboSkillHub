@@ -27,7 +27,7 @@ from typing import Any
 import numpy as np
 
 from .frames import T_to_pose, inv_T, make_T
-from .objects import ObjectSpec
+from .objects import ObjectSpec, to_contract_frame
 
 
 @dataclass(frozen=True)
@@ -143,6 +143,7 @@ class GraspCandidate:
     """Middle of the pad-on-part patch, object frame (the pivot when the part turns in the pinch)."""
     checks: dict[str, Any] = field(default_factory=dict)
     score: float = 0.0
+    object_class: str = ""
     score_terms: dict[str, float] = field(default_factory=dict)
 
     @property
@@ -153,12 +154,31 @@ class GraspCandidate:
     def approach_dir(self) -> np.ndarray:
         return self.T_frame_tcp[:3, 2].copy()
 
+    def to_v1(self, limits: GraspLimits | None = None) -> dict[str, Any]:
+        """The contract's ``GraspCandidate`` (directly usable as a ``grasp`` request
+        with ``target_id``), plus this module's details."""
+        req = to_grasp_request(self, limits or DEFAULT_LIMITS)
+        return {
+            "object_id": self.object_id,
+            "pregrasp_pose": req["pregrasp_pose"],
+            "grasp_pose": req["grasp_pose"],
+            "lift_pose": req["lift_pose"],
+            "open_width_m": req["open_width_m"],
+            "close_width_m": req["close_width_m"],
+            "T_TCP_object": T_to_pose(
+                to_contract_frame(self.T_tcp_object, self.object_class), "tcp"
+            ),
+            "score": float(self.score),
+            "checks": {"feasible": bool(self.feasible), **self.checks},
+            "details": self.to_dict(),
+        }
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "object_id": self.object_id,
             "tcp_pose": T_to_pose(self.T_frame_tcp, self.frame_id),
             "approach_dir": [float(v) for v in self.approach_dir],
-            "T_TCP_object": T_to_pose(self.T_tcp_object, "tcp"),
+            "T_TCP_object_module_frame": T_to_pose(self.T_tcp_object, "tcp"),
             "closing_axis": self.closing_axis,
             "approach_face": self.approach_face,
             "tilt_deg": self.tilt_deg,
@@ -452,6 +472,7 @@ def propose_grasps(
                 insertion_m=insertion,
                 feasible=feasible,
                 contact_centre_obj=contact_centre,
+                object_class=spec.object_class,
                 checks=checks,
                 score=round(score, 4),
                 score_terms={k: round(v, 4) for k, v in terms.items()},

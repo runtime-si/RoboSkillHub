@@ -6,7 +6,7 @@ parallel-jaw grasp candidates for the YAM linear_4310, held-object pose
 ``T_TCP_object`` and the reorient-or-regrasp planner with a whole-joint-path
 feasibility check. Pure functions and adapters: nothing here moves a robot.
 
-Not registered as a runtime capability; Agent 5 owns that wiring.
+``SKILLS`` lists the contract-v1 task skills; Agent 5 registers them.
 """
 
 from .consumers import bind_domino_target, bind_lego_mating, bind_target
@@ -32,8 +32,11 @@ from .lego import brick_pose_in_plate, mating_target, snap_to_lattice
 from .objects import ObjectSpec, domino, lego_brick
 from .providers import MaskedObject, RgbdFrame, RgbdProvider, SimTruthProvider, pose_error
 from .regrasp import Workcell, plan_reorient_or_regrasp, plan_transfer
+from .skills import CONFIG, SKILLS
 
 __all__ = [
+    "CONFIG",
+    "SKILLS",
     "LINEAR_4310",
     "SCHEMA_VERSION",
     "CallableIk",

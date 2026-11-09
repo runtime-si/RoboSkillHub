@@ -16,7 +16,7 @@ from .contract import result
 from .frames import T_to_pose, inv_T, make_T, rotation_angle
 from .held import HeldObject
 from .lego import mating_target
-from .objects import ObjectSpec, symmetry_rotations
+from .objects import ObjectSpec, from_contract_frame, symmetry_rotations
 
 
 def bind_target(
@@ -33,9 +33,11 @@ def bind_target(
         return result(
             "rejected",
             stage,
-            failure_type="held_state_invalid",
+            failure_type="held_object_slipped"
+            if held.invalid_kind in ("slip", "width_drop")
+            else "perception.held_state_invalid",
             reason=held.invalid_reason,
-            recovery=["reobserve the held part"],
+            recovery_hints=["reobserve"],
             verification="none",
         )
     up = np.array([0.0, 0.0, 1.0]) if up is None else np.asarray(up, dtype=float)
@@ -64,7 +66,7 @@ def bind_target(
             ],
             "held_source": held.source,
             "held_privileged": held.privileged,
-            "T_TCP_object": held.to_dict()["T_TCP_object"],
+            "held": held.to_v1(),
         },
         reason="geometric binding; reachability is the consumer's planner's job",
         verification="geometry",
@@ -74,15 +76,15 @@ def bind_target(
 def bind_domino_target(
     held: HeldObject, T_frame_slot: np.ndarray, frame_id: str, **kw
 ) -> dict[str, Any]:
-    """Agent 2: a standing-domino slot pose (object frame as in :mod:`.objects`)."""
+    """Agent 2: a DominoLayoutTarget slot pose (contract object frame: +z the height axis)."""
     if held.object_class != "domino":
         return result(
             "rejected",
             "bind_target",
-            failure_type="wrong_class",
+            failure_type="invalid_request",
             reason=f"holding a {held.object_class}",
         )
-    return bind_target(held, T_frame_slot, frame_id, **kw)
+    return bind_target(held, from_contract_frame(T_frame_slot, "domino"), frame_id, **kw)
 
 
 def bind_lego_mating(
@@ -101,7 +103,7 @@ def bind_lego_mating(
         return result(
             "rejected",
             "bind_target",
-            failure_type="wrong_class",
+            failure_type="invalid_request",
             reason=f"holding a {held.object_class}",
         )
     tgt = mating_target(T_frame_plate, spec or held.spec, plate_studs, cell)

@@ -51,10 +51,11 @@ from .kinematics import (
     JOINT_JUMP_RAD,
     ROT_STEP_RAD,
     IkSolver,
+    YamIk,
     densify,
     evaluate_joint_path,
 )
-from .objects import ObjectSpec, box_corners, symmetry_rotations
+from .objects import ObjectSpec, box_corners, symmetry_rotations, to_contract_frame
 
 #: Part centre over the table while it is turned [m]: a 48 mm tile turned about its
 #: centre needs 24 mm plus the hand's reach past it.
@@ -248,78 +249,88 @@ def plan_transfer(
     return Transfer(grasp, T_from, T_to, tcp, labels, rep, widths, pivot_arm), ""
 
 
+#: Rotation between the carried waypoints handed to ``move_waypoints``: the
+#: backend decides the path between waypoints, so the turn is spelled out in steps
+#: close to the ones the joint-path check sampled.
+WAYPOINT_ROT_STEP_RAD = math.radians(15.0)
+WAYPOINT_CART_STEP_M = 0.05
+#: Resting-pose check after each transfer (independent observation vs the target).
+VERIFY_TRANSLATION_M = 0.005
+VERIFY_ROTATION_RAD = math.radians(10.0)
+
+
 def _transfer_steps(
     tr: Transfer, wc: Workcell, spec: ObjectSpec, idx: int, expect_state: str | None
 ) -> list[dict[str, Any]]:
+    """Contract-v1 primitive requests for one transfer: ``grasp`` (pregrasp, grasp,
+    lift), ``move_waypoints`` carrying the part with its ``T_TCP_object`` (turn,
+    carry, lower), ``set_gripper`` release, ``move_pose`` retreat, ``observe_objects``."""
     g = tr.grasp
-    req = to_grasp_request(g, wc.limits)
-    path = tr.path.summary()
-    steps: list[dict[str, Any]] = [
+    carried, _ = densify(
+        tr.waypoints[2:-1], tr.labels[2:-1], WAYPOINT_CART_STEP_M, WAYPOINT_ROT_STEP_RAD
+    )
+    carried = carried[1:]
+    if len(carried) > 32:
+        idxs = np.linspace(0, len(carried) - 1, 32).round().astype(int)
+        carried = [carried[i] for i in idxs]
+    held_ref = {
+        "object_id": g.object_id,
+        "T_TCP_object": T_to_pose(to_contract_frame(g.T_tcp_object, spec.object_class), "tcp"),
+    }
+    return [
         {
-            "op": "grasp",
             "capability": "grasp",
+            "phase": "grasp",
             "transfer": idx,
-            "request": req,
-            "preconditions": [
-                f"fresh, non-privileged observation of {g.object_id} within tolerance of the pose this grasp was planned on",
-                "gripper empty",
-            ],
-            "postconditions": [
-                "grasp capability's lift-following check succeeded",
-                "held state = geometric prior (re-estimate before placing)",
-            ],
-        }
-    ]
-    for T, lab in zip(tr.waypoints[3:-1], tr.labels[3:-1], strict=True):
-        steps.append(
-            {
-                "op": "move_pose",
-                "capability": "move_pose",
-                "transfer": idx,
-                "label": lab,
-                "request": {"target_pose": T_to_pose(T, wc.frame_id)},
-                "preconditions": ["held state valid (width check)"],
-            }
-        )
-    steps.append(
+            "request": to_grasp_request(g, wc.limits),
+            "joint_path": tr.path.summary(),
+            "q_path": tr.path.q_path,
+            "preconditions": ["fresh non-privileged 6D observation of the part", "gripper empty"],
+        },
         {
-            "op": "release",
-            "capability": "release",
+            "capability": "move_waypoints",
+            "phase": "transport",
             "transfer": idx,
-            "request": {"open_width_m": round(g.open_width_m, 5)},
-            "available": False,
-            "note": "no public release/set_gripper capability yet (integration request to Agent 5)",
-            "postconditions": ["held state cleared"],
-        }
-    )
-    steps.append(
-        {
-            "op": "move_pose",
-            "capability": "move_pose",
-            "transfer": idx,
-            "label": "retreat",
-            "request": {"target_pose": T_to_pose(tr.waypoints[-1], wc.frame_id)},
-        }
-    )
-    steps.append(
-        {
-            "op": "observe",
-            "capability": "perception_regrasp.observe",
-            "transfer": idx,
-            "object_id": g.object_id,
-            "expect": {
-                "pose": T_to_pose(tr.T_to, wc.frame_id),
-                "state": expect_state,
-                "tolerance": {"translation_m": 0.005, "rotation_deg": 10.0},
+            "request": {
+                "waypoints": [T_to_pose(T, wc.frame_id) for T in carried],
+                "linear": False,
+                "held": held_ref,
             },
-            "postconditions": [
-                "independent observation confirms the resting state; else failed (no success from commanded poses)"
-            ],
-        }
-    )
-    steps[0]["joint_path"] = path
-    steps[0]["q_path"] = tr.path.q_path
-    return steps
+            "note": "segments between waypoints are the backend's; the joint-path check assumed "
+            "straight / geodesic TCP legs (a joint-space executor would follow q_path exactly)",
+        },
+        {
+            "capability": "set_gripper",
+            "phase": "release",
+            "transfer": idx,
+            "request": {
+                "width_m": round(g.open_width_m, 5),
+                "purpose": "release",
+                "target_id": g.object_id,
+            },
+        },
+        {
+            "capability": "move_pose",
+            "phase": "retreat",
+            "transfer": idx,
+            "request": {"target_pose": T_to_pose(tr.waypoints[-1], wc.frame_id)},
+        },
+        {
+            "capability": "observe_objects",
+            "phase": "verify",
+            "transfer": idx,
+            "request": {"object_ids": [g.object_id], "require_orientation": True},
+            "expect": {
+                "pose": T_to_pose(to_contract_frame(tr.T_to, spec.object_class), wc.frame_id),
+                "state_label": expect_state,
+                "tolerance": {
+                    "translation_m": VERIFY_TRANSLATION_M,
+                    "rotation_rad": VERIFY_ROTATION_RAD,
+                },
+                "symmetric_equivalents_accepted": True,
+            },
+        },
+    ]
 
 
 def _state_name(spec: ObjectSpec, T: np.ndarray, table_z: float) -> str | None:
@@ -350,21 +361,21 @@ def plan_reorient_or_regrasp(
     privileged where not allowed, not resting)."""
     t0 = time.perf_counter()
     stage = "plan_reorient_or_regrasp"
-    ok, why = obs.usable(now_s, max_age_s, allow_privileged)
+    ok, why, ftype = obs.check_usable(now_s, max_age_s, allow_privileged)
     if not ok:
         return result(
             "rejected",
             stage,
-            failure_type="observation_unusable",
+            failure_type=ftype,
             reason=why,
-            recovery=["reobserve"],
+            recovery_hints=["reobserve"],
             verification="none",
         )
     if obs.frame_id != wc.frame_id:
         return result(
             "rejected",
             stage,
-            failure_type="frame_mismatch",
+            failure_type="invalid_request",
             reason=f"observation in {obs.frame_id}, workcell in {wc.frame_id}",
             verification="none",
         )
@@ -375,9 +386,9 @@ def plan_reorient_or_regrasp(
         return result(
             "rejected",
             stage,
-            failure_type="uncertain_state",
+            failure_type="perception.uncertain_state",
             reason=obs.attributes.get("domino", {}).get("reason", "resting state uncertain"),
-            recovery=["reobserve from the wrist camera"],
+            recovery_hints=["reobserve"],
             verification="none",
         )
     goals = _goal_equivalents(T_goal, spec)
@@ -428,10 +439,10 @@ def plan_reorient_or_regrasp(
         return result(
             "failed",
             stage,
-            failure_type="no_feasible_grasp",
+            failure_type="perception.no_feasible_grasp",
             reason="no grasp candidate passes the jaw, contact and clearance checks where the part lies",
             evidence={"start_state": start_state},
-            recovery=["reobserve", "singulate / push the part to open room"],
+            recovery_hints=["reobserve", "human"],
             verification="geometry",
         )
     direct = search(T0, goals, start_grasps, wc.q_current)
@@ -456,8 +467,8 @@ def plan_reorient_or_regrasp(
     evidence = {
         "start_state": start_state,
         "goal_state": goal_state,
-        "start_pose": T_to_pose(T0, wc.frame_id),
-        "goal_pose": T_to_pose(T_goal, wc.frame_id),
+        "start_pose": T_to_pose(to_contract_frame(T0, spec.object_class), wc.frame_id),
+        "goal_pose": T_to_pose(to_contract_frame(T_goal, spec.object_class), wc.frame_id),
         "observation": {
             "provider": obs.provider,
             "privileged": obs.privileged,
@@ -468,21 +479,18 @@ def plan_reorient_or_regrasp(
         "rejections": reasons,
         "planning_s": round(time.perf_counter() - t0, 3),
         "kinematic_model": "i2rt YAM chain (checking-dual-arm-clearance) + DLS IK"
-        if wc.ik.__class__.__name__ == "YamIk"
+        if isinstance(wc.ik, YamIk)
         else wc.ik.__class__.__name__,
     }
     if not plan:
         return result(
             "failed",
             stage,
-            failure_type="no_feasible_plan",
-            reason="no direct turn and no staging regrasp passed the whole-joint-path check within the budget",
+            failure_type="unreachable",
+            reason="no direct turn and no staging regrasp passed the whole-joint-path check within the budget "
+            "(add staging spots nearer the arm's dexterous region, use the other arm, or raise max_path_evals)",
             evidence=evidence,
-            recovery=[
-                "add staging spots nearer the arm's dexterous region",
-                "use the other arm",
-                "raise max_path_evals",
-            ],
+            recovery_hints=["replan", "human"],
             verification="kinematic_model",
         )
     steps: list[dict[str, Any]] = []
@@ -491,8 +499,8 @@ def plan_reorient_or_regrasp(
         steps += _transfer_steps(tr, wc, spec, i, _state_name(spec, tr.T_to, wc.table_z))
         held.append(prior_from_grasp(tr.grasp, spec, wc.gripper_id, obs.timestamp_s, obs).to_dict())
     if plan_type == "staging_regrasp":
-        steps[len(steps) // 2]["note"] = (
-            "replan the second grasp from this observation; the planned one is provisional"
+        steps[len(steps) // 2 - 1]["note"] = (
+            "replan the second transfer from this observation; the planned one is provisional"
         )
     out = {
         "plan_type": plan_type,
@@ -501,8 +509,8 @@ def plan_reorient_or_regrasp(
         else {"evals": direct_evals, "reasons": dict(reasons)},
         "transfers": [
             {
-                "from": T_to_pose(tr.T_from, wc.frame_id),
-                "to": T_to_pose(tr.T_to, wc.frame_id),
+                "from": T_to_pose(to_contract_frame(tr.T_from, spec.object_class), wc.frame_id),
+                "to": T_to_pose(to_contract_frame(tr.T_to, spec.object_class), wc.frame_id),
                 "to_state": _state_name(spec, tr.T_to, wc.table_z),
                 "grasp": tr.grasp.to_dict(),
                 "joint_path": tr.path.summary(),

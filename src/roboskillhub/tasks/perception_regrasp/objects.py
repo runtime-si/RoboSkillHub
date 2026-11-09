@@ -20,6 +20,34 @@ import numpy as np
 
 from . import _hub
 
+#: Wire (contract v1) object frames that differ from this module's box frames, as
+#: ``R`` with ``T_W_module = T_W_contract @ R``. The v1 domino (DominoLayoutTarget,
+#: Agent 2's ``tasks/domino/geometry.py``): +z the height (long) axis, +x the
+#: facing (thickness) axis, +y the width; here +x is long, +y width, +z thickness.
+R_CONTRACT_TO_MODULE: dict[str, np.ndarray] = {
+    "domino": np.array([[0.0, 0.0, -1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]),
+}
+
+
+def to_contract_frame(T: np.ndarray, object_class: str) -> np.ndarray:
+    """A pose of the object (``T_X_object``, module frame) as the contract's object frame."""
+    R = R_CONTRACT_TO_MODULE.get(object_class)
+    if R is None:
+        return T
+    out = np.asarray(T, dtype=float).copy()
+    out[:3, :3] = out[:3, :3] @ R.T
+    return out
+
+
+def from_contract_frame(T: np.ndarray, object_class: str) -> np.ndarray:
+    R = R_CONTRACT_TO_MODULE.get(object_class)
+    if R is None:
+        return T
+    out = np.asarray(T, dtype=float).copy()
+    out[:3, :3] = out[:3, :3] @ R
+    return out
+
+
 DOMINO_SIZE_M = (0.048, 0.024, 0.0075)
 """48 x 24 x 7.5 mm: the tile in pose6d's synthetic evaluation and PR #106's twin runs.
 reading-domino-pips-and-orientation defaults to 8 mm thick; pass the set's own size."""

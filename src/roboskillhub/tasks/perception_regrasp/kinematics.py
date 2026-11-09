@@ -298,10 +298,28 @@ class CallableIk:
     what it gets."""
 
     fn: Callable[[np.ndarray, np.ndarray], Any]
+    verify_fk: bool = True
+    """Check each returned solution with the i2rt model's FK; one that misses the
+    target by more than the tolerances (a different TCP, a bad solver, a model
+    mismatch) counts as no solution and is tallied in ``mismatches``."""
+    pos_tol_m: float = 0.005
+    rot_tol_rad: float = math.radians(3.0)
+    mismatches: int = 0
 
     def solve(self, T_base_tcp: np.ndarray, seed: np.ndarray) -> np.ndarray | None:
         q = self.fn(T_base_tcp, seed)
-        return None if q is None else np.asarray(q, dtype=float).reshape(6)
+        if q is None:
+            return None
+        q = np.asarray(q, dtype=float).reshape(6)
+        if self.verify_fk:
+            T = fk(q)
+            if (
+                np.linalg.norm(T[:3, 3] - T_base_tcp[:3, 3]) > self.pos_tol_m
+                or rotation_angle(T[:3, :3], T_base_tcp[:3, :3]) > self.rot_tol_rad
+            ):
+                self.mismatches += 1
+                return None
+        return q
 
 
 def world_to_base(T_world_base: np.ndarray, T_world_x: np.ndarray) -> np.ndarray:

@@ -90,6 +90,7 @@ class SimTruthProvider:
                 T_frame_object=T,
                 uncertainty=Uncertainty(0.0, 0.0, "simulator_truth"),
                 evidence={"source": "simulator object state"},
+                confidence=1.0,
             )
             _annotate(obs, spec, self.table_z, pip_face_known=True)
             out.append(obs)
@@ -271,6 +272,7 @@ class RgbdProvider:
             if not unc.ambiguous
             else "pose6d ambiguous_fit: a non-equivalent pose scores within 0.03",
             evidence=ev,
+            confidence=_confidence(r),
         )
         pip_known = False
         if spec.object_class == "domino" and self.read_pips and frame.rgb is not None:
@@ -312,6 +314,33 @@ class RgbdProvider:
                 np.diag([1.0, -1.0, -1.0])
             )  # half-turn about x: +z flips
         return True
+
+
+def backend_objects(
+    provider: ObservationProvider, object_ids: Sequence[str] | None = None
+) -> dict[str, Any]:
+    """``get_state()["objects"]`` for a backend that uses ``provider`` as its object
+    source, so ``observe_objects`` passes these observations through. Objects
+    without a pose are left out (the primitive then reports
+    ``object_not_observed``); their reasons are under ``"_unseen"``, which the
+    primitive ignores because it only reads the ids it was asked for."""
+    out: dict[str, Any] = {}
+    unseen: dict[str, str] = {}
+    for obs in provider.observe(object_ids):
+        if obs.has_pose:
+            out[obs.object_id] = obs.to_backend_object()
+        else:
+            unseen[obs.object_id] = f"{obs.visibility}: {obs.reason}"
+    if unseen:
+        out["_unseen"] = unseen
+    return out
+
+
+def _confidence(r: dict[str, Any]) -> float:
+    """Heuristic in [0, 1] from pose6d's fit: fitness, coverage relative to an
+    unoccluded view, halved when ambiguous. Not a calibrated probability."""
+    c = min(float(r["fitness"]), min(1.0, float(r["coverage"]) / FULL_COVERAGE))
+    return round(c * (0.5 if r["status"] == "ambiguous_fit" else 1.0), 3)
 
 
 def _rest_tilt_deg(T: np.ndarray) -> float:
@@ -359,7 +388,7 @@ def _unseen(
     privileged: bool,
     reason: str,
     evidence: dict[str, Any] | None = None,
-    visibility: str = "not_seen",
+    visibility: str = "not_found",
 ) -> ObjectObservation:
     return ObjectObservation(
         object_id=oid,
