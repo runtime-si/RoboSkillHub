@@ -49,7 +49,7 @@ FAULTS: dict[str, dict] = {
     "partial_engagement": {
         "scenes": {"single_on_brick": 0},
         "expect": ["lego.partially_seated"],
-        "doc": "place one stud along y off the goal on the 2x4 below, so 6 of 8 studs can engage",
+        "doc": "place one stud along the long side off the goal on the 2x4 below, so 6 of 8 studs can engage",
     },
     "not_fully_pressed": {
         "scenes": {"single_on_brick": 0, "single_on_plate": 0},

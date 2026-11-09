@@ -102,18 +102,24 @@ def evaluate_placement(record: dict, index: int, cfg: dict, accepted: dict[str, 
         for gc in record["goal_connections"]:
             if gc["hole"] == other and not _has_goal_conn(settled, gc, parts):
                 lost.append(f"{gc['stud']}->{other}")
-    lost += [
-        f"{ev['stud']}->{ev['hole']}"
-        for ev in step.get("events", [])
-        if ev["kind"] == "disassembled" and ev["hole"] in accepted
-    ]
+    transient = sorted(
+        {
+            f"{ev['stud']}->{ev['hole']}"
+            for ev in step.get("events", [])
+            if ev["kind"] == "disassembled" and ev["hole"] in accepted
+        }
+    )
     intact = not moved and not lost
     out["postconditions"].append(
         _check(
             "structure_intact",
             intact,
             "earlier bricks within structure_move_tol and still connected",
-            {"moved_m": moved, "lost_connections": sorted(set(lost))},
+            {
+                "moved_m": moved,
+                "lost_connections": sorted(set(lost)),
+                "broken_then_remade": [c for c in transient if c not in lost],
+            },
         )
     )
 

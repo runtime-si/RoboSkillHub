@@ -74,7 +74,7 @@ def test_fault_perturbations():
     assert p(None, CFG) == lego_faults.Perturbation()
     assert p("lateral_offset", CFG).place_offset_m == (0.003, 0.0, 0.0)
     assert p("angle_error", CFG).place_yaw_rad == pytest.approx(math.radians(9.0))
-    assert p("partial_engagement", CFG).place_offset_m == (0.0, 0.008, 0.0)
+    assert p("partial_engagement", CFG).place_offset_m == (0.008, 0.0, 0.0)
     nf = p("not_fully_pressed", CFG)
     assert not nf.press and nf.hover_above_seat_m > 0
     assert p("insufficient_support", CFG, ("1", "2")).skip_parts == ("1", "2")

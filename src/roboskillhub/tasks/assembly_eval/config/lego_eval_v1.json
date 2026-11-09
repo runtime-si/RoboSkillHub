@@ -80,8 +80,8 @@
     },
     "partial_engagement": {
       "shift_studs": [
-        0,
-        1
+        1,
+        0
       ]
     },
     "not_fully_pressed": {

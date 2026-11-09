@@ -171,6 +171,29 @@ def test_brick_that_never_left_the_feeder_is_grasp_missed():
     assert (v["status"], v["failure_type"]) == ("failed", "grasp_missed")
 
 
+def test_connection_broken_and_remade_is_not_damage():
+    rec = record(GOAL, [PLATE_CONN], ASSEMBLED, probe=GOAL)
+    rec["parts"]["3"] = {"lw": [4, 2], "role": "preplaced"}
+    keep = {"stud": "0", "hole": "3", "offset": [8, 8], "yaw": 0}
+    rec["goal_connections"].append(keep)
+    for s in rec["steps"][0]["snapshots"].values():
+        s["parts"]["3"] = pose(x=0.064, z=0.0032)
+        s["conns"].append(dict(keep))
+    rec["steps"][0]["events"] = [
+        {"kind": "disassembled", **keep},
+        {"kind": "assembled", **keep},
+        *ASSEMBLED,
+    ]
+    v = evaluate_placement(rec, 0, CFG, {"3": pose(x=0.064, z=0.0032)})
+    assert v["status"] == "succeeded", v
+    intact = next(c for c in v["postconditions"] if c["name"] == "structure_intact")
+    assert intact["measured"]["broken_then_remade"] == ["0->3"]
+    for s in rec["steps"][0]["snapshots"].values():
+        s["conns"] = [c for c in s["conns"] if c["hole"] != "3"]
+    v = evaluate_placement(rec, 0, CFG, {"3": pose(x=0.064, z=0.0032)})
+    assert v["failure_type"] == "lego.structure_damaged"
+
+
 def test_missing_snapshot_is_unverified():
     rec = record(GOAL, [PLATE_CONN], ASSEMBLED, probe=GOAL)
     del rec["steps"][0]["snapshots"]["released"]
