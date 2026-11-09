@@ -884,3 +884,17 @@ def test_unknown_strategy_is_refused(script):
     out = joint_stand(script, JointArm(script), strategy="tip_up")
     assert out["route"] == "unreachable" and "not one of" in out["detail"]
     assert not out["picked"]
+
+
+def test_hinge_tip_moves_the_top_down_hand_on_an_arc_about_the_far_edge(script):
+    arm = JointArm(script)
+    out = joint_stand(script, arm, verify=False, strategy="hinge_tip")
+    assert out["route"] == "standing", out["detail"]
+    assert out["strategy"] == "hinge_tip" and out["released"]
+    # The far end's bottom edge, 24 mm behind the centre; the spot half a thickness behind it.
+    end = -1.0 if out["facing_deg"] == pytest.approx(0.0, abs=1.0) else 1.0
+    at = out["standing_tile"]["position"]
+    assert at["x"] == pytest.approx(TILE["x"] + end * (0.024 + 0.00375), abs=1e-6)
+    # The hand kept its top-down rotation and let go over the foot.
+    assert abs((arm.r @ np.array([0.0, 0.0, 1.0]))[2]) > 0.999
+    assert arm.released_at[0] == pytest.approx(TILE["x"] + end * 0.024, abs=0.012)
