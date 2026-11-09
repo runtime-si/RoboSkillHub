@@ -27,6 +27,8 @@ PARTIAL = 0.0006
 YAW_TOL = 0.8
 OFFSET = np.array([0.003, -0.002, -0.0095])
 START = np.array([0.40, 0.10, 0.12])
+PIECE_R = 0.010
+TIP = 0.0102
 
 
 @pytest.fixture(scope="module")
@@ -95,6 +97,8 @@ class World:
         top_offset=None,
         stuck_lift=False,
         efforts=None,
+        open_side=None,
+        push_block=None,
     ):
         self.p = START.copy()
         self.r = _rot(DOWN)
@@ -112,6 +116,20 @@ class World:
         self.top_z = None
         self.moves = []
         self.down_moves = 0
+        # The side the slot opens to (a unit x / y vector toward the neighbours): the
+        # mat is clear behind the slot along it, and a piece sliding along it stops at
+        # the slot. push_block: a free piece pushed along it stops this far short.
+        self.s = None if open_side is None else np.array([*open_side, 0.0], float)
+        self.push_block = push_block
+        self.closed = False
+        self.free = None  # a released piece's reference point
+
+    def tilt(self, r=None):
+        r = self.r if r is None else r
+        return math.degrees(math.acos(max(-1.0, min(1.0, float((r @ self.r0.T)[2, 2])))))
+
+    def along(self, xy):
+        return float(np.dot(np.asarray(xy)[:2] - self.true, self.s[:2]))
 
     # -- the piece
     def yaw(self):
@@ -127,6 +145,10 @@ class World:
         dyaw = abs(yaw - self.true_yaw)
         if err <= CLEAR and dyaw <= YAW_TOL:
             return SLOT[2]
+        if self.s is not None and self.along(xy) < 0.0:
+            perp = np.asarray(xy) - self.true - self.along(xy) * self.s[:2]
+            if float(np.linalg.norm(perp)) <= CLEAR:
+                return SLOT[2]
         if self.partial and err <= PARTIAL and dyaw <= YAW_TOL:
             return SLOT[2] + 0.5 * THICK
         return SLOT[2] + THICK
@@ -136,6 +158,19 @@ class World:
         if not self.held:
             return False
         b = self.piece()
+        tilt = self.tilt()
+        if tilt > 1.0:
+            # Tilted: the leading edge (PIECE_R ahead) touches the mat; sliding along
+            # the open side stops at the slot.
+            held_up = False
+            edge = b[2] - PIECE_R * math.sin(math.radians(tilt))
+            if edge < SLOT[2] - 1e-12:
+                self.p[2] += SLOT[2] - edge
+                held_up = True
+            if self.s is not None and self.along(b) > 0.0:
+                self.p -= self.s * self.along(b)
+                held_up = True
+            return held_up
         f = self.floor(b[:2], self.yaw())
         if b[2] < f - 1e-12:
             if self.stuck_lift:
@@ -164,12 +199,41 @@ class World:
             r = _rot(pose["rotation"])
             if not self.has_joints:
                 self.r = r
+            old = self.p.copy()
             self.p = p
+            if self.closed and self.free is not None and self.fingertips(old, p):
+                return {"outcome": "timeout", "reached": False}
             if self.settle():
                 return {"outcome": "timeout", "reached": False}
             return {"outcome": "reached", "reached": True}
 
         return go
+
+    def free_top(self):
+        on = float(np.linalg.norm(self.free[:2] - self.true)) <= CLEAR
+        return SLOT[2] + (THICK if on or self.s is None or self.along(self.free) < 0 else 2 * THICK)
+
+    def fingertips(self, old, new):
+        """Closed fingertips TIP below the hand against a released piece (a disc of
+        PIECE_R): from above they stop on its top, low down they push it along the
+        open side until it reaches the slot (or push_block short of it). True if
+        the hand was held back."""
+        tip, was = new - [0, 0, TIP], old - [0, 0, TIP]
+        top = self.free_top()
+        inside = float(np.linalg.norm(tip[:2] - self.free[:2])) < PIECE_R
+        if inside and was[2] >= top - 1e-9 and tip[2] < top:
+            self.p[2] += top - tip[2]
+            return True
+        if inside and tip[2] < top and self.s is not None:
+            d = float(np.dot(tip[:2] - self.free[:2], self.s[:2]))
+            self.free[:2] += self.s[:2] * (d + PIECE_R)
+            stop = -(self.push_block or 0.0)
+            over = self.along(self.free) - stop
+            if over > 0.0:
+                self.free[:2] -= self.s[:2] * over
+                self.p -= self.s * over
+                return True
+        return False
 
     def _joints(self, joint_config, **kw):
         q = np.asarray(joint_config["positions"], float)
@@ -186,8 +250,14 @@ class World:
             self.top_z = (
                 b[2] + THICK if self.top_offset is None else SLOT[2] + THICK + self.top_offset
             )
+            self.free = b.copy()
         self.held = False
+        self.closed = False
         return {"position": 1.0}
+
+    def _close(self, **kw):
+        self.closed = True
+        return {"position": 0.0}
 
     # -- sensing
     def pose(self):
@@ -234,6 +304,7 @@ class World:
                     "within_servo_tolerance": self.ik_ok,
                 },
                 "robot.open_gripper": self._open,
+                "robot.close_gripper": self._close,
             }
         )
 
@@ -469,6 +540,72 @@ def test_a_descent_stopping_above_the_neighbours_is_not_seated(script):
     out = run(script, world, slot_position=slot() | {"z": float(SLOT[2] - 0.008)})
     assert out["route"] == "not_seated", out["detail"]
     assert "above the neighbours" in out["detail"]
+
+
+# ------------------------------------------------------------- tilt_first
+
+
+def test_tilt_first_slides_to_the_seam_and_drops_on_levelling(script):
+    # The slot is 1.2 mm further along the seam than given: tilted, the piece slides there.
+    world = World(true_dxy=(0.0012, 0.0), open_side=(1.0, 0.0), joints=False, partial=False)
+    out = run(script, world, approach="tilt_first", seam_direction={"x": 1.0, "y": 0.0, "z": 0.0})
+    assert out["route"] == "seated", out["detail"]
+    assert out["probes"] == 1
+    assert out["seated_position"]["x"] == pytest.approx(SLOT[0] + 0.0012, abs=CLEAR)
+    tilted = [m for m in world.moves if m[0] == "robot.go_to_pose_cartesian"]
+    assert tilted, "the tilted descent is a Cartesian move"
+    assert world.tilt() < 0.5
+
+
+def test_tilt_first_without_reaching_the_seam_falls_back_to_the_search(script):
+    # Off across the seam: the slide meets the slot line but 0.8 mm aside; the probes find it.
+    world = World(true_dxy=(0.0, 0.0008), open_side=(1.0, 0.0), joints=False, partial=False)
+    out = run(
+        script,
+        world,
+        approach="tilt_first",
+        seam_direction={"x": 1.0, "y": 0.0, "z": 0.0},
+        scoot=False,
+    )
+    assert out["route"] == "seated", out["detail"]
+    assert out["probes"] > 1
+
+
+def test_tilt_first_needs_a_seam_direction(script):
+    with pytest.raises(ValueError, match="seam_direction"):
+        script.run(World().ctx(), slot_position=slot(), approach="tilt_first")
+    with pytest.raises(ValueError, match="approach"):
+        script.run(World().ctx(), slot_position=slot(), approach="sideways")
+
+
+# ------------------------------------------------------------- offset_push
+
+
+def test_offset_push_sets_down_short_pushes_in_and_presses(script):
+    world = World(open_side=(0.0, 1.0))
+    out = run(script, world, approach="offset_push", seam_direction={"x": 0.0, "y": 1.0, "z": 0.0})
+    assert out["route"] == "seated", out["detail"]
+    assert out["released"] is True
+    assert world.closed
+    assert world.free[1] == pytest.approx(SLOT[1], abs=1e-6)
+    assert out["stop_height"] == pytest.approx(0.0, abs=0.0005)
+    assert "pushed 4.0 mm" in out["detail"]
+
+
+def test_offset_push_stalling_short_is_jammed(script):
+    world = World(open_side=(0.0, 1.0), push_block=0.002)
+    out = run(script, world, approach="offset_push", seam_direction={"x": 0.0, "y": 1.0, "z": 0.0})
+    assert out["route"] == "jammed", out["detail"]
+    assert out["released"] is True
+    assert "short of the slot" in out["detail"]
+
+
+def test_offset_push_onto_a_blocked_spot_is_not_seated_and_kept(script):
+    world = World()  # nothing clear behind the slot: the set-down lands on the neighbours
+    out = run(script, world, approach="offset_push", seam_direction={"x": 0.0, "y": 1.0, "z": 0.0})
+    assert out["route"] == "not_seated", out["detail"]
+    assert out["released"] is False
+    assert "not clear" in out["detail"]
 
 
 def test_example_declares_every_route(script):

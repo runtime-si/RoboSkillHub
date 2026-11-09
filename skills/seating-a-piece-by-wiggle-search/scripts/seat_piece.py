@@ -176,6 +176,28 @@ MIN_SAMPLES = 5
 inside the image by this margin; depth is the median of the 3 x 3 window per
 point within 7-50 cm; at least 5 points must read."""
 
+TILT_DEG = 10.0
+TILT_BACK = 0.003
+PIECE_RADIUS = 0.010
+"""approach="tilt_first": the piece tilted this much [deg] about the horizontal
+axis across seam_direction, leading side low (the jigsaw design note's 8-15 deg;
+Watson et al.'s InsertTilt), first lowered this far short of its slot [m] (a few
+mm), its leading edge taken this far from its reference point [m] (half a 20 mm
+piece) to know how much lower than the reference it hangs."""
+
+PUSH_OFFSET = 0.004
+PUSH_CLEAR = 0.003
+PUSH_TIP_HEIGHT = 0.001
+PUSH_OVER = 0.0005
+PUSH_SLACK = 0.001
+"""approach="offset_push": the piece is set down this far short of its slot [m]
+(the design note's 3-6 mm), the closed fingertips start this far behind its
+trailing edge [m], 1 mm over the mat (the design note), push through the slot by
+PUSH_OVER more, and a push stopping more than PUSH_SLACK short of the slot is
+jammed [m]."""
+
+APPROACHES = ("wiggle", "tilt_first", "offset_push")
+
 REFUSALS = ("unreachable", "bad_speed_scale")
 """Routed outcomes that mean a move was refused, not stopped."""
 
@@ -257,6 +279,14 @@ def _rz(deg: float) -> np.ndarray:
     a = math.radians(deg)
     c, s = math.cos(a), math.sin(a)
     return np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
+
+
+def _about(axis: np.ndarray, deg: float) -> np.ndarray:
+    """Rotation by ``deg`` about the unit vector ``axis`` (Rodrigues)."""
+    k = np.asarray(axis, float) / (float(np.linalg.norm(axis)) or 1.0)
+    a = math.radians(deg)
+    kx = np.array([[0.0, -k[2], k[1]], [k[2], 0.0, -k[0]], [-k[1], k[0], 0.0]])
+    return np.eye(3) + math.sin(a) * kx + (1.0 - math.cos(a)) * kx @ kx
 
 
 def _yaw_between(r_from: np.ndarray, r_to: np.ndarray) -> float:
@@ -445,12 +475,29 @@ def run(
     roll_limits: list[float] | None = None,
     check_reach: bool = True,
     reach_tolerance: float = REACH_TOLERANCE,
+    approach: str = "wiggle",
+    seam_direction: dict[str, float] | None = None,
+    tilt_deg: float = TILT_DEG,
+    tilt_back: float = TILT_BACK,
+    piece_radius: float = PIECE_RADIUS,
+    push_offset: float = PUSH_OFFSET,
+    finger_reach: float = TIP_REACH,
     arm_id: int = 0,
 ) -> Output:
     t_start = time.monotonic()
     thick = float(thickness)
     if thick <= 0.0:
         raise ValueError(f"thickness must be positive, got {thickness!r}")
+    if approach not in APPROACHES:
+        raise ValueError(f"approach must be one of {APPROACHES}, got {approach!r}")
+    s_dir = np.zeros(3)
+    if approach != "wiggle":
+        if seam_direction is None:
+            raise ValueError(f"approach={approach!r} needs seam_direction (toward the neighbours)")
+        s_dir = _xyz(seam_direction) * np.array([1.0, 1.0, 0.0])
+        if float(np.linalg.norm(s_dir)) < 1.0e-9:
+            raise ValueError("seam_direction must have a horizontal part")
+        s_dir /= float(np.linalg.norm(s_dir))
     step = FEEL_STEP
     lag_thr = float(lag_threshold) if lag_threshold is not None else LAG_FRACTION * step
     seated_tol, nearly_tol = SEATED_FRACTION * thick, NEARLY_FRACTION * thick
@@ -494,9 +541,16 @@ def run(
         off = _rz(yaw) @ offset
         return np.array([piece_xy[0] - off[0], piece_xy[1] - off[1], bottom_z - offset[2]])
 
-    def piece_at(p: np.ndarray) -> np.ndarray:
-        """Where the piece's reference point is under a measured hand position."""
-        return p + _rz(state["yaw"]) @ offset
+    def piece_at(p: np.ndarray, r: np.ndarray | None = None) -> np.ndarray:
+        """Where the piece's reference point is under a measured hand position
+        (and rotation, when the hand is not level)."""
+        if r is None:
+            return p + _rz(state["yaw"]) @ offset
+        return p + r @ r0.T @ offset
+
+    def hand_at(ref: np.ndarray, r: np.ndarray) -> np.ndarray:
+        """The hand position putting the piece's reference at ``ref`` under rotation ``r``."""
+        return ref - r @ r0.T @ offset
 
     def height(p: np.ndarray) -> float:
         """The piece's bottom over the mat under a measured hand position."""
@@ -682,6 +736,135 @@ def run(
             )
         return finish(route, why + "; lifted back, still holding")
 
+    def slide(travel: float, r: np.ndarray | None = None) -> dict[str, Any]:
+        """Fine steps along seam_direction at the height the hand stands. A
+        stop is the hand lagging its command along the slide lag_thr more than
+        in free motion (the piece met the neighbours)."""
+        p0, r_here = arm.still()
+        r = r_here if r is None else r
+        lags = [0.0]
+        res: dict[str, Any] = {"met": False, "travel": 0.0, "at": p0}
+        n = max(1, math.ceil(travel / step - 1e-9))
+        for i in range(1, n + 1):
+            goal = p0 + s_dir * min(i * step, travel)
+            kind, why = arm.move("robot.go_to_pose", goal, r, fine=True)
+            if kind == "refused":
+                res.update(refused=why)
+                return res
+            p, _ = arm.still()
+            lag = float(np.dot(goal - p, s_dir))
+            res.update(at=p, travel=float(np.dot(p - p0, s_dir)))
+            if lag - float(np.median(lags[-3:])) > lag_thr:
+                res["met"] = True
+                return res
+            lags.append(lag)
+        return res
+
+    def push_in() -> Output:
+        """approach="offset_push": set the piece down flat push_offset short of
+        its slot, let go, close the jaws, push it along seam_direction into the
+        slot with the fingertips 1 mm over the mat, press its centre, check."""
+        back = slot[:2] - s_dir[:2] * float(push_offset)
+        window_b = slot[2] + thick + float(contact_window)
+        kind, why = arm.move(
+            "robot.go_to_pose_cartesian", hand_for(back, state["yaw"], window_b), r_now
+        )
+        if kind == "refused":
+            return lift_back("unreachable", f"the descent to the offset spot was refused: {why}")
+        p_here, _ = place(back, window_b)
+        res = feel(max(step, height(p_here) + OVERTRAVEL_FRACTION * thick))
+        out["probes"] += 1
+        if "refused" in res:
+            return lift_back("unreachable", f"setting down was refused: {res['refused']}")
+        h = height(res["at"])
+        out["stop_height"] = out["best_height"] = h
+        if not res["contact"]:
+            return lift_back(
+                "piece_lost",
+                f"setting down went {-h * 1e3:.1f} mm under the mat: the piece is not in the hand",
+            )
+        if h > seated_tol:
+            return lift_back(
+                "not_seated",
+                f"setting down {float(push_offset) * 1e3:.1f} mm short of the slot stopped {h * 1e3:.2f} mm "
+                "over the mat: the spot is not clear",
+            )
+        p_set = unpress()
+        piece = piece_at(p_set)
+        if hold_s > 0:
+            time.sleep(float(hold_s))
+        ctx.tool("robot.open_gripper", **arm.on_arm)
+        out["released"] = True
+        hover_z = slot[2] + thick + float(approach_height) + float(finger_reach)
+        _, r_here = arm.read()
+        why = go("robot.go_to_pose_cartesian", np.array([p_set[0], p_set[1], hover_z]), r_here)
+        if why:
+            return finish("unreachable", f"set down and released; the retreat: {why}")
+        ctx.tool("robot.close_gripper", **arm.on_arm)
+        behind = piece[:2] - s_dir[:2] * (float(piece_radius) + PUSH_CLEAR)
+        tip_tcp = slot[2] + PUSH_TIP_HEIGHT + float(finger_reach)
+        for label, goal, tool in (
+            (
+                "over the piece's trailing side",
+                np.array([behind[0], behind[1], hover_z]),
+                "robot.go_to_pose",
+            ),
+            (
+                "down behind the piece",
+                np.array([behind[0], behind[1], tip_tcp]),
+                "robot.go_to_pose_cartesian",
+            ),
+        ):
+            why = go(tool, goal, r_here)
+            if why:
+                return finish("unreachable", f"set down and released; the move {label}: {why}")
+        expected = PUSH_CLEAR + float(push_offset)
+        res = slide(expected + PUSH_OVER, r_here)
+        pushed = float(res["travel"])
+        p_end = res["at"]
+        _, r_here = arm.read()
+        go("robot.go_to_pose_cartesian", np.array([p_end[0], p_end[1], hover_z]), r_here)
+        how = (
+            f"set down {float(push_offset) * 1e3:.1f} mm short, released, pushed "
+            f"{max(0.0, pushed - PUSH_CLEAR) * 1e3:.1f} mm"
+        )
+        if "refused" in res:
+            return finish("unreachable", how + f"; a push stroke was refused: {res['refused']}")
+        if res["met"] and pushed < expected - PUSH_SLACK:
+            return finish(
+                "jammed",
+                how
+                + f": stopped {(expected - pushed) * 1e3:.1f} mm short of the slot, something is in the way",
+            )
+        # The press: closed fingertips down on the piece's centre (its top).
+        why = go("robot.go_to_pose", np.array([slot[0], slot[1], hover_z]), r_here)
+        if why:
+            return finish("unreachable", how + f"; the move over the slot: {why}")
+        top_window = slot[2] + thick + float(contact_window) + float(finger_reach)
+        arm.move("robot.go_to_pose_cartesian", np.array([slot[0], slot[1], top_window]), r_here)
+        p_now, _ = arm.still()
+        res = feel(
+            max(step, p_now[2] - float(finger_reach) - slot[2] + OVERTRAVEL_FRACTION * thick)
+        )
+        if "refused" in res:
+            return finish("unreachable", how + f"; the press was refused: {res['refused']}")
+        top = float(res["at"][2] - float(finger_reach) - slot[2])
+        out["stop_height"] = top - thick
+        p_up = unpress()
+        go("robot.go_to_pose_cartesian", np.array([p_up[0], p_up[1], hover_z]), r_here)
+        if not res["contact"]:
+            return finish(
+                "piece_lost",
+                how + f"; the press went {-top * 1e3:.1f} mm under the mat: no piece at the slot",
+            )
+        how += f"; pressed its centre, its top stopped {top * 1e3:.2f} mm over the mat"
+        out["seated_position"] = _vec(slot)
+        if not verify:
+            return finish("unverified", how + "; not checked (verify=false)")
+        return _check(
+            ctx, arm, out, finish, how, slot, slot, thick, top_radius, camera, check_reach
+        )
+
     # -- the start: holding check, reach, hover, turn
     try:
         fraction = float(ctx.tool("robot.get_gripper", **arm.on_arm)["position"])
@@ -718,25 +901,83 @@ def run(
                 f"could not turn the piece {yaw0:+.1f} deg to the slot ({why}); at the start",
             )
     _, r_now = arm.read()
-    why = go("robot.go_to_pose", hand_for(slot, state["yaw"], hover_bottom), r_now)
+    back = {"tilt_first": float(tilt_back), "offset_push": float(push_offset)}.get(approach, 0.0)
+    why = go(
+        "robot.go_to_pose", hand_for(slot[:2] - s_dir[:2] * back, state["yaw"], hover_bottom), r_now
+    )
     if why:
         return finish("unreachable", f"hover: {why}")
+    if approach == "offset_push":
+        return push_in()
+
+    def tilt_in() -> np.ndarray:
+        """approach="tilt_first" (Watson et al.'s InsertTilt): tilt the piece
+        leading side low, lower it tilt_back short of the slot until its edge
+        touches, slide it along seam_direction until it meets the neighbours,
+        level it there and feel down. Returns where the piece ended (the
+        search's new centre)."""
+        r_lvl = arm.read()[1]
+        r_tilt = _about(np.cross(up, s_dir), float(tilt_deg)) @ r_lvl
+        drop = float(piece_radius) * math.sin(math.radians(float(tilt_deg)))
+        start = np.array([*(slot[:2] - s_dir[:2] * float(tilt_back)), hover_bottom])
+        why = go("robot.go_to_pose", hand_at(start, r_tilt), r_tilt)
+        if why:
+            raise _Done(lift_back("unreachable", f"the tilt: {why}"))
+        start[2] = slot[2] + drop + thick + float(contact_window)
+        kind, why = arm.move("robot.go_to_pose_cartesian", hand_at(start, r_tilt), r_tilt)
+        if kind == "refused":
+            raise _Done(lift_back("unreachable", f"the tilted descent was refused: {why}"))
+        p_here, r_here = arm.still()
+        res = feel(
+            max(step, piece_at(p_here, r_here)[2] - drop - slot[2] + OVERTRAVEL_FRACTION * thick),
+            press=False,
+        )
+        if "refused" in res:
+            raise _Done(lift_back("unreachable", f"a tilted step was refused: {res['refused']}"))
+        edge = float(piece_at(res["at"], r_here)[2] - drop - slot[2])
+        if not res["contact"]:
+            raise _Done(
+                lift_back(
+                    "piece_lost",
+                    f"the tilted descent went {-edge * 1e3:.1f} mm under the mat: the piece is not in the hand",
+                )
+            )
+        met = slide(float(tilt_back) + float(search_radius), r_here)
+        if "refused" in met:
+            raise _Done(lift_back("unreachable", f"the tilted slide was refused: {met['refused']}"))
+        p_here, r_here = arm.still()
+        ref = piece_at(p_here, r_here)
+        logger.info(
+            "seating-a-piece: tilted edge touched %.2f mm over the mat, slid %.2f mm%s",
+            edge * 1e3,
+            met["travel"] * 1e3,
+            " to the neighbours" if met["met"] else " without meeting them",
+        )
+        why = go("robot.go_to_pose", hand_at(ref, r_lvl), r_lvl)
+        if why:
+            raise _Done(lift_back("unreachable", f"levelling: {why}"))
+        state["yaw"] = _yaw_between(r0, arm.read()[1])
+        if abs(state["yaw"] - yaw0) > YAW_TOLERANCE_DEG:
+            turn(yaw0)
+        probe(ref[:2], "the levelled tilt")
+        return ref[:2].copy()
 
     # -- the first descent: fast to the window over the neighbours, then felt
-    window_bottom = slot[2] + thick + float(contact_window)
-    goal = hand_for(slot, state["yaw"], window_bottom)
-    kind, why = arm.move("robot.go_to_pose_cartesian", goal, r_now)
-    p, _ = arm.still()
-    if kind == "refused":
-        return lift_back("unreachable", f"descent refused: {why}")
-    if float(p[2] - goal[2]) > max(step, 0.002):
-        out["stop_height"] = height(p)
-        return lift_back(
-            "not_seated",
-            f"the descent stopped {height(p) * 1e3:.1f} mm over the mat, above the neighbours: the "
-            "slot is higher than given or something is in the way",
-        )
-    p, _ = place(slot, window_bottom)
+    if approach == "wiggle":
+        window_bottom = slot[2] + thick + float(contact_window)
+        goal = hand_for(slot, state["yaw"], window_bottom)
+        kind, why = arm.move("robot.go_to_pose_cartesian", goal, r_now)
+        p, _ = arm.still()
+        if kind == "refused":
+            return lift_back("unreachable", f"descent refused: {why}")
+        if float(p[2] - goal[2]) > max(step, 0.002):
+            out["stop_height"] = height(p)
+            return lift_back(
+                "not_seated",
+                f"the descent stopped {height(p) * 1e3:.1f} mm over the mat, above the neighbours: the "
+                "slot is higher than given or something is in the way",
+            )
+        place(slot, window_bottom)
     overtravel = OVERTRAVEL_FRACTION * thick
 
     best: dict[str, Any] = {"h": math.inf}
@@ -834,7 +1075,11 @@ def run(
     stop_reason = "every candidate probed"
     scooted: list[np.ndarray] = []
     try:
-        probe(slot[:2], "the first descent")
+        centre = slot[:2].copy()
+        if approach == "tilt_first":
+            centre = tilt_in()
+        else:
+            probe(slot[:2], "the first descent")
         # -- the probe search (puzzle_bot's pick-up-and-wiggle), most likely first
         order = search_order(
             float(search_radius),
@@ -878,7 +1123,7 @@ def run(
                 break
             dx, dy, dyaw = order[k]
             k += 1
-            go_probe(slot[:2] + np.array([dx, dy]), yaw0 + dyaw, f"probe {out['probes']}")
+            go_probe(centre + np.array([dx, dy]), yaw0 + dyaw, f"probe {out['probes']}")
 
         # -- scoot and wiggle from the best probe (puzzle_bot's last phase)
         if not seat_found() and scoot and fresh():
