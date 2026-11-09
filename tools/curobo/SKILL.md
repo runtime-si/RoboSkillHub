@@ -5,7 +5,8 @@ description: NVIDIA cuRobo motion planning — collision-free trajectories to
   moves, single-pose planning, geometric IK, batch grasp feasibility, and
   joint-trajectory collision validation. Use when a workflow needs
   GPU-accelerated, collision-aware arm motion plans.
-license: MIT
+license: MIT for this bundle's code (as open-robot-skills declared it); the NVIDIA cuRobo it
+  installs and calls (NVlabs/curobo@4ea7736, nvidia-curobo) is Apache-2.0
 compatibility: requires gap>=0.1
 metadata:
   category: planning
@@ -15,11 +16,11 @@ metadata:
     embodiments: [any]
     tuned_on: [panda]
     tasks: [motion-planning]
-    notes: Plans for curobo's built-in franka.yml. It knows yam.yml is 6-DoF but does not ship that config; register its path in _PROJECT_ROBOT_CONFIGS before planning for yam.
-    version: 0.1.0
+    notes: Plans for curobo's built-in franka.yml. It knows yam.yml is 6-DoF but does not ship that config; plan_with_grasped_object loads one registered in _PROJECT_ROBOT_CONFIGS, the other v0.8 planners only resolve curobo's built-in configs.
+    version: 0.2.0
     provenance:
       code: https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/tools/curobo
-      upstream_license: MIT
+      upstream_license: MIT (the open-robot-skills bundle); cuRobo itself, https://github.com/NVlabs/curobo/tree/4ea77366ca48ee453e7df139e39fa6532af49f3b, is Apache-2.0
 gap:
   requires: {gpu: true}
   serving:
@@ -28,7 +29,7 @@ gap:
     requires_gpu: true
   tools:
     - curobo.plan_to_grasp_poses: Collision-free trajectory to one of several grasp poses (goalset).
-    - curobo.plan_with_grasped_object: Transport plan with the grasped object attached to the gripper.
+    - curobo.plan_with_grasped_object: Transport plan with the held object attached to the gripper (failure_reason on failure).
     - curobo.plan_linear: Straight Cartesian trajectory between two EE poses.
     - curobo.plan_directed_linear: Constrained linear motion with axis/orientation holds.
     - curobo.plan_grasp_motion: Approach + grasp + lift sequence (three trajectories).
@@ -52,8 +53,8 @@ float64[dof]}]`); worlds are gap `WorldConfig` dicts (build one with
 - Tabletop pick: `geometry.top_down_grasp_candidates` →
   `curobo.plan_to_grasp_poses` (pass the whole fan as the goalset; check
   `goalset_index` for which one was reached).
-- Transport after grasping: `curobo.plan_with_grasped_object` with the
-  object's mesh name from `build_world_config`.
+- Transport after grasping (carrying a brick or a tile): see "Held-object
+  planning" below.
 - Drawers/doors: `curobo.plan_grasp_motion` (approach → grasp → lift/pull
   with gripper commands interleaved), or `curobo.plan_directed_linear` for
   a pull along one axis with orientation locked.
@@ -92,7 +93,8 @@ them per call corrupts CUDA graph state).
   (`check_start_state` requirement) and for varying world/start setups.
 - **curobo version split**: `plan_to_grasp_poses`, `plan_grasp_motion`,
   `plan_directed_linear`, `plan_linear`, `plan_to_pose`,
-  `plan_with_grasped_object` target curobo v0.8 (MotionPlanner API);
+  `plan_with_grasped_object` target curobo v0.8 (MotionPlanner API;
+  the held-object planner uses its AttachmentManager);
   `solve_ik` and `batch_grasp_feasibility` are built on the v0.7
   IKSolver API that v0.8 removed — on a v0.8-only install they raise
   `PlanningFailed` ("not supported on cuRobo v0.8"); plan via the goalset

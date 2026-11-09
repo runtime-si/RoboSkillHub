@@ -15,6 +15,14 @@ license line to the ten that relied on the upstream repository's Apache-2.0,
 and resolves the engine by pinned URL in each pyproject.toml instead of by a
 relative path. Later changes are in this repository's git history.
 
+tools/curobo installs and calls NVIDIA cuRobo (https://github.com/NVlabs/curobo,
+nvidia-curobo at commit 4ea77366ca48ee453e7df139e39fa6532af49f3b, the v0.8.0
+cuRoboV2 release), Copyright (c) 2023-2026 NVIDIA CORPORATION & AFFILIATES,
+Apache-2.0 (its LICENSE at that commit). The bundle vendors no cuRobo source;
+its own code keeps the MIT license open-robot-skills declared for it. The
+robot assets cuRobo ships (franka_description, used through franka.yml) are
+under cuRobo's LICENSE_ASSETS (franka_ros 0.7.0, Apache-2.0).
+
 tools/curve/_trackdlo.py is vendored from TrackDLO
 (https://github.com/RMDLO/trackdlo, MIT); its license is
 tools/curve/LICENSE.trackdlo.
