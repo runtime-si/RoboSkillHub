@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-19 tools, 108 skills, 2 policies, 1 recipe and 1 paper.
+19 tools, 109 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -117,6 +117,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`reaching-with-lag-correction`](#reaching-with-lag-correction) | execute | Moves the tool to a target pose, waits for the arm to settle, reads the tool pose back and, if the arm stopped short… | any |
 | [`searching-insertion-spiral`](#searching-insertion-spiral) | execute | Finds an opening the held part or the closed fingertips can enter by probing straight down over a hexagonal grid… | any |
 | [`seating-a-cable-crossing`](#seating-a-cable-crossing) | execute | Streams one planned crossing leg of a cable onto a routing station, lets the rod settle, then LOOKS. | any |
+| [`seating-a-piece-by-wiggle-search`](#seating-a-piece-by-wiggle-search) | execute | Seats a held jigsaw piece in its slot among already-placed neighbours when the arm is less accurate than the slot's… | any |
 | [`singulating-by-pushing`](#singulating-by-pushing) | execute | Pushes a target clear of the objects crowding it until a top-down grasp's open fingers fit around it. | any |
 | [`sliding-along-a-cable`](#sliding-along-a-cable) | execute | Slides the hand along a cable it holds toward one of the cable's ends. | any |
 | [`sliding-to-edge-then-picking`](#sliding-to-edge-then-picking) | execute | Picks a flat object too thin to pinch on its support. | any, *tuned on* yam_i2rt |
@@ -1607,6 +1608,24 @@ Streams one planned crossing leg of a cable onto a routing station, lets the rod
 - **Exits**:
   - `done`: The place leg was streamed and the crossing measured; `seated` and `fraction` say whether it took.
   - `blocked`: A tool raised during the place or the look (the subgraph's on_error).
+
+### seating-a-piece-by-wiggle-search
+
+execute · robots: any · tasks: jigsaw, insertion · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/seating-a-piece-by-wiggle-search/SKILL.md) · [upstream](https://github.com/markroberyoutube/puzzle_bot/blob/main/src/application.py)
+
+Seats a held jigsaw piece in its slot among already-placed neighbours when the arm is less accurate than the slot's clearance - lowers the piece over the slot until it stops (tracking lag, or joint effort where published), reads from the stop height whether it dropped onto the mat or rests on the neighbours (a piece thickness higher), and if it rests, lifts and re-lowers it over small x / y / yaw offsets taken most likely first, finishing with a scoot-and-wiggle at the best spot (Mark Rober's puzzle robot's routine, reimplemented without its spring and encoder). Releases a dropped piece and reads its top with the wrist depth camera to confirm it is flush. Use when a jigsaw piece (or any thin flat part with a matching cut-out) is held over its slot with the slot pose known to a millimetre or two and a few degrees, the neighbours fixed around it, and fingers clear of the neighbours.
+
+- **In**: `slot_position` Vec3
+- **Out**: `released` bool, `probes` int, `moves` int, `elapsed_s` float, `stop_height` float, `best_height` float, `resting_height` float, `offset_found` Vec3, `yaw_found_deg` float, `seated_position` Vec3, `flush_error` float, `flush_spread` float, `samples` int, `verified_by` str
+- **Calls**: connector `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.move_to_joints`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`seat_piece`](skills/seating-a-piece-by-wiggle-search/scripts/seat_piece.py)
+- **Exits**:
+  - `seated`: A probe stopped with the piece's bottom within a quarter of its thickness of the mat (it dropped), the jaws opened, and the wrist depth reads the piece's top within a quarter of the thickness of flush with a spread under the same.
+  - `not_seated`: No probe or scoot dropped the piece (kept and lifted back, released false); or, released, the wrist depth reads its top high or tilted (resting on a neighbour).
+  - `jammed`: The piece went partly in (best stop between a quarter and 0.6 of its thickness over the mat) and the scoot did not finish it (kept, lifted back); or the hand could not lift the piece back out.
+  - `piece_lost`: The jaws read at their stop before anything moved, a descent went a whole thickness under the mat without meeting anything, or after the release the wrist depth finds no piece top at the slot.
+  - `unverified`: Released after a drop, but the flush check could not run (verify false, no wrist camera, no view reached).
+  - `unreachable`: The seated hand pose fails the IK preview, the hover or a turn was not reached, or a move was refused.
 
 ### singulating-by-pushing
 

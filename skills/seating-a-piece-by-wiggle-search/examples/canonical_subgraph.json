@@ -1,0 +1,29 @@
+{
+  "skill": "seating-a-piece-by-wiggle-search",
+  "inputs": {"slot_position": "Vec3", "held_offset": "Vec3"},
+  "outputs": {
+    "released": {"$ref": "seat.released"},
+    "probes": {"$ref": "seat.probes"},
+    "offset_found": {"$ref": "seat.offset_found"},
+    "yaw_found_deg": {"$ref": "seat.yaw_found_deg"},
+    "seated_position": {"$ref": "seat.seated_position"},
+    "flush_error": {"$ref": "seat.flush_error"}
+  },
+  "nodes": {
+    "seat": {
+      "type": "script",
+      "script": "scripts/seat_piece.py",
+      "inputs": {
+        "slot_position": {"$ref": "in.slot_position"},
+        "held_offset": {"$ref": "in.held_offset"},
+        "thickness": 0.002
+      }
+    }
+  },
+  "edges": [["START", "seat"], ["seat", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["seated", "not_seated", "jammed", "piece_lost", "unverified"]
+  },
+  "on_error": "unreachable"
+}
