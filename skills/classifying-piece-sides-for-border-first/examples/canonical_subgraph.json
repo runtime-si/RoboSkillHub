@@ -1,0 +1,24 @@
+{
+  "skill": "classifying-piece-sides-for-border-first",
+  "inputs": {
+    "piece_mask": "Mask"
+  },
+  "outputs": {
+    "piece_class": {"$ref": "classify.piece_class"},
+    "side_types": {"$ref": "classify.side_types"},
+    "flat_normals_deg": {"$ref": "classify.flat_normals_deg"},
+    "uncertain_sides": {"$ref": "classify.uncertain_sides"}
+  },
+  "nodes": {
+    "classify": {
+      "type": "script",
+      "script": "scripts/classify_sides.py",
+      "inputs": {
+        "piece_mask": {"$ref": "in.piece_mask"}
+      }
+    }
+  },
+  "edges": [["START", "classify"], ["classify", "END"]],
+  "exit": {"router_field": "route", "success_values": ["classified", "uncertain"]},
+  "on_error": "no_piece"
+}
