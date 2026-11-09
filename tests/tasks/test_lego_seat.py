@@ -73,8 +73,10 @@ def test_complete_press_is_operation_complete_not_connection_verified(alignment)
             "contact_force_feedback",
         ),
         (
-            FakeContact(capabilities=["pose_feedback", "contact_force_feedback", "guarded_motion"]),
-            "stop_confirmation",
+            FakeContact(
+                capabilities=["pose_feedback", "contact_force_feedback", "compliant_motion"]
+            ),
+            "stop",
         ),
         (FakeContact(controller_kind="guarded_position"), "controller.kind"),
     ],

@@ -1,155 +1,126 @@
 {
   "graph_id": "lego.single_connection",
-  "graph_version": "0.1.0",
-  "status": "candidate",
-  "validated_under": null,
-  "start": "confirm_grasp",
-  "deadline_s": 120.0,
+  "version": "0.1.0",
+  "contract_version": "rsh-task/1",
+  "skills": {
+    "lego.align_connection": "0.1.0",
+    "lego.guarded_seat": "0.1.0",
+    "lego.release_and_retreat": "0.1.0",
+    "lego.verify_connection": "0.1.0"
+  },
+  "budgets": {
+    "max_steps": 10,
+    "max_total_attempts": 8,
+    "timeout_s": 120.0
+  },
+  "start": "align",
   "nodes": {
-    "confirm_grasp": {
-      "skill": "perception_regrasp.confirm_grasp",
-      "owner": "agent-01",
-      "retry_budget": 0,
-      "note": "independent evidence the brick is held with a known T_TCP_object"
-    },
     "align": {
       "skill": "lego.align_connection",
-      "owner": "agent-03",
-      "retry_budget": 1
+      "params": {
+        "connection_id": "$input.connection_id",
+        "target": "$input.target",
+        "held": "$input.held",
+        "build": "$input.build",
+        "limits": "$input.align_limits"
+      },
+      "pre": [
+        {
+          "path": "$input.held.valid",
+          "equals": true
+        }
+      ],
+      "attempts": 2,
+      "retry_on": [
+        "unverified"
+      ],
+      "max_visits": 1,
+      "timeout_s": 30.0,
+      "on": {
+        "succeeded": "seat",
+        "rejected": "stop_replan",
+        "failed": "stop_human",
+        "failed:held_object_slipped": "stop_regrasp",
+        "unverified": "stop_unknown"
+      },
+      "note": "guard: held.valid and fresh; brick within tolerance by a fresh observation"
     },
     "seat": {
       "skill": "lego.guarded_seat",
-      "owner": "agent-03",
-      "retry_budget": 0
+      "params": {
+        "connection_id": "$input.connection_id",
+        "alignment": "$last.align.outputs.alignment",
+        "press_limits": "$input.press_limits"
+      },
+      "attempts": 1,
+      "max_visits": 1,
+      "timeout_s": 15.0,
+      "on": {
+        "succeeded": "release",
+        "unverified:lego.seat_depth_without_threshold": "release",
+        "rejected": "stop_replan",
+        "failed": "stop_human",
+        "unverified": "stop_human"
+      },
+      "note": "requires contact_force_feedback + compliant_motion; no position fallback"
     },
-    "release_retreat": {
-      "skill": "runtime.release_and_retreat",
-      "owner": "agent-05",
-      "retry_budget": 0,
-      "note": "no public release capability yet (integration request)"
+    "release": {
+      "skill": "lego.release_and_retreat",
+      "params": {
+        "connection_id": "$input.connection_id",
+        "object_id": "$input.held.object_id",
+        "press": "$last.seat.outputs.press",
+        "open_width_m": "$input.release.open_width_m",
+        "retreat_height_m": "$input.release.retreat_height_m"
+      },
+      "attempts": 1,
+      "max_visits": 1,
+      "on": {
+        "succeeded": "verify",
+        "failed": "stop_human",
+        "unverified": "stop_human",
+        "rejected": "stop_human"
+      }
     },
     "verify": {
       "skill": "lego.verify_connection",
-      "owner": "agent-03",
-      "retry_budget": 1
-    },
-    "done": {
-      "terminal": "succeeded"
-    },
-    "halt_replan": {
-      "terminal": "rejected",
-      "note": "upstream must replan; nothing moved"
-    },
-    "halt_human": {
-      "terminal": "failed",
-      "note": "stop; state handed to a human / upper G"
-    },
-    "halt_unknown": {
-      "terminal": "unverified",
-      "note": "state unknown; do not continue"
-    },
-    "halt_repair_unsupported": {
-      "terminal": "failed",
-      "note": "connection failed; automatic disassembly/repair is not implemented"
+      "params": {
+        "connection_id": "$input.connection_id",
+        "target": "$input.target",
+        "build": "$input.build",
+        "executor_id": "$last.seat.outputs.executor_id",
+        "release": "$last.release.outputs.release",
+        "pre_release_observation": "$last.release.outputs.pre_release_observation",
+        "window": "$input.verify_window"
+      },
+      "attempts": 2,
+      "retry_on": [
+        "unverified"
+      ],
+      "max_visits": 1,
+      "on": {
+        "succeeded": "done",
+        "failed": "connection_failed",
+        "unverified": "stop_unknown",
+        "rejected": "stop_unknown"
+      }
     }
   },
-  "edges": [
-    {
-      "from": "confirm_grasp",
-      "on": "succeeded",
-      "to": "align",
-      "guard": "held object == connection's brick; T_TCP_object known"
-    },
-    {
-      "from": "confirm_grasp",
-      "on": "*",
-      "to": "halt_replan"
-    },
-    {
-      "from": "align",
-      "on": "succeeded",
-      "to": "seat",
-      "guard": "fresh independent observation within xy/yaw tolerance"
-    },
-    {
-      "from": "align",
-      "on": "rejected",
-      "to": "halt_replan",
-      "guard": "error detected before approach: nothing moved"
-    },
-    {
-      "from": "align",
-      "on": "failed:alignment_not_converged",
-      "to": "align",
-      "guard": "retry from a re-observed state"
-    },
-    {
-      "from": "align",
-      "on": "unverified",
-      "to": "align",
-      "guard": "re-observe once; unknown is not success"
-    },
-    {
-      "from": "align",
-      "on": "*",
-      "to": "halt_human"
-    },
-    {
-      "from": "seat",
-      "on": "succeeded",
-      "to": "release_retreat",
-      "guard": "operation_complete; connection still unverified"
-    },
-    {
-      "from": "seat",
-      "on": "unverified:seat_depth_without_threshold",
-      "to": "release_retreat"
-    },
-    {
-      "from": "seat",
-      "on": "rejected",
-      "to": "halt_replan",
-      "guard": "missing contact capability: no position-only fallback"
-    },
-    {
-      "from": "seat",
-      "on": "*",
-      "to": "halt_human",
-      "guard": "stop; bounded retreat only with fresh state (not implemented)"
-    },
-    {
-      "from": "release_retreat",
-      "on": "succeeded",
-      "to": "verify"
-    },
-    {
-      "from": "release_retreat",
-      "on": "*",
-      "to": "halt_human",
-      "guard": "holding/contact state uncertain: no blind release or lift"
-    },
-    {
-      "from": "verify",
-      "on": "succeeded",
-      "to": "done"
-    },
-    {
-      "from": "verify",
-      "on": "unverified",
-      "to": "verify",
-      "guard": "re-observe once"
-    },
-    {
-      "from": "verify",
-      "on": "failed",
-      "to": "halt_repair_unsupported"
-    },
-    {
-      "from": "verify",
-      "on": "*",
-      "to": "halt_unknown"
+  "terminals": {
+    "done": "succeeded",
+    "stop_replan": "rejected",
+    "stop_human": "failed",
+    "stop_regrasp": "failed",
+    "stop_unknown": "unverified",
+    "connection_failed": "failed"
+  },
+  "candidate": {
+    "status": "candidate",
+    "validated_under": null,
+    "evidence_level": "unit_or_dryrun",
+    "external_dependencies": {
+      "held": "HeldObject from Agent 01 (perception_regrasp) or a gripper provider",
+      "seat": "runtime primitive guarded_press + ctx.contact_description (integration request to Agent 05); a contact backend from Agent 04"
     }
-  ],
-  "on_budget_exhausted": "halt_human",
-  "on_deadline": "halt_human"
+  }
 }

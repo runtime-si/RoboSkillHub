@@ -74,6 +74,7 @@ class Observation:
     occluded: bool = False
     calibration_id: str = ""
     privileged: bool = False
+    unusable_reason: str = ""
 
     @classmethod
     def from_dict(cls, d: Any, name: str = "observation") -> Observation:
@@ -106,6 +107,7 @@ class Observation:
             occluded=bool(d.get("occluded", False)),
             calibration_id=str(d.get("calibration_id", "")),
             privileged=privileged,
+            unusable_reason=str(d.get("unusable_reason") or ""),
         )
 
     def ref(self) -> dict[str, Any]:
@@ -129,6 +131,8 @@ def usable(
     not_after_s: float | None = None,
 ) -> str:
     """Empty string if ``obs`` can serve as evidence now, else a reason code."""
+    if obs.unusable_reason:
+        return obs.unusable_reason
     if obs.kind in ("commanded", "planned"):
         return "commanded_not_observed"
     if obs.frame_id != frame_id:

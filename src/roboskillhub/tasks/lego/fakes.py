@@ -118,7 +118,7 @@ class FakeContact:
         self.capabilities = sorted(
             capabilities
             if capabilities is not None
-            else ["pose_feedback", "contact_force_feedback", "guarded_motion", "stop_confirmation"]
+            else ["pose_feedback", "contact_force_feedback", "compliant_motion", "stop"]
         )
         self.samples = samples or []
         self.stop_reason, self.stop_confirmed = stop_reason, stop_confirmed
@@ -160,6 +160,138 @@ class FakeContact:
 
     def stop(self) -> dict[str, Any]:
         return {"confirmed": self.stop_confirmed}
+
+
+class FakeStation:
+    """Scripted answers to contract primitives (move_pose, observe_objects, set_gripper and
+    the requested guarded_press) for one held brick and a few placed ones. Kinematic
+    bookkeeping only; no contact physics. ``scenario`` keys:
+
+    - ``grasp_offset``: Matrix, true ``T_TCP_object`` = believed @ offset
+    - ``press``: kwargs for ``press_trace`` (shortfall, peak, onset)
+    - ``stop_reason`` / ``stop_confirmed``: for guarded_press
+    - ``slip_m``: the brick slides this far up the jaws during the press
+    - ``release_dz``: brick bottom offset (m) left after release
+    - ``lifted``: the brick stays in the jaws through the retreat
+    - ``disturb``: ``{brick_id: (dx, dz)}`` applied to placed bricks at the press
+    - ``holding_after_release``: gripper feedback after release (default False)
+    """
+
+    def __init__(
+        self,
+        clock: FakeClock,
+        *,
+        tcp: dict,
+        t_tcp_object: dict,
+        held_id: str,
+        placed: dict[str, dict] | None = None,
+        capabilities: set[str] | None = None,
+        contact_description: dict | None = None,
+        sigma_m: float = 0.0001,
+        stud_height_m: float = 0.0017,
+        seat_travel_m: float = 0.01,
+        scenario: dict | None = None,
+    ):
+        self.clock, self.held_id = clock, held_id
+        self.tcp = g.matrix(tcp)
+        self.frame = tcp["frame_id"]
+        sc = scenario or {}
+        self.sc = sc
+        self.t_true = g.mul(g.matrix(t_tcp_object), sc.get("grasp_offset", g.tr(0, 0, 0)))
+        self.attached = True
+        self.brick: g.Matrix | None = None
+        self.placed = {k: g.matrix(v) for k, v in (placed or {}).items()}
+        self.capabilities = set(
+            capabilities
+            if capabilities is not None
+            else {
+                "pose_feedback",
+                "cartesian_motion",
+                "stop",
+                "gripper",
+                "gripper_feedback",
+                "object_feedback",
+                "object_pose_feedback",
+                "contact_force_feedback",
+                "compliant_motion",
+            }
+        )
+        self.contact_description = contact_description
+        self.sigma_m, self.stud_h, self.seat_travel = sigma_m, stud_height_m, seat_travel_m
+        self.calls: list[tuple[str, dict]] = []
+        self.n = 0
+
+    def _result(self, status: str, evidence: dict, failure_type: str | None = None) -> dict:
+        self.n += 1
+        return {
+            "status": status,
+            "invocation_id": f"fake-{self.n}",
+            "failure_type": failure_type,
+            "evidence": evidence,
+        }
+
+    def _brick_world(self) -> g.Matrix | None:
+        return g.mul(self.tcp, self.t_true) if self.attached else self.brick
+
+    def primitive(self, capability: str, request: dict, rid: str) -> dict:
+        self.calls.append((capability, request))
+        self.clock.advance(0.05)
+        if capability == "move_pose":
+            self.tcp = g.matrix(request["target_pose"])
+            return self._result("succeeded", {"measured_pose": g.to_pose(self.tcp, self.frame)})
+        if capability == "observe_objects":
+            obs = []
+            for oid in request["object_ids"]:
+                m = self._brick_world() if oid == self.held_id else self.placed.get(oid)
+                obs.append(
+                    {
+                        "object_id": oid,
+                        "frame_id": self.frame,
+                        "position_m": None if m is None else [m[0][3], m[1][3], m[2][3]],
+                        "quaternion_xyzw": None
+                        if m is None
+                        else g.to_pose(m, self.frame)["quaternion_xyzw"],
+                        "timestamp_s": self.clock(),
+                        "source": "fake_overhead",
+                        "privileged": False,
+                        "uncertainty": {"position_m": self.sigma_m, "rotation_rad": 0.001},
+                        "visibility": "not_found" if m is None else "visible",
+                    }
+                )
+            return self._result("succeeded", {"observations": obs})
+        if capability == "guarded_press":
+            if not {"contact_force_feedback", "compliant_motion"} <= self.capabilities:
+                return self._result("rejected", {}, "capability_missing")
+            kw = self.sc.get("press", {})
+            samples = press_trace(self.seat_travel, self.stud_h, **kw)
+            d = samples[-1]["travel_m"]
+            ax = request["axis"]["vector"]
+            self.tcp = g.mul(g.tr(ax[0] * d, ax[1] * d, ax[2] * d), self.tcp)
+            if self.sc.get("slip_m"):  # the brick slid up the jaws instead of seating
+                self.t_true = g.mul(self.t_true, g.tr(0, 0, self.sc["slip_m"]))
+            for bid, (dx, dz) in self.sc.get("disturb", {}).items():
+                self.placed[bid] = g.mul(self.placed[bid], g.tr(dx, 0, dz))
+            return self._result(
+                "succeeded",
+                {
+                    "samples": samples,
+                    "stop_reason": self.sc.get("stop_reason", "force_threshold"),
+                    "stop_confirmed": self.sc.get("stop_confirmed", True),
+                },
+            )
+        if capability == "set_gripper":
+            holding = self.sc.get("holding_after_release", False)
+            if request["purpose"] == "release" and not holding and not self.sc.get("lifted"):
+                self.brick = g.mul(
+                    g.mul(self.tcp, self.t_true), g.tr(0, 0, self.sc.get("release_dz", 0.0))
+                )
+                self.attached = False
+            if holding:
+                return self._result(
+                    "failed", {"gripper_feedback": {"holding": True}}, "release_failed"
+                )
+            return self._result("succeeded", {"gripper_feedback": {"holding": False}})
+        return self._result("rejected", {}, "capability_missing")
 
 
 def press_trace(

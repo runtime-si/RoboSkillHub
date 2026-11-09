@@ -64,11 +64,12 @@ class ContactBackend(Protocol):
 
 
 CONTACT_CAPABILITIES = frozenset(
-    {"pose_feedback", "contact_force_feedback", "guarded_motion", "stop_confirmation"}
+    {"pose_feedback", "contact_force_feedback", "compliant_motion", "stop"}
 )
-"""What lego.guarded_seat requires of a ContactBackend. ``bounded_position_approach``
-(position control with a travel limit, tracking lag or joint-effort heuristics) is NOT
-in this set: position-only pressing is not compliant force control."""
+"""What lego.guarded_seat requires (contract rsh-task/1 capability names). Every
+``guarded_move`` must also report ``stop_confirmed``. ``bounded_position_approach``
+(position control with a travel limit, tracking lag or joint-effort heuristics) is NOT in
+this set: position-only pressing is not compliant force control."""
 
 STOP_REASONS = (
     "force_threshold",  # measured force reached force_limit_N; motion stopped

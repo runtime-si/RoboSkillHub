@@ -123,6 +123,56 @@ def seat_of(system: str, studs: str, cell: dict, pose: dict | None = None) -> di
     return g.seat_pose(p, g.brick_type(system, studs), g.Cell.from_dict(cell))
 
 
+def mating_target(
+    target_id: str,
+    x: int,
+    y: int,
+    layer0: int = 0,
+    quarter: int = 0,
+    *,
+    system: str = "lego",
+    studs=(2, 4),
+    depends_on=(),
+    **over,
+) -> dict:
+    """Contract LegoMatingTarget (layer 0 on the plate), mating_pose from the placement."""
+    cell = {"x": x, "y": y, "layer": layer0 + 1, "rotation": 90 * quarter}
+    t = {
+        "kind": "lego_mating",
+        "target_id": target_id,
+        "frame_id": WORLD,
+        "baseplate": {
+            "object_id": "baseplate",
+            "T_W_baseplate": copy.deepcopy(PLATE_POSE),
+            "stud_pitch_m": g.SYSTEMS[system].stud_pitch_m,
+            "studs": [16, 16],
+            "calibration_id": "cal-test-1",
+        },
+        "brick": {"class": "lego_brick", "part": "3001", "studs": list(studs)},
+        "placement": {"stud_x": x, "stud_y": y, "layer": layer0, "yaw_quarter_turns": quarter},
+        "mating_pose": seat_of(system, f"{studs[0]}x{studs[1]}", cell),
+        "depends_on": list(depends_on),
+        "requires_support": layer0 > 0,
+        "tolerances_ref": "tests",
+    }
+    t.update(over)
+    return t
+
+
+def held_object(t: float, object_id: str = "b1", **over) -> dict:
+    h = {
+        "object_id": object_id,
+        "gripper_id": "left",
+        "T_TCP_object": copy.deepcopy(T_TCP_OBJECT),
+        "estimate": "grasp_geometry_prior",
+        "timestamp_s": t,
+        "valid": True,
+        "invalidated_reason": None,
+    }
+    h.update(over)
+    return h
+
+
 def shifted(pose: dict, *, dx=0.0, dy=0.0, dz=0.0, yaw=0.0, tilt_x=0.0) -> dict:
     """``pose`` moved in its own axes, turned about its z and tilted about its x (deg)."""
     import math
