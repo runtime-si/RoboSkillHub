@@ -1,5 +1,51 @@
 # Agent 02 → Agent 05: integration request (domino module)
 
+## Round 2 (after integration-feedback.md, contract rsh-task/1.1)
+
+- **Fixed: `KeyError: 'faults'`.** A `rejected` verdict from `verify_stable_placement` now gives
+  `place_upright` a structured `unverified / evidence_missing` result (`failure.code:
+  verification_rejected`, `failure.verification_code`, the observer's reason in `detail`); the
+  verdict never gets indexed blindly. Root cause also fixed: `action_start_s` is now
+  `max(ctx.now(), newest baseline stamp)`, so a backend stamp a fraction of a ms ahead of
+  `ctx.now()` no longer post-dates the baseline. Regression tests:
+  `test_baseline_stamped_just_after_now_does_not_break_the_verdict`,
+  `test_a_rejected_verdict_becomes_a_structured_unverified_result`.
+- **Packaging: chose the clear rejection, plus a packaged path ready for you.** The scripts are
+  still reused in place, not duplicated. The loader now searches `$ROBOSKILLHUB_ROOT/skills`,
+  then `roboskillhub/_skills/` inside the installed package, then the source checkout. When a
+  script is missing, `place_upright` / `plan_straight_layout` return `rejected /
+  precondition_unmet` naming the file and every path searched (and `gap`/scipy when those are
+  missing). `verify_stable_placement` and `plan_recovery` need no scripts and work from a wheel.
+  Checked with a real `uv build` wheel in a clean venv: `config/line_v1.yaml` ships, the
+  observer succeeds and the layout is rejected with that reason; with the two scripts copied
+  under `site-packages/roboskillhub/_skills/` (+ gap) the layout plans. To make wheels
+  self-sufficient, add to `pyproject.toml` (your file):
+
+  ```toml
+  [tool.hatch.build.targets.wheel.force-include]
+  "skills/placing-an-upright-domino-beside-neighbours/scripts" = "roboskillhub/_skills/placing-an-upright-domino-beside-neighbours/scripts"
+  "skills/planning-a-domino-layout/scripts" = "roboskillhub/_skills/planning-a-domino-layout/scripts"
+  ```
+
+  and either make `gap` a runtime dependency or move those scripts' `from gap import
+  NodeContext` under `TYPE_CHECKING` (annotation only).
+- **v1.1 alignment.** `ctx.state()` is used for the pre-motion holding check and after the retreat
+  (refused/offline state is caught). `ctx.sleep` drives the settle loop. `ctx.limits` is checked
+  before any command: frame, `max_speed_m_s`, station workspace for every TCP pose, gripper width
+  range, `max_contact_force_N` / `max_contact_distance_m`; `primitive_timeout_s` defaults to
+  `max_timeout_s`. `ctx.evidence_level` is recorded in `evidence.evidence_level`.
+  `move_waypoints` failure `arrivals` are read. **Contact mode now uses `guarded_press`**:
+  dense descent to `search_m` over the expected contact, then `guarded_press` along −normal
+  (`force_limit_N` from the request, ≤ station limit). The tile is released only when the press
+  stops on `force_threshold` within `support_height_tolerance_m` of the calibrated support;
+  `travel_limit` or an off-height contact ⇒ `failed / domino.support_mismatch`, nothing released.
+  It requires `contact_force_feedback, compliant_motion` (rejected on every current backend).
+- **Merge note.** `ld-domino` was rebased on `workcell-runtime` 17681fa, so merging it into
+  `ld-integration` gives add/add conflicts in the domino files: take `ld-domino`'s side. Checked
+  locally: `tests/tasks` + `tests/test_runtime_contract_v1.py` on that merge → 386 passed,
+  1 skipped (includes `test_ld_integration.py`).
+
+
 Branch `ld-domino` (rebased on `origin/workcell-runtime` at 58dcc23). Module
 `src/roboskillhub/tasks/domino/`, tests `tests/tasks/test_domino_*`, examples
 `examples/tasks/domino/`. Nothing outside those paths is changed.

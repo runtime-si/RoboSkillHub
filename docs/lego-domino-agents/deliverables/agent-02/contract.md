@@ -23,7 +23,8 @@ pose, upright on the support), `held` (rsh-task/1 HeldObject: `T_TCP_object` in 
 `timeout_s`; optional `approach` / `retreat` (`direction`, `distance_m`), `release.width_m`
 (default tile width + 2 × `release_clearance_m`), `hand` (`tip_reach_m`,
 `max_open_width_m`), `mode` (`geometric`), `descent_path` (`dense_waypoints` | `linear`),
-`speed_m_s`, `descent_speed_m_s`, `primitive_timeout_s`, `tolerances_ref`,
+`speed_m_s`, `descent_speed_m_s`, `primitive_timeout_s` (default `ctx.limits.max_timeout_s`),
+`contact` (`force_limit_N`, `search_m`, `max_travel_m`, `speed_m_s`; contact mode only), `tolerances_ref`,
 `thresholds_override` (tighten only), `recovery_attempts_used`, `max_recovery_attempts`.
 
 Before any command (→ `rejected`): frames/units/quaternions; target upright and on the
@@ -32,7 +33,16 @@ footprint overlap; the open hand over the target clear of every neighbour (the p
 skill's `finger_conflicts`); the carry ending with the held tile 20 mm over the standing
 tops (`TRANSIT_CLEARANCE`); swept-envelope checks for slanted approach/retreat; workspace
 for every TCP pose; release width vs tile and hand; time budget vs descent + retreat +
-settle window; capabilities ⊆ backend.
+settle window; capabilities ⊆ backend; the station's `ctx.limits` (frame, speed, workspace,
+gripper range, contact force/travel).
+
+Contact mode (`mode: contact_feedback`, rsh-task/1.1): adds `contact_force_feedback,
+compliant_motion`; the descent stops `search_m` above the expected contact and `guarded_press`
+moves the held tile down until the controller stops on force. Released only on
+`force_threshold` within `support_height_tolerance_m` of the calibrated support.
+
+A `rejected` verdict from the observer (its own request invalid) makes `place_upright`
+`unverified / evidence_missing` with `failure.code: verification_rejected`.
 
 Sequence: fresh observation (tile in the hand: not resting on the support; and when
 `ctx.state()` exists, within tolerance of `TCP·T_TCP_object`; neighbour baseline) → carry
@@ -56,7 +66,9 @@ after the retreat, newest ≤ `max_observation_age_s`; target identity (confiden
 privileged/synthetic), visible, with orientation; tilt ≤ `tilt_tolerance_rad` at every
 sample after the release; drift ≤ `drift_tolerance_m` / `drift_tilt_tolerance_rad`;
 final position/yaw within tolerance; lowest corner on the support; gripper reported not
-holding after the release, or the measured TCP clear above the tile; every baseline
+holding from the end of the retreat on (contact-sampled states may still touch the tile while
+the jaws open; with no states after the retreat, the latest after the release counts), or the
+measured TCP clear above the tile; every baseline
 neighbour within displacement/tilt tolerance. Records without orientation can still show a
 fall (`state_label` lying/toppled, e.g. the placing skill's depth check via
 `depth.depth_upright_observation`). Privileged inputs are labelled (`privileged_inputs`).

@@ -37,15 +37,18 @@ planning-a-domino-layout; GPL-3.0 code not used); staged lower/open/retreat sema
   placing skill's station twin or are labelled choices.
 - Straight legs are dense waypoints (5 mm) unless a backend declares
   `linear_cartesian_motion`; between waypoints the path is backend-defined.
-- No contact sensing: support before release is either a support observation or
-  assumed from the table calibration (reported in `unverified`). `contact_feedback` mode is
-  rejected.
-- Without `ctx.state()` the pre-motion holding check only catches a tile seen resting on
-  the support; other missed grasps are caught after the carry.
+- Contact mode is wired to `guarded_press` but no backend provides
+  `contact_force_feedback` + `compliant_motion` yet; in geometric mode support before release is
+  either a support observation or assumed from the table calibration (reported in `unverified`).
+- Without `ctx.state()` (offline contexts) the pre-motion holding check only catches a tile seen
+  resting on the support; other missed grasps are caught after the carry.
+- Observer cross-check: 184/184 status agreement with Agent 04's evaluator on their MuJoCo
+  episodes (privileged truth, scripted baseline executor, not this module's executor).
 - Tilt needs `object_pose_feedback`; today only a privileged simulator provides it. An
   RGB-D centroid (position only) gives `unverified`; the placing skill's depth check can
   show a fall but never proves upright.
 - Retreat-contact causes are hypotheses (medium confidence) from the timing of neighbour
   disturbance, not proof of contact.
-- Reuse by path requires a repo checkout with `skills/`, the `gap` extra and scipy;
-  otherwise the module rejects with `precondition_unmet`.
+- Reuse by path needs the two skill scripts (repo checkout, `$ROBOSKILLHUB_ROOT`, or shipped
+  under `roboskillhub/_skills/`), the `gap` extra and scipy; otherwise place/layout reject with
+  `precondition_unmet` and the reason. The observer and recovery planner work from a plain wheel.
