@@ -1,0 +1,25 @@
+{
+  "skill": "judging-attempt-success-from-frames-robojev",
+  "inputs": {"before": "Observation", "task": "string"},
+  "outputs": {
+    "p_done": {"$ref": "judge.p_done"},
+    "main_camera": {"$ref": "judge.main_camera"}
+  },
+  "nodes": {
+    "judge": {
+      "type": "script",
+      "script": "scripts/judge_attempt.py",
+      "inputs": {
+        "before": {"$ref": "in.before"},
+        "task": {"$ref": "in.task"},
+        "camera": "top"
+      }
+    }
+  },
+  "edges": [["START", "judge"], ["judge", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["success", "failure", "uncertain", "no_frames"]
+  },
+  "on_error": "no_frames"
+}

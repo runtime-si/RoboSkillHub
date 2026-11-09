@@ -790,3 +790,12 @@ The file's header lists the changes; the license is tools/musc/LICENSE.musc.
 The bundle downloads the DINOv2 checkpoints facebook/dinov2-base and
 facebook/dinov2-small (Apache-2.0 model cards) from Hugging Face; none are
 redistributed here.
+tools/robojev/tools.py adapts the RoboJev client
+(https://github.com/josefchen/robojev, commit 79a5e2f: robojev/robojev.py -
+the prompt and state strings, camera_name, the frame picking, the 288 px JPEG
+round trip, the vLLM request and the calibrated read-out with decision.json's
+tokens, bias and temperature), Apache License 2.0, Copyright Josef Chen; the
+file's header lists the changes, and the license is
+tools/robojev/LICENSE.robojev. The bundle downloads the RoboJev-27B weights
+(josefchen/RoboJev-27B at e089a9b69a365744b80765057d86583647af95a9, declared
+Apache-2.0 on its model card) from Hugging Face; none are redistributed here.
