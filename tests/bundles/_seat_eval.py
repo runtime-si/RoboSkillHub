@@ -80,9 +80,14 @@ class World:
         refuse=None,
         short_by=0.0,
         seed=0,
+        plate=PLATE,
+        cell=CELL,
+        boxes=(),
         **placement,
     ):
         self.system, self.studs = system, tuple(studs)
+        self.plate, self.cell = tuple(plate), tuple(cell)
+        self.boxes = list(boxes)
         self.g = SYSTEMS[system]
         self.neighbours = list(neighbours or [])
         self.placement = dict(placement, layer=layer)
@@ -101,7 +106,9 @@ class World:
 
     # The seat the skill is given: the seated brick's bottom centre, world frame.
     def seat(self, dx=0.0, dy=0.0):
-        m = SR.brick_pose(self.system, *self.studs, *CELL, PLATE, layer=self.placement["layer"])
+        m = SR.brick_pose(
+            self.system, *self.studs, *self.cell, self.plate, layer=self.placement["layer"]
+        )
         w = self.plate_world @ m
         return dict(zip("xyz", map(float, w[:3, 3] + [dx, dy, 0.0]), strict=True))
 
@@ -122,10 +129,19 @@ class World:
             t_pc = np.linalg.inv(self.plate_world) @ cam_world
             brick = None
             if self.has_brick:
-                pose = SR.brick_pose(self.system, *self.studs, *CELL, PLATE, **self.placement)
+                pose = SR.brick_pose(
+                    self.system, *self.studs, *self.cell, self.plate, **self.placement
+                )
                 brick = (pose, *self.studs)
             self._cache[key] = SR.render_depth(
-                self.system, PLATE, K, t_pc, brick, self.neighbours, noise=False
+                self.system,
+                self.plate,
+                K,
+                t_pc,
+                brick,
+                self.neighbours,
+                noise=False,
+                boxes=self.boxes,
             )
         return SR.add_noise(self._cache[key], K, self.rng)
 

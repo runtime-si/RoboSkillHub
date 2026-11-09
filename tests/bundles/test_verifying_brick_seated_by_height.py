@@ -109,6 +109,41 @@ def test_flush_neighbours_do_not_disturb_the_reading(script):
     assert out["reference"] == "local"
 
 
+def test_a_small_plate_reads_its_own_surface_not_the_table_past_its_edge(script):
+    # A 2x2 in the middle of a 4x4 plate (the station twin's check plate): the ring reaches
+    # past the plate's edge onto the table 5 mm lower, which must not become the reference.
+    w = World(plate=(4, 4), cell=(1, 1))
+    out = check(script, w)
+    assert out["route"] == "seated", out["detail"]
+    assert out["reference"] == "local"
+    assert abs(out["reference_offset"]) < 0.0005
+    out = check(script, World(plate=(4, 4), cell=(1, 1), dx=0.016))
+    assert out["route"] == "shifted_off_grid", out["detail"]
+    out = check(script, World(plate=(4, 4), cell=(1, 1), dx=0.008, dz=DUPLO_STUD))
+    assert out["route"] == "high_by_stud", out["detail"]
+
+
+def test_the_grippers_own_fingers_over_the_brick_are_left_out(script):
+    # A camera beside the fingers sees them over the footprint without them hiding it: a
+    # finger-sized patch of points 12 cm over the seat, added to the rendered frame.
+    w = World()
+    check(script, w)
+    cam = w.observation()["cameras"][0]
+    pts = script.world_points(cam, np.asarray(cam["depth"], dtype=float))
+    seat = np.array([w.seat()[k] for k in "xyz"])
+    gx, gy = np.meshgrid(np.linspace(-0.01, 0.01, 40), np.linspace(-0.012, 0.012, 40))
+    finger = np.stack(
+        [seat[0] + gx.ravel(), seat[1] + gy.ravel(), np.full(gx.size, seat[2] + 0.12)], 1
+    )
+    args = (np.vstack([pts, finger]), seat, 0.0, 0.0318, 0.0318, 0.016, 0.0045, 0.0192)
+    m = script.measure(*args)
+    assert abs(m["height_error"]) < 0.0005 and m["tilt_deg"] < 1.0
+    # Under the cap (3.5 cm over the seated top) the trimmed plane fit leaves them out too.
+    low = np.vstack([pts, finger - [0.0, 0.0, 0.12 - 0.035]])
+    m = script.measure(low, *args[1:])
+    assert abs(m["height_error"]) < 0.0005 and m["tilt_deg"] < 1.0
+
+
 def test_stacked_on_a_same_footprint_brick_falls_back_to_the_seat_height(script):
     # The brick under test on layer 2, over a 2x2 on layer 1 at the same cell: the plate
     # around reads a whole brick under the seat, so the seat's own z is the reference.

@@ -98,18 +98,20 @@ height. This skill reads the brick's top in the depth image and says which.
    named camera that has a pose (no motion).
 2. **Depth**: the median of `frames` (3) frames, back-projected to world
    points (7-60 cm range).
-3. **Reference**: in a ring 0.3-1.5 pitches outside the footprint, the
-   lowest of two levels a stud height apart that explains the heights (the
-   plate surface and its stud tops; taller things such as neighbour bricks
-   are capped out), searched again among the points more than half a brick
-   under it while at least a tenth of the ring lies there (the plate between
-   neighbours that fill most of the ring). If that level is within half a brick height of the given
-   seat z, it becomes the seat's surface (`reference: local`), and the
-   camera's height error cancels. Otherwise (for example, a brick stacked on
-   one of the same footprint, where the plate around it is a brick lower)
-   the seat's own z is used (`world`). `reference` can force either.
+3. **Reference**: in a ring 0.3-1.5 pitches outside the footprint, every
+   stud-covered surface: the local minima of a two-level cost (a surface and
+   its stud tops a stud height up; residuals capped at the support band,
+   so taller things such as neighbour bricks drop out) that have at least a
+   tenth of the ring's points on them. That can be the plate between
+   neighbours that fill most of the ring, or the table past a small plate's
+   edge. The surface nearest the given seat z, if within half a brick height
+   of it, becomes the seat's surface (`reference: local`), and the camera's
+   height error cancels. Otherwise (for example, a brick stacked on one of
+   the same footprint, where the plate around it is a brick lower) the
+   seat's own z is used (`world`). `reference` can force either.
 4. **Top face**: points inside the footprint inset by 1.5 mm, more than half
-   a brick over the reference. `coverage` is their share of the footprint.
+   a brick over the reference and less than two brick heights plus a stud
+   over it (the wrist camera can see its own fingers). `coverage` is their share of the footprint.
    A plane is fitted to them in two layers: each point is assigned to the
    face or to a stud top one stud height up, stud points are lowered by that
    height, outliers beyond 2.5 robust sigmas are trimmed, and the fit is
@@ -150,10 +152,35 @@ own), `samples` (depth points in the footprint), `viewed_from`.
 
 ## Checked
 
-**Simulation check: pending (no GPU host).** None of the AutoDL hosts in the
-host list (autodl5, autodl6, autodl14) answered ssh at the time of this
-port. The skill needs a station-twin run with a brick released seated,
-resting on the studs and one cell off, read by the twin's wrist D405.
+**Station twin** (RoboSimStudio YAM station, GCP pool host, 2026-11-09):
+the 4 x 4 stud DUPLO baseplate and free 2 x 2 brick of pressing-a-brick-onto-studs'
+check (studs colliding at their full 4.5 mm; rigid contacts, no clutch).
+The real station's calibrated left wrist D405 renders depth. Each trial put
+the brick at a pose (a harness tool), let it settle, ran the skill with the
+true seat (view move included), then read the brick from ground truth.
+Harness: `~/sim-wt/brick-camera-checks` (graph_verify).
+
+| placed | truth after settling | route | height error mm | coverage |
+|---|---|---|---|---|
+| on the seat | seated | seated | +0.03 | 1.00 |
+| on the seat, turned 90 deg | seated | seated | -0.02 | 1.00 |
+| half a pitch off in x, dropped | on the stud tops, +4.5 mm | high_by_stud | +4.50 | 0.83 |
+| half a pitch off in y, dropped | on the stud tops | high_by_stud | +4.50 | 0.86 |
+| half a pitch off in x and y | on the stud tops | high_by_stud | +4.50 | 0.67 |
+| one cell off in x | seated on the next studs | shifted_off_grid | -0.00 | 0.54 |
+| one cell off in -y | seated on the next studs | shifted_off_grid | -0.00 | 0.55 |
+| dropped tilted 12 deg, 4 mm off | settled flat on the stud tops | high_by_stud | +4.50 | 1.00 |
+| dropped tilted -10 deg, 6 mm off | settled flat on the stud tops | high_by_stud | +4.50 | 0.92 |
+| 9 cm away (seat empty) | no brick | no_brick | - | 0.00 |
+
+10/10 routes match the truth. The first twin run read 6/10: the twin's plate
+is 4 x 4 studs, so the reference ring reaches past its edge onto the cloth
+4 mm lower. The "lowest surface" rule took the cloth, and every brick read
+3.4 mm high. The reference is now the surface nearest the seat z (a unit
+test on a 4 x 4 plate covers it). The rigid twin never left a brick tilted:
+dropped tilted, it slid flat onto the stud tops. The tilt path is covered by
+the synthetic checks below, not the twin. No partly pressed brick either:
+without a clutch nothing holds one there.
 
 **Synthetic depth** (not a simulator): `tests/bundles/_seat_eval.py` ray-casts
 a 12 x 12 plate with studs and one brick in a known pose, as seen by a
@@ -174,15 +201,15 @@ Results are in the table below.
 | duplo 2x2 | seated, camera pose 4 mm high | seated 5 | +0.01 (0.01) | 0.1 | 1.00 |
 | duplo 2x2 | seated, flush neighbours on 4 sides | seated 5 | -0.01 (0.01) | 0.1 | 1.00 |
 | duplo 2x2 | no brick | no_brick 5 | - | - | 0.00 |
-| lego 2x4 | seated | seated 5 | +0.01 (0.02) | 0.5 | 1.00 |
-| lego 2x4 | partly pressed, 0.45 stud (0.77 mm) | not_seated 5 | +0.78 (0.02) | 0.5 | 1.00 |
-| lego 2x4 | resting on the stud tops | high_by_stud 5 | +1.71 (0.02) | 0.5 | 1.00 |
-| lego 2x4 | one end on the studs (3.0 deg) | tilted 5 | +0.45 (0.02) | 3.0 | 1.00 |
-| lego 2x4 | one cell off in y | shifted_off_grid 5 | +0.01 (0.02) | 0.4 | 0.79 |
-| lego 2x2 | seated | seated 5 | +0.02 (0.02) | 0.7 | 1.00 |
-| lego 2x2 | resting on the stud tops | high_by_stud 5 | +1.72 (0.02) | 0.7 | 1.00 |
+| lego 2x4 | seated | seated 5 | +0.02 (0.04) | 0.5 | 1.00 |
+| lego 2x4 | partly pressed, 0.45 stud (0.77 mm) | not_seated 5 | +0.79 (0.04) | 0.5 | 1.00 |
+| lego 2x4 | resting on the stud tops | high_by_stud 5 | +1.72 (0.04) | 0.5 | 1.00 |
+| lego 2x4 | one end on the studs (3.0 deg) | tilted 5 | +0.46 (0.04) | 3.0 | 1.00 |
+| lego 2x4 | one cell off in y | shifted_off_grid 5 | +0.00 (0.02) | 0.4 | 0.79 |
+| lego 2x2 | seated | seated 5 | +0.03 (0.03) | 0.7 | 1.00 |
+| lego 2x2 | resting on the stud tops | high_by_stud 5 | +1.73 (0.02) | 0.7 | 1.00 |
 
-80/80 verdicts match the truth. The height reads within 0.02 mm of the
+80/80 verdicts match the truth. The height reads within 0.03 mm of the
 truth (sd at most 0.04 mm, three frames median-combined); tilt on a level
 brick 0.1-0.7 deg against limits of 1.5-4.0 deg. A one-cell shift is
 estimated short (13 mm for 16 mm DUPLO, 6-7 mm for 8 mm LEGO: the inset
@@ -207,7 +234,8 @@ tall neighbours.
   is the second check.
 - **Dark or glossy tops**: D405 noise on black or specular bricks is larger
   than the model here; check `samples` and the detail, and raise `frames`.
-- Not run on a real YAM; not run in the station twin (see Checked).
+- Not run on a real YAM. In the station twin, tilted and partly pressed
+  bricks could not be produced (see Checked).
 
 ## The constants, and why
 
@@ -224,7 +252,7 @@ tall neighbours.
 - **`EDGE_INSET = 1.5 mm`**, **`VIEW_RANGES`**, **`MIN_VIEW_CLEARANCE`**:
   pressing-a-brick-onto-studs / refining-target-from-wrist-closeup.
 - **`RING_INNER / RING_OUTER = 0.3 / 1.5` pitch**, **`REFERENCE_WINDOW_FRACTION
-  = 0.5`**, **`LOWER_SUPPORT = 0.1`**, **`TRIM_SIGMAS = 2.5`**, **`PLANE_ITERS = 6`**,
+  = 0.5`**, **`LOWER_SUPPORT = 0.1`**, **`SUPPORT_BAND_FRACTION / _MIN = 0.35 / 0.8 mm`**, **`TRIM_SIGMAS = 2.5`**, **`PLANE_ITERS = 6`**,
   **`NO_BRICK_COVERAGE = 0.25`**, **`MIN_POINTS = 40`**, **`FRAMES = 3`**:
   chosen on the synthetic depth above. With 0.5 mm per-pixel noise at
   0.2 m, the two-layer fit read a level LEGO 2x2 within 0.1 mm and 1.3 deg.

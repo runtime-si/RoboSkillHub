@@ -86,8 +86,10 @@ def render_depth(
     noise: bool = True,
     baseline: float = 0.018,
     subpixel: float = 0.08,
+    boxes: list[tuple[tuple, tuple]] = (),
 ) -> np.ndarray:
-    """Depth (float32 metres, 0 = no reading) along the optical axis."""
+    """Depth (float32 metres, 0 = no reading) along the optical axis; ``boxes`` are extra
+    axis-aligned (lo, hi) boxes in the plate frame (a gripper finger in view)."""
     rng = np.random.default_rng(0) if rng is None else rng
     w, h = size
     scene = Scene(system=system, studs=plate_studs, bricks=list(neighbours or []))
@@ -101,6 +103,14 @@ def render_depth(
         o = np.broadcast_to(t_plate_cam[:3, 3], d.shape).copy()
         tb = _trace_brick(o, d, pose, system, nx, ny).reshape(h, w)
         depth = np.minimum(depth, tb)
+    if boxes:
+        u, v = np.meshgrid(np.arange(w) + 0.0, np.arange(h) + 0.0)
+        dc = np.stack([(u - k[0, 2]) / k[0, 0], (v - k[1, 2]) / k[1, 1], np.ones_like(u)], -1)
+        d = dc.reshape(-1, 3) @ t_plate_cam[:3, :3].T
+        o = np.broadcast_to(t_plate_cam[:3, 3], d.shape).copy()
+        for lo, hi in boxes:
+            tb, _ = _box(o, d, np.asarray(lo, float), np.asarray(hi, float))
+            depth = np.minimum(depth, tb.reshape(h, w))
     depth = np.where(np.isfinite(depth), depth, 0.0)
     if noise:
         depth = add_noise(depth, k, rng, baseline, subpixel)

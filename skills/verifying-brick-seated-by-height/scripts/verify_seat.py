@@ -81,7 +81,10 @@ fraction of a brick height of the given seat height; otherwise the seat's own z 
 (a brick stacked on one of the same footprint has the plate a whole brick lower around it)."""
 
 LOWER_SUPPORT = 0.1
-"""A lower surface needs this share of the ring's points to be taken as the reference."""
+SUPPORT_BAND_FRACTION = 0.35
+SUPPORT_BAND_MIN = 0.0008
+"""A surface needs this share of the ring's points within max(0.35 stud heights, 0.8 mm)
+of it (about two D405 sigmas at 0.2 m)."""
 
 LEVEL_STEP = 0.00005
 """Grid step of the two-level search [m]."""
@@ -262,17 +265,33 @@ def _two_layer_level(z: np.ndarray, stud_h: float) -> float:
     return float(grid[int(np.argmin(cost))])
 
 
-def _lowest_surface(z: np.ndarray, stud_h: float, gap: float) -> float:
-    """The lowest stud-covered surface with enough support among heights ``z``: the
-    two-level search, repeated on what lies more than ``gap`` under its answer (the plate
-    between neighbour bricks that fill most of the ring)."""
-    level = _two_layer_level(z, stud_h)
-    for _ in range(4):
-        lower = z[z < level - gap]
-        if lower.size < max(MIN_POINTS, LOWER_SUPPORT * z.size):
-            break
-        level = _two_layer_level(lower, stud_h)
-    return level
+def _surface_levels(z: np.ndarray, stud_h: float) -> list[float]:
+    """Every stud-covered surface among heights ``z``: the local minima of the two-level
+    cost (residuals capped at the support band) that have at least LOWER_SUPPORT of the points
+    on them. A minimum a stud height under a surface (its studs read as the upper layer)
+    has nothing on it and drops out; the plate between neighbour bricks, and the table past
+    a small plate's edge, are kept as separate surfaces."""
+    lo, hi = np.percentile(z, [1, 99])
+    grid = np.arange(lo, hi + LEVEL_STEP, LEVEL_STEP)
+    band = max(SUPPORT_BAND_FRACTION * stud_h, SUPPORT_BAND_MIN)
+    r = z[None, :] - grid[:, None]
+    # Capped at the support band (an inlier count, nearly): a cap of a whole stud height
+    # smooths a plate standing a stud height over the table into one minimum.
+    cost = np.minimum(np.minimum(r**2, (r - stud_h) ** 2), band**2).sum(axis=1)
+    half = max(1, int(round(0.5 * stud_h / LEVEL_STEP)))
+    out = []
+    for i in range(len(grid)):
+        window = cost[max(0, i - half) : i + half + 1]
+        if cost[i] > window.min():
+            continue
+        if np.mean(np.abs(z - grid[i]) < band) >= LOWER_SUPPORT:
+            out.append(float(grid[i]))
+    # Flat minima give runs of equal levels: keep one per stud height.
+    merged: list[float] = []
+    for v in out:
+        if not merged or v - merged[-1] > 0.5 * stud_h:
+            merged.append(v)
+    return merged or [_two_layer_level(z, stud_h)]
 
 
 def _two_layer_plane(pts: np.ndarray, stud_h: float) -> tuple[np.ndarray, float]:
@@ -330,7 +349,8 @@ def measure(
     seat_z = float(seat[2])
     ref_z, ref_used = seat_z, "world"
     if reference != "world" and int(ring.sum()) >= MIN_POINTS:
-        cand = _lowest_surface(pts[ring, 2], stud_h, 0.5 * body_h)
+        levels = _surface_levels(pts[ring, 2], stud_h)
+        cand = min(levels, key=lambda v: abs(v - seat_z))
         if abs(cand - seat_z) <= REFERENCE_WINDOW_FRACTION * body_h:
             ref_z, ref_used = cand, "local"
     if reference == "local" and ref_used != "local":
@@ -341,7 +361,10 @@ def measure(
     out["reference"], out["reference_offset"] = ref_used, ref_z - seat_z
 
     # The footprint, inset; brick points are those over half a brick above the reference.
-    inside = (np.abs(lx) <= hx - EDGE_INSET) & (np.abs(ly) <= hy - EDGE_INSET)
+    # Nothing over a whole brick above the seated top: the gripper's own fingers can stand
+    # in the wrist camera's view.
+    under = pts[:, 2] < ref_z + 2.0 * body_h + stud_h
+    inside = (np.abs(lx) <= hx - EDGE_INSET) & (np.abs(ly) <= hy - EDGE_INSET) & under
     n_in = int(inside.sum())
     out["samples"] = n_in
     if n_in < MIN_POINTS:
