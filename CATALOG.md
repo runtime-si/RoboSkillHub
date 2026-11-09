@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-24 tools, 140 skills, 2 policies, 1 recipe and 1 paper.
+25 tools, 141 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -38,6 +38,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`molmo-motion`](#molmo-motion) | propose | AllenAI MolmoMotion-4B run locally on a GPU. | any |
 | [`robobrain`](#robobrain) | propose | BAAI RoboBrain 2.5-4B run locally on a GPU. | any |
 | [`workcell`](#workcell) | execute | Typed JSON boundary for RoboSkillHub workcell capabilities and station descriptions. | yam_i2rt |
+| [`musc`](#musc) | verify | MuSc zero-shot mutual anomaly scoring (MuSc / MuSc-V2, MIT) on DINOv2 (facebook/dinov2-base, Apache-2.0). | any |
 | [`densereward`](#densereward) | judge | DenseReward reward models (Qwen3-VL-4B fine-tunes, Apache-2.0) run locally on a GPU. | any |
 | [`predicates`](#predicates) | judge | Geometric yes/no judgments over poses and boxes the graph already holds. | any |
 
@@ -162,6 +163,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`checking-spatial-relations`](#checking-spatial-relations) | verify | Decides from one RGB-D view whether a spatial relation holds between two seen objects. | any |
 | [`classifying-failure-from-proprioception`](#classifying-failure-from-proprioception) | verify | Classifies the last moments of a manipulation step from proprioception alone. | any |
 | [`detecting-disturbed-pieces-by-snapshot-diff`](#detecting-disturbed-pieces-by-snapshot-diff) | verify | Checks whether anything already placed was knocked since the last verified step. | any |
+| [`flagging-odd-one-out-parts-by-mutual-scoring`](#flagging-odd-one-out-parts-by-mutual-scoring) | verify | Finds the part that differs from its siblings in one frame. | any |
 | [`previewing-target-overlay`](#previewing-target-overlay) | verify | Checks a target gripper pose before the arm moves. | any |
 | [`registering-assembled-board-to-reference`](#registering-assembled-board-to-reference) | verify | Aligns a top-down view of the part-built jigsaw (overhead frame, rectified view or wrist mosaic) to the box picture… | any |
 | [`simulating-a-domino-layout-before-building`](#simulating-a-domino-layout-before-building) | verify | Checks a planned domino line or curve in a rigid-body simulation before the arm builds it. | any |
@@ -488,6 +490,17 @@ Typed JSON boundary for RoboSkillHub workcell capabilities and station descripti
 - **Functions**:
   - `workcell.describe`: Describe the configured station and capability interface without issuing motion.
   - `workcell.invoke`: Invoke one named capability with a JSON object request and return its JSON result.
+
+### musc
+
+verify · robots: any · tasks: domino, lego, jigsaw · MIT · v0.1.0 · [`SKILL.md`](tools/musc/SKILL.md) · [upstream](https://github.com/HUST-SLOW/MuSc-V2/tree/b5e911dbc089/models/modules)
+
+MuSc zero-shot mutual anomaly scoring (MuSc / MuSc-V2, MIT) on DINOv2 (facebook/dinov2-base, Apache-2.0) - given N &gt;= 3 images of things that should look the same (crops of parts in one orientation and scale), each image's patches are scored by their distance to the nearest patch of each other image, so the one that differs scores high, with no reference image and no training. Per-image scores, the re-scored ones (RsCon) and patch maps. Use when a workflow must find the odd part among many copies (a face-up tile among face-down ones, a fallen domino, a wrong brick) in one frame; skills/flagging-odd-one-out-parts-by-mutual-scoring cuts and normalises the crops.
+
+- **Weights**: `hf://facebook/dinov2-base@f9e44c814b77203eaa57a6bdbbd535f21ede1415`
+- **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
+- **Functions**:
+  - `musc.score`: Mutual anomaly scores of N &gt;= 3 nominally identical images (per-image scores, RsCon re-scores, patch maps).
 
 ### densereward
 
@@ -2356,6 +2369,21 @@ Checks whether anything already placed was knocked since the last verified step 
   - `occluded`: Nothing moved and nothing unexpected, but at least one item is less than 60 % visible (under the arm, a hand, an ignore mask, or outside the registered view); it could not be checked.
   - `unchanged`: Every judged item is where it was and nothing unexplained changed in the region.
   - `unregistrable`: The background does not correlate (median tile correlation under 0.8 after registration) or the camera moved more than 8 % of the frame diagonal; the views cannot be compared pixel by pixel - re-take the reference.
+
+### flagging-odd-one-out-parts-by-mutual-scoring
+
+verify · robots: any · tasks: domino, lego, jigsaw · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/flagging-odd-one-out-parts-by-mutual-scoring/SKILL.md) · [upstream](https://github.com/HUST-SLOW/MuSc-V2/tree/b5e911dbc089/models/modules)
+
+Finds the part that differs from its siblings in one frame - a fallen or turned domino in a line, a face-up tile among face-down ones, a standing one among lying ones, a wrong face - with no reference image, no before frame and no training. The parts (masks, boxes, or a sam3 text prompt) are cut out, turned to their long axis (the 180 deg turn chosen to match the others) and scored against each other three ways - appearance by MuSc's mutual patch scoring on DINOv2 (tools/musc), height maps by the same nearest-patch rule on the depth, and the boxes' orientation and footprint - and a robust z-score over the parts says which are odd and why. Use when many copies of one part were placed and one may be wrong - before a domino line is triggered, after a row of bricks or tiles is laid, or to pick the one tile that needs turning over.
+
+- **In**: -
+- **Out**: `n_parts` int, `camera_name` string, `appearance_scored` bool, `aligned_layout` bool
+- **Calls**: [`musc`](#musc), [`sam3`](#sam3); connector `robot.get_observation`
+- **Scripts**: [`flag`](skills/flagging-odd-one-out-parts-by-mutual-scoring/scripts/flag_odd_one_out.py)
+- **Exits**:
+  - `outliers_found`: At least one part is odd - its appearance score over z_threshold (3.5) robust z and 1.4x the median, its height-map score over 3.5 z and 2 mm, its box turned over 20 deg from the others' (when they are laid out aligned), or a side of its box 1.25x off the median at 3.5 z; outliers lists them and parts[i].why says which test.
+  - `all_consistent`: Every part passed every test; detail gives the highest z.
+  - `too_few_parts`: Under min_parts (4) parts were given or segmented, or no RGB frame.
 
 ### previewing-target-overlay
 

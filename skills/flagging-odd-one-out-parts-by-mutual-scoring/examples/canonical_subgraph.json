@@ -1,0 +1,26 @@
+{
+  "skill": "flagging-odd-one-out-parts-by-mutual-scoring",
+  "inputs": {},
+  "outputs": {
+    "outliers": {"$ref": "flag.outliers"},
+    "outlier_positions": {"$ref": "flag.outlier_positions"},
+    "n_parts": {"$ref": "flag.n_parts"}
+  },
+  "nodes": {
+    "flag": {
+      "type": "script",
+      "script": "scripts/flag_odd_one_out.py",
+      "inputs": {
+        "prompt": "domino",
+        "camera": "left_wrist",
+        "use_depth": true
+      }
+    }
+  },
+  "edges": [["START", "flag"], ["flag", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["all_consistent", "outliers_found", "too_few_parts"]
+  },
+  "on_error": "too_few_parts"
+}

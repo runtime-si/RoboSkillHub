@@ -780,3 +780,13 @@ the behaviour of its code, legoscope
 (https://github.com/kevinpoi/legoscope, detect_offset.py at 2abdc205ef36),
 which has no license; none of its code and none of its YOLO stud weights are
 used.
+tools/musc/tools.py adapts code of MuSc-V2
+(https://github.com/HUST-SLOW/MuSc-V2, commit b5e911dbc089:
+models/modules/_SNAMD.py SNAMD._embed_2d, models/modules/_MSM.py
+compute_scores_single and MSM_single, models/modules/_RsCon.py RsCon and WMO),
+MIT License, Copyright (c) 2025 HUST SLOW; the algorithm is MuSc
+(https://github.com/xrli-U/MuSc, MIT License, Copyright (c) 2024 Xurui Li).
+The file's header lists the changes; the license is tools/musc/LICENSE.musc.
+The bundle downloads the DINOv2 checkpoints facebook/dinov2-base and
+facebook/dinov2-small (Apache-2.0 model cards) from Hugging Face; none are
+redistributed here.
