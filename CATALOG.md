@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-23 tools, 127 skills, 2 policies, 1 recipe and 1 paper.
+24 tools, 128 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -38,6 +38,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`molmo-motion`](#molmo-motion) | propose | AllenAI MolmoMotion-4B run locally on a GPU. | any |
 | [`robobrain`](#robobrain) | propose | BAAI RoboBrain 2.5-4B run locally on a GPU. | any |
 | [`workcell`](#workcell) | execute | Typed JSON boundary for RoboSkillHub workcell capabilities and station descriptions. | yam_i2rt |
+| [`densereward`](#densereward) | judge | DenseReward reward models (Qwen3-VL-4B fine-tunes, Apache-2.0) run locally on a GPU. | any |
 | [`predicates`](#predicates) | judge | Geometric yes/no judgments over poses and boxes the graph already holds. | any |
 
 ## Skills
@@ -171,6 +172,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`classifying-failure-type-vlm`](#classifying-failure-type-vlm) | judge | Classifies why a manipulation step failed from camera frames taken before, during (optional, a short video as frames)… | any |
 | [`detecting-subtask-success`](#detecting-subtask-success) | judge | Checks whether a subtask is done from the latest frame of every camera at one moment. | any |
 | [`judging-step-with-before-now-vlm`](#judging-step-with-before-now-vlm) | judge | Judges the current subgoal of a task from camera frames taken before the step and now. | any |
+| [`scoring-step-progress-from-one-frame`](#scoring-step-progress-from-one-frame) | judge | Judges whether a step is done from the current camera frame alone. | any |
 
 ## Policies
 
@@ -474,6 +476,18 @@ Typed JSON boundary for RoboSkillHub workcell capabilities and station descripti
 - **Functions**:
   - `workcell.describe`: Describe the configured station and capability interface without issuing motion.
   - `workcell.invoke`: Invoke one named capability with a JSON object request and return its JSON result.
+
+### densereward
+
+judge · robots: any · tasks: pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/densereward/SKILL.md) · [upstream](https://huggingface.co/densereward/densereward-1frame/blob/9796cb2a7be55b339670d8f95fb07841a61487a8/README.md)
+
+DenseReward reward models (Qwen3-VL-4B fine-tunes, Apache-2.0) run locally on a GPU -- task progress 0..1 from ONE RGB frame and the task text (0 not started or failed, 1 complete), or at the last of three chronological frames with a one-word reason for a drop (miss / collision / fall / smooth / failure). No start frame, no video. Use when a judge stage wants a cheap progress score right after a step, as a second opinion beside a geometric check.
+
+- **Weights**: `hf://densereward/densereward-1frame@9796cb2a7be55b339670d8f95fb07841a61487a8`
+- **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
+- **Functions**:
+  - `densereward.progress`: Task progress 0..1 from one RGB frame and the task text (DenseReward-1frame).
+  - `densereward.progress_with_history`: Progress at the last of three chronological frames plus a one-word reason (DenseReward-3frame-thinking).
 
 ### predicates
 
@@ -2503,6 +2517,22 @@ Judges the current subgoal of a task from camera frames taken before the step an
   - `wrong_object`: The VLM chose "grasp_tool" - the hand holds or is closing on an object other than the subgoal's; `grasp_target` names the right one.
   - `wrong_destination`: The VLM chose "place_tool" - the held object is heading to or was released at another destination; `place_destination` is a freeform phrase for the right one.
   - `no_verdict`: No camera has RGB in both BEFORE and NOW, vlm.query raised, or its reply had no JSON; nothing was judged (VoLoAgent continued in this case).
+
+### scoring-step-progress-from-one-frame
+
+judge · robots: any · tasks: pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/scoring-step-progress-from-one-frame/SKILL.md) · [upstream](https://huggingface.co/densereward/densereward-1frame/blob/9796cb2a7be55b339670d8f95fb07841a61487a8/README.md)
+
+Judges whether a step is done from the current camera frame alone - scores the task's progress 0..1 with the DenseReward single-frame reward model (densereward.progress) on a few fresh frames, takes the median, and routes done / in_progress / regressed, or low_confidence when the frames disagree or nothing parses. No start frame, no video, ~0.1 s a frame. Use when a graph needs a cheap "is this step done?" right after a place, press or push, with only the current camera view, as a second opinion beside a geometric check.
+
+- **In**: `task` string
+- **Out**: `progress` float, `reason` string, `camera` string, `model` string
+- **Calls**: [`densereward`](#densereward); connector `robot.get_observation`
+- **Scripts**: [`score_progress`](skills/scoring-step-progress-from-one-frame/scripts/score_progress.py)
+- **Exits**:
+  - `done`: The median progress of the sampled frames is at least done_threshold (0.85) and they agree within max_spread.
+  - `in_progress`: The median is below done_threshold and the frames agree; also "not started" (the model scores 0 for both not started and failed).
+  - `regressed`: The progress fell more than regress_drop below previous_progress, or the 3-frame model (history given) named a failure (miss / collision / fall / smooth / failure).
+  - `low_confidence`: The sampled frames disagree by more than max_spread, the camera has no RGB, densereward raised, or no float parsed; nothing was judged.
 
 ## Policy details
 

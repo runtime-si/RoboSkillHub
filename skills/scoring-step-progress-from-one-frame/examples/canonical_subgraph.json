@@ -1,0 +1,44 @@
+{
+  "skill": "scoring-step-progress-from-one-frame",
+  "inputs": {
+    "task": "string"
+  },
+  "outputs": {
+    "progress": {
+      "$ref": "score.progress"
+    },
+    "reason": {
+      "$ref": "score.reason"
+    }
+  },
+  "nodes": {
+    "score": {
+      "type": "script",
+      "script": "scripts/score_progress.py",
+      "inputs": {
+        "task": {
+          "$ref": "in.task"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "score"
+    ],
+    [
+      "score",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "done",
+      "in_progress",
+      "regressed"
+    ]
+  },
+  "on_error": "low_confidence"
+}
