@@ -146,7 +146,7 @@ HINGE_PRESS = 0.002
 """hinge_tip: how much shorter than the pin's distance to the far bottom edge the arc's radius is [m], so the pin
 pushes the tile's foot onto the table (tipping-over-a-surface-edge presses while it pulls)."""
 
-HANDOVER_HEIGHT = 0.15
+HANDOVER_HEIGHT = 0.12
 """handover: height of the tile's centre over the table where the helper takes it [m] (a choice: clear of the
 table for a level hand)."""
 
@@ -157,6 +157,13 @@ of this arm's pads, which sit 6-22 mm toward the other end."""
 HELPER_BITE = 0.010
 """handover: how far the helper's tool centre goes past the tile's near long edge [m]; its fingertips reach 10.2 mm
 further."""
+
+HANDOVER_ACROSS = (0.3, 0.4, 0.5, 0.2)
+"""handover: where along the line from this arm's base to the helper's the handover points are tried (fractions)."""
+
+HANDOVER_FORWARD = (0.20, 0.25, 0.15, 0.30)
+"""handover: how far in front of the line between the bases they are tried [m]: a top-down YAM hand 0.15 m over the
+table ran into its wrist limit 0.42 m from its base in a station twin."""
 
 TOP_BITE = 0.008
 """handover: how far down the upright tile this arm's fingertips reach when it takes the top end [m]."""
@@ -1880,24 +1887,59 @@ def run(
         b_approach = rb0.T @ _xyz(gf_b.get("approach") or {"x": 0.0, "y": 0.0, "z": -1.0})
         b_close = rb0.T @ _xyz(gf_b.get("close_axis") or {"x": 1.0, "y": 0.0, "z": 0.0})
 
-        # --- where: the handover point (default over the middle of the two hands, handover_height over the table)
-        # and the helper's approach, level and away from its base there (its base from a test turn of joint 1).
-        p_a, _ = hand_a.pose()
-        p_b, _ = hand_b.pose()
-        if handover_point:
-            hp = _xyz(handover_point)
-        else:
-            hp = np.array([*((p_a[:2] + p_b[:2]) / 2.0), table_z + float(handover_height)])
+        # --- where: both bases from a test turn of each arm's first joint; handover points between them, out in
+        # front, previewed for this arm (top-down, the tile's width along the helper's approach) and for the helper
+        # (level approach away from its base) before anything is picked.
+        base_a = hand_a.base()
         base_b = hand_b.base()
-        if base_b is None:
+        if base_a is None or base_b is None:
+            return finish(
+                "unreachable", "an arm's base could not be found from a test turn of its joint 1"
+            )
+        across = np.array([*(base_b[:2] - base_a[:2]), 0.0])
+        forward = np.cross(z_up, across)
+        forward = forward / (np.linalg.norm(forward) or 1.0)
+        if float(forward @ np.array([*(center[:2] - base_a[:2]), 0.0])) < 0.0:
+            forward = -forward
+        if handover_point:
+            spots_h = [_xyz(handover_point)]
+        else:
+            spots_h = [
+                np.array(
+                    [
+                        *(base_a[:2] + t * across[:2] + f * forward[:2]),
+                        table_z + float(handover_height),
+                    ]
+                )
+                for f in HANDOVER_FORWARD
+                for t in HANDOVER_ACROSS
+            ]
+        a_down = np.array([0.0, 0.0, -1.0])
+        missed_h: list[str] = []
+        hp = w_dir = None
+        for cand in spots_h:
+            w = np.array([*(cand[:2] - base_b[:2]), 0.0])
+            w = w / (np.linalg.norm(w) or 1.0)
+            ra = _frame(a_down, w, local_approach, local_close)
+            p_tcp_a = cand - (gh + 0.0025 - tt / 2.0) * a_down
+            _, why = hand_a.ik(p_tcp_a, ra)
+            if not why:
+                rb_c = _frame(w, z_up, b_approach, b_close)
+                _, why = hand_b.ik(
+                    cand - (tw / 2.0 - float(helper_bite)) * w - 2.0 * float(retreat) * w, rb_c
+                )
+                why = f"helper: {why}" if why else ""
+            if why:
+                missed_h.append(f"({cand[0]:.2f}, {cand[1]:.2f}): {why}")
+                continue
+            hp, w_dir = cand, w
+            break
+        if hp is None:
             return finish(
                 "unreachable",
-                "the helper's base could not be found from a test turn of its joint 1",
+                f"no handover point passes the IK preview for both arms ({'; '.join(missed_h[:4])}"
+                f"{', ...' if len(missed_h) > 4 else ''}); nothing picked",
             )
-        w_dir = np.array([*(hp[:2] - base_b[:2]), 0.0])
-        if float(np.linalg.norm(w_dir)) < 0.05:
-            return finish("unreachable", "the handover point is over the helper's base")
-        w_dir /= float(np.linalg.norm(w_dir))
         out["facing_deg"] = 0.0
 
         # --- pick (this arm, top-down across the width near one end), lift.
