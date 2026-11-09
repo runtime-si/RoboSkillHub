@@ -2027,7 +2027,23 @@ def run(
         if not why:
             why = hand_b.go(pre_b, rb)
         if not why:
-            why = hand_b.line(g_b, rb)
+            # The solver may leave the roll free: read the jaws back and square them across the thickness.
+            for _ in range(TURN_TRIES):
+                _, rb_now = hand_b.pose()
+                err = wrap(turn_about(rb_now @ b_approach, rb_now @ b_close, n_t), True)
+                if abs(err) <= float(roll_tolerance_deg):
+                    break
+                why = hand_b.roll(err, float(pitch_step_deg), b_approach)
+                if why:
+                    break
+            else:
+                why = f"the helper's jaws stayed {err:+.0f} deg off the tile's thickness"
+        if not why:
+            p_now, rb_now = hand_b.pose()
+            if float(np.linalg.norm(p_now - pre_b)) > CENTRE_TOLERANCE:
+                why = hand_b.line(pre_b, rb_now)
+        if not why:
+            why = hand_b.line(g_b, rb_now)
         if why:
             return finish("unreachable", f"the helper to the tile: {why}; still holding (this arm)")
         w_b = hand_b.close()
