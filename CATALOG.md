@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-24 tools, 138 skills, 2 policies, 1 recipe and 1 paper.
+24 tools, 139 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -164,6 +164,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`previewing-target-overlay`](#previewing-target-overlay) | verify | Checks a target gripper pose before the arm moves. | any |
 | [`registering-assembled-board-to-reference`](#registering-assembled-board-to-reference) | verify | Aligns a top-down view of the part-built jigsaw (overhead frame, rectified view or wrist mosaic) to the box picture… | any |
 | [`simulating-a-domino-layout-before-building`](#simulating-a-domino-layout-before-building) | verify | Checks a planned domino line or curve in a rigid-body simulation before the arm builds it. | any |
+| [`tracking-gripper-opening-stall`](#tracking-gripper-opening-stall) | verify | Drives the jaws to a target gap (or fully closed) and watches the measured gap over a sliding window, reporting… | any |
 | [`verifying-a-brick-connection-by-pull-up`](#verifying-a-brick-connection-by-pull-up) | verify | Checks that a brick just pressed onto studs is clutched by lifting it a few millimetres, still gripped, in 0.5 mm… | any |
 | [`verifying-a-cable-route`](#verifying-a-cable-route) | verify | Judge a finished cable route from a camera rather than from an evaluator. | any |
 | [`verifying-a-domino-cascade-from-video`](#verifying-a-domino-cascade-from-video) | verify | Decides from a short RGB(-D) clip of the overhead or a wrist camera which tiles of a planned domino line fell and… | any |
@@ -2383,6 +2384,25 @@ Checks a planned domino line or curve in a rigid-body simulation before the arm 
   - `push_failed`: The first tile did not fall. Either the trigger stroke would end within 6 mm of slot 1, so the trigger skill would not push a line this tight (try the `kick` trigger), or the stroke or kick did not carry the tile past 10 deg.
   - `sim_unavailable`: The physics engine is not installed or rejected the model; nothing was judged.
   - `invalid_input`: Fewer than two slots, a slot without a facing, two neighbouring slots overlapping, no table height, a target that is not after slot 0, a tile size that is not height &gt; width &gt; thickness, an unknown trigger, or a non-positive speed, timestep or mass (also the route of a raised error).
+
+### tracking-gripper-opening-stall
+
+verify · robots: any · tasks: pick-place, lego, domino, jigsaw, sorting · MIT · v0.1.0 · [`SKILL.md`](skills/tracking-gripper-opening-stall/SKILL.md) · [upstream](https://github.com/Open-RUA/uni-robot-agent/blob/a98934c6a1a16317821fed41a3b816b1d300b427/uni_robot_agent/tools/gripper/opening.py)
+
+Drives the jaws to a target gap (or fully closed) and watches the measured gap over a sliding window, reporting whether it reached the target, stopped wide of it while closing (something is between the fingers - with its width in millimetres, checked against the expected part width), jammed (an opening blocked, or no travel at all), or is still moving. Routes reached, stalled_on_object, unexpected_width, stalled_jammed, still_moving, refused or unknown. Use when a graph closes on a part and must know at once whether it closed on something of the right width (a brick across its 15.8 mm side, not its 31.8 mm one; one domino, not two), or must confirm a partial opening before reaching between tightly packed parts; reads only the gripper.
+
+- **In**: -
+- **Out**: `target_m` float, `start_m` float, `actual_m` float, `error_m` float, `object_width_m` float, `width_error_m` float, `samples` int, `reason` string
+- **Calls**: connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_gripper`, `robot.open_gripper`, `robot.set_grip`, `robot.wait_steps`
+- **Scripts**: [`track_opening`](skills/tracking-gripper-opening-stall/scripts/track_opening.py)
+- **Exits**:
+  - `reached`: The gap came within tolerance_m (2 mm) of the target. Closing fully and reaching it means the jaws closed on nothing.
+  - `stalled_on_object`: While closing, the gap stopped gaining (under 0.5 mm over 8 samples) wide of the target after moving at least 1 mm; object_width_m is the gap there, within width_tolerance_m of expected_width_m if one was given.
+  - `unexpected_width`: As stalled_on_object, but the gap is more than width_tolerance_m from expected_width_m (wrong part, two parts, an edge or corner grasp).
+  - `stalled_jammed`: The gap stopped short while opening, settled past the target, or never moved 1 mm from where it started.
+  - `still_moving`: max_samples readings without reaching or stalling.
+  - `refused`: The gripper command raised or reported failure.
+  - `unknown`: The gripper could not be read (no position); nothing was judged.
 
 ### verifying-a-brick-connection-by-pull-up
 
