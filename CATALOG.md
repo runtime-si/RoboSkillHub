@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-24 tools, 130 skills, 2 policies, 1 recipe and 1 paper.
+24 tools, 131 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -130,6 +130,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`plugging-a-cable-end`](#plugging-a-cable-end) | execute | Carries a cable's held free end into a terminal port after the last crossing. | any, 2 arms |
 | [`pouring-by-wrist-roll`](#pouring-by-wrist-roll) | execute | Pours from a held container into a target container by standing the hand above the target's box at a set height and… | any |
 | [`pressing-a-brick-onto-studs`](#pressing-a-brick-onto-studs) | execute | Presses a held LEGO or DUPLO brick onto the studs under it and checks by height that it seated. | any |
+| [`pressing-in-with-guarded-push`](#pressing-in-with-guarded-push) | execute | Pushes a held part along an axis (straight down by default) in small steps with a bounded push and a bounded travel… | any |
 | [`pressing-with-contact-limit`](#pressing-with-contact-limit) | execute | Runs one bounded contact motion along an axis that the controller stops on a force threshold or travel limit, on a… | yam_i2rt |
 | [`pulling-drawer`](#pulling-drawer) | execute | Executes a bounded pull along a drawer axis using handle-grasp and opening evidence. | yam_i2rt |
 | [`pushing-objects`](#pushing-objects) | execute | Pushes a loose object across its support toward a goal point with a closed hand, never grasping it. | any |
@@ -1836,6 +1837,22 @@ Presses a held LEGO or DUPLO brick onto the studs under it and checks by height 
   - `not_holding`: The jaws read at their stop before anything moved, or after the release the wrist depth finds no brick top at the seat.
   - `unverified`: Released, but the height was not read (no wrist camera with a pose, no reachable view, fewer than 3 depth readings on the top, or verify false); detail says how far the press went.
   - `unreachable`: The seated (or tilted) hand pose failed the IK preview, or a move was refused; detail says which, and whether the brick is still held.
+
+### pressing-in-with-guarded-push
+
+execute · robots: any · tasks: insertion, assembly · BSD-3-Clause · v0.1.0 · [`SKILL.md`](skills/pressing-in-with-guarded-push/SKILL.md) · [upstream](https://github.com/o2ac/o2ac-ur/blob/65ddc5496879799038cefbad061380b7d0300d73/catkin_ws/src/o2ac_routines/src/o2ac_routines/ur_force_control.py)
+
+Pushes a held part along an axis (straight down by default) in small steps with a bounded push and a bounded travel, and says how it ended - travel or target depth reached (seated), the push collapsing as the hand jumps forward (snap_detected, a snap-fit or clutch giving), or the push limit reached short of the goal - o2ac's linear_push / do_insertion with tracking lag, and joint effort where published, standing in for the force sensor a YAM does not have. Unloads the push at the end. Use when a held part already sits on or in its seat (a brick on studs, a peg in a hole's mouth, a domino in a slot, a snap-fit lid) and must be pressed home by a few millimetres without crushing it, and a camera cannot tell whether it went in.
+
+- **In**: -
+- **Out**: `travelled` float, `contact_travel` float, `peak_lag` float, `final_lag` float, `remaining` float, `steps` int, `signal` str, `efforts_available` bool, `relieved` bool, `stop_position` Vec3
+- **Calls**: connector `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.solve_ik`
+- **Scripts**: [`guarded_push`](skills/pressing-in-with-guarded-push/scripts/guarded_push.py)
+- **Exits**:
+  - `seated`: The hand travelled max_translation (8 mm) along the axis, or reached the target's depth, before the push limit; or, with a target, hit the limit within goal_tolerance_if_lockup of it (o2ac's relaxed lock-up). contact_travel is -1 when nothing resisted on the way.
+  - `snap_detected`: After the lag had built at least snap_rise (2 mm) over its free baseline it fell by snap_drop (1.5 mm) in one step while the hand jumped as far forward - a snap-fit or clutch gave; the push stopped there (stop_on_snap).
+  - `force_limit_no_travel`: The lag over the free baseline passed max_lag (6 mm), or a joint effort residual passed effort_threshold, short of the goal; the push was unloaded. `signal` says which.
+  - `blocked`: The end of the push is out of reach (IK preview) or under floor_z, a move was refused, the floor ended the push, or signal=effort without published efforts; `detail` says which.
 
 ### pressing-with-contact-limit
 

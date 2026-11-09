@@ -1,0 +1,28 @@
+{
+  "skill": "pressing-in-with-guarded-push",
+  "inputs": {
+    "direction": "Vec3"
+  },
+  "outputs": {
+    "travelled": {"$ref": "press.travelled"},
+    "contact_travel": {"$ref": "press.contact_travel"},
+    "peak_lag": {"$ref": "press.peak_lag"},
+    "stop_position": {"$ref": "press.stop_position"}
+  },
+  "nodes": {
+    "press": {
+      "type": "script",
+      "script": "scripts/guarded_push.py",
+      "inputs": {
+        "direction": {"$ref": "in.direction"},
+        "max_translation": 0.005
+      }
+    }
+  },
+  "edges": [["START", "press"], ["press", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["seated", "snap_detected", "force_limit_no_travel"]
+  },
+  "on_error": "blocked"
+}

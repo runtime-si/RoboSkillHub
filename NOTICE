@@ -704,3 +704,11 @@ robot-world / hand-eye closed form of Shah (J. Mechanisms Robotics 5(3), 2013),
 the method OpenCV's calibrateRobotWorldHandEye offers (Apache-2.0); no OpenCV
 source is copied. Its target detector uses the ArUco parameter values of the
 YAM station's real/calibrate_board.py (Apache-2.0).
+skills/pressing-in-with-guarded-push/scripts/guarded_push.py is adapted from
+o2ac-ur (https://github.com/o2ac/o2ac-ur, commit
+65ddc5496879799038cefbad061380b7d0300d73:
+catkin_ws/src/o2ac_routines/src/o2ac_routines/ur_force_control.py,
+URForceController.linear_push and do_insertion's termination criteria), whose
+file header is BSD-3-Clause, Copyright (c) 2021 OMRON SINIC X (the repository
+is MIT, Copyright (c) 2020 Team O2AC); the file's header lists the changes, and
+both licenses are in skills/pressing-in-with-guarded-push/LICENSE.o2ac.
