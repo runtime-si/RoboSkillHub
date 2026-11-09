@@ -176,7 +176,7 @@ def test_sagging_arm_is_not_read_as_a_hold(script):
 
 
 def test_weak_clutch_letting_go_early_reads_not_connected(script):
-    arm = Arm(clutched=True, breaks_at=0.0008)
+    arm = Arm(clutched=True, breaks_at=0.0002)
     out = script.run(arm.ctx(), **FAST)
     assert out["route"] == "not_connected"
 
@@ -244,7 +244,7 @@ def test_station_connector_lists(script):
 def test_knobs_passed_only_when_set(script):
     arm = Arm()
     script.run(arm.ctx(), arm_id=1, step_max_steps=40, **FAST)
-    assert arm.moves[0][1] == {"tolerance": 0.001, "max_steps": 40, "arm_id": 1}
+    assert arm.moves[0][1] == {"tolerance": 0.0002, "max_steps": 40, "arm_id": 1}
     arm = Arm()
     script.run(arm.ctx(), step_tolerance=0.0, **FAST)
     assert arm.moves[0][1] == {}

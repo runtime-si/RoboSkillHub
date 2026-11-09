@@ -41,10 +41,13 @@ STEP = 0.0005
 """Commanded rise per step [m]. Each step raises the pull on a held brick by the
 servo stiffness times the step, so a clutch is felt before it lets go."""
 
-HOLD_LAG = 0.0015
+HOLD_LAG = 0.0003
 """How far below its command beyond the start's lag the hand must stand for the
-brick to be held [m]: half the 3 mm a real YAM station reads as contact
-(SETTLE_CONTACT); a YAM station twin's free-motion lag jitters 0.1-0.2 mm."""
+brick to be held [m]. Tuned on a YAM station twin: gripping a fixed wall, the
+jaws slid once the lag reached 0.5-0.76 mm (so a 1.5 mm threshold, half the real
+station's 3 mm contact lag, never fired), while a free cube lifted with 0.04-0.05
+mm; 0.3 mm sits between, above the twin's 0.1-0.2 mm free-motion jitter. A real
+YAM's jitter on 0.5 mm steps is not measured: retune there."""
 
 EFFORT_THRESHOLD = 0.5
 """Joint effort residual read as a hold [N.m], where efforts are published: i2rt's
@@ -64,8 +67,11 @@ STOP_MARGIN = 0.002
 RETREAT = 0.03
 """Straight rise after releasing a connected brick [m]."""
 
-STEP_TOLERANCE = 0.001
-"""Arrival ball asked of each step [m] (passed as go_to_pose's ``tolerance``)."""
+STEP_TOLERANCE = 0.0002
+"""Arrival ball asked of each step [m], passed as go_to_pose's ``tolerance``. It must
+be well under the step: a YAM station twin's servo stops once inside its ball, so a
+1 mm ball left a 0.5 mm step unmoved (read as lag: a hold that was not there).
+0 leaves the connector's default."""
 
 SETTLE_QUIET = 0.0003
 SETTLE_PERIOD = 0.3
