@@ -1,0 +1,31 @@
+{
+  "skill": "auditing-a-domino-line-for-fallen-or-tilted-tiles",
+  "inputs": {
+    "slots": "Any",
+    "table_z": "float"
+  },
+  "outputs": {
+    "states": {"$ref": "audit.states"},
+    "faults": {"$ref": "audit.faults"},
+    "first_fault": {"$ref": "audit.first_fault"},
+    "fallen_runs": {"$ref": "audit.fallen_runs"},
+    "wide_gaps": {"$ref": "audit.wide_gaps"},
+    "lean_deg": {"$ref": "audit.lean_deg"}
+  },
+  "nodes": {
+    "audit": {
+      "type": "script",
+      "script": "scripts/audit_line.py",
+      "inputs": {
+        "slots": {"$ref": "in.slots"},
+        "table_z": {"$ref": "in.table_z"}
+      }
+    }
+  },
+  "edges": [["START", "audit"], ["audit", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["line_ok", "fix_needed", "fallen", "not_seen"]
+  },
+  "on_error": "invalid_input"
+}
