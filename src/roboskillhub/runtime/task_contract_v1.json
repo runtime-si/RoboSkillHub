@@ -118,7 +118,8 @@
     "contact_force_feedback": "F/T or equivalent contact force; must declare signal, units, rate, max age",
     "compliant_motion": "force/impedance control closed in the controller process",
     "joint_position_feedback": "measured joint positions with names, source and timestamp",
-    "joint_motion": "joint-space interpolation through a supplied q_path"
+    "joint_motion": "joint-space interpolation through a supplied q_path",
+    "reachability_query": "no-motion IK / path query with the same rules the backend applies to motion"
   },
   "primitives": {
     "move_pose": {
@@ -274,6 +275,19 @@
       "backend": "describe().joints = {names, lower_rad, upper_rad, max_velocity_rad_s}; move_joints(q_path, speed_rad_s, timeout_s) -> {ok}; get_state().joints = {names, positions_rad, timestamp_s, source}",
       "checks": "every point within joint limits (else rejected/unreachable); no step (from the measured start) larger than limits.max_joint_step_rad (default 0.2) (else rejected/precondition_unmet)",
       "outcome": "succeeded when fresh measured joints are within limits.joint_tolerance_rad (default 0.02) of the last point; the path between points is the controller's joint interpolation"
+    },
+    "check_reachability": {
+      "requires": [
+        "reachability_query"
+      ],
+      "since": "rsh-task/1.3",
+      "request": {
+        "poses": "Pose[1..64]",
+        "chain": "boolean? (solve each pose from the previous solution, starting at the current configuration)",
+        "timeout_s": "number?"
+      },
+      "backend": "reachable(poses, chain, timeout_s) -> [{ok, reason?, q?}]; describe().reachability = {solver, rules} optional",
+      "outcome": "succeeded with evidence.results / all_ok; no motion is issued; poses outside the station workspace are answered ok:false by the runtime"
     }
   },
   "schemas": {
@@ -872,7 +886,7 @@
     "visit_exhaustion": "a visit beyond max_visits yields failed/retry_budget_exhausted routed by the node's edges",
     "branch": "after a succeeded step: first rule {path, equals|exists, next} that holds overrides on.succeeded"
   },
-  "contract_revision": "1.2",
+  "contract_revision": "1.3",
   "evidence_levels": [
     "unit_or_dryrun",
     "kinematic_sim",
@@ -916,5 +930,7 @@
     },
     "placement.layer": "0 = standing directly on the baseplate (computing-brick-pose-from-stud-grid uses 1 for this; convert at that boundary)"
   },
-  "observation_order": "visibility occluded/not_found is reported as object_not_observed (with the provider's reason) before the position is parsed"
+  "observation_order": "visibility occluded/not_found is reported as object_not_observed (with the provider's reason) before the position is parsed",
+  "station_refusal": "a motion reply {ok:false, refused_before_motion:true, failure_type, error} is reported as failure_type unreachable (or the given precondition_unmet / invalid_request) with the station's reason in result.station_refusal; rejected when nothing had been commanded in that invocation, failed otherwise",
+  "real_time_factor": "describe().real_time_factor = simulated seconds per wall second; values below 1 divide primitive deadlines and task-lease budgets (clamped to 0.05..1); ctx.sleep is not scaled, backends that advance physics on wall time see the full window"
 }

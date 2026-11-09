@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-20 tools, 119 skills, 2 policies, 1 recipe and 1 paper.
+20 tools, 120 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -89,6 +89,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`selecting-safe-cable-grasp-segments`](#selecting-safe-cable-grasp-segments) | select | Ranks top-down grasp points along a cable's fitted centreline that keep the fingers off its ends (a larger margin at… | any, *tuned on* yam-station-overhead-rgbd |
 | [`anchoring-a-free-end`](#anchoring-a-free-end) | execute | Pins one end of a cable with the support hand before any crossing is attempted. | any, 2 arms |
 | [`approaching-above-a-target`](#approaching-above-a-target) | execute | Moves the hand to hover a set clearance above a target's oriented box, rising in place first and keeping the hand's… | any |
+| [`checking-reachability`](#checking-reachability) | execute | Asks a station whether TCP poses (optionally as a chained path from the current configuration) are reachable, using… | yam_i2rt |
 | [`disassembling-a-brick-by-twist-lever`](#disassembling-a-brick-by-twist-lever) | execute | Removes a seated LEGO or DUPLO brick with a parallel gripper and no force sensor. | any |
 | [`executing-feature-mating`](#executing-feature-mating) | execute | Executes a supplied feature-mating plan for an already-held rigid object. | any |
 | [`executing-held-object-motion`](#executing-held-object-motion) | execute | Executes an ordered, collision-aware pose sequence for an already-grasped rigid object without releasing it. | any |
@@ -1183,6 +1184,23 @@ Moves the hand to hover a set clearance above a target's oriented box, rising in
 - **Exits**:
   - `above`: The tool centre stands within reach_tolerance (default 10 mm) of the point clearance (default 0.12 m) above the target's top, its rotation within rot_tolerance_deg (default 4 deg) of the one asked for.
   - `unreachable`: A move raised or reported that it did not arrive, or the hand ended further off in position or rotation; `detail` says which.
+
+### checking-reachability
+
+execute · robots: yam_i2rt · tasks: motion · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/checking-reachability/SKILL.md)
+
+Asks a station whether TCP poses (optionally as a chained path from the current configuration) are reachable, using the backend's own IK and path rules, without moving. Use before committing to a grasp or place pose on an arm with joint limits, e.g. to choose between equal-score flipped grasp candidates.
+
+- **In**: `request_json` string
+- **Out**: `result_json` string, `status` string
+- **Calls**: [`workcell`](#workcell)
+- **Scripts**: [`main`](skills/checking-reachability/scripts/main.py)
+- **Note**: Adapter-backed implementation; station setup and task-specific validation are required. No sim/real verification is claimed.
+- **Exits**:
+  - `succeeded`: The capability-specific postcondition is supported by the returned measurements.
+  - `failed`: The attempted operation or tracking update did not meet its required condition.
+  - `unverified`: Available evidence is insufficient to establish the requested physical postcondition.
+  - `rejected`: The request, station configuration or required backend capability is not accepted.
 
 ### disassembling-a-brick-by-twist-lever
 

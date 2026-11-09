@@ -17,6 +17,7 @@ from roboskillhub.runtime.contracts import (
     Limits,
     compose,
     invert,
+    real_time_factor,
     tcp_for_object_goal,
 )
 from roboskillhub.runtime.engine import Runtime
@@ -699,3 +700,75 @@ def test_graph_assign_of_a_missing_value_is_a_routed_graph_error():
     nodes = {"a": {"skill": "x", "assign": {"k": "$last.a.outputs.missing"}, "on": ALL}}
     episode = run_graph(graph(nodes, {"x": "1.0.0"}), {"x": x}, {}, ctx_factory)
     assert (episode["status"], episode["steps"][0]["failure_type"]) == ("failed", "graph_error")
+
+
+# --- contract 1.3: station refusals, reachability query, real-time factor ----
+
+
+class RefusingStation(FakeStation):
+    def __init__(self, refuse=lambda pose: True, **kw):
+        super().__init__(**kw)
+        self.refuse = refuse
+        self.queries = []
+
+    def move_pose(self, pose, *, speed_m_s, timeout_s, linear):
+        if self.refuse(pose):
+            return {
+                "ok": False,
+                "error": "joint 6 at limit",
+                "failure_type": "unreachable",
+                "refused_before_motion": True,
+            }
+        return super().move_pose(pose, speed_m_s=speed_m_s, timeout_s=timeout_s, linear=linear)
+
+    def reachable(self, poses, *, chain, timeout_s):
+        self.queries.append((len(poses), chain))
+        return [
+            {"ok": not self.refuse(p), "reason": None if not self.refuse(p) else "j6"}
+            for p in poses
+        ]
+
+
+def test_station_refusal_is_unreachable_with_the_reason(limits):
+    out = Runtime(RefusingStation(), limits).invoke("move_pose", {"target_pose": pose(0.3, 0, 0.2)})
+    assert (out["status"], out["failure_type"]) == ("rejected", "unreachable")
+    assert "joint 6 at limit" in out["error"]["message"]
+    assert out["station_refusal"]["reason"] == "joint 6 at limit"
+    second = RefusingStation(refuse=lambda p: p["position_m"][2] < 0.15)
+    waypoints = [pose(0.3, 0, 0.2), pose(0.3, 0, 0.1)]
+    out = Runtime(second, limits).invoke(
+        "move_waypoints", {"waypoints": waypoints, "linear": False}
+    )
+    assert (out["status"], out["failure_type"]) == ("failed", "unreachable")
+    assert len(out["evidence"]["arrivals"]) == 1
+
+
+def test_reachability_query_moves_nothing(limits):
+    caps = BASE + ["reachability_query"]
+    station = RefusingStation(refuse=lambda p: p["position_m"][0] > 0.35, capabilities=caps)
+    out = Runtime(station, limits).invoke(
+        "check_reachability",
+        {"poses": [pose(0.3, 0, 0.2), pose(0.4, 0, 0.2), pose(9, 0, 0.2)], "chain": False},
+    )
+    assert out["status"] == "succeeded", out
+    assert [r["ok"] for r in out["evidence"]["results"]] == [True, False, False]
+    assert out["evidence"]["results"][2]["source"] == "station_limits"
+    assert station.queries == [(2, False)] and station.calls == []
+    plain = Runtime(FakeStation(), limits).invoke(
+        "check_reachability", {"poses": [pose(0.3, 0, 0.2)]}
+    )
+    assert plain["failure_type"] == "capability_missing"
+
+
+def test_real_time_factor_stretches_deadlines(limits):
+    class Slow(FakeStation):
+        def describe(self):
+            return {**super().describe(), "real_time_factor": 0.25}
+
+    rt = Runtime(Slow(), limits)
+    with rt.task_lease("ep-slow", 10) as lease:
+        assert lease.remaining() > 30
+    out = rt.invoke("move_pose", {"target_pose": pose(0.3, 0, 0.2), "timeout_s": 2})
+    assert {"event": "deadline_scaled", "real_time_factor": 0.25} in out["trace"]
+    assert real_time_factor({"real_time_factor": 3}) == 1.0
+    assert real_time_factor({"real_time_factor": 0.001}) == 0.05

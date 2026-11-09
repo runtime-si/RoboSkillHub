@@ -19,6 +19,7 @@ from .contracts import (
     compose,
     number,
     pose_error,
+    real_time_factor,
     translated,
     unit_vector,
     validate_pose,
@@ -36,6 +37,7 @@ REQUIRES = {
     "observe_objects": {"object_feedback"},
     "guarded_press": {"pose_feedback", "contact_force_feedback", "compliant_motion", "stop"},
     "move_joints": {"pose_feedback", "joint_position_feedback", "joint_motion", "stop"},
+    "check_reachability": {"reachability_query"},
 }
 
 STOP_REASONS = ("force_threshold", "travel_limit", "timeout", "signal_lost", "fault")
@@ -120,6 +122,10 @@ class Runtime:
         if not isinstance(task_id, str) or not task_id.strip():
             raise Rejected("task_id must be a nonempty string")
         budget = number(timeout_s, "timeout_s", 0.1, self.limits.max_task_s)
+        try:
+            budget /= real_time_factor(self.backend.describe())
+        except Exception:
+            pass  # an unreadable description leaves the wall-clock budget unscaled
         if self._lease_owner == threading.get_ident():
             raise Rejected("this thread already holds a task lease", failure_type="nested_lease")
         start = time.monotonic()
@@ -268,12 +274,19 @@ class Runtime:
                     "backend frame does not match configured limits",
                     failure_type="precondition_unmet",
                 )
-            self.deadline = start + number(
-                request.get("timeout_s", min(30, self.limits.max_timeout_s)),
-                "timeout_s",
-                0.1,
-                self.limits.max_timeout_s,
+            factor = real_time_factor(description)
+            self.deadline = (
+                start
+                + number(
+                    request.get("timeout_s", min(30, self.limits.max_timeout_s)),
+                    "timeout_s",
+                    0.1,
+                    self.limits.max_timeout_s,
+                )
+                / factor
             )
+            if factor < 1:
+                self.trace.append({"event": "deadline_scaled", "real_time_factor": factor})
             if lease is not None:
                 self.deadline = min(self.deadline, lease.deadline)
                 self.trace.append({"event": "task_lease", "task_id": lease.task_id})
@@ -294,6 +307,10 @@ class Runtime:
                 begin(timeout_s=self._remaining())
                 lease_acquired = True
                 self.trace.append({"event": "invocation_lease", "acquired": True})
+            if capability == "check_reachability":
+                result["evidence"] = self._reachability(plan)
+                result["status"] = "succeeded"
+                return result
             if capability == "observe_objects":
                 self.phase = "observe"
                 self.observation_attempted = True
@@ -595,6 +612,7 @@ class Runtime:
 
     def _move(self, pose: dict, *, linear: bool = True) -> dict:
         self._remaining()
+        issued_before = self.command_issued
         self.command_issued = True
         self.last_command_at = time.time()
         ack = self.backend.move_pose(
@@ -602,6 +620,7 @@ class Runtime:
         )
         self._remaining()
         self.trace.append({"event": "move_pose", "target": pose, "linear": linear, "reply": ack})
+        self._refused_before_motion(ack, issued_before)
         if not isinstance(ack, dict) or ack.get("ok") is not True:
             raise ExecutionFailed(
                 "motion backend did not acknowledge completion",
@@ -1022,10 +1041,12 @@ class Runtime:
                     failure_type="precondition_unmet",
                 )
         self._remaining()
+        issued_before = self.command_issued
         self.command_issued = True
         self.last_command_at = time.time()
         ack = move_joints(path, speed_rad_s=speed, timeout_s=self._remaining())
         self.trace.append({"event": "move_joints", "points": len(path), "reply": ack})
+        self._refused_before_motion(ack, issued_before)
         if not isinstance(ack, dict) or ack.get("ok") is not True:
             raise ExecutionFailed(
                 "joint motion backend did not acknowledge completion",
@@ -1051,4 +1072,73 @@ class Runtime:
             raise ExecutionFailed(
                 f"joints did not converge: {error:.4f} rad", failure_type="motion_not_converged"
             )
+        return evidence
+
+    def _refused_before_motion(self, ack: object, issued_before: bool) -> None:
+        """A station that declined a target without moving reports it as unreachable.
+
+        The invocation stays ``rejected`` when nothing had been commanded before it.
+        """
+        if not isinstance(ack, dict) or ack.get("ok") is True:
+            return
+        if ack.get("refused_before_motion") is not True:
+            return
+        failure_type = ack.get("failure_type")
+        if failure_type not in ("unreachable", "precondition_unmet", "invalid_request"):
+            failure_type = "unreachable"
+        reason = ack.get("error") if isinstance(ack.get("error"), str) else "refused"
+        message = f"station refused the target before moving: {reason}"
+        self.result["station_refusal"] = {"failure_type": failure_type, "reason": reason}
+        if not issued_before:
+            self.command_issued = False
+            raise Rejected(message, failure_type=failure_type)
+        raise ExecutionFailed(message, failure_type=failure_type)
+
+    def _reachability(self, plan: dict) -> dict:
+        query = getattr(self.backend, "reachable", None)
+        if not callable(query):
+            raise Rejected("backend has no reachable()", failure_type="capability_missing")
+        answers: list[dict | None] = []
+        sendable = []
+        for i, raw in enumerate(plan["poses"]):
+            try:
+                sendable.append(self.limits.pose(raw))
+                answers.append(None)
+            except Rejected as exc:
+                if plan.get("chain"):
+                    sendable = []
+                    answers = [
+                        {"ok": False, "reason": f"poses[{i}]: {exc}", "source": "station_limits"}
+                    ] + [
+                        {"ok": False, "reason": f"after poses[{i}]", "source": "station_limits"}
+                    ] * (len(plan["poses"]) - 1)
+                    break
+                answers.append({"ok": False, "reason": str(exc), "source": "station_limits"})
+        replies = []
+        if sendable:
+            replies = query(sendable, chain=bool(plan.get("chain")), timeout_s=self._remaining())
+            if not isinstance(replies, list) or len(replies) != len(sendable):
+                raise EvidenceMissing("reachable() must answer every pose")
+        it = iter(replies)
+        results = []
+        for answer in answers:
+            if answer is None:
+                reply = next(it)
+                if not isinstance(reply, dict) or not isinstance(reply.get("ok"), bool):
+                    raise EvidenceMissing("each reachable() answer needs a boolean ok")
+                answer = {
+                    "ok": reply["ok"],
+                    "reason": reply.get("reason") if isinstance(reply.get("reason"), str) else None,
+                    "q": reply.get("q"),
+                    "source": "backend",
+                }
+            results.append(answer)
+        evidence = {
+            "results": results,
+            "chain": bool(plan.get("chain")),
+            "all_ok": all(r["ok"] for r in results),
+            "solver": (self.result.get("backend") or {}).get("reachability"),
+            "criterion": "backend IK / path query; no motion issued",
+        }
+        self.trace.append({"event": "reachability", **evidence})
         return evidence

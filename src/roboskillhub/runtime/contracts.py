@@ -332,6 +332,14 @@ SCHEMAS = {
             },
         },
     },
+    "check_reachability": {
+        "required": ["poses"],
+        "properties": {
+            "timeout_s": _N,
+            "poses": {"type": "array", "minItems": 1, "maxItems": 64, "items": POSE_SCHEMA},
+            "chain": {"type": "boolean"},
+        },
+    },
     "move_joints": {
         "required": ["q_path"],
         "properties": {
@@ -397,6 +405,7 @@ CAPABILITY_BUNDLES = {
     "observe_objects": "observing-object-poses",
     "guarded_press": "pressing-with-contact-limit",
     "move_joints": "moving-along-joint-path",
+    "check_reachability": "checking-reachability",
 }
 
 
@@ -449,3 +458,14 @@ def validate_request(capability: str, request: Any) -> dict:
         if "enum" in spec and value not in spec["enum"]:
             raise Rejected(f"{key} must be one of {spec['enum']}")
     return request
+
+
+def real_time_factor(description: object) -> float:
+    """Declared simulated seconds per wall second, clamped to [0.05, 1].
+
+    Only a slower-than-real-time backend stretches wall-clock deadlines.
+    """
+    value = description.get("real_time_factor") if isinstance(description, dict) else None
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not value > 0:
+        return 1.0
+    return min(1.0, max(0.05, float(value)))

@@ -429,6 +429,13 @@ judges nothing about the part.
 (`max_joint_step_rad`) are checked before motion and arrival within
 `joint_tolerance_rad` after it.
 
+`check_reachability` (contract 1.3, `reachability_query`) asks the backend's
+`reachable(poses, chain, timeout_s)` without moving. A motion reply carrying
+`refused_before_motion: true` becomes `unreachable` with the station's reason
+(`rejected` if nothing was commanded in that invocation). A backend may declare
+`real_time_factor` below 1; primitive deadlines and task-lease budgets are then
+divided by it.
+
 No current backend declares `linear_cartesian_motion`, `contact_force_feedback`
 or `compliant_motion`, so requests needing them are rejected with
 `capability_missing`. The Isaac adapter declares `object_pose_feedback` only when
