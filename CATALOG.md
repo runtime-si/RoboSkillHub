@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-18 tools, 104 skills, 2 policies, 1 recipe and 1 paper.
+19 tools, 104 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -24,6 +24,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grounding-dino`](#grounding-dino) | perceive | Grounding DINO zero-shot object detection — natural-language queries to labeled 2D bounding boxes with confidence scores. | any |
 | [`locate-anything`](#locate-anything) | perceive | NVIDIA LocateAnything-3B (non-commercial licence) run locally on a GPU. | any |
 | [`molmo`](#molmo) | perceive | Visual pointing and Q&A via the Molmo VLM served from a self-hosted vLLM endpoint (OpenAI-compatible API). | any |
+| [`owlv2`](#owlv2) | perceive | OWLv2 open-vocabulary detection (google/owlv2-*, Apache-2.0) in two modes. | any |
 | [`pose6d`](#pose6d) | perceive | 6D pose of a known rigid part from depth. | any |
 | [`sahi`](#sahi) | perceive | Slicing-aided detection (SAHI) of small parts. | any |
 | [`sam3`](#sam3) | perceive | Segment Anything 3 — text-, point-, and box-prompted instance segmentation, plus a stateful streaming video tracker… | any |
@@ -268,6 +269,19 @@ Visual pointing and Q&A via the Molmo VLM served from a self-hosted vLLM endpoin
   - `molmo.point_prompt`: Point at a named object in an image; returns pixel coordinates.
   - `molmo.query`: Free-form visual question answering via Molmo.
   - `molmo.query_yes_no`: Yes/no visual question answering via Molmo; coerces the reply to a bool.
+
+### owlv2
+
+perceive · robots: any · tasks: pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/owlv2/SKILL.md) · [upstream](https://github.com/huggingface/transformers/tree/b39d97c836e8d9f0ee6035a87c7a3ce5eaea43a8/src/transformers/models/owlv2)
+
+OWLv2 open-vocabulary detection (google/owlv2-*, Apache-2.0) in two modes -- text prompts to labelled boxes in grounding-dino's shape, and image-guided one-shot search ("every brick / tile / piece like this one") from a box around one example, in the same frame or another, with no name needed. Use when a workflow must find all copies of a part it can point at but not name well (a 2x2 brick vs a 2x4, a domino, a jigsaw piece), or wants a fast detector (0.06 s a frame) for 15-25 px parts at ~1 m; also a backend of tools/sahi.
+
+- **Weights**: `hf://google/owlv2-base-patch16-ensemble@cfd3195ba4ea9592eec887ded089f4c08eff231d`
+- **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
+- **Functions**:
+  - `owlv2.detect`: Open-vocabulary detection from text prompts (labelled boxes + scores, grounding-dino's shape).
+  - `owlv2.embed_exemplar`: The OWLv2 query embedding of one object (a box in a frame, or a crop) as a string.
+  - `owlv2.detect_like`: Every object in an image that looks like an exemplar (box in this or another frame, crop, or string).
 
 ### pose6d
 
