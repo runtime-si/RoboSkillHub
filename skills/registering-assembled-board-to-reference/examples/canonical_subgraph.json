@@ -1,0 +1,39 @@
+{
+  "skill": "registering-assembled-board-to-reference",
+  "inputs": {
+    "camera": "CameraFrame",
+    "reference": "string",
+    "grid_cols": "int",
+    "grid_rows": "int",
+    "board_corners_px": "Any",
+    "placed_cells": "Any"
+  },
+  "outputs": {
+    "n_match": {"$ref": "register.n_match"},
+    "n_mismatch": {"$ref": "register.n_mismatch"},
+    "n_rotated": {"$ref": "register.n_rotated"},
+    "n_empty": {"$ref": "register.n_empty"},
+    "mismatched_cells": {"$ref": "register.mismatched_cells"},
+    "rotated_cells": {"$ref": "register.rotated_cells"},
+    "empty_cells": {"$ref": "register.empty_cells"},
+    "cells": {"$ref": "register.cells"},
+    "content_shift_px": {"$ref": "register.content_shift_px"}
+  },
+  "nodes": {
+    "register": {
+      "type": "script",
+      "script": "scripts/register_board.py",
+      "inputs": {
+        "camera": {"$ref": "in.camera"},
+        "reference": {"$ref": "in.reference"},
+        "grid_cols": {"$ref": "in.grid_cols"},
+        "grid_rows": {"$ref": "in.grid_rows"},
+        "board_corners_px": {"$ref": "in.board_corners_px"},
+        "placed_cells": {"$ref": "in.placed_cells"}
+      }
+    }
+  },
+  "edges": [["START", "register"], ["register", "END"]],
+  "exit": {"router_field": "route", "success_values": ["registered", "too_little_placed"]},
+  "on_error": "did_not_converge"
+}

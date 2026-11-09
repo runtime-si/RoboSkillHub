@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-19 tools, 110 skills, 2 policies, 1 recipe and 1 paper.
+19 tools, 111 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -135,6 +135,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`classifying-failure-from-proprioception`](#classifying-failure-from-proprioception) | verify | Classifies the last moments of a manipulation step from proprioception alone. | any |
 | [`detecting-disturbed-pieces-by-snapshot-diff`](#detecting-disturbed-pieces-by-snapshot-diff) | verify | Checks whether anything already placed was knocked since the last verified step. | any |
 | [`previewing-target-overlay`](#previewing-target-overlay) | verify | Checks a target gripper pose before the arm moves. | any |
+| [`registering-assembled-board-to-reference`](#registering-assembled-board-to-reference) | verify | Aligns a top-down view of the part-built jigsaw (overhead frame, rectified view or wrist mosaic) to the box picture… | any |
 | [`verifying-a-cable-route`](#verifying-a-cable-route) | verify | Judge a finished cable route from a camera rather than from an evaluator. | any |
 | [`verifying-a-domino-cascade-from-video`](#verifying-a-domino-cascade-from-video) | verify | Decides from a short RGB(-D) clip of the overhead or a wrist camera which tiles of a planned domino line fell and… | any |
 | [`verifying-articulation-displacement`](#verifying-articulation-displacement) | verify | Checks from the camera whether a drawer or a door really moved as asked. | any |
@@ -1898,6 +1899,20 @@ Checks a target gripper pose before the arm moves - projects the pose into every
   - `approved`: The VLM answered yes - on the overlay the target fits the intent (right object or part, right side, right height); `answer` is its one-line justification.
   - `rejected`: The VLM answered no; `answer` says why (wrong object, approach, height ...). Nothing moved.
   - `no_view`: No camera with RGB, intrinsics and pose has the tool centre inside its image (or in front of it), or vlm.query_yes_no raised; nothing was judged and `reason` says which.
+
+### registering-assembled-board-to-reference
+
+verify · robots: any · tasks: jigsaw · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/registering-assembled-board-to-reference/SKILL.md) · [upstream](https://github.com/opencv/opencv/blob/4.x/modules/video/src/ecc.cpp)
+
+Aligns a top-down view of the part-built jigsaw (overhead frame, rectified view or wrist mosaic) to the box picture and judges every placed cell - an initial homography from the board's corners (or SIFT + RANSAC) is refined by masked ECC coarse-to-fine (translation, affine, then homography) on the placed cells only, dropping cells that do not match and fitting again; then each placed cell is compared with its own cell of the picture by NCC over a small shift and over the turns its shape allows, and judged match, mismatch (with where it belongs instead), rotated, empty (mat colour), low_texture_match or unseen. Returns the homography, how far the content sits from the given corners (a slid assembly), and the lists of cells to fix. Use after a batch of placements, before building on a region, or before declaring the puzzle done, when the box picture is available; camera-only, a tenth of a second to a second on CPU.
+
+- **In**: `camera` CameraFrame, `reference` string, `grid_cols` int, `grid_rows` int
+- **Out**: `ecc_correlation` float, `correction_cells` float, `n_placed` int, `n_match` int, `n_mismatch` int, `n_rotated` int, `n_empty` int
+- **Scripts**: [`register_board`](skills/registering-assembled-board-to-reference/scripts/register_board.py)
+- **Exits**:
+  - `registered`: The view aligned to the picture (final ECC correlation at least 0.7 and at least half the textured placed cells match their own place); `cells` judges every placed cell and `mismatched_cells`, `rotated_cells` and `empty_cells` list the ones to fix (all empty when the board is right).
+  - `did_not_converge`: ECC diverged or ended under the gates from the given corners or homography (or moved them more than a cell) and from SIFT features, or there was no usable image; nothing is judged. Re-take the view, give better corners, or wait for more placed pieces.
+  - `too_little_placed`: Fewer than 4 placed cells, or fewer than 3 of them textured; there is nothing to align on.
 
 ### verifying-a-cable-route
 
