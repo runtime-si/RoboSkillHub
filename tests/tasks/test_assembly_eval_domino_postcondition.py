@@ -149,6 +149,20 @@ def test_neighbour_knocked_fails_with_phase_attribution():
     assert r["status"] == "failed"
     assert r["neighbours_disturbed"] == ["tile_0"]
     assert r["neighbour_first_moved"]["tile_0"]["phase"] in ("retreat", "observe")
+    # no contact recorded with the gripper or the target: only the phase, low confidence
+    assert r["cause_hypotheses"][0]["confidence"] == "low"
+
+
+def test_gripper_contact_attributed():
+    def per_t(t):
+        return objs(tile_0=standing(0, tilt_deg=80.0) if t >= 1.0 else standing(0))
+
+    s = stream(t0=0.9, t1=2.2, per_t=per_t)
+    for x in s:
+        if x["stamp"] < 1.0:
+            x["contacts"]["tile_0"] = ["table", "gripper_pad_l"]
+    r = judge(s)
+    assert r["cause_hypotheses"][0]["cause"] == "gripper_contact"
 
 
 def test_repeated_frames_do_not_fill_the_window():
@@ -235,3 +249,21 @@ def test_layout_needs_every_tile():
 def test_claim_never_decides(claim):
     r = judge(stream(objects=objs(tile_2=standing(2, tilt_deg=30))), claim=claim)
     assert r["status"] == "failed" and r["executor_claim_contradicted"]
+
+
+def test_attribution_ignores_samples_before_this_placement():
+    # Before this placement began, tile_0 still stood in the rack (far from its baseline).
+    def per_t(t):
+        if t < 0.5:
+            return objs(tile_0=standing(0, dx=-0.3))
+        return objs(tile_0=standing(0, tilt_deg=80.0) if t >= 0.95 else standing(0))
+
+    ev = dict(EVENTS, phases=[{"name": "carry", "t0": 0.6, "t1": 0.8}, *EVENTS["phases"]])
+    early = stream(t0=0.0, t1=0.98, per_t=per_t)
+    post = stream(t0=1.0, t1=2.2, per_t=per_t)
+    for i, s in enumerate(post):
+        s["seq"] = 1000 + i
+    r = judge(early + post, events=ev)
+    assert r["status"] == "failed"
+    first = r["neighbour_first_moved"]["tile_0"]
+    assert first["t"] >= 0.95 and first["phase"] == "retreat"

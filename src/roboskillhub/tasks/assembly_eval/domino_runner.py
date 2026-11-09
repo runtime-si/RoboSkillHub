@@ -276,6 +276,7 @@ def run_episode(
             feeder_pose=feeders[k],
         )
         res["events"] = events
+        res["neighbour_baseline"] = neighbours
         res["plan"] = plan_to_dict(plan)
         placement_results.append(res)
         record["placements"].append(res)

@@ -32,7 +32,7 @@ from typing import Any
 from .domino_geometry import dist, dist_xy, quat_normalize, quat_rotate, tilt_deg, yaw_error_deg
 from .domino_scene import DominoSceneSpec
 
-EVAL_VERSION = "domino_postcondition/0.1.0"
+EVAL_VERSION = "domino_postcondition/0.1.2"
 GRIPPER_BODIES = ("gripper_pad_l", "gripper_pad_r", "gripper_palm")
 
 
@@ -152,6 +152,45 @@ def _phase_at(events: dict, t: float) -> str | None:
     return None
 
 
+def _neighbour_hypothesis(
+    nid: str, result: dict, fresh: list[dict], t_scan: float, target_id: str, failures: list[str]
+) -> dict:
+    """Why a neighbour moved, from what the observations show around its first motion:
+    gripper contact, contact with the falling target, else only the phase it moved in."""
+    fm = (result.get("neighbour_first_moved") or {}).get(nid)
+    if not fm:
+        return {"cause": "unknown", "evidence": f"{nid} moved", "confidence": "low"}
+    near = [s for s in fresh if t_scan <= s["stamp"] <= fm["t"] + 0.1 and s.get("contacts")]
+    touched_gripper = [
+        s["stamp"] for s in near if set(s["contacts"].get(nid, [])) & set(GRIPPER_BODIES)
+    ]
+    touched_target = [s["stamp"] for s in near if target_id in s["contacts"].get(nid, [])]
+    where = f"{nid} first moved at t={fm['t']:.3f}s (phase {fm.get('phase')})"
+    if touched_gripper:
+        return {
+            "cause": "gripper_contact",
+            "evidence": f"{where}; gripper touched it at t={touched_gripper[0]:.3f}s",
+            "confidence": "high",
+        }
+    if touched_target and "toppled" in failures:
+        return {
+            "cause": "knocked_by_falling_target",
+            "evidence": f"{where}; the toppled target touched it at t={touched_target[0]:.3f}s",
+            "confidence": "high",
+        }
+    if touched_target:
+        return {
+            "cause": "target_contact",
+            "evidence": f"{where}; target touched it at t={touched_target[0]:.3f}s",
+            "confidence": "medium",
+        }
+    return {
+        "cause": f"moved_during_{fm.get('phase') or 'unknown_phase'}",
+        "evidence": f"{where}; no gripper or target contact observed (a chain through another tile is possible)",
+        "confidence": "low",
+    }
+
+
 def evaluate_placement(
     spec: DominoSceneSpec,
     slot_index: int,
@@ -197,11 +236,14 @@ def evaluate_placement(
         "covered_s": span,
     }
 
-    # Attribution (not the verdict): when did a neighbour first move, using every fresh
-    # sample from the release on?
+    # Attribution (not the verdict): when did a neighbour first move? Scan fresh samples
+    # from the start of this placement (its first phase, when the baseline was taken), or
+    # from the release when no phases are given.
+    phases = events.get("phases") or []
+    t_scan = phases[0]["t0"] if phases else events["release_t"]
     for nid, base in neighbours.items():
         for s in fresh:
-            if s["stamp"] < events["release_t"] - 1e-9 and not events.get("phases"):
+            if s["stamp"] < t_scan - 1e-9:
                 continue
             p = _pose(s, nid)
             if p is None:
@@ -340,18 +382,7 @@ def evaluate_placement(
         if disturbed:
             failures.append("neighbor_disturbed")
             for nid in disturbed:
-                fm = (result.get("neighbour_first_moved") or {}).get(nid)
-                hyps.append(
-                    {
-                        "cause": f"{fm['phase']}_contact"
-                        if fm and fm.get("phase")
-                        else "unknown_contact",
-                        "evidence": f"{nid} first moved at t={fm['t']:.3f}s"
-                        if fm
-                        else f"{nid} moved",
-                        "confidence": "medium",
-                    }
-                )
+                hyps.append(_neighbour_hypothesis(nid, result, fresh, t_scan, target_id, failures))
         if unseen:
             result["unverified_reasons"].append(f"neighbours not observed in the window: {unseen}")
         result["neighbours_disturbed"] = disturbed

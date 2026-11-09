@@ -3,7 +3,7 @@
 
     python examples/tasks/assembly_eval/domino_summarize.py RUNS_DIR [...] --out summary.json
 
-Reports, per backend and label, episode statuses as numerator/denominator, placements
+Reports, per run root (the directory given), backend and label, episode statuses as numerator/denominator, placements
 succeeded/attempted, failure types seen, and placement error/tilt ranges of the
 succeeded placements. Nothing is inferred beyond what the records contain.
 """
@@ -44,7 +44,7 @@ def main() -> int:
         for rec_path in sorted(root.rglob("record.json")):
             r = json.loads(rec_path.read_text())
             be = r["backend"]["name"]
-            g = groups[(be, r["scene_config_sha256"][:12], r["label"])]
+            g = groups[(root.name, be, r["scene_config_sha256"][:12], r["label"])]
             meta[be] = {
                 k: v for k, v in r["backend"].items() if k not in ("usd_sha256", "mjcf_sha256")
             }
@@ -68,8 +68,9 @@ def main() -> int:
                     g["yaw_err_deg"].append(p["final"]["yaw_error_deg"])
                     g["max_tilt_deg"].append(p["max_tilt_deg"])
     out = {"backends": meta, "groups": []}
-    for (be, scene, label), g in sorted(groups.items()):
+    for (run_set, be, scene, label), g in sorted(groups.items()):
         row = {
+            "run_set": run_set,
             "backend": be,
             "scene_sha256_12": scene,
             "label": label,
@@ -93,7 +94,7 @@ def main() -> int:
         args.out.write_text(text)
     for row in out["groups"]:
         print(
-            f"{row['backend']:7s} {row['label']:28s} {row['status']} placements={row['placements_succeeded']} "
+            f"{row['run_set']:12s} {row['backend']:7s} {row['label']:28s} {row['status']} placements={row['placements_succeeded']} "
             f"failures={row['failure_types']} unverified={row['unverified_reasons']}"
         )
     return 0
