@@ -10,17 +10,36 @@ import math
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+CONTRACT_VERSION = "rsh-task/1"
+STATUSES = ("succeeded", "failed", "unverified", "rejected")
 
-class Rejected(ValueError):
+
+class _Typed(Exception):
+    """Carries the contract ``failure_type`` reported alongside the terminal status."""
+
+    default_failure = "backend_error"
+
+    def __init__(self, message: str = "", *, failure_type: str | None = None):
+        super().__init__(message)
+        self.failure_type = failure_type or self.default_failure
+
+
+class Rejected(_Typed, ValueError):
     """Invalid request or missing prerequisite; no execution should start."""
 
+    default_failure = "invalid_request"
 
-class ExecutionFailed(RuntimeError):
+
+class ExecutionFailed(_Typed, RuntimeError):
     """An attempted physical action did not complete as required."""
 
+    default_failure = "postcondition_failed"
 
-class EvidenceMissing(RuntimeError):
+
+class EvidenceMissing(_Typed, RuntimeError):
     """Execution may have occurred, but its outcome cannot be established."""
+
+    default_failure = "evidence_missing"
 
 
 def number(value: Any, name: str, low: float, high: float) -> float:
@@ -69,6 +88,49 @@ def translated(pose: dict, delta: list[float]) -> dict:
     return {**pose, "position_m": [p + d for p, d in zip(pose["position_m"], delta, strict=True)]}
 
 
+def quat_multiply(a: list[float], b: list[float]) -> list[float]:
+    ax, ay, az, aw = a
+    bx, by, bz, bw = b
+    return [
+        aw * bx + ax * bw + ay * bz - az * by,
+        aw * by - ax * bz + ay * bw + az * bx,
+        aw * bz + ax * by - ay * bx + az * bw,
+        aw * bw - ax * bx - ay * by - az * bz,
+    ]
+
+
+def quat_rotate(q: list[float], v: list[float]) -> list[float]:
+    x, y, z, w = quat_multiply(quat_multiply(q, [*v, 0.0]), [-q[0], -q[1], -q[2], q[3]])
+    return [x, y, z]
+
+
+def compose(T_A_B: dict, T_B_C: dict, *, frame_id: str | None = None) -> dict:
+    """``T_A_C = T_A_B · T_B_C``; the result is expressed in ``T_A_B``'s frame."""
+    q = quat_multiply(T_A_B["quaternion_xyzw"], T_B_C["quaternion_xyzw"])
+    n = math.sqrt(sum(x * x for x in q))
+    p = quat_rotate(T_A_B["quaternion_xyzw"], T_B_C["position_m"])
+    return {
+        "frame_id": frame_id or T_A_B["frame_id"],
+        "position_m": [a + b for a, b in zip(T_A_B["position_m"], p, strict=True)],
+        "quaternion_xyzw": [x / n for x in q],
+    }
+
+
+def invert(T_A_B: dict, *, frame_id: str) -> dict:
+    """``T_B_A``; ``frame_id`` names frame B, which the caller must state."""
+    x, y, z, w = T_A_B["quaternion_xyzw"]
+    q = [-x, -y, -z, w]
+    p = quat_rotate(q, T_A_B["position_m"])
+    return {"frame_id": frame_id, "position_m": [-v for v in p], "quaternion_xyzw": q}
+
+
+def tcp_for_object_goal(T_W_object_goal: dict, T_TCP_object: dict) -> dict:
+    """TCP pose that places a held object at its goal: ``T_W_object · T_object_TCP``."""
+    if T_TCP_object.get("frame_id") != "tcp":
+        raise Rejected("T_TCP_object must be expressed in frame 'tcp'")
+    return compose(T_W_object_goal, invert(T_TCP_object, frame_id="object"))
+
+
 @dataclass(frozen=True)
 class Limits:
     frame_id: str
@@ -82,6 +144,9 @@ class Limits:
     max_timeout_s: float = 30.0
     position_tolerance_m: float = 0.01
     rotation_tolerance_rad: float = 0.1
+    gripper_width_tolerance_m: float = 0.004
+    held_object_tolerance_m: float = 0.02
+    max_task_s: float = 600.0
 
     @classmethod
     def from_dict(cls, config: dict) -> Limits:
@@ -117,6 +182,9 @@ class Limits:
             "max_timeout_s": (0.1, 120),
             "position_tolerance_m": (1e-5, 0.05),
             "rotation_tolerance_rad": (1e-4, 0.3),
+            "gripper_width_tolerance_m": (1e-4, 0.02),
+            "held_object_tolerance_m": (1e-3, 0.05),
+            "max_task_s": (1, 7200),
         }
         for key, bounds in ranges.items():
             if key in values:
@@ -133,7 +201,10 @@ class Limits:
                 self.workspace_min_m, p["position_m"], self.workspace_max_m, strict=True
             )
         ):
-            raise Rejected("requested pose is outside the configured workcell workspace")
+            raise Rejected(
+                "requested pose is outside the configured workcell workspace",
+                failure_type="unreachable",
+            )
         return p
 
 
@@ -231,6 +302,37 @@ SCHEMAS = {
             "release_on_success": {"type": "boolean"},
         },
     },
+    "set_gripper": {
+        "required": ["width_m", "purpose"],
+        "properties": {
+            **_COMMON,
+            "width_m": _N,
+            "purpose": {"enum": ["open", "close", "release"]},
+            "target_id": _S,
+        },
+    },
+    "move_waypoints": {
+        "required": ["waypoints", "linear"],
+        "properties": {
+            **_COMMON,
+            "waypoints": {"type": "array", "minItems": 1, "maxItems": 32, "items": POSE_SCHEMA},
+            "linear": {"type": "boolean"},
+            "held": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["object_id", "T_TCP_object"],
+                "properties": {"object_id": _S, "T_TCP_object": POSE_SCHEMA},
+            },
+        },
+    },
+    "observe_objects": {
+        "required": ["object_ids"],
+        "properties": {
+            "timeout_s": _N,
+            "object_ids": {"type": "array", "minItems": 1, "maxItems": 32, "items": _S},
+            "require_orientation": {"type": "boolean"},
+        },
+    },
     "track_points": {
         "required": ["frames_path", "query_points"],
         "properties": {
@@ -253,6 +355,9 @@ CAPABILITY_BUNDLES = {
     "track_points": "tracking-points",
     "push": "pushing-on-plane",
     "pull_drawer": "pulling-drawer",
+    "set_gripper": "setting-gripper-with-feedback",
+    "move_waypoints": "moving-through-waypoints",
+    "observe_objects": "observing-object-poses",
 }
 
 
@@ -266,6 +371,24 @@ def validate_request(capability: str, request: Any) -> dict:
     extra = set(request) - set(schema["properties"])
     if missing or extra:
         raise Rejected(f"request fields: missing={sorted(missing)}, unknown={sorted(extra)}")
+    for key in ("object_ids", "waypoints"):
+        if key in request and (
+            not isinstance(request[key], list)
+            or not 1 <= len(request[key]) <= schema["properties"][key]["maxItems"]
+        ):
+            raise Rejected(f"{key} must be a list of 1 to {schema['properties'][key]['maxItems']}")
+    if "object_ids" in request and (
+        not all(isinstance(x, str) and x.strip() for x in request["object_ids"])
+        or len(set(request["object_ids"])) != len(request["object_ids"])
+    ):
+        raise Rejected("object_ids must be distinct nonempty strings")
+    if "held" in request:
+        held = request["held"]
+        if not isinstance(held, dict) or set(held) != {"object_id", "T_TCP_object"}:
+            raise Rejected("held requires exactly object_id and T_TCP_object")
+        if not isinstance(held["object_id"], str) or not held["object_id"].strip():
+            raise Rejected("held.object_id must be a nonempty string")
+        validate_pose(held["T_TCP_object"], "tcp")
     for key, value in request.items():
         spec = schema["properties"][key]
         if spec.get("type") == "string" and (not isinstance(value, str) or not value.strip()):

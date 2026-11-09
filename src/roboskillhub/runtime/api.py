@@ -15,8 +15,24 @@ from pathlib import Path
 
 import yaml
 
-from .contracts import CAPABILITY_BUNDLES, SCHEMAS, Limits, Rejected, validate_request
-from .engine import REQUIRES, Runtime
+from .contracts import (
+    CAPABILITY_BUNDLES,
+    CONTRACT_VERSION,
+    SCHEMAS,
+    STATUSES,
+    Limits,
+    Rejected,
+    validate_request,
+)
+from .engine import REQUIRES, Runtime, TaskLease
+
+CONDITIONAL_REQUIREMENTS = {
+    "move_waypoints": {
+        "linear=true": ["linear_cartesian_motion"],
+        "held": ["object_feedback"],
+    },
+    "observe_objects": {"require_orientation=true": ["object_pose_feedback"]},
+}
 
 _CACHE: dict[tuple[str, str], tuple[Runtime, dict]] = {}
 _CACHE_LOCK = threading.Lock()
@@ -131,11 +147,15 @@ def describe(station_path: str | None = None) -> dict:
                 "input_schema": schema,
                 "configured": bool(available),
                 "readiness_note": reason,
-                "statuses": ["succeeded", "failed", "unverified", "rejected"],
+                "statuses": list(STATUSES),
+                "kind": "primitive",
+                "requires": sorted(REQUIRES.get(name, ())),
+                "requires_if": CONDITIONAL_REQUIREMENTS.get(name, {}),
             }
         )
     return {
         "schema_version": 1,
+        "contract_version": CONTRACT_VERSION,
         "capabilities": entries,
         "backend": backend,
         "station_id": config[1]["station_id"] if config else None,
@@ -200,6 +220,13 @@ def _tracking(request: dict, config: tuple[Path, dict, str] | None) -> dict:
     status = {"tracked": "succeeded", "partial": "unverified", "lost": "failed"}[evidence["status"]]
     return {
         "schema_version": 1,
+        "contract_version": CONTRACT_VERSION,
+        "kind": "primitive",
+        "phase": "observe",
+        "failure_type": {"succeeded": None, "unverified": "evidence_missing"}.get(
+            status, "postcondition_failed"
+        ),
+        "recovery_hints": [] if status == "succeeded" else ["reobserve"],
         "invocation_id": str(uuid.uuid4()),
         "capability": "track_points",
         "skill": CAPABILITY_BUNDLES["track_points"],
@@ -215,7 +242,23 @@ def _tracking(request: dict, config: tuple[Path, dict, str] | None) -> dict:
     }
 
 
-def invoke(capability: str, request: dict, station_path: str | None = None) -> dict:
+def task_lease(task_id: str, timeout_s: float, station_path: str | None = None):
+    """Context manager holding the configured station for one task graph.
+
+    Pass the yielded lease to :func:`invoke`; invoking without it from the
+    holding thread is rejected as ``nested_lease`` instead of deadlocking.
+    """
+    return _station(_config(station_path)).task_lease(task_id, timeout_s)
+
+
+def invoke(
+    capability: str,
+    request: dict,
+    station_path: str | None = None,
+    *,
+    lease: TaskLease | None = None,
+    request_id: str | None = None,
+) -> dict:
     start = time.monotonic()
     config = None
     try:
@@ -224,15 +267,28 @@ def invoke(capability: str, request: dict, station_path: str | None = None) -> d
         if capability == "track_points":
             result = _tracking(request, config)
         else:
-            result = _station(config).invoke(capability, request)
+            runtime = _station(config)
+            if lease is not None and lease.runtime is not runtime:
+                raise Rejected("lease belongs to another station", failure_type="nested_lease")
+            extra = {"lease": lease, "request_id": request_id}
+            extra = {k: v for k, v in extra.items() if v is not None}
+            result = runtime.invoke(capability, request, **extra)
     except Exception as exc:
+        failure = getattr(exc, "failure_type", None) or (
+            "invalid_request" if isinstance(exc, Rejected) else "precondition_unmet"
+        )
         result = {
             "schema_version": 1,
+            "contract_version": CONTRACT_VERSION,
             "invocation_id": str(uuid.uuid4()),
             "capability": capability,
             "skill": CAPABILITY_BUNDLES.get(capability) if isinstance(capability, str) else None,
             "version": "0.1.0",
+            "kind": "primitive",
             "status": "rejected",
+            "phase": "validate",
+            "failure_type": failure,
+            "recovery_hints": [],
             "error": {"code": type(exc).__name__, "message": str(exc)},
             "evidence": {},
             "trace": [],

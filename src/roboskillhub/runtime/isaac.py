@@ -170,6 +170,11 @@ class IsaacBackend:
         capabilities = ["pose_feedback", "cartesian_motion", "gripper", "stop"]
         if self.object_provider is not None:
             capabilities.append("object_feedback")
+            # A provider states it reports quaternion_xyzw; simulator truth stays privileged.
+            if getattr(self.object_provider, "provides_orientation", False) is True:
+                capabilities.append("object_pose_feedback")
+        if self.gripper_provider is not None:
+            capabilities.append("gripper_feedback")
         return {
             "backend": "isaac",
             "kind": "sim",
@@ -531,12 +536,18 @@ class IsaacBackend:
 
 
 def simulation_object_provider(
-    objects: Mapping[str, Any], *, frame_id: str, stage_units_in_meters: float
+    objects: Mapping[str, Any],
+    *,
+    frame_id: str,
+    stage_units_in_meters: float,
+    include_orientation: bool = False,
 ) -> Callable[..., dict]:
     """Observe named Isaac prims and explicitly label their states as sim truth.
 
     Each value must implement get_world_pose(). The label denotes that prim's
     origin (e.g. a handle marker), not a guessed object centroid or task success.
+    With ``include_orientation`` the prim's scalar-first world quaternion is also
+    reported, as ``quaternion_xyzw``; every record is marked ``privileged``.
     """
     scale = number(stage_units_in_meters, "stage_units_in_meters", 1e-6, 1e3)
     if not frame_id:
@@ -546,15 +557,20 @@ def simulation_object_provider(
         deadline = time.monotonic() + number(timeout_s, "timeout_s", 1e-6, 120)
         records = {}
         for name, prim in objects.items():
-            position, _orientation = prim.get_world_pose()
+            position, orientation = prim.get_world_pose()
             if time.monotonic() >= deadline:
                 raise EvidenceMissing("simulation object observation timed out")
             records[name] = {
                 "position_m": (np.asarray(position, dtype=float) * scale).tolist(),
                 "timestamp_s": time.time(),
                 "source": "simulation_truth",
+                "privileged": True,
                 "frame_id": frame_id,
             }
+            if include_orientation:
+                w, x, y, z = (float(v) for v in np.asarray(orientation, dtype=float))
+                records[name]["quaternion_xyzw"] = [x, y, z, w]
         return records
 
+    observe.provides_orientation = include_orientation
     return observe

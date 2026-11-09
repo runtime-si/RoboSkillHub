@@ -403,6 +403,42 @@ Set `ROBOSKILLHUB_STATION` in the graph process and install this package there.
 Every graph must route all four named exits. Runtime schemas are available via
 `workcell.describe`, with the full response retained as `result_json`.
 
+## Task contract v1
+
+Contract `rsh-task/1` (machine-readable in
+[`src/roboskillhub/runtime/task_contract_v1.json`](../src/roboskillhub/runtime/task_contract_v1.json))
+extends the five capabilities additively for multi-step LEGO and domino tasks.
+Existing requests and statuses are unchanged; every result now also carries
+`contract_version`, `kind`, `phase`, `failure_type` (null on success) and
+`recovery_hints`.
+
+| capability | requires | postcondition |
+|---|---|---|
+| `set_gripper` (`width_m`, `purpose`: open/close/release) | pose_feedback, gripper, stop | release: fresh `holding == false`; close: `holding == true` or measured width; open: measured width within `gripper_width_tolerance_m` |
+| `move_waypoints` (1-32 poses, `linear`, optional `held`) | pose_feedback, cartesian_motion, stop; `linear: true` adds linear_cartesian_motion; `held` adds object_feedback | arrival at every waypoint; with `held`, the observed object within `held_object_tolerance_m` of `TCP · T_TCP_object` |
+| `observe_objects` (1-32 ids, optional `require_orientation`) | object_feedback; orientation adds object_pose_feedback | every object fresh, visible (and oriented); otherwise `unverified` with a per-object reason; simulator truth is `privileged` |
+
+No current backend declares `linear_cartesian_motion`, `contact_force_feedback`
+or `compliant_motion`, so requests needing them are rejected with
+`capability_missing`. The Isaac adapter declares `object_pose_feedback` only when
+its object provider reports orientation (`simulation_object_provider(...,
+include_orientation=True)`, privileged truth) and `gripper_feedback` when it has
+a gripper provider.
+
+`Runtime.task_lease(task_id, timeout_s)` (or `api.task_lease`) holds the station
+for a whole task: primitives invoked with `lease=` do not reacquire it, a call
+from the holding thread without the lease is rejected as `nested_lease`, other
+callers get `station_busy`, `lease.cancel()` ends the active primitive with
+`cancelled` and a stop. There is no preemption.
+
+Task modules export `SKILLS` (objects with `skill_id`, `version`, `kind`,
+`requires`, `input_schema`, `readiness`, `run(request, ctx)`);
+`roboskillhub.runtime.task.run_task_skill` applies the capability gate, input
+schema and result rules (a task `succeeded` needs `evidence.postcondition.passed`
+and independent observations, otherwise it is downgraded to `unverified`).
+`roboskillhub.runtime.graph` loads and runs versioned policy graphs
+(`rsh-graph/1`) over those skills with bounded attempts, visits, steps and time.
+
 ## Reproducibility and validation status
 
 The runtime returns its implementation digest, the loaded station-config snapshot

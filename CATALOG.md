@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-20 tools, 111 skills, 2 policies, 1 recipe and 1 paper.
+20 tools, 114 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -46,6 +46,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`estimating-cut-grid-from-pieces`](#estimating-cut-grid-from-pieces) | perceive | Estimates a jigsaw's real cut grid (cols x rows) and cell size from the piece count printed on the box, the board's… | any |
 | [`framing-a-target-by-mask-edge-steering`](#framing-a-target-by-mask-edge-steering) | perceive | Moves the wrist camera until a named target lies wholly inside its image with a margin. | any |
 | [`localizing-a-piece-in-a-reference-image`](#localizing-a-piece-in-a-reference-image) | perceive | Finds which grid cell of a jigsaw's box picture one piece belongs to, and how far the piece is turned, from a close-up… | any |
+| [`observing-object-poses`](#observing-object-poses) | perceive | Reads independently observed object positions, and orientations where the backend provides them, from the configured… | yam_i2rt |
 | [`perceiving-deformable-linear-objects`](#perceiving-deformable-linear-objects) | perceive | Read a cable's ordered 3D centreline from one RGB-D frame and keep it current across a task. | any |
 | [`perceiving-functional-features`](#perceiving-functional-features) | perceive | Locates a language-described functional part of a rigid object or fixture from calibrated RGB-D and fits a typed loop… | any |
 | [`perceiving-next-item`](#perceiving-next-item) | perceive | Loop-head perception for pack-all / clean-all-items tasks. | any, *tuned on* panda |
@@ -105,6 +106,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`inserting-mid-air-between-two-held-parts`](#inserting-mid-air-between-two-held-parts) | execute | Inserts the part one arm holds into (or presses it onto) the part the other arm holds, both in the air. | any, 2 arms |
 | [`lifting-with-both-arms`](#lifting-with-both-arms) | execute | Lifts an elongated object (a bar, a tray, a pot by its handles) with both arms. | any, 2 arms |
 | [`moving-both-arms-together`](#moving-both-arms-together) | execute | Moves both hands to their target poses as one coordinated motion. | any, 2 arms |
+| [`moving-through-waypoints`](#moving-through-waypoints) | execute | Moves the measured tool pose through a bounded list of waypoints on the configured YAM or Isaac workcell adapter… | yam_i2rt |
 | [`moving-to-pose`](#moving-to-pose) | execute | Moves the measured tool pose through the configured YAM or Isaac workcell adapter. | yam_i2rt |
 | [`picking-and-placing-two-objects`](#picking-and-placing-two-objects) | execute | Picks two objects with two arms, one each, and places both. | any, 2 arms |
 | [`placing-an-upright-domino-beside-neighbours`](#placing-an-upright-domino-beside-neighbours) | execute | Picks a standing domino top-down and sets it upright at a slot in a row without touching the tiles already standing… | any |
@@ -121,6 +123,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`reaching-with-lag-correction`](#reaching-with-lag-correction) | execute | Moves the tool to a target pose, waits for the arm to settle, reads the tool pose back and, if the arm stopped short… | any |
 | [`searching-insertion-spiral`](#searching-insertion-spiral) | execute | Finds an opening the held part or the closed fingertips can enter by probing straight down over a hexagonal grid… | any |
 | [`seating-a-cable-crossing`](#seating-a-cable-crossing) | execute | Streams one planned crossing leg of a cable onto a routing station, lets the rod settle, then LOOKS. | any |
+| [`setting-gripper-with-feedback`](#setting-gripper-with-feedback) | execute | Opens, closes or releases the gripper through the configured YAM or Isaac workcell adapter and checks measured holding… | yam_i2rt |
 | [`singulating-by-pushing`](#singulating-by-pushing) | execute | Pushes a target clear of the objects crowding it until a top-down grasp's open fingers fit around it. | any |
 | [`sliding-along-a-cable`](#sliding-along-a-cable) | execute | Slides the hand along a cable it holds toward one of the cable's ends. | any |
 | [`sliding-to-edge-then-picking`](#sliding-to-edge-then-picking) | execute | Picks a flat object too thin to pinch on its support. | any, *tuned on* yam_i2rt |
@@ -510,6 +513,23 @@ Finds which grid cell of a jigsaw's box picture one piece belongs to, and how fa
   - `located`: The best cell's score is at least min_score (0.45) and beats every other cell by min_margin (0.04; 0.10 when the scale was guessed from the mask area); col, row and angle_deg are the answer.
   - `ambiguous`: The best cell does not stand out (repetitive or flat art); `candidates` ranks the cells for a shape check. A low-texture piece always lands here, with the flat cells of its colour as candidates.
   - `not_found`: The best score is under min_score, a flat piece matches no flat cell, or the input could not be used (empty mask, no scale, no placement inside the picture).
+
+### observing-object-poses
+
+perceive · robots: yam_i2rt · tasks: perception · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/observing-object-poses/SKILL.md)
+
+Reads independently observed object positions, and orientations where the backend provides them, from the configured workcell, labelling simulator truth as privileged. Use when a graph must re-observe pieces before choosing, grasping or verifying.
+
+- **In**: `request_json` string
+- **Out**: `result_json` string, `status` string
+- **Calls**: [`workcell`](#workcell)
+- **Scripts**: [`main`](skills/observing-object-poses/scripts/main.py)
+- **Note**: Adapter-backed implementation; station setup and task-specific validation are required. No sim/real verification is claimed.
+- **Exits**:
+  - `succeeded`: The capability-specific postcondition is supported by the returned measurements.
+  - `failed`: The attempted operation or tracking update did not meet its required condition.
+  - `unverified`: Available evidence is insufficient to establish the requested physical postcondition.
+  - `rejected`: The request, station configuration or required backend capability is not accepted.
 
 ### perceiving-deformable-linear-objects
 
@@ -1416,6 +1436,23 @@ Moves both hands to their target poses as one coordinated motion - both straight
   - `diverged`: One hand stopped more than reach_tolerance from a waypoint (refused, raised, stalled), or with keep_relative the hands' relative pose left the bound at a segment end, after at least one hand had moved; both arms stop where they are, `detail` says which and where.
   - `unreachable`: Nothing moved - a waypoint failed the IK preview, the planned tool centres come closer than min_hand_distance, the targets break the kept relative pose, the move needs more than max_segments, the first move was refused in place, both arm ids name one arm, or the connector reports no separate second arm.
 
+### moving-through-waypoints
+
+execute · robots: yam_i2rt · tasks: motion · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/moving-through-waypoints/SKILL.md)
+
+Moves the measured tool pose through a bounded list of waypoints on the configured YAM or Isaac workcell adapter, verifying arrival at each, and optionally that a held object follows the TCP. Use when an agent must approach, descend or transport a held piece along an explicit path.
+
+- **In**: `request_json` string
+- **Out**: `result_json` string, `status` string
+- **Calls**: [`workcell`](#workcell)
+- **Scripts**: [`main`](skills/moving-through-waypoints/scripts/main.py)
+- **Note**: Adapter-backed implementation; station setup and task-specific validation are required. No sim/real verification is claimed.
+- **Exits**:
+  - `succeeded`: The capability-specific postcondition is supported by the returned measurements.
+  - `failed`: The attempted operation or tracking update did not meet its required condition.
+  - `unverified`: Available evidence is insufficient to establish the requested physical postcondition.
+  - `rejected`: The request, station configuration or required backend capability is not accepted.
+
 ### moving-to-pose
 
 execute · robots: yam_i2rt · tasks: motion · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/moving-to-pose/SKILL.md)
@@ -1669,6 +1706,23 @@ Streams one planned crossing leg of a cable onto a routing station, lets the rod
 - **Exits**:
   - `done`: The place leg was streamed and the crossing measured; `seated` and `fraction` say whether it took.
   - `blocked`: A tool raised during the place or the look (the subgraph's on_error).
+
+### setting-gripper-with-feedback
+
+execute · robots: yam_i2rt · tasks: grasp, release · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/setting-gripper-with-feedback/SKILL.md)
+
+Opens, closes or releases the gripper through the configured YAM or Isaac workcell adapter and checks measured holding or width feedback. Use when a graph must let go of a placed piece or set the jaw width without moving the arm.
+
+- **In**: `request_json` string
+- **Out**: `result_json` string, `status` string
+- **Calls**: [`workcell`](#workcell)
+- **Scripts**: [`main`](skills/setting-gripper-with-feedback/scripts/main.py)
+- **Note**: Adapter-backed implementation; station setup and task-specific validation are required. No sim/real verification is claimed.
+- **Exits**:
+  - `succeeded`: The capability-specific postcondition is supported by the returned measurements.
+  - `failed`: The attempted operation or tracking update did not meet its required condition.
+  - `unverified`: Available evidence is insufficient to establish the requested physical postcondition.
+  - `rejected`: The request, station configuration or required backend capability is not accepted.
 
 ### singulating-by-pushing
 
