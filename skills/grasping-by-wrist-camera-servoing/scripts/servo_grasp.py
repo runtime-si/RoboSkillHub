@@ -1,8 +1,7 @@
 # Adapted from Hello Robot's stretch_ai (https://github.com/hello-robot/stretch_ai, commit
 # 6272b28e3ff7be482af3b427a4551d1772ebf7d7), src/stretch/agent/operations/grasp_object.py
 # (GraspObjectOperation.visual_servo_to_object, _compute_center_depth, get_target_mask,
-# grasp_open_loop, _grasp) and src/stretch/utils/filters.py (MaskTemporalFilter),
-# Apache-2.0, Copyright (c) Hello Robot, Inc.
+# grasp_open_loop, _grasp), Apache-2.0, Copyright (c) Hello Robot, Inc.
 # Changes: world-frame hub inputs (a coarse OBB or point) instead of the agent's instance
 # memory; the pregrasp standoff is a Cartesian pose straight above the target, kept only
 # where the wrist camera (its extrinsic read from the observation with
@@ -18,7 +17,9 @@
 # robot.solve_ik; the source's pixel alignment thresholds and eroded-mask test still gate
 # the descent, and a metric tolerance gates the last part of it, past the target's top;
 # close fires at a grasp height from the measured top (not a fixed 0.17 m camera depth);
-# a lost frame holds the hand and re-looks instead of reusing a stale mask; the
+# a lost frame holds the hand and re-looks instead of reusing a stale mask (the source's
+# MaskTemporalFilter, src/stretch/utils/filters.py, is not used: each frame is taken
+# with the arm settled, so there is no motion blur for it to smooth over); the
 # not-moving counter reads the tool back instead of joint deltas; a stall, a lost track
 # and the iteration cap all fall back to the open-loop grasp at the last seen point (the
 # source closed in place on a stall and gave up at its timeout); the jaws pre-shape to

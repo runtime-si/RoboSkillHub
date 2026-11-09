@@ -221,11 +221,46 @@ the plane), `final_error` (last measured lateral error), `mode`,
 
 ## Measured
 
-Pending (see the PR).
+Simulation, YAM station twin (left arm, linear_4310 jaws), a rendered
+640 x 480 wrist D405 at the real station's calibrated camera-to-tool mount,
+a red cube on the table. The coarse OBB is the cube's true box shifted
+3-8 mm in the plane (0 / 90 / 225 deg: along the fingers, across the jaws,
+oblique). The segmenter is a harness stand-in for `sam3.segment_text`: a
+colour threshold on the rendered wrist frame (fingers and all), one mask per
+blob. "In hand" is the cube's centre in the tool frame after the lift;
+"shove" is how far the cube moved on the table before it was lifted.
+
+| cube | mode | trials | grasped | off-centre in hand (finger axis) | shove |
+|---|---|---|---|---|---|
+| 25 mm | servo | 10 (0-8 mm) | 10 | 0.03-0.66 mm | 1.2-1.5 mm |
+| 25 mm | open-loop, pre-shaped | 10 (0-8 mm) | 10 | 0.7-7.7 mm (8 mm: 7.3, 7.7, 4.1) | 1.7-10.8 mm |
+| 20 mm | servo | 5 (3-8 mm) | 5 | 0.01-0.41 mm | 1.0-1.2 mm |
+| 20 mm | open-loop, pre-shaped | 5 (3-8 mm) | 5 | 1.1-4.5 mm | 3.4-8.6 mm |
+| 20 mm | open-loop, jaws wide | 5 (3-8 mm) | 5 | 1.2-5.0 mm | 3.3-8.1 mm |
+
+- Every servo trial closed from the servo itself (no fallback, no lost
+  frame) in 6 frames from the 60 mm standoff (the camera-aimed fallback view
+  was never needed), with a last measured error of 0.02-0.55 mm. The first
+  frame measured the whole offset (8.4 mm for an 8 mm one) and one lateral
+  step removed it; the other five were 14 mm descents at 0.1-0.6 mm. The
+  measured top-face centre was 0.53-0.70 mm from the cube's true centre in
+  every trial (a bias of the stand-in mask and the render, not of the
+  offset).
+- Across the jaws the closing jaws centre any of these offsets themselves,
+  so in the twin the open-loop grasp also lifted the cube every time: at
+  3-8 mm on 20-30 mm cubes the servo did not change the success count. What
+  it changed is where the part sits (the open-loop error along the fingers
+  stays in the grasp) and how far the jaws shove it before closing, which
+  matters for a part placed next or a neighbour a centimetre away.
+- Not measured: the fallback paths (lost track, stall, frame cap) in
+  simulation (unit tests only), a domino or a LEGO brick, a real
+  `sam3.segment_text` mask, a real YAM.
 
 ## Provenance
 
 Adapted from Hello Robot's stretch_ai `GraspObjectOperation`
 (`visual_servo_to_object`, `_compute_center_depth`, `get_target_mask`,
-`grasp_open_loop`, `_grasp`) and `MaskTemporalFilter`, Apache-2.0; the script
-header lists the changes.
+`grasp_open_loop`, `_grasp`), Apache-2.0; the script header lists the
+changes. The source's `MaskTemporalFilter` is not ported: each frame here is
+taken with the arm settled, and a frame without the part is re-looked at
+rather than filled from older masks.

@@ -577,6 +577,6 @@ Hello Robot's stretch_ai (https://github.com/hello-robot/stretch_ai, commit
 6272b28e3ff7be482af3b427a4551d1772ebf7d7:
 src/stretch/agent/operations/grasp_object.py, GraspObjectOperation's
 visual_servo_to_object, _compute_center_depth, get_target_mask,
-grasp_open_loop and _grasp; src/stretch/utils/filters.py, MaskTemporalFilter),
+grasp_open_loop and _grasp),
 Apache License 2.0, Copyright (c) Hello Robot, Inc.; the file's header lists
 the changes.
