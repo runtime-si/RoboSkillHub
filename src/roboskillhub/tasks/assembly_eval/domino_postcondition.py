@@ -457,3 +457,79 @@ def evaluate_layout(
         "observation_stats": stats,
         "window": {"t0": t0, "t1": t1, "fresh_samples": len(window)},
     }
+
+
+def evaluate_slots(
+    spec: DominoSceneSpec,
+    samples: list[dict],
+    t0: float,
+    t1: float,
+    slot_poses: list[dict],
+    thresholds: Thresholds = DEFAULT_THRESHOLDS,
+) -> dict:
+    """Layout verdict when pieces are not bound to slots by index (graph runs with fresh
+    pieces): for each slot, the piece nearest to it at the end of ``[t0, t1]`` must stand at
+    the slot (position, yaw, tilt over the window, on the table, no gripper contact)."""
+    th = thresholds
+    fresh, stats = fresh_samples(samples, th.max_obs_age_s)
+    window = [s for s in fresh if t0 <= s["stamp"] <= t1]
+    out = {}
+    if len(window) < th.min_samples:
+        return {
+            "evaluator": EVAL_VERSION,
+            "status": "unverified",
+            "slots": {},
+            "reason": f"{len(window)} fresh samples in the final window",
+            "observation_stats": stats,
+        }
+    last = window[-1]
+    for k, target in enumerate(slot_poses):
+        cands = [(tid, o) for tid, o in last["objects"].items() if o.get("quat_xyzw") is not None]
+        if not cands:
+            out[f"s{k}"] = {"status": "unverified", "reason": "no piece observed"}
+            continue
+        tid, o = min(cands, key=lambda c: dist_xy(c[1]["position"], target["position"]))
+        m = tile_metrics(spec, o, target)
+        seen = [_pose(s, tid) for s in window if _pose(s, tid) is not None]
+        max_tilt = max(tilt_deg(p["quat_xyzw"]) for p in seen)
+        drift = max(dist(p["position"], seen[0]["position"]) for p in seen)
+        c = last.get("contacts")
+        gripper = c is not None and bool(set(c.get(tid, [])) & set(GRIPPER_BODIES))
+        ok = (
+            m["position_error_m"] <= th.position_tol
+            and m["yaw_error_deg"] <= th.yaw_tol_deg
+            and max_tilt <= th.tilt_tol_deg
+            and abs(m["bottom_height_m"]) <= th.bottom_tol
+            and drift <= th.drift_tol
+            and not gripper
+        )
+        out[f"s{k}"] = {
+            "status": "succeeded" if ok else "failed",
+            "piece": tid,
+            **m,
+            "max_tilt_deg": max_tilt,
+            "drift_m": drift,
+            "gripper_contact": gripper,
+        }
+    statuses = [v["status"] for v in out.values()]
+    status = (
+        "failed"
+        if "failed" in statuses
+        else "unverified"
+        if "unverified" in statuses
+        else "succeeded"
+    )
+    lying = [
+        tid
+        for tid, o in last["objects"].items()
+        if o.get("quat_xyzw") and tilt_deg(o["quat_xyzw"]) > 45
+    ]
+    return {
+        "evaluator": EVAL_VERSION,
+        "status": status,
+        "slots": out,
+        "standing_at_slot": statuses.count("succeeded"),
+        "pieces_lying": lying,
+        "observation_stats": stats,
+        "window": {"t0": t0, "t1": t1, "fresh_samples": len(window)},
+    }
