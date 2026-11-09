@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-19 tools, 114 skills, 2 policies, 1 recipe and 1 paper.
+19 tools, 115 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -138,6 +138,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`detecting-disturbed-pieces-by-snapshot-diff`](#detecting-disturbed-pieces-by-snapshot-diff) | verify | Checks whether anything already placed was knocked since the last verified step. | any |
 | [`previewing-target-overlay`](#previewing-target-overlay) | verify | Checks a target gripper pose before the arm moves. | any |
 | [`registering-assembled-board-to-reference`](#registering-assembled-board-to-reference) | verify | Aligns a top-down view of the part-built jigsaw (overhead frame, rectified view or wrist mosaic) to the box picture… | any |
+| [`simulating-a-domino-layout-before-building`](#simulating-a-domino-layout-before-building) | verify | Checks a planned domino line or curve in a rigid-body simulation before the arm builds it. | any |
 | [`verifying-a-cable-route`](#verifying-a-cable-route) | verify | Judge a finished cable route from a camera rather than from an evaluator. | any |
 | [`verifying-a-domino-cascade-from-video`](#verifying-a-domino-cascade-from-video) | verify | Decides from a short RGB(-D) clip of the overhead or a wrist camera which tiles of a planned domino line fell and… | any |
 | [`verifying-articulation-displacement`](#verifying-articulation-displacement) | verify | Checks from the camera whether a drawer or a door really moved as asked. | any |
@@ -1946,6 +1947,23 @@ Aligns a top-down view of the part-built jigsaw (overhead frame, rectified view 
   - `registered`: The view aligned to the picture (final ECC correlation at least 0.7 and at least half the textured placed cells match their own place); `cells` judges every placed cell and `mismatched_cells`, `rotated_cells` and `empty_cells` list the ones to fix (all empty when the board is right).
   - `did_not_converge`: ECC diverged or ended under the gates from the given corners or homography (or moved them more than a cell) and from SIFT features, or there was no usable image; nothing is judged. Re-take the view, give better corners, or wait for more placed pieces.
   - `too_little_placed`: Fewer than 4 placed cells, or fewer than 3 of them textured; there is nothing to align on.
+
+### simulating-a-domino-layout-before-building
+
+verify · robots: any · tasks: domino · MIT · v0.1.0 · [`SKILL.md`](skills/simulating-a-domino-layout-before-building/SKILL.md) · [upstream](https://github.com/BasisResearch/predicators/blob/afb6f2918091f5ca372a75b9a335aea317a8a209/predicators/envs/pybullet_domino/cascade_probe.py)
+
+Checks a planned domino line or curve in a rigid-body simulation before the arm builds it. It rebuilds the slots (planning-a-domino-layout's `slots` or any slot poses) as real-size tiles on a table, replays the trigger push (triggering-a-domino-chain-by-push's stroke, the fingertips the only part of the robot that collides, as predicators' cascade probe does) and records when each tile falls (10 deg held for 3 samples). It then reruns the same layout with every slot jittered by the placing error and reports the fraction that still reaches the target and the pair that breaks most often. Routes cascades, fragile (the plan works but placing error breaks it), stalls (with the slot where the wave stops) or push_failed. CPU only, about 50 ms per rollout of 12 tiles. No motion. Use after planning-a-domino-layout and before placing the first tile, or to choose a pitch or radius.
+
+- **In**: -
+- **Out**: `n_tiles` int, `target_index` int, `reached_target` bool, `stall_at` int, `n_fallen` int, `wave_speed` float, `push_travel` float, `first_fell` bool, `trials` int, `success_rate` float, `weakest_pair` int, `sim_time` float, `wall_time` float
+- **Scripts**: [`simulate_layout`](skills/simulating-a-domino-layout-before-building/scripts/simulate_layout.py)
+- **Exits**:
+  - `cascades`: In the planned layout every tile up to the target fell, and at least `min_success` (0.9) of the `trials` rollouts with the slots jittered by the placing error did too. `topple_times` gives each tile's fall time and `wave_speed` the settled wave's speed along the path.
+  - `fragile`: The planned layout reaches the target, but fewer than `min_success` of the jittered rollouts do; `weakest_pair` is the pair (k, k + 1) where they broke most often and `trial_stalls` lists where each stopped. Tighten the pitch or widen the radius there.
+  - `stalls`: In the planned layout the wave stopped; `stall_at` is the first slot up to the target still standing (its predecessor fell), `fallen` says which fell.
+  - `push_failed`: The first tile did not fall. Either the trigger stroke would end within 6 mm of slot 1, so the trigger skill would not push a line this tight (try the `kick` trigger), or the stroke or kick did not carry the tile past 10 deg.
+  - `sim_unavailable`: The physics engine is not installed or rejected the model; nothing was judged.
+  - `invalid_input`: Fewer than two slots, a slot without a facing, two neighbouring slots overlapping, no table height, a target that is not after slot 0, a tile size that is not height &gt; width &gt; thickness, an unknown trigger, or a non-positive speed, timestep or mass (also the route of a raised error).
 
 ### verifying-a-cable-route
 

@@ -386,6 +386,16 @@ predicators/ground_truth_models/skill_factories/push.py and
 predicators/ground_truth_models/domino/options.py), MIT License, Copyright (c)
 2022 Rohan Chitnis and Tom Silver; the file's header lists the changes, and
 the license is skills/triggering-a-domino-chain-by-push/LICENSE.predicators.
+skills/simulating-a-domino-layout-before-building/scripts/simulate_layout.py is
+adapted from predicators (https://github.com/BasisResearch/predicators, commit
+afb6f2918091f5ca372a75b9a335aea317a8a209:
+predicators/envs/pybullet_domino/cascade_probe.py, cascade_certificate.py,
+components/domino_component.py and sim_core.py), MIT License, Copyright (c)
+2022 Rohan Chitnis and Tom Silver, the license is
+skills/simulating-a-domino-layout-before-building/LICENSE.predicators; and from
+MuJoCo's model/sleep/dominos.xml (https://github.com/google-deepmind/mujoco,
+commit 70dede9373277de3a781428e4ce3a428a34abc8b), Apache-2.0, Copyright 2025
+DeepMind Technologies Limited. The file's header lists the changes.
 skills/pressing-a-brick-onto-studs/scripts/press_brick.py is adapted from
 BrickSim (https://github.com/intelligent-control-lab/BrickSim,
 python/bricksim/envs/assemble_brick/expert.py, commit
