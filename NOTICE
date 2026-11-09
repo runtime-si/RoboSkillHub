@@ -442,6 +442,15 @@ include/Lego.hpp, commit 9bc91654e708e4d8428ecfa76840103cacb2a19a), MIT License
 (its LICENSE.md carries the MIT text under the line "Copyright (c) 2011-2023
 GitHub Inc."); the file's header lists the changes, and the license is
 skills/tracking-build-state/LICENSE.icl.
+skills/assigning-bricks-to-two-arms/scripts/assign_arms.py is adapted from
+APEX-MR (https://github.com/intelligent-control-lab/APEX-MR,
+src/python/task_assignment.py TaskAssignmentSolver.solve_problem and
+parse_solution, commit 46a9448d9eaac5bd5973e0cd064623c5e7f5254e), MIT License,
+Copyright (c) 2025 Intelligent Control Lab; the file's header lists the
+changes, and the license is skills/assigning-bricks-to-two-arms/LICENSE.apexmr.
+The test data tests/bundles/data/apex_mr/*.json are APEX-MR's
+config/lego_tasks/assembly_tasks/{bridge,cliff,faucet,fish_high,guitar,R,rss,S,stairs_rotated}.json
+and config/lego_tasks/lego_library.json at the same commit, MIT License.
 
 skills/checking-design-connectivity-and-collisions/scripts/check_design.py is
 adapted from BrickGPT (https://github.com/AvaLovelace1/BrickGPT, commit
