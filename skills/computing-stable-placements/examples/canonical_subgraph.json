@@ -1,0 +1,46 @@
+{
+  "skill": "computing-stable-placements",
+  "inputs": {
+    "object_obb": "OrientedBoundingBox"
+  },
+  "outputs": {
+    "n_rests": {
+      "$ref": "rests.n_rests"
+    },
+    "best_tipping_deg": {
+      "$ref": "rests.best_tipping_deg"
+    },
+    "current_stable": {
+      "$ref": "rests.current_stable"
+    }
+  },
+  "nodes": {
+    "rests": {
+      "type": "script",
+      "script": "scripts/compute_rests.py",
+      "inputs": {
+        "object_obb": {
+          "$ref": "in.object_obb"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "rests"
+    ],
+    [
+      "rests",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "placements",
+      "no_stable_pose"
+    ]
+  },
+  "on_error": "invalid_shape"
+}

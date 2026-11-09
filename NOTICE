@@ -759,3 +759,11 @@ skills/checking-pick-by-scene-diff/scripts/check_scene_diff.py is adapted from
 RoboRSI (https://github.com/nssmd/RoboRSI,
 roborsi/embodied/skills/base/visual_diff/robotwin/policy.py), Apache-2.0; the
 file's header lists the changes.
+skills/computing-stable-placements/scripts/compute_rests.py is adapted from TSR
+(https://github.com/personalrobotics/tsr, commit
+5279ca7baf95e6718d4628a3a26fd6ebeefedf0d: src/tsr/placement/_stable_poses.py
+stable_poses_mesh, _group_coplanar_facets, _plane_basis, _inward_distance,
+_rotation_to_align, and src/tsr/placement/stable_placer.py place_mesh's
+ordering, margin filter and surface fit), BSD-2-Clause, Copyright (c) 2025,
+Siddhartha Srinivasa and contributors to TSR; the file's header lists the
+changes, and the license is skills/computing-stable-placements/LICENSE.tsr.

@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-24 tools, 137 skills, 2 policies, 1 recipe and 1 paper.
+24 tools, 138 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -76,6 +76,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`choosing-a-domino-move-by-end-matching`](#choosing-a-domino-move-by-end-matching) | plan | Chooses the robot's move in a game of dominoes and where the tile goes on the table. | any |
 | [`computing-brick-pose-from-stud-grid`](#computing-brick-pose-from-stud-grid) | plan | Converts between a cell on a LEGO or DUPLO baseplate's stud grid (x, y, layer, brick size such as 2x4, rotation… | any |
 | [`computing-feature-mating-poses`](#computing-feature-mating-poses) | plan | Computes approach, engaged, and mate TCP poses from a held feature in the hand and a fixture feature, resolving free… | any |
+| [`computing-stable-placements`](#computing-stable-placements) | plan | Enumerates the stable resting faces of a rigid object. | any |
 | [`executing-keypoint-motion`](#executing-keypoint-motion) | plan | Plans and executes a one-step manipulation from a language instruction with MOKA's mark-based visual prompting. | any |
 | [`finding-the-longest-domino-chain`](#finding-the-longest-domino-chain) | plan | Finds the longest chain of matching dominoes a hand can lay from a start value. | any |
 | [`parsing-ldraw-build-instructions`](#parsing-ldraw-build-instructions) | plan | Reads an LDraw .ldr / .mpd build file. | any |
@@ -990,6 +991,19 @@ Computes approach, engaged, and mate TCP poses from a held feature in the hand a
 - **Exits**:
   - `computed`: A valid mate was computed.
   - `infeasible`: The fixture feature has no directed axis or the feature dimensions cannot satisfy the relation.
+
+### computing-stable-placements
+
+plan · robots: any · tasks: pick-place, reorientation, lego, domino, jigsaw · BSD-2-Clause · v0.1.0 · [`SKILL.md`](skills/computing-stable-placements/SKILL.md) · [upstream](https://github.com/personalrobotics/tsr/blob/5279ca7baf95e6718d4628a3a26fd6ebeefedf0d/src/tsr/placement/_stable_poses.py)
+
+Enumerates the stable resting faces of a rigid object - from its oriented bounding box or a perceived point cloud closed down to the table - by convex hull and centre-of-mass projection, and reports for each rest the tipping angle, the centre-of-mass height, the turn from the object's current orientation that puts that face down, its footprint, and (given a goal point) the resting pose; also says which rest the object is on now, or that it is on none (leaning, tilted, held). Routes placements or no_stable_pose. Use when a graph must choose how to set a part down (a brick, a domino on its end or flat, a jigsaw piece), decide whether a part lying on the table needs a regrasp or flip, or reject a placement too easy to tip; geometry only, no motion.
+
+- **In**: -
+- **Out**: `n_rests` int, `best_tipping_deg` float, `best_turn_deg` float, `best_com_height_m` float, `best_pose` Se3Pose, `current_index` int, `current_stable` bool, `com` Vec3, `reason` string
+- **Scripts**: [`compute_rests`](skills/computing-stable-placements/scripts/compute_rests.py)
+- **Exits**:
+  - `placements`: At least one hull face holds the centre of mass inside its support polygon with a tipping angle of at least min_margin_deg and fits the surface at every yaw; `rests` lists them most stable first, `best` is the first.
+  - `no_stable_pose`: No face holds the centre of mass (or none clears min_margin_deg, or none fits surface_half_extents); `reason` counts which filter removed them.
 
 ### executing-keypoint-motion
 
