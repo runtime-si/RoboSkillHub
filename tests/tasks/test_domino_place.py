@@ -26,6 +26,10 @@ def run(faults=(), **kw):
     return place_upright(request(ctx, **kw), ctx), ctx
 
 
+def motions(ctx):
+    return [c for c in ctx.calls if c != "observe_objects"]
+
+
 def causes(out):
     return {h["cause"]: h["confidence"] for h in out["cause_hypotheses"]}
 
@@ -33,13 +37,18 @@ def causes(out):
 def test_happy_path_succeeds_only_through_the_observer():
     out, ctx = run()
     assert out["status"] == "succeeded", out["failure"]
-    assert ctx.calls == ["move_waypoints", "move_waypoints", "set_gripper", "move_waypoints"]
+    assert motions(ctx) == ["move_waypoints", "move_waypoints", "set_gripper", "move_waypoints"]
+    assert ctx.calls[0] == "observe_objects"
     assert out["contract_version"] == "rsh-task/1" and out["skill"] == "domino.place_upright"
     pc = out["evidence"]["postcondition"]
     assert pc["passed"] and pc["measured"]["position_error_m"] < 1e-3
     assert pc["thresholds_ref"] == "tasks/domino/config/line_v1.yaml"
     assert out["observations"] and out["evidence"]["evidence_tier"] == "synthetic_contract_test"
-    assert len(out["children"]) == 4 and out["failure_type"] is None and out["recovery_hints"] == []
+    assert (
+        len(out["children"]) == len(ctx.calls)
+        and out["failure_type"] is None
+        and out["recovery_hints"] == []
+    )
     assert "support_contact_not_sensed_before_release" in out["unverified"]
     assert (
         "descent_and_retreat_are_waypoint_sequences_not_linear_interpolation" in out["unverified"]
@@ -59,7 +68,7 @@ def test_registered_skill_entry_runs_the_same():
 def test_missing_orientation_feedback_rejects_before_any_command():
     out, ctx = run(capabilities=CAPABILITIES["geometric"] - {"object_pose_feedback"})
     assert out["status"] == "rejected" and out["failure_type"] == "capability_missing"
-    assert ctx.calls == []
+    assert motions(ctx) == []
 
 
 def test_linear_descent_needs_linear_cartesian_motion():
@@ -78,26 +87,26 @@ def test_contact_mode_is_rejected_until_a_guarded_primitive_exists():
     caps = CAPABILITIES["contact_feedback"]
     out, ctx = run(mode="contact_feedback", capabilities=caps)
     assert out["status"] == "rejected" and out["failure_type"] == "capability_missing"
-    assert ctx.calls == []
+    assert motions(ctx) == []
 
 
 def test_missed_grasp_rejected_before_motion():
     out, ctx = run(faults={"missed_grasp"})
     assert out["status"] == "rejected" and out["failure"]["code"] == "holding_not_confirmed"
-    assert ctx.calls == []
+    assert motions(ctx) == []
     assert out["recovery"]["action"] == "regrasp" and "regrasp" in out["recovery_hints"]
 
 
 def test_missed_grasp_without_gripper_feedback_still_caught_by_observation():
     out, ctx = run(faults={"missed_grasp", "gripper_unknown"})
     assert out["status"] == "rejected" and out["failure"]["code"] == "holding_not_confirmed"
-    assert ctx.calls == []
+    assert motions(ctx) == []
 
 
 def test_grasp_offset_beyond_tolerance_is_caught_before_motion():
     out, ctx = run(grasp_dx=0.010)
     assert out["status"] == "rejected" and out["failure"]["code"] == "holding_not_confirmed"
-    assert ctx.calls == []
+    assert motions(ctx) == []
 
 
 def test_drop_in_transit_fails_and_does_not_release():
@@ -247,7 +256,7 @@ def test_context_exception_is_failure_not_success():
 def test_offline_checks_reject_before_any_command(over, code):
     out, ctx = run(**over)
     assert out["status"] == "rejected" and out["failure"]["code"] == code, out["failure"]
-    assert ctx.calls == []
+    assert motions(ctx) == []
 
 
 def test_tighter_override_is_accepted():

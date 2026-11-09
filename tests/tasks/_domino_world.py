@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import copy
 import math
+import time
 import uuid
 
 import numpy as np
@@ -81,8 +82,10 @@ class FakeTaskContext:
         grasp_dx: float = 0.0,
         table_z: float = 0.0,
         cancel_after_s: float | None = None,
+        real_time: bool = False,
     ):
         self.t = 0.0
+        self.real_time = real_time
         self.task_id, self.request_id = "task-1", "task-1/n1/a1"
         self.privileged_allowed = False
         self.faults = set(faults or ())
@@ -104,9 +107,11 @@ class FakeTaskContext:
 
     # -- clock
     def now(self) -> float:
-        return T0 + self.t
+        return time.time() if self.real_time else T0 + self.t
 
     def sleep(self, dt: float) -> None:
+        if self.real_time:
+            time.sleep(max(0.0, dt))
         self.t += max(0.0, dt)
 
     def cancelled(self) -> bool:
@@ -181,33 +186,60 @@ class FakeTaskContext:
             return out
         if capability == "set_gripper":
             assert request["purpose"] == "release"
-            self.t += 0.2
-            if "still_holding" not in self.faults:
-                p = self.tile_pose()
-                drop = geo.lowest_point_height(p, SIZE, [0, 0, self.table_z], [0, 0, 1])
-                rest = geo.translated(p, [0, 0, -drop])
-                self.tile = (
-                    lying(rest, self.table_z)
-                    if (drop > 0.008 or "fall_on_release" in self.faults)
-                    else rest
-                )
-                self.released = True
-                self.held = "sticky_release" in self.faults
-            reported = self.held and "sticky_release" not in self.faults
+            reported = self.release_to(request["width_m"])
             out["evidence"] = {
-                "gripper": {
+                "purpose": "release",
+                "gripper_feedback": {
                     "holding": reported,
                     "width_m": request["width_m"],
                     "timestamp_s": self.now(),
                     "source": "synthetic:jaw-gap",
-                }
+                },
             }
             if reported:
                 return {**out, "status": "failed", "failure_type": "release_failed"}
             return out
         raise AssertionError(f"unexpected primitive {capability}")
 
-    def observe(self, object_ids, *, require_orientation: bool = False) -> list[dict]:
+    def release_to(self, width_m: float) -> bool:
+        """Open to ``width_m``; returns what the jaw sensor reports as holding."""
+        self.t += 0.2
+        if "still_holding" not in self.faults:
+            p = self.tile_pose()
+            drop = geo.lowest_point_height(p, SIZE, [0, 0, self.table_z], [0, 0, 1])
+            rest = geo.translated(p, [0, 0, -drop])
+            self.tile = (
+                lying(rest, self.table_z)
+                if (drop > 0.008 or "fall_on_release" in self.faults)
+                else rest
+            )
+            self.released = True
+            self.held = "sticky_release" in self.faults
+        return self.held and "sticky_release" not in self.faults
+
+    def observe(self, object_ids, *, require_orientation: bool = False) -> dict:
+        """Like SkillContext.observe: the observe_objects result, records in evidence."""
+        self.calls.append("observe_objects")
+        records = self._records(list(object_ids))
+        bad = [
+            r
+            for r in records
+            if r["visibility"] != "visible"
+            or (require_orientation and r["quaternion_xyzw"] is None)
+        ]
+        return {
+            "invocation_id": str(uuid.uuid4()),
+            "capability": "observe_objects",
+            "status": "unverified" if bad else "succeeded",
+            "failure_type": (
+                "object_not_observed" if bad[0]["visibility"] != "visible" else "evidence_missing"
+            )
+            if bad
+            else None,
+            "evidence": {"observations": records},
+        }
+
+    def _records(self, object_ids) -> list[dict]:
         self.t += 0.1
         t = self.now()
         if self.released and (

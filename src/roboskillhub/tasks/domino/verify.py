@@ -372,7 +372,7 @@ def verify_stable_placement(request: dict, ctx: Any = None) -> dict:
             if (
                 not isinstance(s, dict)
                 or not isinstance(s.get("timestamp_s"), (int, float))
-                or float(s["timestamp_s"]) < t_retreat
+                or float(s["timestamp_s"]) < t_release
             ):
                 continue
             try:

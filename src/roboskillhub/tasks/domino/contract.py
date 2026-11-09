@@ -316,7 +316,7 @@ def envelope(
         "invocation_id": str(uuid.uuid4()),
         "task_id": getattr(ctx, "task_id", None) or request.get("task_id"),
         "request_id": getattr(ctx, "request_id", None) or request.get("request_id"),
-        "capability": skill_id.split(".", 1)[1],
+        "capability": skill_id,
         "skill": skill_id,
         "version": SKILL_VERSION,
         "kind": kind,
@@ -332,7 +332,7 @@ def envelope(
         "children": [],
         "privileged_inputs": False,
         "unverified": [],
-        "error": None,
+        "outputs": {},
         "trace": [],
         "elapsed_s": 0.0,
     }

@@ -306,6 +306,10 @@ def plan_place(request: dict) -> dict:
         request.get("descent_speed_m_s", min(speed, 0.01)), "descent_speed_m_s", 1e-4, speed
     )
     timeout = finite(request.get("timeout_s"), "timeout_s", 0.1, 600)
+    # Per-primitive cap: the workcell runtime's default Limits.max_timeout_s.
+    primitive_timeout = finite(
+        request.get("primitive_timeout_s", 30.0), "primitive_timeout_s", 0.1, 120
+    )
     need = a_dist / d_speed + r_dist / d_speed + th["settle_window_s"]
     if need > timeout:
         raise RequestRejected(
@@ -361,6 +365,7 @@ def plan_place(request: dict) -> dict:
         "speed_m_s": speed,
         "descent_speed_m_s": d_speed,
         "timeout_s": timeout,
+        "primitive_timeout_s": primitive_timeout,
     }
 
 
@@ -429,15 +434,55 @@ def place_upright(request: dict, ctx: TaskContext) -> dict:
             )
         return r
 
-    def invoke(phase: str, capability: str, req: dict) -> dict:
-        req = {**req, "timeout_s": min(remaining(), float(req.get("timeout_s", 1e9)))}
-        issued[0] = True
-        r = ctx.invoke(capability, req)
-        t_done = ctx.now()
-        result["children"].append(r.get("invocation_id"))
+    def call(capability: str, req: dict) -> dict:
+        """ctx.invoke, with a typed refusal (cancel, expired lease, no station) returned as
+        a primitive result instead of escaping."""
+        try:
+            r = ctx.invoke(capability, req)
+        except Exception as exc:
+            ft = getattr(exc, "failure_type", None) or "backend_error"
+            r = {
+                "status": "rejected",
+                "failure_type": ft,
+                "error": {"code": type(exc).__name__, "message": str(exc)},
+            }
+        if r.get("invocation_id") and r["invocation_id"] not in result["children"]:
+            result["children"].append(r["invocation_id"])
+        return r
+
+    def measured_of(r: dict) -> tuple[dict | None, float | None]:
+        """The last measured TCP pose a motion primitive reports (evidence.arrivals, or its
+        trace when it failed before writing evidence)."""
         ev = r.get("evidence") or {}
-        measured = ev.get("measured_pose") or (ev.get("final") or {}).get("measured_pose")
-        ts = ev.get("state_timestamp_s") or (ev.get("final") or {}).get("state_timestamp_s")
+        arrivals = ev.get("arrivals") or ([ev] if "measured_pose" in ev else [])
+        for a in reversed(arrivals):
+            if isinstance(a, dict) and isinstance(a.get("measured_pose"), dict):
+                return a["measured_pose"], a.get("state_timestamp_s")
+        for e in reversed(r.get("trace") or []):
+            if isinstance(e, dict) and isinstance(e.get("measured_pose"), dict):
+                return e["measured_pose"], e.get("state_timestamp_s")
+        return None, None
+
+    def gripper_of(r: dict) -> dict | None:
+        ev = r.get("evidence") or {}
+        g = ev.get("gripper_feedback") or ev.get("gripper")
+        if not isinstance(g, dict):
+            g = next(
+                (
+                    e.get("gripper_feedback")
+                    for e in reversed(r.get("trace") or [])
+                    if isinstance(e, dict) and e.get("gripper_feedback")
+                ),
+                None,
+            )
+        return g if isinstance(g, dict) and g.get("source") else None
+
+    def invoke(phase: str, capability: str, req: dict) -> dict:
+        req = {**req, "timeout_s": max(0.1, min(remaining(), plan["primitive_timeout_s"]))}
+        issued[0] = True
+        r = call(capability, req)
+        t_done = ctx.now()
+        measured, ts = measured_of(r)
         if isinstance(measured, dict) and isinstance(ts, (int, float)):
             tcp_states.append(
                 {
@@ -446,8 +491,8 @@ def place_upright(request: dict, ctx: TaskContext) -> dict:
                     "source": f"{capability}.measured_pose",
                 }
             )
-        g = ev.get("gripper")
-        if isinstance(g, dict) and g.get("source"):
+        g = gripper_of(r)
+        if g is not None:
             gripper_states.append(g)
         log(
             phase,
@@ -457,18 +502,30 @@ def place_upright(request: dict, ctx: TaskContext) -> dict:
             invocation_id=r.get("invocation_id"),
         )
         st = r.get("status")
+        out = {**r, "_measured": measured, "_t_done": t_done}
         if st == "succeeded":
-            return {**r, "_measured": measured, "_t_done": t_done}
+            return out
         ft = r.get("failure_type") or (r.get("error") or {}).get("code")
         detail = f"{capability} {st}: {ft} ({(r.get('error') or {}).get('message', '')})"
-        if ft in ("grasp_lost", "held_object_slipped"):
+        if ft in ("grasp_lost", "held_object_slipped", "grasp_missed"):
             raise PhaseFailed("object_dropped", phase, detail, failure_type=ft)
-        if ft in ("timeout", "cancelled"):
-            raise PhaseFailed(ft, phase, detail, "failed" if ft == "timeout" else "unverified")
+        if ft in ("timeout", "cancelled", "lease_expired"):
+            raise PhaseFailed(
+                "timeout" if ft == "timeout" else "cancelled",
+                phase,
+                detail,
+                "failed" if ft == "timeout" else "unverified",
+                failure_type=ft,
+            )
         if ft == "release_failed":
             raise PhaseFailed("release_failed", phase, detail)
         if st == "failed" and ft == "motion_not_converged":
-            return {**r, "_measured": measured, "_t_done": t_done}  # judged from the measured pose
+            return out  # judged from the measured pose
+        if capability == "set_gripper" and st == "unverified" and ft == "evidence_missing":
+            result["unverified"].append("release_without_holding_feedback")
+            return out  # the observer still needs the tile resting and the hand clear
+        if st == "rejected" and ft == "capability_missing":
+            raise PhaseFailed("capability_missing", phase, detail, "rejected")
         if st == "unverified":
             raise PhaseFailed(
                 "backend_error", phase, detail, "unverified", failure_type=ft or "evidence_missing"
@@ -479,12 +536,44 @@ def place_upright(request: dict, ctx: TaskContext) -> dict:
 
     def observe(phase: str, object_ids: list[str], after: float) -> dict[str, dict]:
         """Fresh records (timestamp after ``after``, within max age) for every id; polled
-        for at most twice the max observation age."""
+        for at most twice the max observation age. ``ctx.observe`` returns the
+        observe_objects result (records in evidence.observations)."""
         give_up = min(deadline, ctx.now() + 2.0 * th["max_observation_age_s"])
         got: dict[str, dict] = {}
         while True:
             remaining()
-            for r in ctx.observe(object_ids, require_orientation=True):
+            try:
+                res = ctx.observe(object_ids, require_orientation=True)
+            except Exception as exc:
+                ft = getattr(exc, "failure_type", None) or "backend_error"
+                raise PhaseFailed(
+                    "cancelled" if ft == "cancelled" else "backend_error",
+                    phase,
+                    str(exc),
+                    "unverified" if issued[0] else "rejected",
+                    failure_type=ft,
+                ) from exc
+            if isinstance(res, dict):
+                if res.get("invocation_id") and res["invocation_id"] not in result["children"]:
+                    result["children"].append(res["invocation_id"])
+                if res.get("status") == "rejected" and res.get("failure_type") in (
+                    "capability_missing",
+                    "cancelled",
+                    "lease_expired",
+                ):
+                    raise PhaseFailed(
+                        res["failure_type"]
+                        if res["failure_type"] != "lease_expired"
+                        else "cancelled",
+                        phase,
+                        str(res.get("error")),
+                        "unverified" if issued[0] else "rejected",
+                        failure_type=res["failure_type"],
+                    )
+                records = (res.get("evidence") or {}).get("observations") or []
+            else:
+                records = list(res or [])
+            for r in records:
                 t = r.get("timestamp_s")
                 if (
                     isinstance(t, (int, float))
@@ -602,6 +691,19 @@ def place_upright(request: dict, ctx: TaskContext) -> dict:
             )
         if off is None:
             result["unverified"].append("holding_precheck_without_tcp_state")
+            pre_pose = obs_pose(got.get(target))
+            if pre_pose is not None:
+                low = geo.lowest_point_height(
+                    pre_pose, plan["geometry"], plan["support"]["point_m"], normal
+                )
+                if low <= th["support_height_tolerance_m"]:
+                    raise PhaseFailed(
+                        "holding_not_confirmed",
+                        "pre_observe",
+                        f"the tile is observed resting on the support (lowest corner {low * 1e3:.1f} mm): "
+                        "not in the hand",
+                        "rejected",
+                    )
         baseline = []
         for nb in plan["neighbors"]:
             rec = got.get(nb["id"])
@@ -705,14 +807,14 @@ def place_upright(request: dict, ctx: TaskContext) -> dict:
                     f"the held tile reads {low * 1e3:.1f} mm into the support; not released",
                 )
 
-        # --- controlled release, then retreat
-        invoke(
+        # --- controlled release, then retreat (release_s: when the opening was commanded)
+        events["release_s"] = ctx.now()
+        r = invoke(
             "release",
             "set_gripper",
             {"width_m": plan["release_width_m"], "purpose": "release", "target_id": target},
         )
-        events["release_s"] = ctx.now()
-        observe("release_check", ids, after=events["release_s"])
+        observe("release_check", ids, after=r["_t_done"])
         r = invoke(
             "retreat",
             "move_waypoints",
@@ -794,6 +896,11 @@ def place_upright(request: dict, ctx: TaskContext) -> dict:
         result["privileged_inputs"] = verdict["privileged_inputs"]
         result["unverified"] += verdict["unverified"]
         result["status"] = verdict["status"]
+        if verdict["status"] == "succeeded":
+            result["outputs"] = {
+                "placed_object_id": target,
+                "final_pose": verdict["evidence"]["target"]["final_pose"],
+            }
         if verdict["failure"]:
             f = verdict["failure"]
             set_failure(

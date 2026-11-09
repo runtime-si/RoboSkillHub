@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from .contract import SKILL_VERSION, place_requires
+from .contract import RECOVERY_HINTS, SKILL_VERSION, envelope, place_requires
 from .layout import plan_straight_layout
 from .place import place_upright
 from .recovery import plan_recovery
@@ -70,6 +70,7 @@ PLACE_SCHEMA = _schema(
         "speed_m_s": _NUM,
         "descent_speed_m_s": _NUM,
         "timeout_s": _NUM,
+        "primitive_timeout_s": _NUM,
         "recovery_attempts_used": {"type": "integer"},
         "max_recovery_attempts": {"type": "integer"},
     },
@@ -146,6 +147,23 @@ class DominoSkill:
         return self._run(request, ctx)
 
 
+def _recovery_tool(request: dict, ctx: Any) -> dict:
+    plan = plan_recovery(
+        request["result"],
+        attempts_used=int(request.get("attempts_used", 0)),
+        max_attempts=int(request.get("max_attempts", 1)),
+    )
+    out = envelope("domino.plan_recovery", request, kind="tool", ctx=ctx)
+    out.update(
+        status="succeeded",
+        phase="verify",
+        evidence={"plan": plan},
+        outputs={"recovery": plan},
+        recovery_hints=RECOVERY_HINTS[plan["action"]],
+    )
+    return out
+
+
 SKILLS = [
     DominoSkill(
         "domino.place_upright",
@@ -177,10 +195,6 @@ SKILLS = [
         frozenset(),
         RECOVERY_SCHEMA,
         "unit-tested",
-        lambda request, ctx: plan_recovery(
-            request["result"],
-            attempts_used=int(request.get("attempts_used", 0)),
-            max_attempts=int(request.get("max_attempts", 1)),
-        ),
+        lambda request, ctx: _recovery_tool(request, ctx),
     ),
 ]
