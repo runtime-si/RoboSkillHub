@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-24 tools, 134 skills, 2 policies, 1 recipe and 1 paper.
+24 tools, 135 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -67,6 +67,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`refining-target-from-wrist-closeup`](#refining-target-from-wrist-closeup) | perceive | Refines a coarse world-frame target (an overhead perception's OBB or point) by aiming the wrist RGB-D camera at it… | any |
 | [`registering-held-objects`](#registering-held-objects) | perceive | Reobserves a grasped rigid object from the wrist cameras, estimates its functional feature in the TCP frame, and fits… | any |
 | [`segmenting-and-picking-pieces-classical`](#segmenting-and-picking-pieces-classical) | perceive | Finds the loose jigsaw pieces lying on a staging mat in one top-down RGB(-D) frame without a learned model. | any |
+| [`tracking-build-state`](#tracking-build-state) | perceive | Keeps a world model of the LEGO or DUPLO bricks placed so far and their stud connections. | any |
 | [`tracking-identical-parts-by-id`](#tracking-identical-parts-by-id) | perceive | Keeps a stable id for each of many look-alike parts (dominoes, same-colour bricks, jigsaw pieces, cubes) across… | any |
 | [`tracking-objects`](#tracking-objects) | perceive | Long-running skill that drives the SAM3 tracker from the graph-scoped observation stream. | any |
 | [`tracking-points`](#tracking-points) | perceive | Tracks selected image points through the configured workcell tracking backend and reports visibility evidence. | yam_i2rt |
@@ -841,6 +842,20 @@ Finds the loose jigsaw pieces lying on a staging mat in one top-down RGB(-D) fra
   - `segmented`: At least one piece was found and none touches anything; `pieces` lists them, piece_mask / pick_point are the best pickable one (clearest of its surroundings, then the widest inscribed circle).
   - `touching_pieces`: Pieces were found but some touch or lie on one another (split by the watershed or by height; their records say touching, neighbours, layer), or a blob did not split into piece-sized parts (`clusters`, with the source's drag point and direction); piece_mask / pick_point still name the best pickable piece when n_pickable &gt; 0. Singulate the rest, e.g. singulating-by-pushing toward `free_spot`.
   - `nothing_found`: No piece-sized blob on the mat (empty, or only foreign objects and specks).
+
+### tracking-build-state
+
+perceive · robots: any · tasks: assembly, lego · MIT · v0.1.0 · [`SKILL.md`](skills/tracking-build-state/SKILL.md) · [upstream](https://github.com/intelligent-control-lab/Robotic_Lego_Manipulation/blob/9bc91654e708e4d8428ecfa76840103cacb2a19a/src/Lego.cpp)
+
+Keeps a world model of the LEGO or DUPLO bricks placed so far and their stud connections - ICL Robotic_Lego_Manipulation's rules (two bricks connect when their footprints overlap and the upper one's bottom sits on the lower one's top within ICL's 0.1-1.1 brick-height window; moving a brick moves everything connected above it) - extended to any yaw, mixed plates and bricks, a grounded / floating check, refused interpenetrating placements, and a comparison with perceived bricks that reports missing, displaced and extra bricks. The state is a JSON string passed in and out. Use after every place, pick-off or move in a build to know which bricks are connected, which can be removed and which hang unsupported, and after a fresh observation to catch silent failures (a brick that came away with the gripper, one knocked off its cell).
+
+- **In**: `action` string
+- **Out**: `state_json` string, `n_bricks` int, `n_connections` int, `n_grounded` int, `floating_json` string, `changed_json` string, `discrepancies_json` string, `removable_json` string
+- **Scripts**: [`track_build`](skills/tracking-build-state/scripts/track_build.py)
+- **Exits**:
+  - `state_updated`: The action was applied (place, move, remove), the state was only read (query), or the observation agreed with every brick expected in view; state_json is the new state.
+  - `inconsistent_with_observation`: observe found missing, displaced or extra bricks (discrepancies_json); the state is unchanged unless apply_observation, which removes the missing, moves the displaced to where they were seen and adds the extras.
+  - `rejected`: The request could not be applied and the state is returned unchanged - a placement that would interpenetrate a tracked brick or reuse an id, a move that would carry bricks into others, an unknown brick id, or a malformed brick / observation.
 
 ### tracking-identical-parts-by-id
 

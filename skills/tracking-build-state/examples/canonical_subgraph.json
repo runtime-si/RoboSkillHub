@@ -1,0 +1,63 @@
+{
+  "skill": "tracking-build-state",
+  "inputs": {
+    "state_json": "string"
+  },
+  "outputs": {
+    "state_json": {
+      "$ref": "track.state_json"
+    },
+    "n_bricks": {
+      "$ref": "track.n_bricks"
+    },
+    "floating_json": {
+      "$ref": "track.floating_json"
+    }
+  },
+  "nodes": {
+    "track": {
+      "type": "script",
+      "script": "scripts/track_build.py",
+      "inputs": {
+        "action": "place",
+        "state_json": {
+          "$ref": "in.state_json"
+        },
+        "brick": {
+          "id": "b1",
+          "studs": [
+            2,
+            4
+          ],
+          "position": {
+            "x": 0.48,
+            "y": 0.02,
+            "z": 0.03
+          },
+          "yaw_deg": 90.0
+        },
+        "system": "duplo",
+        "ground_z": 0.0
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "track"
+    ],
+    [
+      "track",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "state_updated",
+      "inconsistent_with_observation",
+      "rejected"
+    ]
+  },
+  "on_error": "rejected"
+}

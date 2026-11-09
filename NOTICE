@@ -433,6 +433,15 @@ commit 596c496867c11ba63f47127833e0f49b7480ffd3), MIT License, Copyright (c)
 2022 Pietro Lechthaler; its YOLOv5 models are not used. The file's header lists
 the changes, and the license is
 skills/classifying-brick-resting-face-from-depth/LICENSE.ur5pickplace.
+skills/tracking-build-state/scripts/track_build.py is adapted from
+Robotic_Lego_Manipulation
+(https://github.com/intelligent-control-lab/Robotic_Lego_Manipulation,
+src/Lego.cpp get_brick_corners, bricks_overlap, is_top_connect,
+is_bottom_connect, update_brick_connection, update_all_top_bricks and
+include/Lego.hpp, commit 9bc91654e708e4d8428ecfa76840103cacb2a19a), MIT License
+(its LICENSE.md carries the MIT text under the line "Copyright (c) 2011-2023
+GitHub Inc."); the file's header lists the changes, and the license is
+skills/tracking-build-state/LICENSE.icl.
 
 skills/checking-design-connectivity-and-collisions/scripts/check_design.py is
 adapted from BrickGPT (https://github.com/AvaLovelace1/BrickGPT, commit
