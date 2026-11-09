@@ -89,7 +89,8 @@ neighbour."""
 PITCH_JOINT_JUMP = 0.6
 """Largest change of any joint but the last between the IK solutions of two consecutive pitch steps [rad]. In a
 YAM station twin the steps of a passing facing moved the joints 0.2-0.5 rad each, then the last 15 deg step jumped
-the wrist pitch 1.27 rad onto its 1.5708 limit, and the tile was lost in that step."""
+the wrist pitch 1.27 rad onto its 1.5708 limit, and the tile was lost in that step. Allowed 0.9 rad, five of six
+facings that passed still lost the tile in the pitch."""
 
 CENTRE_TOLERANCE = 0.004
 """A wrist turn that moved the tool centre more than this is followed by a re-centring move [m] (a servo's 4 mm

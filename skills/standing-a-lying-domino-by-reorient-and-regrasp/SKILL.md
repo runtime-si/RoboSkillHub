@@ -166,6 +166,10 @@ placing-an-upright-domino-beside-neighbours takes as `tile`), `verified`,
 
 ## Preconditions and boundaries
 
+- **Unproven.** In the YAM station twin it stood no tile: the 90 deg pitch
+  of a held tile over the table jumps the wrist joints, and the skill now
+  refuses those paths before moving (Simulation check, below). Nothing here
+  ran on a real YAM.
 - **A real YAM station refuses a tool centre under 14 mm over its table.**
   The default grasp (11 mm, fingertips 0.8 mm over the table) needs that floor
   lowered; at 14 mm the fingertips hold only 3.7 mm of a 7.5 mm tile's edge
@@ -233,7 +237,52 @@ written from the described behaviour. Here:
 
 ## Simulation check
 
-SIM_RESULTS
+**No tile was stood up in simulation.** A YAM station twin (RoboSimStudio,
+left arm, linear_4310 hand, MuJoCo at 500 Hz, control at 50 Hz; simulator
+ground truth only to set up and to measure): six standard dominoes (48 x 24 x
+7.5 mm boxes, 10 g, friction 0.5) lying flat 0.52-0.66 m in front of the base
+at yaws 0-150 deg, each handed to the skill as its simulator box (standing in
+for perception) with the staging spot where it lay, or at x = 0.70 m (the
+band where a probe of the pitched hand found the most headings). Standing
+meant under 10 deg of tilt with its centre at half the tile's height.
+
+| run | setup | stood | routes |
+|---|---|---|---|
+| 1 | an earlier draft of the script | 0/6 | 3 unreachable before or in the pitch, 2 descent to the spot stopped 12-61 mm high (one tile held at 10 deg lean, 1.9 mm off the spot), 1 dropped after the pitch |
+| 2 | facing by IK preview (grasp, over the spot, release), pitch in 15 deg steps | 0/6 | 3 dropped in the pitch (steps 4-5 of 6), 2 unreachable (a pitch step timed out 24-28 mm short), 1 unreachable (no last-joint room) |
+| 3 | as 2 with every pitch step previewed, grasp at 9.5 mm (5.4 mm of edge) | 0/2 | 2 dropped in the pitch (stopped after two) |
+| 4 | as 3 at 11 mm, pad torsional friction 0.005 m | 0/3 | 3 dropped at step 4 of 6 (stopped after three) |
+| 5 | shipped: joint-jump check, torsional, own spot | 0/6 | 6 unreachable in the preview, nothing moved |
+| 6 | as 5, staging at x = 0.70 m | 0/6 | 6 unreachable in the preview, nothing moved |
+| 7 | as 6, joint-jump limit 0.9 rad | 0/6 | 5 dropped in the pitch (steps 3-5), 1 unreachable holding |
+
+- **Why the tile drops.** The trace of run 4 (tile 1, facing 30 deg): the IK
+  solutions of the pitch steps over the spot moved the joints 0.2-0.5 rad a
+  step until the last one, where the wrist pitch went from 0.30 rad to its
+  1.5708 limit. The jaws read the tile's width after step 3 and closed empty
+  after step 4, which took the servo 46 control steps (the others took 16).
+  In runs 5 and 6, every facing that reached the release jumped a joint by
+  0.60-3.14 rad somewhere in the pitch, so `PITCH_JOINT_JUMP` (0.6 rad)
+  turned all twelve attempts into refusals before anything moved. With 0.9
+  rad (run 7), five of the six facings it let through lost the tile.
+- **The twin's pinch is a free hinge.** By default its contacts have no
+  torsional friction (MuJoCo condim 3). A diagnostic pitch of a pinched tile
+  turned the hand 90 deg while the tile stayed within 1.7 deg of flat,
+  turning between the pads. Runs 4-7 gave the tiles condim 4 with 0.005 m
+  torsional friction (MuJoCo's default), closer to rubber pads. The drops
+  continued.
+- Neighbours: in run 2 two lying tiles were pushed 8.9 and 13.2 mm (by the
+  hand or a dropped tile). In run 7 the fourth tile started with the third
+  still in the hand: the harness does not put down a tile the skill routes
+  `unreachable` still holding.
+- Not exercised in the twin: `standing`, `fell` and `unverified` from a real
+  release, the depth check on a standing tile, and the regrasp by
+  placing-an-upright-domino-beside-neighbours. These are covered by the unit
+  tests only.
+- What would help, untested: a staging spot chosen where the pitched release
+  keeps the wrist off its limit, a pitch driven in joint space along a
+  continuous IK chain, or the source's fallbacks: tipping the tile up against
+  an edge, or handing it to the other arm (handing-over-between-arms).
 
 ## Provenance
 
