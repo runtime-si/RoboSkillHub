@@ -1,0 +1,30 @@
+{
+  "skill": "verifying-piece-flushness-from-wrist-depth",
+  "inputs": {
+    "camera": "CameraFrame",
+    "piece_outline": "Any",
+    "neighbour_outlines": "Any"
+  },
+  "outputs": {
+    "level_m": {"$ref": "check.level_m"},
+    "tilt_rise_m": {"$ref": "check.tilt_rise_m"},
+    "high_side": {"$ref": "check.high_side"},
+    "seam_gap_m": {"$ref": "check.seam_gap_m"},
+    "seam_gap_points": {"$ref": "check.seam_gap_points"},
+    "gap_kind": {"$ref": "check.gap_kind"}
+  },
+  "nodes": {
+    "check": {
+      "type": "script",
+      "script": "scripts/verify_flush.py",
+      "inputs": {
+        "camera": {"$ref": "in.camera"},
+        "piece_outline": {"$ref": "in.piece_outline"},
+        "neighbour_outlines": {"$ref": "in.neighbour_outlines"}
+      }
+    }
+  },
+  "edges": [["START", "check"], ["check", "END"]],
+  "exit": {"router_field": "route", "success_values": ["flush", "raised", "tilted", "gap"]},
+  "on_error": "unverifiable"
+}

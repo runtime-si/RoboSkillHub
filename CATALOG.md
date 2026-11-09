@@ -142,6 +142,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`verifying-build-against-model`](#verifying-build-against-model) | verify | Compares a brick build with its target model up to the current step. | any |
 | [`verifying-grasps`](#verifying-grasps) | verify | Three independent checks on one grasp attempt. | any |
 | [`verifying-insertion-by-probe-push`](#verifying-insertion-by-probe-push) | verify | Checks whether a held part is seated after an insertion by pushing it a few millimetres further along the insertion… | any |
+| [`verifying-piece-flushness-from-wrist-depth`](#verifying-piece-flushness-from-wrist-depth) | verify | Checks from one close wrist depth frame (D405 at 8-16 cm) whether a just-placed jigsaw piece lies flush. | any |
 | [`verifying-placement`](#verifying-placement) | verify | Confirms from one RGB-D view that a released object went through an aperture, accepting either that it vanished into… | any |
 | [`backtracking-a-wrong-placement`](#backtracking-a-wrong-placement) | recover | Decides what to undo after a jigsaw piece fails its check at a cell (it does not seat, a seam with a placed neighbour… | any |
 | [`centering-a-part-with-the-gripper`](#centering-a-part-with-the-gripper) | recover | Centres a loose part between the jaws without perceiving it. | any |
@@ -2016,6 +2017,22 @@ Checks whether a held part is seated after an insertion by pushing it a few mill
   - `seated`: The push along the axis moved the hand less than seat_tolerance (default 5 mm), and every sideways push (when lateral_distance &gt; 0) less than lateral_tolerance; the hand went back to the start (return_to_start) and still holds the part.
   - `not_seated`: The hand went at least seat_tolerance further along the axis, or a sideways push moved it lateral_tolerance or more; `travel` / `lateral_travel` say how far. The hand went back to the start unless return_to_start is false.
   - `blocked`: No verdict - the hand's pose could not be read, the end of a push is out of reach by the IK preview, the tool-centre floor over table_z leaves no room for a push longer than seat_tolerance, or a push or the return to the start before a sideways push was refused.
+
+### verifying-piece-flushness-from-wrist-depth
+
+verify · robots: any · tasks: jigsaw · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/verifying-piece-flushness-from-wrist-depth/SKILL.md) · [upstream](https://github.com/isl-org/Open3D/blob/main/cpp/open3d/geometry/PointCloudSegmentation.cpp)
+
+Checks from one close wrist depth frame (D405 at 8-16 cm) whether a just-placed jigsaw piece lies flush - fits a RANSAC plane (Open3D's segment_plane, reimplemented) to the placed neighbours' tops, or to a ring round the piece holding the table and neighbours as two parallel levels, then measures the piece's own points against it - median height (raised or sunk), a plane through the piece's top (tilted, which side is high) and height profiles across the seam facing each neighbour (open seam where the table shows between two tops). Routes flush, raised, tilted, gap or unverifiable. Use when a piece has just been placed or pressed, before releasing the region to the next placement; camera-only, about 30 ms on CPU.
+
+- **In**: `camera` CameraFrame
+- **Out**: `level_m` float, `tilt_rise_m` float, `tilt_deg` float, `seam_gap_m` float
+- **Scripts**: [`verify_flush`](skills/verifying-piece-flushness-from-wrist-depth/scripts/verify_flush.py)
+- **Exits**:
+  - `flush`: The piece's median height is within 0.5 mm above / 0.6 mm below its expected top, its top rises under 1 mm across it, and no open seam of 3 mm or more faces a neighbour.
+  - `tilted`: The plane through the piece's top rises 1 mm or more across the piece (one side or a tab is up); `high_side` is the world x, y direction it rises toward.
+  - `raised`: Not tilted, but the piece's median height is 0.5 mm or more above its expected top (riding on something).
+  - `gap`: Not tilted or raised, but the piece sits 0.6 mm or more below its neighbours (`gap_kind` low) or the table shows between it and a neighbour over 3 mm or more of the outline (`gap_kind` seam, `seam_gap_points` in world x, y).
+  - `unverifiable`: Too little depth on the piece (under 40 % valid, or under 150 points) or round it, no depth or intrinsics, no piece given, or most of the slot shows the surface under the piece.
 
 ### verifying-placement
 
