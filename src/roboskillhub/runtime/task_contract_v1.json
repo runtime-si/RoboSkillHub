@@ -771,6 +771,7 @@
       "retry_on",
       "max_visits",
       "assign",
+      "branch",
       "on",
       "note"
     ],
@@ -798,6 +799,7 @@
       "default": "truthy"
     },
     "assign": "after a succeeded step whose post facts hold: {state_key: expression}",
-    "visit_exhaustion": "a visit beyond max_visits yields failed/retry_budget_exhausted routed by the node's edges"
+    "visit_exhaustion": "a visit beyond max_visits yields failed/retry_budget_exhausted routed by the node's edges",
+    "branch": "after a succeeded step: first rule {path, equals|exists, next} that holds overrides on.succeeded"
   }
 }
