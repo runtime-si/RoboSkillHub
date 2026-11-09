@@ -2044,6 +2044,22 @@ def run(
         why = hand_a.line(_xyz(here()) + (hp - c_now), r_a)
         if why:
             return finish("unreachable", f"to the handover point: {why}; still holding")
+        # The chained steps leave the roll free: square the held tile's width along the helper's approach again
+        # (in a station twin it had drifted 35 deg, and the helper's quarter roll then stood it at 55 deg).
+        r_now = turn_last(
+            lambda r: wrap(turn_about(r @ local_approach, r @ local_close, w_dir), True),
+            _xyz(here()),
+            "yaw_turn_deg",
+            period=180.0,
+            step_deg=float(pitch_step_deg),
+        )
+        err = wrap(turn_about(r_now @ local_approach, r_now @ local_close, w_dir), True)
+        if abs(err) > float(roll_tolerance_deg):
+            return finish(
+                "unreachable",
+                f"at the handover point the held tile's width stayed {err:+.0f} deg off the helper's approach; "
+                "still holding",
+            )
         why = holding(width())
         if why:
             return finish("dropped", f"at the handover point: {why}")
