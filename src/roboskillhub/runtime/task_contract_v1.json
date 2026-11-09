@@ -116,7 +116,9 @@
     "stop": "stops active motion",
     "invocation_lease": "backend-side ownership across processes",
     "contact_force_feedback": "F/T or equivalent contact force; must declare signal, units, rate, max age",
-    "compliant_motion": "force/impedance control closed in the controller process"
+    "compliant_motion": "force/impedance control closed in the controller process",
+    "joint_position_feedback": "measured joint positions with names, source and timestamp",
+    "joint_motion": "joint-space interpolation through a supplied q_path"
   },
   "primitives": {
     "move_pose": {
@@ -254,6 +256,24 @@
         }
       },
       "outcome": "succeeded: stop_reason force_threshold|travel_limit with stop_confirmed; unconfirmed stop or signal_lost -> unverified; timeout -> failed/timeout; fault -> failed/backend_error. Judges nothing about the workpiece."
+    },
+    "move_joints": {
+      "requires": [
+        "pose_feedback",
+        "joint_position_feedback",
+        "joint_motion",
+        "stop"
+      ],
+      "since": "rsh-task/1.2",
+      "request": {
+        "q_path": "number[1..16][1..256] (radians, backend joint order)",
+        "joint_names": "string[]? (must equal the declared order)",
+        "speed_rad_s": "number? <= min max_velocity_rad_s",
+        "timeout_s": "number?"
+      },
+      "backend": "describe().joints = {names, lower_rad, upper_rad, max_velocity_rad_s}; move_joints(q_path, speed_rad_s, timeout_s) -> {ok}; get_state().joints = {names, positions_rad, timestamp_s, source}",
+      "checks": "every point within joint limits (else rejected/unreachable); no step (from the measured start) larger than limits.max_joint_step_rad (default 0.2) (else rejected/precondition_unmet)",
+      "outcome": "succeeded when fresh measured joints are within limits.joint_tolerance_rad (default 0.02) of the last point; the path between points is the controller's joint interpolation"
     }
   },
   "schemas": {
@@ -453,7 +473,15 @@
             "occlusion",
             "identity_changed",
             "released",
-            "regrasped"
+            "regrasped",
+            "grasp_lost",
+            "stale"
+          ]
+        },
+        "invalidated_detail": {
+          "type": [
+            "string",
+            "null"
           ]
         }
       }
@@ -772,7 +800,8 @@
       "sleep(s)",
       "limits (read-only station limits)",
       "backend_description",
-      "evidence_level (from backend describe().evidence_level, default unit_or_dryrun)"
+      "evidence_level (from backend describe().evidence_level, default unit_or_dryrun)",
+      "state().joints when the backend reports joints"
     ],
     "gates": [
       "version match",
@@ -843,12 +872,49 @@
     "visit_exhaustion": "a visit beyond max_visits yields failed/retry_budget_exhausted routed by the node's edges",
     "branch": "after a succeeded step: first rule {path, equals|exists, next} that holds overrides on.succeeded"
   },
-  "contract_revision": "1.1",
+  "contract_revision": "1.2",
   "evidence_levels": [
     "unit_or_dryrun",
     "kinematic_sim",
     "dynamic_sim_privileged",
     "dynamic_sim_observed",
     "real_observed"
-  ]
+  ],
+  "state_labels": {
+    "domino": [
+      "standing",
+      "lying",
+      "on_side",
+      "toppled",
+      "uncertain"
+    ],
+    "lego_brick": [
+      "seated",
+      "loose",
+      "uncertain"
+    ],
+    "note": "on_side: domino resting on a long edge, width axis vertical"
+  },
+  "object_frames": {
+    "domino": {
+      "origin": "geometric centre",
+      "+x": "facing (thickness)",
+      "+y": "width",
+      "+z": "height (long axis)",
+      "size_m": "[h, w, t] = extents along z, y, x"
+    },
+    "lego_brick": {
+      "origin": "bottom-face centre (no studs)",
+      "+z": "up through the studs",
+      "+x": "along studs[0]",
+      "mating_pose": "pose of this frame at the target"
+    },
+    "baseplate": {
+      "origin": "top-surface centre (stud bases)",
+      "+z": "out of the studs",
+      "+x": "along studs[0]"
+    },
+    "placement.layer": "0 = standing directly on the baseplate (computing-brick-pose-from-stud-grid uses 1 for this; convert at that boundary)"
+  },
+  "observation_order": "visibility occluded/not_found is reported as object_not_observed (with the provider's reason) before the position is parsed"
 }

@@ -22,7 +22,11 @@ import sys
 from typing import Any, TypedDict
 
 import numpy as np
-from gap import NodeContext
+
+try:
+    from gap import NodeContext
+except ImportError:  # annotation only; lets the domino task module import this without gap
+    NodeContext = Any
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import topple_physics as physics  # noqa: E402

@@ -602,3 +602,93 @@ def test_context_exposes_state_limits_and_evidence_level(limits):
         assert callable(ctx.sleep)
     with pytest.raises(Exception, match="no station state"):
         offline_context().state()
+
+
+# --- contract 1.2: move_joints, observation order ----------------------------
+
+NAMES = ["j1", "j2"]
+
+
+class JointStation(FakeStation):
+    def __init__(self, stall=False):
+        super().__init__(capabilities=BASE + ["joint_position_feedback", "joint_motion"])
+        self.q = [0.0, 0.0]
+        self.stall = stall
+
+    def describe(self):
+        return {
+            **super().describe(),
+            "joints": {
+                "names": NAMES,
+                "lower_rad": [-1.0, -1.0],
+                "upper_rad": [1.0, 1.0],
+                "max_velocity_rad_s": [1.0, 1.0],
+            },
+        }
+
+    def get_state(self, *, timeout_s):
+        state = super().get_state(timeout_s=timeout_s)
+        state["joints"] = {
+            "names": NAMES,
+            "positions_rad": list(self.q),
+            "timestamp_s": state["timestamp_s"],
+            "source": "fake_encoders",
+        }
+        return state
+
+    def move_joints(self, q_path, *, speed_rad_s, timeout_s):
+        self.calls.append("move_joints")
+        if not self.stall:
+            self.q = list(q_path[-1])
+        return {"ok": True}
+
+
+def test_move_joints_checks_limits_steps_and_arrival(limits):
+    path = [[0.1, 0.0], [0.2, 0.1], [0.3, 0.2]]
+    ok = Runtime(JointStation(), limits).invoke("move_joints", {"q_path": path})
+    assert ok["status"] == "succeeded", ok
+    assert ok["evidence"]["final_rad"] == [0.3, 0.2]
+    station = JointStation()
+    out = Runtime(station, limits).invoke("move_joints", {"q_path": [[1.5, 0.0]]})
+    assert (out["status"], out["failure_type"]) == ("rejected", "unreachable")
+    out = Runtime(station, limits).invoke("move_joints", {"q_path": [[0.5, 0.0]]})
+    assert (out["status"], out["failure_type"]) == ("rejected", "precondition_unmet")
+    assert station.calls == []
+    stuck = Runtime(JointStation(stall=True), limits).invoke("move_joints", {"q_path": path})
+    assert (stuck["status"], stuck["failure_type"]) == ("failed", "motion_not_converged")
+    plain = Runtime(FakeStation(), limits).invoke("move_joints", {"q_path": path})
+    assert (plain["status"], plain["failure_type"]) == ("rejected", "capability_missing")
+
+
+def test_context_state_includes_joints(limits):
+    rt = Runtime(JointStation(), limits)
+    with rt.task_lease("ep-j", 30) as lease:
+        state = primitive_skill_context(rt, lease, request_id="r").state()
+    assert state["joints"]["names"] == NAMES
+
+
+def test_explicit_occlusion_is_not_observed_with_the_providers_reason(limits):
+    station = FakeStation()
+    station.object_extra["d0"] = {
+        "visibility": "occluded",
+        "position_m": None,
+        "reason": "behind the gripper",
+    }
+    out = Runtime(station, limits).invoke("observe_objects", {"object_ids": ["d0"]})
+    assert (out["status"], out["failure_type"]) == ("unverified", "object_not_observed")
+    assert out["evidence"]["observations"][0]["reason"] == "behind the gripper"
+
+
+def test_held_object_vocabulary_v12():
+    held = {
+        "object_id": "d0",
+        "gripper_id": "g",
+        "T_TCP_object": pose(0, 0, 0, frame="tcp"),
+        "estimate": "grasp_geometry_prior",
+        "timestamp_s": 1.0,
+        "valid": False,
+        "invalidated_reason": "grasp_lost",
+        "invalidated_detail": "jaw width collapsed",
+    }
+    validate("HeldObject", held)
+    assert CONTRACT["object_frames"]["domino"]["+x"].startswith("facing")

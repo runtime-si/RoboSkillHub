@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-20 tools, 115 skills, 2 policies, 1 recipe and 1 paper.
+20 tools, 116 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -105,6 +105,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`inserting-a-peg-with-pose-refinement`](#inserting-a-peg-with-pose-refinement) | execute | Inserts a held peg into a perceived hole in three stages. | any |
 | [`inserting-mid-air-between-two-held-parts`](#inserting-mid-air-between-two-held-parts) | execute | Inserts the part one arm holds into (or presses it onto) the part the other arm holds, both in the air. | any, 2 arms |
 | [`lifting-with-both-arms`](#lifting-with-both-arms) | execute | Lifts an elongated object (a bar, a tray, a pot by its handles) with both arms. | any, 2 arms |
+| [`moving-along-joint-path`](#moving-along-joint-path) | execute | Moves the arm through a supplied joint-space path on a backend that declares its joints and reports measured joint… | yam_i2rt |
 | [`moving-both-arms-together`](#moving-both-arms-together) | execute | Moves both hands to their target poses as one coordinated motion. | any, 2 arms |
 | [`moving-through-waypoints`](#moving-through-waypoints) | execute | Moves the measured tool pose through a bounded list of waypoints on the configured YAM or Isaac workcell adapter… | yam_i2rt |
 | [`moving-to-pose`](#moving-to-pose) | execute | Moves the measured tool pose through the configured YAM or Isaac workcell adapter. | yam_i2rt |
@@ -1421,6 +1422,23 @@ Lifts an elongated object (a bar, a tray, a pot by its handles) with both arms -
   - `lifted`: Both hands rose lift_height in steps, every step arrived within level_tolerance of its height, both jaw openings stayed above the stop and the hands' separation within separation_tolerance of its value at the grasp; object_obb is the input box raised by the hands' mean rise (the hands' motion, not a re-perception).
   - `slipped`: A jaw closed to the stop at its grasp point (both hands then opened and backed off to their hovers), or during the lift a jaw ran to the stop or the hands' separation drifted past separation_tolerance; mid-lift the hands stay where they stopped, closed, and `detail` says which arm and at what height.
   - `unreachable`: No hover, wrist solution or descent for one arm (hands opened and backed off), or an arm could not follow a lift step (the other was brought back level with it, both still closed on the object); also routed when the two arm ids are equal, the connector reports no separate second arm, or the box's long axis is not horizontal.
+
+### moving-along-joint-path
+
+execute · robots: yam_i2rt · tasks: motion · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/moving-along-joint-path/SKILL.md)
+
+Moves the arm through a supplied joint-space path on a backend that declares its joints and reports measured joint positions, checking limits and step size before motion and measured arrival after. Use when a validated q_path (e.g. a reorient plan checked for IK jumps) must run as planned.
+
+- **In**: `request_json` string
+- **Out**: `result_json` string, `status` string
+- **Calls**: [`workcell`](#workcell)
+- **Scripts**: [`main`](skills/moving-along-joint-path/scripts/main.py)
+- **Note**: Adapter-backed implementation; station setup and task-specific validation are required. No sim/real verification is claimed.
+- **Exits**:
+  - `succeeded`: The capability-specific postcondition is supported by the returned measurements.
+  - `failed`: The attempted operation or tracking update did not meet its required condition.
+  - `unverified`: Available evidence is insufficient to establish the requested physical postcondition.
+  - `rejected`: The request, station configuration or required backend capability is not accepted.
 
 ### moving-both-arms-together
 

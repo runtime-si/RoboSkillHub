@@ -35,6 +35,7 @@ REQUIRES = {
     "move_waypoints": {"pose_feedback", "cartesian_motion", "stop"},
     "observe_objects": {"object_feedback"},
     "guarded_press": {"pose_feedback", "contact_force_feedback", "compliant_motion", "stop"},
+    "move_joints": {"pose_feedback", "joint_position_feedback", "joint_motion", "stop"},
 }
 
 STOP_REASONS = ("force_threshold", "travel_limit", "timeout", "signal_lost", "fault")
@@ -310,6 +311,9 @@ class Runtime:
             elif capability == "move_waypoints":
                 self.phase = "transport"
                 result["evidence"] = self._waypoints(plan)
+            elif capability == "move_joints":
+                self.phase = "transport"
+                result["evidence"] = self._joints(plan, description)
             elif capability == "guarded_press":
                 self.phase = "contact"
                 result["evidence"] = self._guarded_press(plan, description)
@@ -850,6 +854,11 @@ class Runtime:
             if key in item:
                 record[key] = item[key]
         record["visibility"] = item.get("visibility", "visible")
+        if record["visibility"] in ("occluded", "not_found"):
+            given = item.get("reason")
+            record["reason"] = given if isinstance(given, str) and given else record["visibility"]
+            record["timestamp_s"] = item.get("timestamp_s")
+            return record, ("object_not_observed", f"{target}: {record['reason']}")
         if item.get("frame_id") != self.limits.frame_id:
             record["reason"] = "observation frame does not match station frame"
             return record, ("evidence_missing", f"{target}: {record['reason']}")
@@ -866,9 +875,6 @@ class Runtime:
             record["position_m"] = None
             record["reason"] = str(exc)
             return record, ("evidence_missing", f"{target}: {exc}")
-        if record["visibility"] in ("occluded", "not_found"):
-            record["reason"] = record["visibility"]
-            return record, ("object_not_observed", f"{target}: {record['visibility']}")
         age = now - record["timestamp_s"]
         if age > self.limits.max_state_age_s or age < -0.1:
             record["reason"] = f"observation age {age:.3f} s exceeds the limit"
@@ -949,5 +955,100 @@ class Runtime:
         if reply["stop_reason"] == "fault":
             raise ExecutionFailed(
                 f"controller fault: {evidence['fault']}", failure_type="backend_error"
+            )
+        return evidence
+
+    def _joint_reading(self, state: dict, names: list[str], *, after: float) -> list[float]:
+        joints = state.get("joints")
+        if not isinstance(joints, dict) or not joints.get("source"):
+            raise EvidenceMissing("no measured joint positions with a source")
+        self._fresh(joints.get("timestamp_s"), after=after)
+        if joints.get("names") != names:
+            raise EvidenceMissing("joint reading names differ from the declared joint order")
+        try:
+            return vector(joints.get("positions_rad"), "positions_rad", len(names))
+        except Rejected as exc:
+            raise EvidenceMissing(str(exc)) from exc
+
+    def _joints(self, plan: dict, description: dict) -> dict:
+        spec = description.get("joints")
+        if not (
+            isinstance(spec, dict)
+            and isinstance(spec.get("names"), list)
+            and spec["names"]
+            and all(
+                isinstance(spec.get(k), list)
+                for k in ("lower_rad", "upper_rad", "max_velocity_rad_s")
+            )
+            and len(
+                {len(spec[k]) for k in ("names", "lower_rad", "upper_rad", "max_velocity_rad_s")}
+            )
+            == 1
+        ):
+            raise Rejected(
+                "backend declares no joints {names, lower_rad, upper_rad, max_velocity_rad_s}",
+                failure_type="capability_missing",
+            )
+        move_joints = getattr(self.backend, "move_joints", None)
+        if not callable(move_joints):
+            raise Rejected("backend has no move_joints()", failure_type="capability_missing")
+        names = spec["names"]
+        if plan.get("joint_names", names) != names:
+            raise Rejected("joint_names must match the backend's declared joint order")
+        path = []
+        for i, q in enumerate(plan["q_path"]):
+            q = vector(q, f"q_path[{i}]", len(names))
+            for j, (lo, x, hi) in enumerate(
+                zip(spec["lower_rad"], q, spec["upper_rad"], strict=True)
+            ):
+                if not lo <= x <= hi:
+                    raise Rejected(
+                        f"q_path[{i}] joint {names[j]} = {x:.4f} outside [{lo}, {hi}]",
+                        failure_type="unreachable",
+                    )
+            path.append(q)
+        speed = number(
+            plan.get("speed_rad_s", min(0.5, min(spec["max_velocity_rad_s"]))),
+            "speed_rad_s",
+            1e-4,
+            min(spec["max_velocity_rad_s"]),
+        )
+        start = self._joint_reading(self._state(after=0), names, after=0)
+        for i, (a, b) in enumerate(zip([start, *path], path, strict=False)):
+            step = max(abs(x - y) for x, y in zip(a, b, strict=True))
+            if step > self.limits.max_joint_step_rad:
+                raise Rejected(
+                    f"q_path step {i} moves a joint {step:.3f} rad > max_joint_step_rad",
+                    failure_type="precondition_unmet",
+                )
+        self._remaining()
+        self.command_issued = True
+        self.last_command_at = time.time()
+        ack = move_joints(path, speed_rad_s=speed, timeout_s=self._remaining())
+        self.trace.append({"event": "move_joints", "points": len(path), "reply": ack})
+        if not isinstance(ack, dict) or ack.get("ok") is not True:
+            raise ExecutionFailed(
+                "joint motion backend did not acknowledge completion",
+                failure_type="motion_not_converged",
+            )
+        self.last_command_at = time.time()
+        state = self._state(after=self.last_command_at)
+        final = self._joint_reading(state, names, after=self.last_command_at)
+        error = max(abs(x - y) for x, y in zip(final, path[-1], strict=True))
+        evidence = {
+            "joint_names": names,
+            "start_rad": start,
+            "final_rad": final,
+            "target_rad": path[-1],
+            "max_joint_error_rad": error,
+            "tolerance_rad": self.limits.joint_tolerance_rad,
+            "measured_pose": state["pose"],
+            "points": len(path),
+            "criterion": "measured joints within joint_tolerance_rad of the last q_path point",
+        }
+        self.trace.append({"event": "joint_verification", **evidence})
+        if error > self.limits.joint_tolerance_rad:
+            raise ExecutionFailed(
+                f"joints did not converge: {error:.4f} rad", failure_type="motion_not_converged"
             )
         return evidence

@@ -424,6 +424,11 @@ requires `contact_force_feedback`, `compliant_motion`, a declared `contact_signa
 station `max_contact_force_N`; it reports the controller's stop and force trace and
 judges nothing about the part.
 
+`move_joints` (`q_path`, contract 1.2) requires `joint_position_feedback` and
+`joint_motion`, a declared joint table and measured joints; limits and step size
+(`max_joint_step_rad`) are checked before motion and arrival within
+`joint_tolerance_rad` after it.
+
 No current backend declares `linear_cartesian_motion`, `contact_force_feedback`
 or `compliant_motion`, so requests needing them are rejected with
 `capability_missing`. The Isaac adapter declares `object_pose_feedback` only when

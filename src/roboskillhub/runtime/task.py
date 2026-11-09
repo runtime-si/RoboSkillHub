@@ -361,11 +361,17 @@ def primitive_skill_context(
         except Rejected as exc:
             raise EvidenceMissing(f"invalid measured TCP pose: {exc}") from exc
         gripper = state.get("gripper") if isinstance(state.get("gripper"), dict) else {}
-        return {
+        out = {
             "tcp_pose": pose,
             "timestamp_s": state.get("timestamp_s"),
             "gripper": {k: gripper.get(k) for k in ("holding", "width_m", "timestamp_s", "source")},
         }
+        if isinstance(state.get("joints"), dict):
+            joints = state["joints"]
+            out["joints"] = {
+                k: joints.get(k) for k in ("names", "positions_rad", "timestamp_s", "source")
+            }
+        return out
 
     return SkillContext(
         task_id=lease.task_id,
