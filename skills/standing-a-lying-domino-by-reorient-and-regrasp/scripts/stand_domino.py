@@ -2055,10 +2055,15 @@ def run(
                 f"the helper closed to {w_b * 1e3:.1f} mm, not across the {tt * 1e3:.1f} mm tile; still holding",
             )
         # The tile in the helper's hand frame, from this arm's model of it.
+        # The broad faces lie on the helper's pads: its closing axis is the tile's thickness axis.
         pb, rb_now = hand_b.pose()
         c_loc = rb_now.T @ (c_now - pb)
+        n_loc = b_close / (np.linalg.norm(b_close) or 1.0)
+        if float(n_loc @ (rb_now.T @ n_t)) < 0.0:
+            n_loc = -n_loc
         e_loc = rb_now.T @ e_now
-        n_loc = rb_now.T @ n_t
+        e_loc = e_loc - float(e_loc @ n_loc) * n_loc
+        e_loc = e_loc / (np.linalg.norm(e_loc) or 1.0)
         why = set_width(grip_open)
         if why:
             return finish("unreachable", f"this arm did not open at the handover ({why})")
@@ -2075,6 +2080,15 @@ def run(
         # --- the helper rolls a quarter turn about its approach: the far end down, the tile upright.
         roll = turn_about(rb_now @ b_approach, rb_now @ e_loc, z_up)
         why = hand_b.roll(roll, float(pitch_step_deg), b_approach)
+        for _ in range(TURN_TRIES):
+            if why:
+                break
+            _, rb_now = hand_b.pose()
+            rest = turn_about(rb_now @ b_approach, rb_now @ e_loc, z_up)
+            if abs(rest) <= float(roll_tolerance_deg) / 2.0:
+                break
+            why = hand_b.roll(rest, float(pitch_step_deg), b_approach)
+            roll += rest
         if why:
             return finish("unreachable", f"the helper's roll: {why}; the helper holds the tile")
         pb, rb_now = hand_b.pose()
