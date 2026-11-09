@@ -167,6 +167,7 @@ action space and rate, the state and the cameras.
 tools/ skills/ policies/   every bundle, one directory each
 recipes/ papers/    task templates and paper cards
 evals/              eval records; they set maturity
+candidates/         read-only index of upstream sources (`roboskillhub sources`); never bundles
 CATALOG.md          every bundle on one page, written by `roboskillhub catalog`
 .github/workflows/  the website: `roboskillhub site` rebuilds it from main on every push
 tests/              the hub's tests; tests/bundles/ holds the bundles' own

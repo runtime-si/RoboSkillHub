@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "collection": "pick-place",
+  "snapshot_date": "2026-11-08",
+  "scope": "Read-only index of upstream pick-and-place implementations (grasp candidates, placement candidates, in-hand planning, placement verification). Entries are discovery records, not Hub bundles: every entry has invocable_in_hub=false and is never loaded by search, view, lock or runtime.",
+  "counting_policy": "One distinct implementation per dedup_key. Counts must be reported separately for each license status (permissive / copyleft / research-only / unresolved) and for each review level (metadata-indexed vs implementation-inspected); never sum them into a single 'usable' total. A code license label does not clear weights, datasets or dependencies.",
+  "entries": []
+}

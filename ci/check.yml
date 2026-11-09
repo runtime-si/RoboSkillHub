@@ -23,6 +23,8 @@ jobs:
         run: uv run --no-sync roboskillhub sync
       - name: Check every bundle, overlay, recipe, paper and eval record
         run: uv run --no-sync roboskillhub check --require-gap -v
+      - name: Check the read-only source index
+        run: uv run --no-sync roboskillhub check-sources
       - name: Lint
         run: uvx ruff@0.16.1 check . && uvx ruff@0.16.1 format . --check
       - name: Test
