@@ -815,7 +815,8 @@
       "limits (read-only station limits)",
       "backend_description",
       "evidence_level (from backend describe().evidence_level, default unit_or_dryrun)",
-      "state().joints when the backend reports joints"
+      "state().joints when the backend reports joints",
+      "contact_description (1.4): {backend_id, evidence_level, capabilities, contact_signal, controller{kind, loop_hz, process}, limits{max_force_N = min(backend contact_limits.max_force_N, station max_contact_force_N), ...}, privileged:false} built from describe() keys contact_signal / controller / contact_limits when the backend declares contact_force_feedback and compliant_motion; else null"
     ],
     "gates": [
       "version match",
@@ -886,7 +887,7 @@
     "visit_exhaustion": "a visit beyond max_visits yields failed/retry_budget_exhausted routed by the node's edges",
     "branch": "after a succeeded step: first rule {path, equals|exists, next} that holds overrides on.succeeded"
   },
-  "contract_revision": "1.3",
+  "contract_revision": "1.4",
   "evidence_levels": [
     "unit_or_dryrun",
     "kinematic_sim",

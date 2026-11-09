@@ -178,6 +178,8 @@ class SkillContext:
     evidence_level: str = "unit_or_dryrun"
     read_state: Callable[[], dict] | None = None
     sleep: Callable[[float], None] = time.sleep
+    contact_description: Mapping[str, Any] | None = None
+    """Contact signal, controller and contact limits of a ``guarded_press`` station, else None."""
 
     def invoke(self, capability: str, request: dict) -> dict:
         if self.primitive is None:
@@ -337,6 +339,39 @@ def run_task_skill(skill: TaskSkill, request: dict, ctx: SkillContext) -> dict:
     return result
 
 
+def contact_description(description: Mapping[str, Any], limits) -> dict | None:
+    """What a contact skill needs to judge a ``guarded_press`` station, from ``describe()``.
+
+    None unless the backend declares compliant contact and describes its signal and controller.
+    """
+    capabilities = set(description.get("capabilities", []))
+    signal, controller = description.get("contact_signal"), description.get("controller")
+    if not (
+        {"contact_force_feedback", "compliant_motion"} <= capabilities
+        and isinstance(signal, dict)
+        and isinstance(controller, dict)
+    ):
+        return None
+    declared = description.get("contact_limits")
+    declared = dict(declared) if isinstance(declared, dict) else {}
+    station_max = float(getattr(limits, "max_contact_force_N", 0.0) or 0.0)
+    caps = [
+        x
+        for x in (declared.get("max_force_N"), station_max)
+        if isinstance(x, (int, float)) and not isinstance(x, bool) and x > 0
+    ]
+    declared["max_force_N"] = min(caps) if caps else 0.0  # the tighter of backend and station
+    return {
+        "backend_id": description.get("backend", "runtime"),
+        "evidence_level": description.get("evidence_level", "unit_or_dryrun"),
+        "capabilities": sorted(capabilities),
+        "contact_signal": dict(signal),
+        "controller": {k: controller.get(k) for k in ("kind", "loop_hz", "process")},
+        "limits": declared,
+        "privileged": False,
+    }
+
+
 def primitive_skill_context(
     runtime: Any,
     lease: Any,
@@ -384,6 +419,7 @@ def primitive_skill_context(
         backend_description=dict(description),
         evidence_level=description.get("evidence_level", "unit_or_dryrun"),
         read_state=read_state,
+        contact_description=contact_description(description, limits),
     )
 
 

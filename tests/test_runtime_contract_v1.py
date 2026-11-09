@@ -772,3 +772,32 @@ def test_real_time_factor_stretches_deadlines(limits):
     assert {"event": "deadline_scaled", "real_time_factor": 0.25} in out["trace"]
     assert real_time_factor({"real_time_factor": 3}) == 1.0
     assert real_time_factor({"real_time_factor": 0.001}) == 0.05
+
+
+def test_context_carries_contact_description_only_for_compliant_stations(limits):
+    class Press(FakeStation):
+        def describe(self):
+            return {
+                **super().describe(),
+                "capabilities": BASE + ["contact_force_feedback", "compliant_motion"],
+                "contact_signal": {
+                    "quantity": "force",
+                    "unit": "N",
+                    "frame_id": "world",
+                    "calibration_id": "tare",
+                },  # fmt: skip
+                "controller": {"kind": "impedance", "loop_hz": 120, "process": "sim", "extra": 1},
+                "contact_limits": {"max_force_N": 50.0, "max_travel_m": 0.01},
+            }
+
+    capped = Limits.from_dict({**vars(limits), "max_contact_force_N": 10.0})
+    for station, lim, expect in ((Press(), capped, 10.0), (FakeStation(), limits, None)):
+        rt = Runtime(station, lim)
+        with rt.task_lease("ep-c", 10) as lease:
+            ctx = primitive_skill_context(rt, lease, request_id="r")
+        if expect is None:
+            assert ctx.contact_description is None
+        else:
+            d = ctx.contact_description
+            assert d["limits"]["max_force_N"] == expect and d["limits"]["max_travel_m"] == 0.01
+            assert d["controller"] == {"kind": "impedance", "loop_hz": 120, "process": "sim"}

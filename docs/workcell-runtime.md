@@ -436,6 +436,11 @@ judges nothing about the part.
 `real_time_factor` below 1; primitive deadlines and task-lease budgets are then
 divided by it.
 
+`SkillContext.contact_description` (contract 1.4) is built from the backend's
+`contact_signal`, `controller` and optional `contact_limits` when it declares
+`contact_force_feedback` and `compliant_motion`; its `limits.max_force_N` is the
+tighter of the backend's value and the station's `max_contact_force_N`.
+
 No current backend declares `linear_cartesian_motion`, `contact_force_feedback`
 or `compliant_motion`, so requests needing them are rejected with
 `capability_missing`. The Isaac adapter declares `object_pose_feedback` only when
