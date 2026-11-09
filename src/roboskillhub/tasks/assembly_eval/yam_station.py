@@ -154,6 +154,7 @@ class YamDominoStation:
         self._retreat_pending = False
         self.command_log: list[dict] = []
         self.refusals: list[dict] = []
+        self.motions: list[dict] = []
         self.hand_track: list[tuple[float, float]] = []
         self.stopped = False
 
@@ -436,6 +437,8 @@ class YamDominoStation:
         wall_deadline = time.time() + max(timeout_s, 0.1)
         g0 = self.grip_cmd
         self.stopped = False
+        track = 0.0
+        t_sim0 = self.sim_t
         for i in range(1, n + 1):
             t = min(total, i * dt)
             k = min(len(durs) - 1, int(np.searchsorted(bounds, t, side="right") - 1)) if durs else 0
@@ -447,9 +450,14 @@ class YamDominoStation:
             if grip_to is not None:
                 self.grip_cmd = g0 + (grip_to - g0) * (i / n)
             self._step()
+            track = max(
+                track, float(np.linalg.norm(self.kin.fk(self.q_cmd)[0] - self.physics.tcp()[0]))
+            )
             if time.time() > wall_deadline:
                 self._last_wall = time.time()
+                self._motion_log(t_sim0, total, track, None, False)
                 return False
+        settle_s = 0.0
         if settle:
             p_t, R_t = self.kin.fk(self.q_cmd)
             for _ in range(round(0.5 / dt)):
@@ -457,8 +465,27 @@ class YamDominoStation:
                 if np.linalg.norm(p - p_t) < 0.001 and np.linalg.norm(rot_err(R_t, R)) < 0.01:
                     break
                 self._step()
+                settle_s += dt
         self._last_wall = time.time()
+        self._motion_log(t_sim0, total, track, settle_s if settle else None, True)
         return True
+
+    def _motion_log(self, t0, planned_s, track, settle_s, completed) -> None:
+        """Per motion: planned duration, largest commanded-vs-measured TCP distance while moving
+        (servo lag), settling time and the remaining error at the ack."""
+        p_t, R_t = self.kin.fk(self.q_cmd)
+        p, R = self.physics.tcp()
+        self.motions.append(
+            {
+                "sim_s": t0,
+                "planned_s": round(planned_s, 4),
+                "max_tracking_error_m": round(track, 5),
+                "settle_s": None if settle_s is None else round(settle_s, 4),
+                "ack_error_m": round(float(np.linalg.norm(p - p_t)), 5),
+                "ack_error_rad": round(float(np.linalg.norm(rot_err(R_t, R))), 5),
+                "completed": completed,
+            }
+        )
 
     def _refuse(self, what: str, request, reason: str) -> dict:
         self.refusals.append(

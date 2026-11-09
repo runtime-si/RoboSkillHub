@@ -99,6 +99,7 @@ class EmbodimentEnv(dgb.PhysicsEnv):
         episode["skill_vs_evaluator"] = dgb.pair_results(episode, ind)
         station = built["station"]
         episode["station_refusals"] = getattr(station, "refusals", [])
+        episode["station_motions"] = getattr(station, "motions", None)
         episode["stopped_at"] = _stopped_at(episode)
         episode["picked_candidates"] = _picked(episode, self.pick_candidate)
         self._save(graph, seed, episode, station)
@@ -160,11 +161,25 @@ def episode_row(e: dict) -> dict:
         "task_success": e["task_success"],
         "stopped_at": e.get("stopped_at"),
         "refusals": [r["reason"] for r in e.get("station_refusals", [])],
+        "motion": _motion_summary(e.get("station_motions")),
         "picked_candidates": e.get("picked_candidates"),
         "steps": len(e["steps"]),
         "sim_s": e["independent"]["sim_time_s"],
         "wall_s": e["wall_s"],
         "record": e.get("record_dir"),
+    }
+
+
+def _motion_summary(motions: list[dict] | None) -> dict | None:
+    if not motions:
+        return None
+    done = [m for m in motions if m["completed"]]
+    return {
+        "moves": len(motions),
+        "max_tracking_error_m": max(m["max_tracking_error_m"] for m in motions),
+        "max_settle_s": max((m["settle_s"] or 0.0) for m in done) if done else None,
+        "max_ack_error_m": max(m["ack_error_m"] for m in done) if done else None,
+        "max_ack_error_rad": max(m["ack_error_rad"] for m in done) if done else None,
     }
 
 
