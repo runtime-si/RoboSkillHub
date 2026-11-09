@@ -282,3 +282,33 @@ def test_depth_observation_reuses_the_placing_skill_judge():
     rec = depth_upright_observation(obs, "dX", tile_pose(0.30, 0.0), 0.0, g, timestamp_s=T0)
     assert rec["state_label"] == "lying" and math.isfinite(rec["depth_check"]["top"])
     assert rec["source"].startswith("depth_top_check") and SOURCE not in rec["source"]
+
+
+def test_assembly_eval_samples_adapter():
+    from roboskillhub.tasks.domino.adapters import from_eval_samples
+
+    def sample(t, contacts):
+        return {
+            "t": t,
+            "stamp": t,
+            "seq": int(t * 10),
+            "source": "simulation_truth",
+            "frame": FRAME,
+            "objects": {
+                k: {"position": p["position_m"], "quat_xyzw": p["quaternion_xyzw"]}
+                for k, p in (("d2", TARGET), ("d0", N0), ("d1", N1))
+            },
+            "contacts": contacts,
+        }
+
+    samples = [sample(RELEASE + 0.5, {"d2": ["table"]})] + [
+        sample(RETREAT + 0.25 * k, {"d2": ["table"]}) for k in range(4)
+    ]
+    records, grip = from_eval_samples(samples, target_id="d2")
+    out = verify_stable_placement(req(records, holding=None, tcp_z=0.05, gripper_states=grip))
+    assert out["status"] == "succeeded" and out["privileged_inputs"]
+    assert out["evidence"]["release"]["by"] == "gripper:simulation_truth:contacts"
+    held = [sample(RELEASE + 0.5, {"d2": ["table", "gripper_pad_l"]})] + samples[1:]
+    records, grip = from_eval_samples(held, target_id="d2")
+    out = verify_stable_placement(req(records, holding=None, gripper_states=grip))
+    assert out["status"] == "failed" and out["failure_type"] == "release_failed"
