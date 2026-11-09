@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-19 tools, 113 skills, 2 policies, 1 recipe and 1 paper.
+19 tools, 114 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -65,6 +65,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`computing-brick-pose-from-stud-grid`](#computing-brick-pose-from-stud-grid) | plan | Converts between a cell on a LEGO or DUPLO baseplate's stud grid (x, y, layer, brick size such as 2x4, rotation… | any |
 | [`computing-feature-mating-poses`](#computing-feature-mating-poses) | plan | Computes approach, engaged, and mate TCP poses from a held feature in the hand and a fixture feature, resolving free… | any |
 | [`executing-keypoint-motion`](#executing-keypoint-motion) | plan | Plans and executes a one-step manipulation from a language instruction with MOKA's mark-based visual prompting. | any |
+| [`finding-the-longest-domino-chain`](#finding-the-longest-domino-chain) | plan | Finds the longest chain of matching dominoes a hand can lay from a start value. | any |
 | [`parsing-ldraw-build-instructions`](#parsing-ldraw-build-instructions) | plan | Reads an LDraw .ldr / .mpd build file. | any |
 | [`planning-a-brick-mosaic-from-an-image`](#planning-a-brick-mosaic-from-an-image) | plan | Turns an image into a one-layer LEGO mosaic on a baseplate of a given stud size. | any |
 | [`planning-a-domino-layout`](#planning-a-domino-layout) | plan | Plans a domino line along a path on the table. | any |
@@ -807,6 +808,22 @@ Plans and executes a one-step manipulation from a language instruction with MOKA
   - `done`: (execute only) Every phase reached its point within reach_tolerance (read back from the arm), including the grasp (jaws above empty_fraction) when there is one; the hand then released and lifted. This is what the hand did, not what the object did - re-perceive before relying on it.
   - `grasp_failed`: (execute only) The jaws closed to empty_fraction or less at the grasp keypoint; the hand opened and rose back to the safe height.
   - `unreachable`: (execute only) A free move (the first lift, a hover above the grasp or the pre-contact point) or the descent to the grasp was refused or ended off with every rotation tried (nothing touched), or a contact move (pre-contact, target, post-contact) stopped short; `detail` names the phase. After a contact-phase shortfall the hand still released and lifted.
+
+### finding-the-longest-domino-chain
+
+plan · robots: any · tasks: domino · MIT · v0.1.0 · [`SKILL.md`](skills/finding-the-longest-domino-chain/SKILL.md) · [upstream](https://github.com/RGBz/mexican-train-domino-solver/blob/ac758e87bbae433a5a10ba4a6907874be17d80d6/src/Graph.ts)
+
+Finds the longest chain of matching dominoes a hand can lay from a start value - the Mexican Train move of building your own train from the engine double or your train's open end, or a solitaire end-to-end line - and lays it out on the table. Tiles are edges between pip values; every chain is walked depth first (as RGBz/mexican-train-domino-solver does) with an exact bound that cuts branches which cannot win, ranked longest, then most pips, then not ending on a double (a double left open must be covered). Returns the chain with each tile turned so its matching half comes first, the leftover tiles, the open value at the end and, from the train end's world point and direction, every tile's place pose and end points - straight on, round a corner before the table edge or a placed tile, doubles crosswise. No motion. Use on a Mexican Train turn or to plan a matching-ends line for the arm to build, after reading the tiles' values.
+
+- **In**: -
+- **Out**: `start_value` int, `length` int, `chain_pips` int, `end_value` int, `ends_in_double` bool, `leftover_pips` int, `placed_count` int, `nodes` int, `exhaustive` bool, `length_bound` int, `layout_tries` int
+- **Calls**: connector `robot.describe_workspace`
+- **Scripts**: [`find_chain`](skills/finding-the-longest-domino-chain/scripts/find_chain.py)
+- **Exits**:
+  - `chain_found`: A chain from the start value was found and, when start_end has a position, every tile has a placement inside the table and clear of the placed tiles; `chain` (per tile - `tile` as held, `hand_index`, `near` / `far` value, `layout`, `place_pose`, `place_yaw_deg` of the a-to-b axis, `target_ends_world`), `chain_tiles` ([near, far]), `leftover`, `new_end` (the train's end after the chain) and `footprints_after` are filled. `exhaustive` false means the node budget stopped the search; `length_bound` tells whether the length is still proven longest.
+  - `no_chain`: The hand is empty or no tile holds the start value; `leftover` is the hand.
+  - `no_room`: The chain was found but tile `placed_count` has no placement inside the table (less `edge_margin`) and clear of `footprints` and the tiles before it, straight or round a corner; the first `placed_count` tiles are placed and `new_end` is the end they leave.
+  - `invalid_input`: A tile outside 0..max_pip or with not two values, a tile twice, an unknown objective, a start value outside 0..max_pip, a start direction with no length in the table plane, or a footprint without an axis (also the route of a raised error).
 
 ### parsing-ldraw-build-instructions
 
