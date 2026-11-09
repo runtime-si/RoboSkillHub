@@ -41,7 +41,7 @@ gap:
     - robot.close_gripper
     - robot.set_grip
   required_inputs:
-    brick_position: Vec3
+    seat_position: Vec3
   produces_outputs:
     strategy: str
     attempts: int

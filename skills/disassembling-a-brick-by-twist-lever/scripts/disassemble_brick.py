@@ -104,6 +104,11 @@ tuned on a YAM station twin whose servo arrives within FINE_TOLERANCE. A real YA
 lag is millimetres (detecting-contact-from-joint-effort's LAG_THRESHOLD = 3 mm): pass
 lag_threshold from a free-air run there."""
 
+BASE_CREEP_FRACTION = 0.5
+"""An unloaded step's lag updates the free-motion baseline only when it stands within this
+fraction of the lag threshold over it; otherwise a load that builds slowly (a few tenths of
+a millimetre a step) is taken into the baseline step by step and never read as a load."""
+
 STALL_STEPS = 3
 STALL_PROGRESS = 0.5
 """A stall is STALL_STEPS steps in a row in which the hand, loaded, advanced less than
@@ -566,8 +571,8 @@ def _chain(strategy: str, fallbacks: Any) -> list[str]:
 
 def run(
     ctx: NodeContext,
-    brick_position: dict[str, float],
-    brick_yaw_deg: float = 0.0,
+    seat_position: dict[str, float],
+    seat_yaw_deg: float = 0.0,
     brick_studs: list[int] | None = None,
     system: str = "duplo",
     stud_pitch: float | None = None,
@@ -604,8 +609,8 @@ def run(
         raise ValueError(f"pivot_side must be 'auto', '+' or '-', got {pivot_side!r}")
     if lift_along not in ("brick", "vertical"):
         raise ValueError(f"lift_along must be 'brick' or 'vertical', got {lift_along!r}")
-    if close_axis not in ("short", "x", "y"):
-        raise ValueError(f"close_axis must be 'short', 'x' or 'y', got {close_axis!r}")
+    if close_axis not in ("short", "long", "x", "y"):
+        raise ValueError(f"close_axis must be 'short', 'long', 'x' or 'y', got {close_axis!r}")
     chain = _chain(str(strategy), fallbacks)
     preset = PRESETS[system]
     pitch = float(stud_pitch if stud_pitch is not None else preset["stud_pitch"])
@@ -619,12 +624,16 @@ def run(
     up = np.array([0.0, 0.0, 1.0])
 
     arm = _Arm(ctx, arm_id)
-    seat = _xyz(brick_position)
-    yaw = math.radians(float(brick_yaw_deg))
+    seat = _xyz(seat_position)
+    yaw = math.radians(float(seat_yaw_deg))
     bx = np.array([math.cos(yaw), math.sin(yaw), 0.0])
     by = np.array([-bx[1], bx[0], 0.0])
     lens = (studs[0] * pitch - 2 * FOOTPRINT_PLAY, studs[1] * pitch - 2 * FOOTPRINT_PLAY)
-    along_x = close_axis == "x" or (close_axis == "short" and lens[0] <= lens[1])
+    along_x = (
+        close_axis == "x"
+        or (close_axis == "short" and lens[0] <= lens[1])
+        or (close_axis == "long" and lens[0] > lens[1])
+    )
     close_dir = bx if along_x else by
     jaw_width = lens[0] if along_x else lens[1]
     top_z = float(seat[2] + body_h)
@@ -815,7 +824,9 @@ def run(
         jumps); it is held when, loaded, the hand also advanced less than STALL_PROGRESS
         of the step (or the tilt stands ROT_STALL_DEG short). STALL_STEPS held steps in a
         row stop it. A load that clears again marks a release: the studs let go. The
-        free-motion lags and whether the hand is loaded carry over between calls."""
+        free-motion lags and whether the hand is loaded carry over between calls; an
+        unloaded step joins the free-motion lags only within BASE_CREEP_FRACTION of the
+        threshold of them."""
         p0, _ = arm.still()
         base = free_lags
         if not base:
@@ -889,7 +900,8 @@ def run(
                 if carry["loaded"]:
                     res["releases"].append((reached, float(q[2] - start[2])))
                     carry["loaded"] = False
-                base.append(lag)
+                if over <= BASE_CREEP_FRACTION * lag_thr:
+                    base.append(lag)
         return res
 
     def lever_poses(pivot: np.ndarray, axis: np.ndarray, p_s: np.ndarray, r_s: np.ndarray, angles):
@@ -1055,6 +1067,11 @@ def run(
             check_rotation=False,
         )
 
+    def count_releases(cleared: list[str]) -> None:
+        if cleared:
+            out["release_count"] += len(cleared)
+            out["releases"] = "; ".join(filter(None, [out["releases"], *cleared]))
+
     # -- the attempts ---------------------------------------------------------
     holding = False
     r_g = grasp_r
@@ -1105,15 +1122,16 @@ def run(
             res = follow(grasp_cmd, lift_poses(grasp_cmd, r_g, 0.0), r_g)
         ran_any = True
         out["peak_lag"] = max(out["peak_lag"], float(res["peak"]))
-        if res["releases"]:
-            out["release_count"] += len(res["releases"])
-            out["releases"] = "; ".join(
-                filter(
-                    None,
-                    [out["releases"]]
-                    + [f"{name} at {t:.1f} deg, {h * 1e3:.1f} mm up" for t, h in res["releases"]],
-                )
-            )
+        cleared = [f"{name} at {t:.1f} deg, {h * 1e3:.1f} mm up" for t, h in res["releases"]]
+        # A load that clears reads the same whether the studs let go or the fingers slid off
+        # the brick (twin, 6 N a stud: the lever's load cleared 10 mm up with the brick still
+        # seated): it counts as a release only if the jaws still hold something after the lift.
+        slip_note = (
+            f" (the load cleared at {'; '.join(cleared)}: the grip let go)" if cleared else ""
+        )
+
+        if res.get("refused") or res["stalled"]:
+            count_releases(cleared)
         if res.get("refused"):
             log.append(f"{name}: a step was refused ({res['refused']})")
             go("robot.go_to_pose", grasp_cmd, r_g, fine=True)
@@ -1138,12 +1156,13 @@ def run(
         out["holding"] = bool(hold) if hold is not None else False
         if hold is False:
             log.append(f"{name}: slipped (the jaws closed past the brick's width after the lift)")
-            last_fail = ("slipped", f"{name}: the jaws are empty after the lift")
+            last_fail = ("slipped", f"{name}: the jaws are empty after the lift{slip_note}")
             holding = False
             if not regrasp_on_slip:
                 break
             continue
         if not verify:
+            count_releases(cleared)
             log.append(f"{name}: lifted free")
             return finish(
                 "unverified",
@@ -1154,6 +1173,7 @@ def run(
         note = []
         after = look(note)
         if after is None:
+            count_releases(cleared)
             log.append(f"{name}: lifted free")
             return finish(
                 "unverified",
@@ -1174,13 +1194,16 @@ def run(
             change = max(diffs) if diffs else 0.0
         out["neighbour_change"] = change
         read = f"the seat reads {dz * 1e3:+.1f} mm from the brick's top over {len(tops)} points"
+        moved = change > max(RING_CHANGE_FRACTION * stud_h, MIN_RING_CHANGE)
+        if moved or dz < -GONE_FRACTION * body_h:
+            count_releases(cleared)
         if dz < -BELOW_FRACTION * body_h:
             log.append(f"{name}: the brick under it came too")
             return finish(
                 "neighbour_lifted",
                 f"{name}: {read}: the brick under it came off as well (still holding)",
             )
-        if change > max(RING_CHANGE_FRACTION * stud_h, MIN_RING_CHANGE):
+        if moved:
             log.append(f"{name}: a neighbour moved")
             return finish(
                 "neighbour_lifted",
@@ -1196,7 +1219,7 @@ def run(
         log.append(f"{name}: slipped (the brick is still on the seat, {dz * 1e3:+.1f} mm)")
         last_fail = (
             "slipped",
-            f"{name}: the hand lifted free but {read}: the brick stayed on the seat",
+            f"{name}: the hand lifted free but {read}: the brick stayed on the seat{slip_note}",
         )
         ctx.tool("robot.open_gripper", **arm.on_arm)
         holding = False
