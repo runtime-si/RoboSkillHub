@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-19 tools, 104 skills, 2 policies, 1 recipe and 1 paper.
+19 tools, 105 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -98,6 +98,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`handing-over-between-arms`](#handing-over-between-arms) | execute | Hands the object one arm holds to the other arm. | any, 2 arms |
 | [`holding-steady-while-other-arm-acts`](#holding-steady-while-other-arm-acts) | execute | One arm holds an object still. | any, 2 arms |
 | [`inserting-a-peg-with-pose-refinement`](#inserting-a-peg-with-pose-refinement) | execute | Inserts a held peg into a perceived hole in three stages. | any |
+| [`inserting-mid-air-between-two-held-parts`](#inserting-mid-air-between-two-held-parts) | execute | Inserts the part one arm holds into (or presses it onto) the part the other arm holds, both in the air. | any, 2 arms |
 | [`lifting-with-both-arms`](#lifting-with-both-arms) | execute | Lifts an elongated object (a bar, a tray, a pot by its handles) with both arms. | any, 2 arms |
 | [`moving-both-arms-together`](#moving-both-arms-together) | execute | Moves both hands to their target poses as one coordinated motion. | any, 2 arms |
 | [`picking-and-placing-two-objects`](#picking-and-placing-two-objects) | execute | Picks two objects with two arms, one each, and places both. | any, 2 arms |
@@ -1299,6 +1300,23 @@ Inserts a held peg into a perceived hole in three stages - carries it to a pre-i
   - `stopped_short`: The push stopped (contact, stall, or the hand shoved deflection_stop off its line) with the tip short of min_depth past the mouth (rim, a hole off its estimate, a jam), or the hold leaves no room to push that far with the fingers clear; the hand backed off to the pre-insert pose, still holding.
   - `misaligned`: After the refinements the tip is still more than lateral_tolerance off the axis (or axial / angle tolerance), or the correction grew past its cap; the hand is at the last pre-insert pose and nothing was pushed.
   - `unreachable`: The pre-insert pose or the end of the push is out of reach by the IK preview, a move was refused, or the hand's pose could not be read; nothing was pushed.
+
+### inserting-mid-air-between-two-held-parts
+
+execute · robots: any, 2 arms · tasks: insertion, bimanual · MIT · v0.1.0 · [`SKILL.md`](skills/inserting-mid-air-between-two-held-parts/SKILL.md) · [upstream](https://github.com/tonyzhaozh/act/blob/main/scripted_policy.py)
+
+Inserts the part one arm holds into (or presses it onto) the part the other arm holds, both in the air - ACT's scripted bimanual insertion (the two parts brought to a shared meet point facing each other on one axis, a stand-off apart, then the gap closed along that axis) with the parts' in-hand offsets in place of simulator poses; the moving tip is aligned across the axis on the holder's read-back entry before anything touches, then stepped in while contact is felt on both arms without a force sensor (the pushing hand's tracking lag beyond its free-motion lag, the holding hand pushed off its pose, joint efforts where published). Use when a bimanual station must join two parts that are each held by one arm - a peg into a socket, a pin into a bore, a DUPLO brick onto a held sub-assembly - with both parts' contact points measured in the hands (registering-held-objects or perception) and both arms addressable by arm_id.
+
+- **In**: `moving_tip` Vec3, `receiving_entry` Vec3
+- **Out**: `depth` float, `lateral_error` float, `axis_angle_deg` float, `probes_resisted` int, `lag_over_baseline` float, `holder_shift` float, `contact_signal` str, `steps` int, `roll_turns` int, `efforts_available` bool, `entry_position` Vec3, `tip_position` Vec3, `mover_pose` Se3Pose, `holder_pose` Se3Pose
+- **Calls**: connector `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.move_to_joints`, `robot.open_gripper`
+- **Scripts**: [`insert_mid_air`](skills/inserting-mid-air-between-two-held-parts/scripts/insert_mid_air.py)
+- **Exits**:
+  - `inserted`: The moving tip, as the two hands' read-back poses and the in-hand offsets place it, went at least insert_depth less depth_tolerance past the holder's entry along the axis, at least one of four probes across the axis (half the clearance plus 1 mm each way) was stopped or carried the holder along (verify, default on), and both jaws still read a hold (with release=mover, the mover then opened and backed out and the holder's jaws still hold). Felt by the hands, not seen - a part turned in its jaws since it was measured can still read as inserted (simulation check).
+  - `misaligned`: Nothing went in - the tip could not be brought within half the clearance of the entry's line (after three corrections), the two parts' axes (each turned with its hand since it was measured) stood more than angle_tolerance_deg apart, or the push stopped (lag, holder pushed, effort) with the tip less than 2 mm past the entry (the rim); the mover backed off to its stand-off, both still hold their parts.
+  - `stalled`: The push stopped with the tip past the entry but short of insert_depth less depth_tolerance (a jam, a burr, a tilted part); the mover backed off 3 mm so it stops pushing, both still hold. Also routed when the mover's jaws did not open for release=mover.
+  - `slipped`: A hand's jaws read at the stop - before anything moved (nothing held), or after the push or the release (a part fell out); or the hands went the whole depth but no probe across the axis met a wall - the moving part sat on the receiving part's outside face and slid back along its jaw pads, which neither arm feels (both hands still hold, the parts are not joined).
+  - `unreachable`: The two arm ids are equal or the connector reports no separate second arm, the holder could not reach the meet point or the mover its stand-off (free moves read back beyond reach_tolerance or refused), a wrist roll could not be turned back, a step was refused, or signal=effort with no efforts published; detail says which and what each hand still holds.
 
 ### lifting-with-both-arms
 

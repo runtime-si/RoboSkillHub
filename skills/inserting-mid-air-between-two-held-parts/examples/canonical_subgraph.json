@@ -1,0 +1,63 @@
+{
+  "skill": "inserting-mid-air-between-two-held-parts",
+  "inputs": {
+    "moving_tip": "Vec3",
+    "receiving_entry": "Vec3",
+    "insertion_axis": "Vec3",
+    "meet_position": "Vec3"
+  },
+  "outputs": {
+    "depth": {
+      "$ref": "insert.depth"
+    },
+    "lateral_error": {
+      "$ref": "insert.lateral_error"
+    },
+    "contact_signal": {
+      "$ref": "insert.contact_signal"
+    }
+  },
+  "nodes": {
+    "insert": {
+      "type": "script",
+      "script": "scripts/insert_mid_air.py",
+      "inputs": {
+        "moving_tip": {
+          "$ref": "in.moving_tip"
+        },
+        "receiving_entry": {
+          "$ref": "in.receiving_entry"
+        },
+        "insertion_axis": {
+          "$ref": "in.insertion_axis"
+        },
+        "meet_position": {
+          "$ref": "in.meet_position"
+        },
+        "insert_depth": 0.02,
+        "mover_arm": 1,
+        "holder_arm": 0
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "insert"
+    ],
+    [
+      "insert",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "inserted",
+      "misaligned",
+      "stalled",
+      "slipped"
+    ]
+  },
+  "on_error": "unreachable"
+}
