@@ -1,0 +1,245 @@
+{
+  "graph_id": "lego-press-scripted",
+  "version": "0.3.0",
+  "contract_version": "rsh-task/1",
+  "params": {
+    "recovery": false,
+    "attempts": 1,
+    "clearance_m": 0.01,
+    "speed_m_s": 0.02,
+    "grasps": "perception"
+  },
+  "skills": {
+    "core.select_next_target": "0.1.0",
+    "core.observe": "0.1.0",
+    "perception.classify_object_state": "0.1.0",
+    "perception.propose_grasps": "0.1.0",
+    "core.select_candidate": "0.1.0",
+    "core.pick": "0.1.0",
+    "core.transport_held": "0.1.0",
+    "lego.align_connection": "0.1.0",
+    "lego.guarded_seat": "0.1.0",
+    "lego.release_and_retreat": "0.1.0",
+    "lego.verify_connection": "0.1.0"
+  },
+  "budgets": {
+    "max_steps": 72,
+    "max_total_attempts": 60,
+    "timeout_s": 540.0
+  },
+  "state": {
+    "done": [],
+    "used": [],
+    "tried": 0
+  },
+  "start": "select",
+  "nodes": {
+    "select": {
+      "skill": "core.select_next_target",
+      "params": {
+        "targets": "$input.targets",
+        "done": "$state.done",
+        "pieces": "$input.feeder.pieces",
+        "used": "$state.used",
+        "key": "target_id"
+      },
+      "max_visits": 7,
+      "branch": [
+        {
+          "path": "$last.select.outputs.complete",
+          "equals": true,
+          "next": "done"
+        }
+      ],
+      "assign": {
+        "used": "$last.select.outputs.used_after"
+      },
+      "on": {
+        "succeeded": "observe_piece",
+        "failed": "abort",
+        "unverified": "unsure",
+        "rejected": "abort"
+      }
+    },
+    "observe_piece": {
+      "skill": "core.observe",
+      "params": {
+        "object_ids": [
+          "$last.select.outputs.piece"
+        ],
+        "require_orientation": true
+      },
+      "timeout_s": 5,
+      "attempts": 1,
+      "retry_on": [],
+      "max_visits": 18,
+      "on": {
+        "succeeded": "classify",
+        "failed": "abort",
+        "unverified": "unsure",
+        "rejected": "abort"
+      }
+    },
+    "classify": {
+      "skill": "perception.classify_object_state",
+      "params": {
+        "observation": "$last.observe_piece.outputs.first",
+        "table_z": "$input.table_z"
+      },
+      "post": [],
+      "on": {
+        "succeeded": "candidate",
+        "failed": "abort",
+        "unverified": "unsure",
+        "rejected": "abort"
+      }
+    },
+    "candidate": {
+      "skill": "perception.propose_grasps",
+      "params": {
+        "observation": "$last.observe_piece.outputs.first",
+        "table_z": "$input.table_z",
+        "max_candidates": 4
+      },
+      "assign": {
+        "tried": 0
+      },
+      "on": {
+        "succeeded": "choose",
+        "failed": "abort",
+        "unverified": "unsure",
+        "rejected": "abort"
+      }
+    },
+    "pick": {
+      "skill": "core.pick",
+      "params": {
+        "candidate": "$last.choose.outputs.candidate",
+        "gripper_id": "$input.gripper_id",
+        "speed_m_s": 0.02,
+        "uncertainty": "$input.grasp.uncertainty",
+        "collision_geometry": "$input.grasp.collision_geometry"
+      },
+      "timeout_s": 30,
+      "max_visits": 18,
+      "on": {
+        "succeeded": "transport",
+        "failed": "abort",
+        "unverified": "unsure",
+        "rejected": "abort"
+      }
+    },
+    "choose": {
+      "skill": "core.select_candidate",
+      "params": {
+        "candidates": "$last.candidate.outputs.candidates",
+        "tried": "$state.tried",
+        "max_tries": 1
+      },
+      "max_visits": 18,
+      "assign": {
+        "tried": "$last.choose.outputs.tried_after"
+      },
+      "on": {
+        "succeeded": "pick",
+        "failed": "abort",
+        "unverified": "unsure",
+        "rejected": "abort"
+      }
+    },
+    "transport": {
+      "skill": "core.transport_held",
+      "params": {
+        "held": "$last.pick.outputs.held",
+        "goal": "$last.select.outputs.target.mating.mating_pose",
+        "approach_height_m": 0.01,
+        "descend": false,
+        "speed_m_s": 0.02
+      },
+      "timeout_s": 30,
+      "on": {
+        "succeeded": "align",
+        "failed": "abort",
+        "unverified": "unsure",
+        "rejected": "abort"
+      }
+    },
+    "align": {
+      "skill": "lego.align_connection",
+      "params": {
+        "connection_id": "$last.select.outputs.target.connection_id",
+        "target": "$last.select.outputs.target.mating",
+        "held": "$last.pick.outputs.held",
+        "limits": "$input.align_limits"
+      },
+      "timeout_s": 20,
+      "attempts": 1,
+      "retry_on": [],
+      "on": {
+        "succeeded": "seat",
+        "failed": "abort",
+        "unverified": "unsure",
+        "rejected": "abort"
+      }
+    },
+    "seat": {
+      "skill": "lego.guarded_seat",
+      "params": {
+        "connection_id": "$last.select.outputs.target.connection_id",
+        "alignment": "$last.align.outputs.alignment",
+        "press_limits": "$input.press_limits"
+      },
+      "timeout_s": 20,
+      "on": {
+        "succeeded": "release",
+        "failed": "abort",
+        "unverified": "unsure",
+        "rejected": "abort",
+        "unverified:lego.seat_depth_without_threshold": "release"
+      }
+    },
+    "release": {
+      "skill": "lego.release_and_retreat",
+      "params": {
+        "connection_id": "$last.select.outputs.target.connection_id",
+        "object_id": "$last.select.outputs.piece",
+        "press": "$last.seat.outputs.press",
+        "open_width_m": "$input.release.open_width_m",
+        "retreat_height_m": "$input.release.retreat_height_m"
+      },
+      "timeout_s": 20,
+      "on": {
+        "succeeded": "verify",
+        "failed": "abort",
+        "unverified": "unsure",
+        "rejected": "abort"
+      }
+    },
+    "verify": {
+      "skill": "lego.verify_connection",
+      "params": {
+        "connection_id": "$last.select.outputs.target.connection_id",
+        "target": "$last.select.outputs.target.mating",
+        "executor_id": "$last.seat.outputs.executor_id",
+        "release": "$last.release.outputs.release",
+        "pre_release_observation": "$last.release.outputs.pre_release_observation",
+        "window": "$input.verify_window"
+      },
+      "timeout_s": 10,
+      "assign": {
+        "done": "$last.select.outputs.done_after"
+      },
+      "on": {
+        "succeeded": "select",
+        "failed": "abort",
+        "unverified": "unsure",
+        "rejected": "abort"
+      }
+    }
+  },
+  "terminals": {
+    "done": "succeeded",
+    "abort": "failed",
+    "unsure": "unverified"
+  }
+}
