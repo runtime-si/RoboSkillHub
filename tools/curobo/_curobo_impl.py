@@ -1781,12 +1781,7 @@ class _AttachOps:
         vertices = np.asarray(mesh_ns.vertices, dtype=np.float32).reshape(-1, 3)
         faces = np.asarray(mesh_ns.faces, dtype=np.int32).reshape(-1, 3)
         manager = self.manager(planner)
-        key = (
-            vertices.tobytes(),
-            faces.tobytes(),
-            int(num_spheres),
-            round(float(surface_radius), 6),
-        )
+        key = _fit_key(mesh_ns, num_spheres, surface_radius)
         local = _attach_fit_cache.get(key)
         if local is None:
             obstacle = _V2Mesh(
@@ -1860,8 +1855,16 @@ _attach_ops = _AttachOps()
 
 # Enclosing sphere fits in the held mesh's own frame, keyed by its geometry,
 # fit count and surface radius: MORPHIT takes seconds per fit, and the same
-# brick is planned for many times while it is held.
+# brick is planned for many times while it is held. A failed plan evicts its
+# fit: MORPHIT is stochastic and the fit decides whether a tight carry is
+# found (YAM over an 8 cm wall: 6/10 fresh fits succeed, a good fit 5/5).
 _attach_fit_cache: dict[tuple, np.ndarray] = {}
+
+
+def _fit_key(mesh_ns: Any, num_spheres: int, surface_radius: float) -> tuple:
+    vertices = np.asarray(mesh_ns.vertices, dtype=np.float32).reshape(-1, 3)
+    faces = np.asarray(mesh_ns.faces, dtype=np.int32).reshape(-1, 3)
+    return (vertices.tobytes(), faces.tobytes(), int(num_spheres), round(float(surface_radius), 6))
 
 
 def _spheres_to_world(local: np.ndarray, pose: Any) -> np.ndarray:
@@ -2025,6 +2028,7 @@ def plan_with_grasped_object(
     tool_frame = planner.tool_frames[0] if planner.tool_frames else _FRANKA_TOOL_FRAME
     info["tool_frame"] = tool_frame
     start_state = ops.start_state(planner, np.asarray(start_joint_position, dtype=np.float64))
+    num_spheres = min(slots, _ATTACH_NUM_SPHERES)
 
     # The planner is cached: whatever the attach wrote to the link's sphere
     # slots must be reset before the next call, even when the attach or the
@@ -2037,7 +2041,7 @@ def plan_with_grasped_object(
                 start_state,
                 held,
                 link_name,
-                num_spheres=min(slots, _ATTACH_NUM_SPHERES),
+                num_spheres=num_spheres,
                 surface_radius=float(surface_sphere_radius),
             )
         except Exception as e:  # noqa: BLE001 — cuRobo raises plain exceptions here
@@ -2067,6 +2071,8 @@ def plan_with_grasped_object(
     finally:
         ops.detach(planner, link_name)
 
+    if result is None or not ok or trajectory is None:
+        _attach_fit_cache.pop(_fit_key(held, num_spheres, float(surface_sphere_radius)), None)
     if result is None:
         return _fail(
             "ik_failed: no collision-free IK solution reaches the target with the object attached"

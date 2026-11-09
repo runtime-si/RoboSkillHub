@@ -259,6 +259,24 @@ def test_trajopt_failure_reports_the_errors(impl, planner):
     assert reason == "trajopt_failed: min position_error=0.0812"
 
 
+@pytest.mark.parametrize(
+    ("plan_result", "outcome", "kept"),
+    [
+        ("result", (True, np.zeros((5, 6)), ""), True),
+        (None, (False, None, ""), False),
+        ("result", (False, None, "min position_error=0.0"), False),
+    ],
+)
+def test_a_failed_plan_evicts_the_cached_fit(impl, planner, plan_result, outcome, kept):
+    impl._attach_ops = FakeOps(plan_result=plan_result, outcome=outcome)
+    cube = _mesh("cube")
+    key = impl._fit_key(cube, 8, 0.001)
+    impl._attach_fit_cache.clear()
+    impl._attach_fit_cache[key] = _FITTED
+    _plan(impl, _world(cube))
+    assert (key in impl._attach_fit_cache) is kept
+
+
 def test_success_without_trajectory_is_a_failure(impl, planner):
     impl._attach_ops = FakeOps(outcome=(True, None, ""))
     ok, traj, reason, _ = _plan(impl, _world(_mesh("cube")))
