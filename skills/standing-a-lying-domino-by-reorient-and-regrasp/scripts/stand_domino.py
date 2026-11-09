@@ -1112,7 +1112,12 @@ def run(
     roll_gain = [1.0]
 
     def turn_last(
-        err_fn: Any, at: np.ndarray, key: str, period: float = 360.0, step_deg: float = 0.0
+        err_fn: Any,
+        at: np.ndarray,
+        key: str,
+        period: float = 360.0,
+        step_deg: float = 0.0,
+        then_deg: float = 0.0,
     ) -> np.ndarray:
         """Turn the last joint until ``err_fn(rotation)`` (deg about the approach) is within roll_tolerance_deg,
         re-centring over ``at`` when the turn moved the hand; a turn by ``period`` is the same, so the smallest
@@ -1129,6 +1134,9 @@ def run(
             options = sorted((err + m * float(period) for m in (-2, -1, 0, 1, 2)), key=abs)
             gain = roll_gain[0]
             ok = [o for o in options if fits(q.size - 1, q[-1] + math.radians(o) / gain)]
+            # Of turns that are the same (period), one that also leaves room for a turn to come.
+            ahead = [o for o in ok if fits(q.size - 1, q[-1] + math.radians(o + then_deg) / gain)]
+            ok = ahead or ok
             if not ok:
                 notes.append(f"the last joint has no room to turn {err:+.0f} deg")
                 break
@@ -1163,7 +1171,11 @@ def run(
     held: dict[str, Any] = {}
 
     def pick(
-        grasp_point: np.ndarray, g_rot: np.ndarray, e0: np.ndarray, lift: bool = True
+        grasp_point: np.ndarray,
+        g_rot: np.ndarray,
+        e0: np.ndarray,
+        lift: bool = True,
+        then_deg: float = 0.0,
     ) -> Output | None:
         """Over the grasp point, square the jaws, straight down, close, lift. None when the tile is held; the
         measured grasp height, the hand's rotation at the close and the up end in the hand's frame go in ``held``."""
@@ -1185,7 +1197,9 @@ def run(
         why = go("robot.go_to_pose", above, quat(g_rot))
         if why:
             return finish("unreachable", f"over the tile: {why}")
-        r_now = turn_last(lambda r: jaw_error(r, g_rot), above, "roll_turn_deg", period=180.0)
+        r_now = turn_last(
+            lambda r: jaw_error(r, g_rot), above, "roll_turn_deg", period=180.0, then_deg=then_deg
+        )
         out["roll_turn_deg"] = 0.0
         err = jaw_error(r_now, g_rot)
         if abs(err) > float(roll_tolerance_deg):
@@ -2089,7 +2103,10 @@ def run(
         )
         if g_rot is None:
             return finish("unreachable", "no wrist solution over the tile passes the IK preview")
-        why = pick(grasp_point, g_rot, e_n)
+        # The jaws square the way round that leaves the last joint room for the turn onto e_target after it.
+        why = pick(
+            grasp_point, g_rot, e_n, then_deg=turn_about(g_rot @ local_approach, e_n, e_target)
+        )
         if why is not None:
             return why
         g_meas, e_local = held["g"], held["e"]
