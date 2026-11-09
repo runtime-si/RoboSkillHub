@@ -112,10 +112,13 @@ does with a spring-mounted head and a linear encoder.
    `max_probes` / `max_time_s`.
 4. **Scoot and wiggle** (puzzle_bot's second phase). Back at the best probe,
    with the piece resting where it stopped: out and back along x, along y,
-   then a yaw out and back, felt after each, widening over three rounds.
+   then a yaw out and back, felt after each, widening over three rounds
+   (these probes come on top of `max_probes`, up to 19).
 5. **Release and check.** Stop pressing (command the hand where it stands),
-   open, retreat straight up, and view the piece's centre straight down with
-   the wrist camera at 15-25 cm. The median height of 19 points within
+   rise 0.3 mm to take the load off, open, retreat straight up (optionally
+   push the top down with closed fingertips, `push_down`), climb straight up
+   to the view height, and view the piece's centre straight down with the
+   wrist camera at 15-25 cm. The median height of 19 points within
    `top_radius` of the piece's centre against the mat plus a thickness decides
    `seated` / `not_seated` (high or tilted) / `piece_lost` (nothing there).
    A piece that never dropped is lifted back still held (`not_seated` /
@@ -218,7 +221,96 @@ selecting-a-grip-clear-of-placed-neighbours).
 
 ## Simulation check
 
-Pending: see the PR.
+YAM station twin (left arm, MuJoCo through RoboSimStudio, an AutoDL RTX 4090 D).
+The scene is a 3 x 3 procedural jigsaw cut (seed 2, 21 x 24 mm cells). The
+middle piece is extruded 2 mm as a free body of 30 convex prisms. Its six
+neighbours north and south form a fixed board, and the cells west and east are
+empty. Outlines are shrunk to give 0.17 / 0.26 / 0.36 mm of clearance (asked
+0.2 / 0.3 / 0.4; outline simplification takes some). The twin's blade corners
+could not hold a 2 mm edge, so the piece carries a harness-only 10 x 4 x 10 mm
+handle block 8 mm from its centre (outside the flush-check disc), pinched at
+100 N limit with a 5 mm squeeze.
+
+Each trial puts the piece in its slot, grasps the handle and lifts it 17 mm.
+The skill is then given the true slot shifted by (dx, dy), plus the measured
+in-hand yaw and an extra yaw error dyaw. Simulator truth decides seated:
+bottom within 0.5 mm of the mat and tilt under 2 deg. `max_probes` 30 (the
+scoot adds up to 19).
+
+Last version of the skill (`wiggle` unless marked):
+
+| clearance | start error (dx, dy) mm, dyaw | route | probes | truth |
+|---|---|---|---|---|
+| 0.26 | 0, 0, 0 | not_seated | 2 | caught half in, 7 deg |
+| 0.26 | 1, 0, 0 | seated | 2 | seated |
+| 0.26 | 0, 0, 5 deg | not_seated (held) | 49 | in the jaws |
+| 0.26 | 2, 0, 3 deg | not_seated | 2 | caught half in, 5 deg |
+| 0.26 | 2.1, 2.1, 0 | jammed (held) | 30 | in the jaws |
+| 0.26 | 0, 2, 0 | not_seated | 3 | on the neighbours, 15 mm off |
+| 0.26 | 0.5, 0.5, 1 deg | jammed (held) | 30 | in the jaws |
+| 0.26 | tilt_first 0, 1, 0 | not_seated | 1 | caught half in, 5 deg |
+| 0.26 | tilt_first 0, -1.5, 0 | piece_lost | 6 | half in, 8 deg, bottom under the mat surface |
+| 0.17 | 0, 0, 0 | seated | 2 | seated |
+| 0.17 | 1, 0, 0 | not_seated | 2 | caught half in, 5 deg |
+| 0.17 | 0, 1, 3 deg | jammed (held) | 35 | in the jaws |
+| 0.17 | 2, 0, 0 | not_seated | 5 | caught half in, 5 deg |
+| 0.36 | 0, 0, 0 | piece_lost | 7 | thrown off as the jaws opened |
+| 0.36 | 1, 0, 0 | seated | 4 | seated |
+| 0.36 | 0, 1, 3 deg | seated | 7 | seated |
+| 0.36 | 2, 0, 0 | not_seated | 5 | caught half in, 5 deg |
+
+Three earlier runs used the same harness and the yaw and no-press fixes, but
+not yet the rise before the release or the climb to the view. They seated 6
+of 19. Pooled over all 34 `wiggle` trials, by start error:
+
+| start error | seated (route = truth) | probes when seated |
+|---|---|---|
+| 0 mm, yaw 0-1 deg | 2 / 6 | 2, 5 |
+| 0 mm, yaw 2-5 deg | 2 / 5 | 3, 8 |
+| 0.7-1 mm, yaw 0-1 deg | 4 / 8 | 2, 2, 4, 5 |
+| 1 mm, yaw 2-3 deg | 1 / 3 | 7 |
+| 2 mm, yaw 0-3 deg | 1 / 8 | 4 |
+| 3 mm, yaw 0-5 deg | 0 / 4 | - |
+
+A `seated` route was never wrong (0 of 10). One `not_seated` was a piece that
+settled flat only after the check.
+
+What the runs showed, in the order found:
+
+- **Wrist yaw creep.** Before the re-aim, the piece stopped 1.2 mm up even
+  at zero error. The twin's free wrist roll had crept 3 deg on the way, and
+  the piece hangs 9 mm from the tool centre, so it was 0.5 mm off.
+- **Pressing slides the piece in the jaws.** A 0.6 mm press moved the piece
+  0.6-0.8 mm up in the pinch, and every later height read that much high.
+- **The pinch is the weak link.** Pressing on a contact, the piece pivots in
+  the jaws (its tilt grows from 1 deg to 3-5 deg over a search). One side
+  then goes into the slot while the hand keeps going down, so the stop reads
+  like a drop. This happened in 18 of the 34 trials. The wrist-depth check
+  after the release caught every one: `not_seated` (top 1.2-1.4 mm high,
+  spread 0.5-0.7 mm), or `piece_lost` when the release had thrown the piece.
+  No trial reported `seated` with the piece out of its slot.
+- **Releases throw pieces.** A piece wedged half in, released, was sometimes
+  thrown 15-30 mm, once flipped. The trace shows it already gone right after
+  the jaws open. The 0.3 mm rise before the release did not stop it.
+- **tilt_first** never seated in the twin (0 of 6). The slide met no lag
+  (the pinch gave first) or stopped short, and the twin's free wrist roll put
+  the tilted hand at a roll it was not asked for.
+- **offset_push** was not run: the slot has neighbours on opposite sides,
+  and a rigid tab cannot slide sideways into a blank.
+
+Time: the seated trials took 18-233 s of sim wall time (median 28 s) and
+27-75 moves. Searches that ran out took 100-810 s and 140-370 moves (30
+probes plus the scoot). The seats came within the first 8 probes; with this
+grip, a longer search mostly let the piece work loose in the jaws. On a real
+arm the move count (about 9 per probe), not the physics, sets the pace.
+
+What it means for a real YAM: the routine and its exits behave, the depth
+check is what keeps it honest, and the grip decides the seat rate. Grip the
+piece as stiffly as possible, close to its centre. Treat `seated` from the
+stop height alone as a hint until the flush check runs. A real station also
+refuses a tool centre under 14 mm over its table, so a piece held by
+fingertips at 10.2 mm cannot reach a slot on the table itself; the puzzle
+needs a board at least 4 mm high, or a lower floor.
 
 ## Method
 
@@ -230,6 +322,6 @@ linear encoder; a not-nearly-placed piece is picked up and set down over a
 +-0.1 in grid at 0.01 in, or an 8-point ring spiral widening 25 counts per
 ring for 15 rings, keeping the best height; then it scoots at a slight-press
 height in x then y until fully set. Here the encoder is the arm's stop height
-read through tracking lag, the spring is a press bounded by the command's
-lead, the grid / spiral is one probe order over x, y and yaw by likelihood,
+read through tracking lag at the first contact (a press bounded by the
+command's lead stands in for the spring when asked for), the grid / spiral is one probe order over x, y and yaw by likelihood,
 and the flush check after the release is the wrist depth camera's.

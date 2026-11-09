@@ -963,6 +963,8 @@ def run(
         why = go("robot.go_to_pose", hand_at(start, r_tilt), r_tilt)
         if why:
             raise _Done(lift_back("unreachable", f"the tilt: {why}"))
+        # An arm that leaves the roll free tilts with its own wrist roll: aim with the one read back.
+        r_tilt = arm.read()[1]
         start[2] = slot[2] + drop + thick + float(contact_window)
         kind, why = arm.move("robot.go_to_pose_cartesian", hand_at(start, r_tilt), r_tilt)
         if kind == "refused":
