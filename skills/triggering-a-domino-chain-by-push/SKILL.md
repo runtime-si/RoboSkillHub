@@ -258,7 +258,7 @@ push an empty slot.
 - No push disturbed a neighbouring line (their tilts stayed 0.0 deg until
   their own push), and the hand never reached the second tile (at a 37 mm
   pitch the stroke ends about 24 mm short of its back face).
-- The empty slot: `no_contact` before anything moved in three runs. In one
+- The empty slot: `no_contact` before anything moved in four of five runs. In one
   run the hand, left over a `blocked` line by an earlier version of the
   skill, hid the slot from the overhead camera, and the push there (at the
   edge of reach) came back `unreachable` from the IK preview.
