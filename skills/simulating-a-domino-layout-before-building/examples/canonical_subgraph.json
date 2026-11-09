@@ -7,29 +7,68 @@
     "trigger": "string"
   },
   "outputs": {
-    "reached_target": {"$ref": "simulate.reached_target"},
-    "stall_at": {"$ref": "simulate.stall_at"},
-    "success_rate": {"$ref": "simulate.success_rate"},
-    "weakest_pair": {"$ref": "simulate.weakest_pair"},
-    "topple_times": {"$ref": "simulate.topple_times"},
-    "wave_speed": {"$ref": "simulate.wave_speed"}
+    "reached_target": {
+      "$ref": "simulate.reached_target"
+    },
+    "stall_at": {
+      "$ref": "simulate.stall_at"
+    },
+    "success_rate": {
+      "$ref": "simulate.success_rate"
+    },
+    "weakest_pair": {
+      "$ref": "simulate.weakest_pair"
+    },
+    "topple_times": {
+      "$ref": "simulate.topple_times"
+    },
+    "wave_speed": {
+      "$ref": "simulate.wave_speed"
+    },
+    "pair_clearance": {
+      "$ref": "simulate.pair_clearance"
+    }
   },
   "nodes": {
     "simulate": {
       "type": "script",
       "script": "scripts/simulate_layout.py",
       "inputs": {
-        "slots": {"$ref": "in.slots"},
-        "table_z": {"$ref": "in.table_z"},
-        "target_index": {"$ref": "in.target_index"},
-        "trigger": {"$ref": "in.trigger"}
+        "slots": {
+          "$ref": "in.slots"
+        },
+        "table_z": {
+          "$ref": "in.table_z"
+        },
+        "target_index": {
+          "$ref": "in.target_index"
+        },
+        "trigger": {
+          "$ref": "in.trigger"
+        }
       }
     }
   },
-  "edges": [["START", "simulate"], ["simulate", "END"]],
+  "edges": [
+    [
+      "START",
+      "simulate"
+    ],
+    [
+      "simulate",
+      "END"
+    ]
+  ],
   "exit": {
     "router_field": "route",
-    "success_values": ["cascades", "fragile", "stalls", "push_failed", "sim_unavailable"]
+    "success_values": [
+      "cascades",
+      "fragile",
+      "stalls",
+      "knife_edge",
+      "push_failed",
+      "sim_unavailable"
+    ]
   },
   "on_error": "invalid_input"
 }

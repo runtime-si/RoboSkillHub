@@ -9,7 +9,8 @@ description: Checks a planned domino line or curve in a rigid-body simulation be
   jittered by the placing error and reports the fraction that still reaches the target
   and the pair that breaks most often. Routes cascades, fragile (the plan works but
   placing error breaks it), stalls (with the slot where the wave stops) or push_failed.
-  CPU only, about 50 ms per rollout of 12 tiles. No motion. Use after
+  A stop decided by a graze routes knife_edge. CPU only, about 50 ms per rollout of 12
+  tiles. No motion. Use after
   planning-a-domino-layout and before placing the first tile, or to choose a pitch or
   radius.
 license: MIT
@@ -36,7 +37,7 @@ gap:
   # is the trigger tile), table_z (default: the slots' z), target_index (-1: the last
   # slot), trigger (push | kick), tile_size, tile_mass, table_friction, tile_friction,
   # contact_fraction, push_speed, overshoot, kick_factor, trials, position_sigma,
-  # yaw_sigma_deg, min_success, timestep, seed.
+  # yaw_sigma_deg, min_success, timestep, contact_margin, seed.
   produces_outputs:
     n_tiles: int
     target_index: int
@@ -54,7 +55,8 @@ gap:
   exit_conditions:
     cascades: In the planned layout every tile up to the target fell, and at least `min_success` (0.9) of the `trials` rollouts with the slots jittered by the placing error did too. `topple_times` gives each tile's fall time and `wave_speed` the settled wave's speed along the path.
     fragile: The planned layout reaches the target, but fewer than `min_success` of the jittered rollouts do; `weakest_pair` is the pair (k, k + 1) where they broke most often and `trial_stalls` lists where each stopped. Tighten the pitch or widen the radius there.
-    stalls: In the planned layout the wave stopped; `stall_at` is the first slot up to the target still standing (its predecessor fell), `fallen` says which fell.
+    stalls: In the planned layout the wave stopped; `stall_at` is the first slot up to the target still standing (its predecessor fell), `fallen` says which fell, and the falling tile came no closer to it than 2 mm short (`pair_clearance`), a clear miss.
+    knife_edge: The wave stopped at `stall_at`, but the falling tile's closest approach to it was a graze (from 1 mm into it to 2 mm short of it, `pair_clearance`). A millimetre of placement or of contact model decides the pair, so the stop is not a confident verdict either way; widen the margin (tighter pitch, wider radius) rather than trust it.
     push_failed: The first tile did not fall. Either the trigger stroke would end within 6 mm of slot 1, so the trigger skill would not push a line this tight (try the `kick` trigger), or the stroke or kick did not carry the tile past 10 deg.
     sim_unavailable: The physics engine is not installed or rejected the model; nothing was judged.
     invalid_input: Fewer than two slots, a slot without a facing, two neighbouring slots overlapping, no table height, a target that is not after slot 0, a tile size that is not height > width > thickness, an unknown trigger, or a non-positive speed, timestep or mass (also the route of a raised error).
@@ -192,6 +194,37 @@ rollouts flag it as fragile. On the 50 mm arc all four twin tiles ended flat
 twin's whole hand and arm collide, and the ground truth was read only after the
 trigger skill's retreat, so a knock by the arm cannot be ruled out. Unresolved.
 
+**The r 50 mm arc, resolved** (follow-up). The twin knocked all four tiles over
+where this skill said the wave stops at slot 1. Three more twin runs (rshgpu4) and a
+local look at the contact settled it:
+
+- **Not the arm.** The same trigger stroke with no tile at slot 0 (the arm pushes
+  air) left tiles 1-3 standing (0.0 deg).
+- **A real cascade in the twin.** Tile 0 started 11 deg forward (past its 8.9 deg
+  tipping angle) with the arm never moving: all four fell, at 0.0, 0.4, 0.65 and
+  0.8 s. Controls in the same way: a 37 mm line runs (10/10), a 72 mm line stops at
+  slot 1, the r 60 mm arc runs (6/6), as predicted.
+- **A graze.** Tile 0's top passes tile 1's corner: closest approach -0.45 mm from
+  that tilted start and +0.15 mm under the trigger push. Tile 1 does not topple.
+  The twin's arrangement (`mujoco_500hz@v1`) has `rigid_gap` 2 mm; with a 2 mm
+  contact margin this simulation cascades as well, closest approach 3.07 mm.
+- **No margin makes the two agree everywhere.** Swept 0-2 mm, with tile friction
+  0.25 and 0.5, against the twin's 10 layouts, the nominal verdict agreed 7-8/10.
+  Margins of 1.5 mm or more carry the arc but also the 58 mm line, which the twin
+  stops. The 55 mm line runs here and stops in the twin at every margin.
+
+So both remaining disagreements sit on a millimetre. The fix is to stop making a
+confident call there:
+- `pair_clearance` (each falling tile's closest approach to the next) is reported;
+- a stop on a graze routes `knife_edge`;
+- `contact_margin` lets a run mimic a simulator with a contact gap.
+
+With it, the 10 twin layouts read: 8 agree, the 55 mm line is `fragile` (0.65-0.75
+of the jittered rollouts), and the r 50 arc is `knife_edge`. No confident wrong
+call is left. The straight lines that stop at the critical gap (56-60 mm, closest
+approach -0.75 to -0.37 mm) route `knife_edge` too; the 72 mm line (11.3 mm short)
+and an r 40 arc (5.7 mm short) stay `stalls`.
+
 A bug caught on the way: MuJoCo reads `euler` in degrees by default, and a first
 version passed radians, so every curved slot faced almost straight ahead and every
 arc stalled. The scene sets `angle="radian"` now, and a test pins it: a tile on a
@@ -214,6 +247,10 @@ arc stalled. The scene sets `angle="radian"` now, and a test pins it: a tile on 
 - **`KICK_FACTOR` 1.2**: planning-a-domino-layout's `PUSH_SPEED_FACTOR`.
 - **`POSITION_SIGMA` 2 mm, `YAW_SIGMA_DEG` 3**: the placing skill's twin placed
   within 2 mm; use 5.4 mm (the station camera's RMS) for a pessimistic check.
+- **`GRAZE` -1 to +2 mm**: the arc's stop was +0.15 / -0.45 mm and a 2 mm contact
+  margin changed it; the stops at the critical gap were -0.37 to -0.75 mm. Clear
+  stops were 5.7 mm and more short.
+- **`CONTACT_MARGIN` 0**: rigid contact. 0.002 is the station twin's `rigid_gap`.
 - **`TRIALS` 20, `MIN_SUCCESS` 0.9**: 20 rollouts resolve a 0.9 rate to about
   +-0.07 in about a second for 12 tiles.
 
