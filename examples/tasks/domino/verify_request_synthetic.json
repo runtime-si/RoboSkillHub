@@ -1,0 +1,510 @@
+{
+ "request_id": "demo-verify",
+ "frame_id": "station",
+ "target_id": "d2",
+ "geometry": {
+  "size_m": [
+   0.048,
+   0.024,
+   0.0075
+  ],
+  "yaw_symmetry_deg": 180.0
+ },
+ "target_object_pose": {
+  "frame_id": "station",
+  "position_m": [
+   0.4,
+   0.08,
+   0.024
+  ],
+  "quaternion_xyzw": [
+   0.0,
+   0.0,
+   0.7071067811865475,
+   0.7071067811865476
+  ]
+ },
+ "support": {
+  "frame_id": "station",
+  "point_m": [
+   0,
+   0,
+   0
+  ],
+  "normal": [
+   0,
+   0,
+   1
+  ],
+  "height_std_m": 0.001,
+  "calibration_version": "EXAMPLE-not-a-station-calibration",
+  "region_min_m": [
+   0.1,
+   -0.3
+  ],
+  "region_max_m": [
+   0.7,
+   0.3
+  ]
+ },
+ "neighbors_baseline": [
+  {
+   "object_id": "d0",
+   "class": "domino",
+   "frame_id": "station",
+   "position_m": [
+    0.4,
+    0.0,
+    0.024
+   ],
+   "quaternion_xyzw": [
+    0.0,
+    0.0,
+    0.7071067811865475,
+    0.7071067811865476
+   ],
+   "timestamp_s": 1799999999.0,
+   "source": "synthetic:kinematic-world",
+   "privileged": false,
+   "confidence": 0.95,
+   "uncertainty": {
+    "position_m": 0.001,
+    "rotation_rad": 0.01
+   },
+   "visibility": "visible",
+   "state_label": null
+  },
+  {
+   "object_id": "d1",
+   "class": "domino",
+   "frame_id": "station",
+   "position_m": [
+    0.4,
+    0.04,
+    0.024
+   ],
+   "quaternion_xyzw": [
+    0.0,
+    0.0,
+    0.7071067811865475,
+    0.7071067811865476
+   ],
+   "timestamp_s": 1799999999.0,
+   "source": "synthetic:kinematic-world",
+   "privileged": false,
+   "confidence": 0.95,
+   "uncertainty": {
+    "position_m": 0.001,
+    "rotation_rad": 0.01
+   },
+   "visibility": "visible",
+   "state_label": null
+  }
+ ],
+ "events": {
+  "action_start_s": 1800000000.0,
+  "release_s": 1800000001.0,
+  "retreat_done_s": 1800000002.0
+ },
+ "observations": [
+  {
+   "object_id": "d2",
+   "class": "domino",
+   "frame_id": "station",
+   "position_m": [
+    0.4,
+    0.08,
+    0.024
+   ],
+   "quaternion_xyzw": [
+    0.0,
+    0.0,
+    0.7071067811865475,
+    0.7071067811865476
+   ],
+   "timestamp_s": 1800000001.5,
+   "source": "synthetic:kinematic-world",
+   "privileged": false,
+   "confidence": 0.95,
+   "uncertainty": {
+    "position_m": 0.001,
+    "rotation_rad": 0.01
+   },
+   "visibility": "visible",
+   "state_label": null
+  },
+  {
+   "object_id": "d0",
+   "class": "domino",
+   "frame_id": "station",
+   "position_m": [
+    0.4,
+    0.0,
+    0.024
+   ],
+   "quaternion_xyzw": [
+    0.0,
+    0.0,
+    0.7071067811865475,
+    0.7071067811865476
+   ],
+   "timestamp_s": 1800000001.5,
+   "source": "synthetic:kinematic-world",
+   "privileged": false,
+   "confidence": 0.95,
+   "uncertainty": {
+    "position_m": 0.001,
+    "rotation_rad": 0.01
+   },
+   "visibility": "visible",
+   "state_label": null
+  },
+  {
+   "object_id": "d1",
+   "class": "domino",
+   "frame_id": "station",
+   "position_m": [
+    0.4,
+    0.04,
+    0.024
+   ],
+   "quaternion_xyzw": [
+    0.0,
+    0.0,
+    0.7071067811865475,
+    0.7071067811865476
+   ],
+   "timestamp_s": 1800000001.5,
+   "source": "synthetic:kinematic-world",
+   "privileged": false,
+   "confidence": 0.95,
+   "uncertainty": {
+    "position_m": 0.001,
+    "rotation_rad": 0.01
+   },
+   "visibility": "visible",
+   "state_label": null
+  },
+  {
+   "object_id": "d2",
+   "class": "domino",
+   "frame_id": "station",
+   "position_m": [
+    0.4,
+    0.08,
+    0.024
+   ],
+   "quaternion_xyzw": [
+    0.0,
+    0.0,
+    0.7071067811865475,
+    0.7071067811865476
+   ],
+   "timestamp_s": 1800000002.0,
+   "source": "synthetic:kinematic-world",
+   "privileged": false,
+   "confidence": 0.95,
+   "uncertainty": {
+    "position_m": 0.001,
+    "rotation_rad": 0.01
+   },
+   "visibility": "visible",
+   "state_label": null
+  },
+  {
+   "object_id": "d0",
+   "class": "domino",
+   "frame_id": "station",
+   "position_m": [
+    0.4,
+    0.0,
+    0.024
+   ],
+   "quaternion_xyzw": [
+    0.0,
+    0.0,
+    0.7071067811865475,
+    0.7071067811865476
+   ],
+   "timestamp_s": 1800000002.0,
+   "source": "synthetic:kinematic-world",
+   "privileged": false,
+   "confidence": 0.95,
+   "uncertainty": {
+    "position_m": 0.001,
+    "rotation_rad": 0.01
+   },
+   "visibility": "visible",
+   "state_label": null
+  },
+  {
+   "object_id": "d1",
+   "class": "domino",
+   "frame_id": "station",
+   "position_m": [
+    0.4,
+    0.04,
+    0.024
+   ],
+   "quaternion_xyzw": [
+    0.0,
+    0.0,
+    0.7071067811865475,
+    0.7071067811865476
+   ],
+   "timestamp_s": 1800000002.0,
+   "source": "synthetic:kinematic-world",
+   "privileged": false,
+   "confidence": 0.95,
+   "uncertainty": {
+    "position_m": 0.001,
+    "rotation_rad": 0.01
+   },
+   "visibility": "visible",
+   "state_label": null
+  },
+  {
+   "object_id": "d2",
+   "class": "domino",
+   "frame_id": "station",
+   "position_m": [
+    0.4,
+    0.08,
+    0.024
+   ],
+   "quaternion_xyzw": [
+    0.0,
+    0.0,
+    0.7071067811865475,
+    0.7071067811865476
+   ],
+   "timestamp_s": 1800000002.25,
+   "source": "synthetic:kinematic-world",
+   "privileged": false,
+   "confidence": 0.95,
+   "uncertainty": {
+    "position_m": 0.001,
+    "rotation_rad": 0.01
+   },
+   "visibility": "visible",
+   "state_label": null
+  },
+  {
+   "object_id": "d0",
+   "class": "domino",
+   "frame_id": "station",
+   "position_m": [
+    0.4,
+    0.0,
+    0.024
+   ],
+   "quaternion_xyzw": [
+    0.0,
+    0.0,
+    0.7071067811865475,
+    0.7071067811865476
+   ],
+   "timestamp_s": 1800000002.25,
+   "source": "synthetic:kinematic-world",
+   "privileged": false,
+   "confidence": 0.95,
+   "uncertainty": {
+    "position_m": 0.001,
+    "rotation_rad": 0.01
+   },
+   "visibility": "visible",
+   "state_label": null
+  },
+  {
+   "object_id": "d1",
+   "class": "domino",
+   "frame_id": "station",
+   "position_m": [
+    0.4,
+    0.04,
+    0.024
+   ],
+   "quaternion_xyzw": [
+    0.0,
+    0.0,
+    0.7071067811865475,
+    0.7071067811865476
+   ],
+   "timestamp_s": 1800000002.25,
+   "source": "synthetic:kinematic-world",
+   "privileged": false,
+   "confidence": 0.95,
+   "uncertainty": {
+    "position_m": 0.001,
+    "rotation_rad": 0.01
+   },
+   "visibility": "visible",
+   "state_label": null
+  },
+  {
+   "object_id": "d2",
+   "class": "domino",
+   "frame_id": "station",
+   "position_m": [
+    0.4,
+    0.08,
+    0.024
+   ],
+   "quaternion_xyzw": [
+    0.0,
+    0.0,
+    0.7071067811865475,
+    0.7071067811865476
+   ],
+   "timestamp_s": 1800000002.5,
+   "source": "synthetic:kinematic-world",
+   "privileged": false,
+   "confidence": 0.95,
+   "uncertainty": {
+    "position_m": 0.001,
+    "rotation_rad": 0.01
+   },
+   "visibility": "visible",
+   "state_label": null
+  },
+  {
+   "object_id": "d0",
+   "class": "domino",
+   "frame_id": "station",
+   "position_m": [
+    0.4,
+    0.0,
+    0.024
+   ],
+   "quaternion_xyzw": [
+    0.0,
+    0.0,
+    0.7071067811865475,
+    0.7071067811865476
+   ],
+   "timestamp_s": 1800000002.5,
+   "source": "synthetic:kinematic-world",
+   "privileged": false,
+   "confidence": 0.95,
+   "uncertainty": {
+    "position_m": 0.001,
+    "rotation_rad": 0.01
+   },
+   "visibility": "visible",
+   "state_label": null
+  },
+  {
+   "object_id": "d1",
+   "class": "domino",
+   "frame_id": "station",
+   "position_m": [
+    0.4,
+    0.04,
+    0.024
+   ],
+   "quaternion_xyzw": [
+    0.0,
+    0.0,
+    0.7071067811865475,
+    0.7071067811865476
+   ],
+   "timestamp_s": 1800000002.5,
+   "source": "synthetic:kinematic-world",
+   "privileged": false,
+   "confidence": 0.95,
+   "uncertainty": {
+    "position_m": 0.001,
+    "rotation_rad": 0.01
+   },
+   "visibility": "visible",
+   "state_label": null
+  },
+  {
+   "object_id": "d2",
+   "class": "domino",
+   "frame_id": "station",
+   "position_m": [
+    0.4,
+    0.08,
+    0.024
+   ],
+   "quaternion_xyzw": [
+    0.0,
+    0.0,
+    0.7071067811865475,
+    0.7071067811865476
+   ],
+   "timestamp_s": 1800000002.75,
+   "source": "synthetic:kinematic-world",
+   "privileged": false,
+   "confidence": 0.95,
+   "uncertainty": {
+    "position_m": 0.001,
+    "rotation_rad": 0.01
+   },
+   "visibility": "visible",
+   "state_label": null
+  },
+  {
+   "object_id": "d0",
+   "class": "domino",
+   "frame_id": "station",
+   "position_m": [
+    0.4,
+    0.0,
+    0.024
+   ],
+   "quaternion_xyzw": [
+    0.0,
+    0.0,
+    0.7071067811865475,
+    0.7071067811865476
+   ],
+   "timestamp_s": 1800000002.75,
+   "source": "synthetic:kinematic-world",
+   "privileged": false,
+   "confidence": 0.95,
+   "uncertainty": {
+    "position_m": 0.001,
+    "rotation_rad": 0.01
+   },
+   "visibility": "visible",
+   "state_label": null
+  },
+  {
+   "object_id": "d1",
+   "class": "domino",
+   "frame_id": "station",
+   "position_m": [
+    0.4,
+    0.04,
+    0.024
+   ],
+   "quaternion_xyzw": [
+    0.0,
+    0.0,
+    0.7071067811865475,
+    0.7071067811865476
+   ],
+   "timestamp_s": 1800000002.75,
+   "source": "synthetic:kinematic-world",
+   "privileged": false,
+   "confidence": 0.95,
+   "uncertainty": {
+    "position_m": 0.001,
+    "rotation_rad": 0.01
+   },
+   "visibility": "visible",
+   "state_label": null
+  }
+ ],
+ "gripper_states": [
+  {
+   "holding": false,
+   "timestamp_s": 1800000001.1,
+   "source": "synthetic:jaw-gap"
+  }
+ ],
+ "now_s": 1800000003.0,
+ "tolerances_ref": "tasks/domino/config/line_v1.yaml"
+}

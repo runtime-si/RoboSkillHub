@@ -1,0 +1,45 @@
+{
+ "request_id": "demo-layout-1",
+ "layout_id": "line5-radial",
+ "frame_id": "station",
+ "geometry": {
+  "size_m": [
+   0.048,
+   0.024,
+   0.0075
+  ],
+  "yaw_symmetry_deg": 180.0
+ },
+ "start_m": [
+  0.3,
+  0.0
+ ],
+ "heading_deg": 0.0,
+ "n_tiles": 5,
+ "table_z_m": 0.0,
+ "spacing": {
+  "center_pitch_m": 0.04
+ },
+ "arm_base_xy_m": [
+  0.0,
+  0.0
+ ],
+ "workspace": {
+  "min_m": [
+   0.1,
+   -0.3
+  ],
+  "max_m": [
+   0.7,
+   0.3
+  ]
+ },
+ "order_preference": [
+  "forward",
+  "far_first",
+  "reverse"
+ ],
+ "cascade": {
+  "check": true
+ }
+}
