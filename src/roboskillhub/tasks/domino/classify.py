@@ -22,12 +22,22 @@ def _h(cause: str, confidence: str, evidence: str) -> dict[str, str]:
 def _pre_release_offset(observations: list[dict], plan: dict, trace: list[dict]) -> float | None:
     """How far the held tile was observed from where T_tcp_object predicts it, at the
     last observation before the release (support check)."""
-    tcp = next((e["measured_tcp"] for e in reversed(trace) if e.get("phase") == "descent" and "measured_tcp" in e), None)
+    tcp = next(
+        (
+            e["measured_tcp"]
+            for e in reversed(trace)
+            if e.get("phase") == "descent" and "measured_tcp" in e
+        ),
+        None,
+    )
     obs = next(
         (
             o
             for o in reversed(observations)
-            if any(e.get("phase") == "support_check" and e.get("observation") == o.get("sample_id") for e in trace)
+            if any(
+                e.get("phase") == "support_check" and e.get("observation") == o.get("sample_id")
+                for e in trace
+            )
         ),
         None,
     )
@@ -48,15 +58,31 @@ def classify(result: dict, observations: list[dict], plan: dict | None) -> list[
         return []
     th = plan["thresholds"]
     out: list[dict[str, Any]] = []
-    support = next((e for e in trace if e.get("phase") == "support_check" and "support_offset_m" in e), None)
+    support = next(
+        (e for e in trace if e.get("phase") == "support_check" and "support_offset_m" in e), None
+    )
     if code in ("support_mismatch", "descent_blocked"):
         if support is not None:
-            out.append(_h("table_calibration", "high", f"observed support offset {support['support_offset_m'] * 1e3:.1f} mm"))
+            out.append(
+                _h(
+                    "table_calibration",
+                    "high",
+                    f"observed support offset {support['support_offset_m'] * 1e3:.1f} mm",
+                )
+            )
         else:
-            out.append(_h("table_calibration", "medium", f"{code} with no direct support observation; an obstacle under the tile is also possible"))
+            out.append(
+                _h(
+                    "table_calibration",
+                    "medium",
+                    f"{code} with no direct support observation; an obstacle under the tile is also possible",
+                )
+            )
         return out
     if code == "object_dropped":
-        out.append(_h("slip", "medium", "tile left the hand between the pre-check and the preplace check"))
+        out.append(
+            _h("slip", "medium", "tile left the hand between the pre-check and the preplace check")
+        )
         out.append(_h("grasp_offset", "low", "a marginal grasp also drops tiles in transit"))
         return out
     if code == "placement_error":
@@ -65,28 +91,77 @@ def classify(result: dict, observations: list[dict], plan: dict | None) -> list[
             return out
         off = _pre_release_offset(observations, plan, trace)
         if off is not None and off > th["position_tolerance_m"] / 2:
-            out.append(_h("grasp_offset", "high", f"held tile observed {off * 1e3:.1f} mm from T_tcp_object's prediction before release"))
+            out.append(
+                _h(
+                    "grasp_offset",
+                    "high",
+                    f"held tile observed {off * 1e3:.1f} mm from T_tcp_object's prediction before release",
+                )
+            )
         else:
-            out.append(_h("release_drag", "medium", "TCP reached the release pose and the held tile matched T_tcp_object; it moved at or after the release"))
+            out.append(
+                _h(
+                    "release_drag",
+                    "medium",
+                    "TCP reached the release pose and the held tile matched T_tcp_object; it moved at or after the release",
+                )
+            )
             out.append(_h("slip", "low", "or slid after landing"))
         return out
     if code == "unstable_after_release":
-        if support is not None and abs(support["support_offset_m"]) > th["support_height_tolerance_m"] / 2:
-            out.append(_h("table_calibration", "medium", f"support observed {support['support_offset_m'] * 1e3:.1f} mm off"))
+        if (
+            support is not None
+            and abs(support["support_offset_m"]) > th["support_height_tolerance_m"] / 2
+        ):
+            out.append(
+                _h(
+                    "table_calibration",
+                    "medium",
+                    f"support observed {support['support_offset_m'] * 1e3:.1f} mm off",
+                )
+            )
         if phase == "release":
-            out.append(_h("release_drag", "medium", "fell between the release and the end of the retreat"))
+            out.append(
+                _h("release_drag", "medium", "fell between the release and the end of the retreat")
+            )
         else:
-            out.append(_h("slip", "low", "stood through the retreat, then fell or drifted in the settle window"))
-            out.append(_h("retreat_contact", "low", "a late topple can also follow a graze during the retreat"))
+            out.append(
+                _h(
+                    "slip",
+                    "low",
+                    "stood through the retreat, then fell or drifted in the settle window",
+                )
+            )
+            out.append(
+                _h(
+                    "retreat_contact",
+                    "low",
+                    "a late topple can also follow a graze during the retreat",
+                )
+            )
         return out
     if code == "neighbor_disturbed":
         nid = failure.get("neighbor_id")
         if phase == "retreat":
-            out.append(_h("retreat_contact", "medium", f"neighbour {nid} undisturbed after the release, disturbed after the retreat"))
+            out.append(
+                _h(
+                    "retreat_contact",
+                    "medium",
+                    f"neighbour {nid} undisturbed after the release, disturbed after the retreat",
+                )
+            )
         elif phase == "release":
-            out.append(_h("release_drag", "medium", f"neighbour {nid} already moved after the release"))
+            out.append(
+                _h("release_drag", "medium", f"neighbour {nid} already moved after the release")
+            )
         else:
-            out.append(_h("unknown", "low", f"neighbour {nid} moved; no observation separates release from retreat"))
+            out.append(
+                _h(
+                    "unknown",
+                    "low",
+                    f"neighbour {nid} moved; no observation separates release from retreat",
+                )
+            )
         return out
     if code == "release_not_confirmed":
         out.append(_h("gripper_release_fault", "medium", failure.get("detail", "")))

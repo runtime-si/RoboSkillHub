@@ -144,16 +144,22 @@ def verify_stable_placement(request: dict) -> dict:
         t_release = finite(events.get("release_s"), "events.release_s", 0, 1e12)
         t_retreat = finite(events.get("retreat_done_s"), "events.retreat_done_s", 0, 1e12)
         if not t_start <= t_release <= t_retreat:
-            raise RequestRejected("invalid_request", "events must be ordered start <= release <= retreat_done")
+            raise RequestRejected(
+                "invalid_request", "events must be ordered start <= release <= retreat_done"
+            )
         now = finite(request.get("now_s"), "now_s", 0, 1e12)
         tip_reach = finite(request.get("gripper_tip_reach_m", 0.0), "gripper_tip_reach_m", 0, 0.5)
         baseline = request.get("neighbors_baseline") or {}
         if not isinstance(baseline, dict):
-            raise RequestRejected("invalid_request", "neighbors_baseline must be {id: {pose, timestamp_s, source}}")
+            raise RequestRejected(
+                "invalid_request", "neighbors_baseline must be {id: {pose, timestamp_s, source}}"
+            )
         base_poses = {}
         for nid, b in baseline.items():
             if not isinstance(b, dict) or not b.get("source"):
-                raise RequestRejected("invalid_request", f"neighbour {nid}: baseline needs pose, timestamp_s, source")
+                raise RequestRejected(
+                    "invalid_request", f"neighbour {nid}: baseline needs pose, timestamp_s, source"
+                )
             bt = finite(b.get("timestamp_s"), f"neighbour {nid} timestamp_s", 0, 1e12)
             if bt > t_start:
                 raise RequestRejected(
@@ -170,7 +176,7 @@ def verify_stable_placement(request: dict) -> dict:
     samples, kinds = _clean_samples(request.get("observations"), frame, now, unknown)
     after_release = [s for s in samples if float(s["timestamp_s"]) > t_release]
     window = [s for s in samples if float(s["timestamp_s"]) >= t_retreat]
-    between = [s for s in after_release if float(s["timestamp_s"]) < t_retreat]
+    [s for s in after_release if float(s["timestamp_s"]) < t_retreat]
 
     evidence: dict[str, Any] = {
         "source_kinds": sorted(kinds),
@@ -197,7 +203,9 @@ def verify_stable_placement(request: dict) -> dict:
 
     # --- the settle window: distinct frames, after the retreat, fresh, long enough
     if not window:
-        unknown.append({"code": "insufficient_settle_window", "detail": "no observation after the retreat"})
+        unknown.append(
+            {"code": "insufficient_settle_window", "detail": "no observation after the retreat"}
+        )
     else:
         span = float(window[-1]["timestamp_s"]) - float(window[0]["timestamp_s"])
         age = now - float(window[-1]["timestamp_s"])
@@ -237,7 +245,12 @@ def verify_stable_placement(request: dict) -> dict:
         p, why = _usable_pose(rec, frame, th["min_identity_confidence"])
         t = float(s["timestamp_s"])
         depth = rec.get("depth_upright") if isinstance(rec, dict) else None
-        if p is None and isinstance(depth, dict) and depth.get("seen") and not depth.get("standing"):
+        if (
+            p is None
+            and isinstance(depth, dict)
+            and depth.get("seen")
+            and not depth.get("standing")
+        ):
             # The placing skill's depth check sees no standing tile at the slot: a
             # fall is observable without an orientation estimate.
             depth_down = depth_down or (t, depth)
@@ -362,23 +375,27 @@ def verify_stable_placement(request: dict) -> dict:
             recs.append((float(s["timestamp_s"]), p, why))
         last = next((r for r in reversed(recs) if r[1] is not None and r[0] >= t_retreat), None)
         if last is None:
-            unknown.append({"code": "target_occluded", "detail": f"neighbour {nid} not observed after the retreat"})
+            unknown.append(
+                {
+                    "code": "target_occluded",
+                    "detail": f"neighbour {nid} not observed after the retreat",
+                }
+            )
             neighbours[nid] = {"observed": False}
             continue
 
         def moved(p: dict, b: dict = b) -> tuple[float, float]:
             d = float(np.linalg.norm(np.subtract(p["position_m"], b["position_m"])))
-            dt = abs(geo.tilt_rad(p, normal, up_symmetric=up_sym) - geo.tilt_rad(b, normal, up_symmetric=up_sym))
+            dt = abs(
+                geo.tilt_rad(p, normal, up_symmetric=up_sym)
+                - geo.tilt_rad(b, normal, up_symmetric=up_sym)
+            )
             return d, dt
 
         d, dt = moved(last[1])
         neighbours[nid] = {"observed": True, "displacement_m": d, "tilt_change_rad": dt}
         if d > th["neighbor_displacement_tolerance_m"] or dt > th["neighbor_tilt_tolerance_rad"]:
-            pre = [
-                moved(p)
-                for t, p, _ in recs
-                if p is not None and t < t_retreat
-            ]
+            pre = [moved(p) for t, p, _ in recs if p is not None and t < t_retreat]
             if not pre:
                 phase = "unknown"
             elif any(

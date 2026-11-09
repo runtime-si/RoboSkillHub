@@ -43,16 +43,36 @@ def matrix_quat(r: np.ndarray) -> list[float]:
     t = float(np.trace(r))
     if t > 0:
         s = 2.0 * math.sqrt(t + 1.0)
-        w, x, y, z = 0.25 * s, (r[2, 1] - r[1, 2]) / s, (r[0, 2] - r[2, 0]) / s, (r[1, 0] - r[0, 1]) / s
+        w, x, y, z = (
+            0.25 * s,
+            (r[2, 1] - r[1, 2]) / s,
+            (r[0, 2] - r[2, 0]) / s,
+            (r[1, 0] - r[0, 1]) / s,
+        )
     elif r[0, 0] > r[1, 1] and r[0, 0] > r[2, 2]:
         s = 2.0 * math.sqrt(1.0 + r[0, 0] - r[1, 1] - r[2, 2])
-        w, x, y, z = (r[2, 1] - r[1, 2]) / s, 0.25 * s, (r[0, 1] + r[1, 0]) / s, (r[0, 2] + r[2, 0]) / s
+        w, x, y, z = (
+            (r[2, 1] - r[1, 2]) / s,
+            0.25 * s,
+            (r[0, 1] + r[1, 0]) / s,
+            (r[0, 2] + r[2, 0]) / s,
+        )
     elif r[1, 1] > r[2, 2]:
         s = 2.0 * math.sqrt(1.0 + r[1, 1] - r[0, 0] - r[2, 2])
-        w, x, y, z = (r[0, 2] - r[2, 0]) / s, (r[0, 1] + r[1, 0]) / s, 0.25 * s, (r[1, 2] + r[2, 1]) / s
+        w, x, y, z = (
+            (r[0, 2] - r[2, 0]) / s,
+            (r[0, 1] + r[1, 0]) / s,
+            0.25 * s,
+            (r[1, 2] + r[2, 1]) / s,
+        )
     else:
         s = 2.0 * math.sqrt(1.0 + r[2, 2] - r[0, 0] - r[1, 1])
-        w, x, y, z = (r[1, 0] - r[0, 1]) / s, (r[0, 2] + r[2, 0]) / s, (r[1, 2] + r[2, 1]) / s, 0.25 * s
+        w, x, y, z = (
+            (r[1, 0] - r[0, 1]) / s,
+            (r[0, 2] + r[2, 0]) / s,
+            (r[1, 2] + r[2, 1]) / s,
+            0.25 * s,
+        )
     q = np.array([x, y, z, w], dtype=float)
     q /= np.linalg.norm(q)
     if q[3] < 0:
@@ -153,7 +173,9 @@ def yaw_error_rad(a: dict, b: dict, plane_normal: Any, symmetry_deg: float) -> f
 
 
 def height_over_plane(point: Any, plane_point: Any, plane_normal: Any) -> float:
-    return float((np.asarray(point, dtype=float) - np.asarray(plane_point, dtype=float)) @ unit(plane_normal))
+    return float(
+        (np.asarray(point, dtype=float) - np.asarray(plane_point, dtype=float)) @ unit(plane_normal)
+    )
 
 
 def lowest_point_height(p: dict, size: dict, plane_point: Any, plane_normal: Any) -> float:

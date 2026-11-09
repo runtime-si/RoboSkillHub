@@ -26,7 +26,11 @@ def depth_upright_record(
     """``{"pose": None, "depth_upright": verdict}`` for the tile expected at ``slot_pose``.
     ``observation`` is the robot observation with ``cameras`` (depth, intrinsics, pose)."""
     pd = upstream.place()
-    size = {"height": geometry["height_m"], "width": geometry["width_m"], "thickness": geometry["thickness_m"]}
+    size = {
+        "height": geometry["height_m"],
+        "width": geometry["width_m"],
+        "thickness": geometry["thickness_m"],
+    }
     cams = pd.order_cameras(pd._cameras(observation), camera_name)
     xy, facing = geo.xy_facing(slot_pose)
     verdict = pd.judge_tile(cams, xy, facing, float(table_z), size, float(along_room))

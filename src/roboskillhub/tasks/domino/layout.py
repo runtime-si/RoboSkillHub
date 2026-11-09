@@ -14,7 +14,6 @@ identical tiles facing along it, ``center_pitch = face_gap + thickness``.
 from __future__ import annotations
 
 import math
-from typing import Any
 
 import numpy as np
 
@@ -50,7 +49,9 @@ def plan_straight_layout(request: dict) -> dict:
         table_z = finite(request.get("table_z_m"), "table_z_m")
         spacing = request.get("spacing") or {}
         if ("center_pitch_m" in spacing) == ("face_gap_m" in spacing):
-            raise RequestRejected("invalid_request", "spacing needs exactly one of center_pitch_m, face_gap_m")
+            raise RequestRejected(
+                "invalid_request", "spacing needs exactly one of center_pitch_m, face_gap_m"
+            )
         if "center_pitch_m" in spacing:
             pitch = finite(spacing["center_pitch_m"], "center_pitch_m", 0.0, 1.0)
         else:
@@ -59,7 +60,10 @@ def plan_straight_layout(request: dict) -> dict:
         base = np.array(vec(base, "arm_base_xy_m", 2)) if base is not None else None
         ws = request.get("workspace")
         if ws is not None:
-            ws = (np.array(vec(ws.get("min_m"), "workspace.min_m", 2)), np.array(vec(ws.get("max_m"), "workspace.max_m", 2)))
+            ws = (
+                np.array(vec(ws.get("min_m"), "workspace.min_m", 2)),
+                np.array(vec(ws.get("max_m"), "workspace.max_m", 2)),
+            )
         open_w = finite(
             request.get("open_width_m", g["width_m"] + 2.0 * float(pd.GRIP_CLEARANCE)),
             "open_width_m",
@@ -68,12 +72,16 @@ def plan_straight_layout(request: dict) -> dict:
         )
         prefs = request.get("order_preference") or list(ORDERS)
         if any(o not in ORDERS for o in prefs):
-            raise RequestRejected("invalid_request", f"order_preference entries must be in {ORDERS}")
+            raise RequestRejected(
+                "invalid_request", f"order_preference entries must be in {ORDERS}"
+            )
         existing = []
         for e in request.get("existing") or []:
             p = e.get("pose") if isinstance(e, dict) else None
             if not isinstance(p, dict) or p.get("frame_id") != frame:
-                raise RequestRejected("invalid_request", "existing tiles need an observed pose in frame_id")
+                raise RequestRejected(
+                    "invalid_request", "existing tiles need an observed pose in frame_id"
+                )
             existing.append((str(e.get("id")), geo.xy_facing(p)))
     except RequestRejected as exc:
         result["failure"] = {"code": exc.code, "detail": str(exc)}
@@ -147,20 +155,31 @@ def plan_straight_layout(request: dict) -> dict:
             nbrs = [(xy[t], facing[t]) for t in standing] + [xyf for _, xyf in existing]
             clash = pd.finger_conflicts(xy[k], facing[k], nbrs, size, open_w)
             if clash:
-                names = [str(standing[c]) if c < len(standing) else existing[c - len(standing)][0] for c in clash]
+                names = [
+                    str(standing[c]) if c < len(standing) else existing[c - len(standing)][0]
+                    for c in clash
+                ]
                 return False, f"slot {k}: open fingers reach standing tile(s) {names}", steps
             if base is not None:
                 others = [t for t in standing if abs(t - k) > 1]
                 hit = [t for t in others if pl.in_corridor(base, xy[k], xy[t])]
                 hit += [eid for eid, xyf in existing if pl.in_corridor(base, xy[k], xyf[0])]
                 if hit:
-                    return False, f"slot {k}: the arm would reach past standing tile(s) {hit}", steps
+                    return (
+                        False,
+                        f"slot {k}: the arm would reach past standing tile(s) {hit}",
+                        steps,
+                    )
             if ws is not None and standing:
                 near = min(standing, key=lambda t: float(np.linalg.norm(xy[t] - xy[k])))
                 side = -1.0 if float((xy[near] - xy[k]) @ along) > 0 else 1.0
                 lead = xy[k] + side * float(pd.LEAD_IN) * along
                 if not (np.all(lead >= ws[0]) and np.all(lead <= ws[1])):
-                    return False, f"slot {k}: the lead-in from the free end leaves the workspace", steps
+                    return (
+                        False,
+                        f"slot {k}: the lead-in from the free end leaves the workspace",
+                        steps,
+                    )
             steps.append({"slot_index": k, "neighbors": list(standing) + [e for e, _ in existing]})
             standing.append(k)
         return True, "", steps
