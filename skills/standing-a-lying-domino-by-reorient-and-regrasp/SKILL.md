@@ -50,6 +50,7 @@ gap:
     grasp_height: float
     grip_width: float
     facing_deg: float
+    yaw_turn_deg: float
     pitch_turn_deg: float
     roll_turn_deg: float
     tilt_at_release_deg: float
@@ -74,4 +75,169 @@ gap:
 
 # standing-a-lying-domino-by-reorient-and-regrasp
 
-(draft)
+A domino lying flat cannot go straight into a row: a top-down pinch across a
+lying tile puts the fingers where the neighbours stand. This skill stands the
+tile on its end at a free staging spot first, so that
+placing-an-upright-domino-beside-neighbours can pick it again from above with
+the fingers on its broad faces (the regrasp is that skill's job; chain the two
+on `standing`).
+
+## The motion
+
+1. Geometry first. The tile is a world-frame centre and long axis (from
+   reading-domino-pips-and-orientation, a 6D pose or any detector); the axis
+   must have a horizontal direction. The jaws close across the tile's
+   **width** (24 mm), `grip_offset` (14 mm) along the long axis from its
+   centre toward the end that will be on top, the tool centre `grasp_height`
+   (11 mm) over the table. A grasp height that leaves the fingertips less than
+   `MIN_BITE` (2 mm) of the 7.5 mm edge, or a tile wider than the open hand, is
+   `ungraspable` before anything moves.
+2. The plan, previewed with `robot.solve_ik` before anything moves. The
+   *facing* is the heading of the pitched approach; once the tile stands its
+   broad faces look along it (`standing_tile`'s x axis). Facings every
+   `facing_step_deg` (10 deg) are tried, the ones nearest the tile's own axis
+   first, for both wrist solutions of the grasp (`robot.grasp_frame`'s
+   `rotation`, then `rotation_flipped`). A facing passes when the top-down
+   grasp, the pitched hand at the release and every pitch step over the
+   staging spot (`pitch_step_deg`, 15 deg) solve within the servo's
+   tolerance. None passing is `unreachable` with nothing moved; `detail` lists
+   what failed per facing.
+3. The pick: open to the tile's width plus `grip_clearance` (4 mm) a side
+   (`robot.set_grip`), rise to `lift_height`, go over the grasp point, read the
+   jaw heading back and finish it on the last joint (`robot.move_to_joints`)
+   when the arm left the roll free, come straight down, close, read the jaw
+   gap (empty, 6 mm under or 8 mm over the tile's width is `ungraspable`, the
+   jaws reopen and lift). A descent that ends 6 mm or more over its target
+   stopped on the tile (`ungraspable`). The measured height at the close is
+   the grasp height from here on. Lift straight up and read the jaws again
+   (`dropped`).
+4. The facing is fixed now: the first of the passing ones whose turn about
+   the vertical fits the last joint's remaining travel from where it is.
+5. Over the staging spot, turn the held tile about the vertical on the last
+   joint until the end that goes up points along the facing, then pitch the
+   hand 90 deg about the level axis through the tool centre, in
+   `pitch_step_deg` steps, reading the jaws after each (`dropped`). One 90 deg
+   pose command stalled in the station twin, and a single joint jump to the
+   pitched pose flung the tile out (see the constants).
+6. Read the roll back (the tile's up end about the approach) and finish it on
+   the last joint; then the tile's lean from vertical, read from the hand's
+   rotation, must be under `tilt_tolerance_deg` (6 deg; a 48 x 7.5 mm tile
+   tips past its edge at 8.9 deg). Straight down until the tile's bottom is
+   `release_gap` (1.5 mm) over the table; a descent that ends 6 mm high, or a
+   lean past the tolerance there, lifts back (`unreachable`, still holding).
+7. Open to the release width, back off `retreat` (30 mm) along the approach,
+   rise.
+8. The check (`verify`, default on): park (`park_pose`, default the start
+   pose at least at lift height), read `robot.get_observation` and look at
+   the staging spot in depth: the highest points inside the standing tile's
+   footprint widened by 10 mm are its top. It stands when that top is within
+   10 mm of the tile's height and within 8 mm of the spot (`standing`); a low
+   top, a top off the spot or nothing raised is `fell`. A camera whose window
+   is cut by the image edge or a quarter covered by something higher (the
+   hand) does not judge; the overhead (`overhead`, `top`) is tried first, or
+   only `camera_name`. No camera judging is `unverified`.
+
+## Inputs
+
+- `tile_center` (Vec3), `long_axis` (Vec3): the lying tile, world frame.
+- `table_z` (float): the table plane, a station calibration.
+- `staging` (Vec3, default the tile's own centre): where it should stand.
+- `tile_size` (`{height, width, thickness}`, default 48 x 24 x 7.5 mm).
+- `grasp_height` (0.011 m), `grip_offset` (0.014 m), `lift_height` (0.10 m),
+  `release_gap` (0.0015 m), `grip_clearance` (0.004 m), `retreat` (0.03 m),
+  `min_tool_height` (0.010 m).
+- `facing_step_deg` (10), `pitch_step_deg` (15), `joint_limits` (default
+  `robot.describe_arm`'s, else the YAM's), `roll_tolerance_deg` (4),
+  `tilt_tolerance_deg` (6), `reach_tolerance` (0.015 m), `descent_tolerance`
+  (0.006 m), `check_reach` (true).
+- `verify` (true), `camera_name` (""), `park_pose` (out of the camera's view
+  of the spot), `arm_id` (0; passed only when nonzero).
+
+## Outputs
+
+`picked`, `released`, `grasp_height` (measured at the close), `grip_width`
+(jaw gap at the close, m; -1 unread), `facing_deg`, `yaw_turn_deg`,
+`pitch_turn_deg` (the approach's measured turn), `roll_turn_deg` (last-joint
+roll finish after the pitch), `tilt_at_release_deg` (from the hand's
+rotation), `release_position`, `standing_tile` (centre at half the tile's
+height, rotation whose x axis is the facing, `facing_deg`: what
+placing-an-upright-domino-beside-neighbours takes as `tile`), `verified`,
+`tile_top`, `standing_offset` (from depth, m; -1 unmeasured).
+
+## Preconditions and boundaries
+
+- **A real YAM station refuses a tool centre under 14 mm over its table.**
+  The default grasp (11 mm, fingertips 0.8 mm over the table) needs that floor
+  lowered; at 14 mm the fingertips hold only 3.7 mm of a 7.5 mm tile's edge
+  (`MIN_BITE` allows it). Thin tiles are the reason this skill exists, and the
+  reason it is fragile.
+- The tile's lean at the release is read from the hand, assuming the tile
+  turned with it. A tile that pivots in the pinch (the station twin's default
+  contact, below) is not seen until the depth check.
+- The staging spot must be clear of other tiles (not checked) and reachable
+  by a pitched hand: on a YAM the release with the hand horizontal 40 mm over the table
+  solves only in narrow heading bands (a 30 deg probe grid found one or two
+  facing pairs per spot, none along the arm's radius), which is why the
+  facing is searched.
+- Only what the hand did is certain without the check.
+
+## What changed from the source, and why
+
+Franka-Domino-Project's `normalize_domino` (a real Franka with a wrist
+RealSense, ROS 2 / MoveIt) picks a lying 48 x 24 x 7.5 mm tile top-down,
+turns the wrist so the long axis is vertical, sets it down by a force-limited
+descent at a staging spot 27 mm up, releases, and lets the caller re-grasp it
+from above. That repository has **no licence**, so no code was taken: this is
+written from the described behaviour. Here:
+
+- the inputs are a world-frame centre and long axis, the outputs a standing
+  pose in the convention of placing-an-upright-domino-beside-neighbours;
+- the facing is chosen by an IK preview of the whole path (grasp, every pitch
+  step, release) before anything moves, then by the last joint's remaining
+  travel after the pick - the YAM reaches a pitched hand near the table only
+  in narrow bands;
+- the quarter turn is commanded in 15 deg pose steps about the level axis
+  through the tool centre, and the wrist roll is read back and finished on the
+  last joint (the station twin's solver leaves the roll free, PORTING lesson
+  10);
+- the force-limited descent is a measured height (`descent_tolerance`) and
+  a lean read from the hand before and at the release;
+- whether the tile stands is judged from depth, not assumed.
+
+## The constants, and why
+
+- **`TILE_SIZE` 48 x 24 x 7.5 mm**: Franka-Domino-Project's tiles.
+- **`GRASP_HEIGHT = 0.011` m, `MIN_BITE = 0.002` m, `TIP_REACH = 0.0102` m,
+  `MIN_TOOL_HEIGHT = 0.010` m**: in the station twin the hand arrived 2.2-2.7
+  mm over the command (13.2-13.7 mm), leaving the pads 4.0-4.5 mm of the
+  edge.
+- **`GRIP_OFFSET = 0.014` m**: gripped at the centre, the pitched hand
+  stalled 37.7 mm over the table when asked for 25.5 mm; 14 mm toward the top
+  puts the tool centre 39.5 mm up at the release.
+- **`LIFT_HEIGHT = 0.10` m**: the held tile swings half its height plus
+  `GRIP_OFFSET` under the tool centre.
+- **`FACING_STEP_DEG = 10`, `PITCH_STEP_DEG = 15`**: the release bands and the
+  stalled / flung single-move pitches above.
+- **`ROLL_TOLERANCE_DEG = 4`, `TILT_TOLERANCE_DEG = 6`, `TURN_TRIES = 3`,
+  `CENTRE_TOLERANCE = 0.004` m**: a servo's 3 deg / 4 mm bounds plus a margin;
+  the tile tips at 8.9 deg.
+- **`RELEASE_GAP = 0.0015` m, `GRIP_CLEARANCE = 0.004` m, `RETREAT = 0.03` m**:
+  under the servo's arrival bound; describe_gripper's clearance; past the
+  fingertips' 10.2 mm.
+- **`EMPTY_MARGIN`, `NARROW_MARGIN`, `FULL_MARGIN`, `DESCENT_TOLERANCE`,
+  `REACH_TOLERANCE`**: grasping-flat-objects' (3 / 6 / 8 / 6 / 15 mm).
+- **`HEIGHT_TOLERANCE = 0.010` m, `POSITION_TOLERANCE = 0.008` m,
+  `SEARCH_MARGIN`, `OCCLUDER_RISE`, `OCCLUDED_SHARE`, `TOP_BAND`,
+  `MIN_POINTS`**: the depth check of placing-an-upright-domino-beside-neighbours
+  (a 10 deg lean moves a 48 mm top 8.3 mm; the station camera's RMS is 5.4 mm).
+
+## Simulation check
+
+SIM_RESULTS
+
+## Provenance
+
+Reimplemented from the behaviour of `normalize_domino` in
+[Zhu-Chenyu/Franka-Domino-Project](https://github.com/Zhu-Chenyu/Franka-Domino-Project)
+(`place_dominoes/place_dominoes/place_dominoes.py`). That repository states no
+licence; none of its code is used here.

@@ -58,6 +58,7 @@ class Arm:
         grip=None,
         standing=True,
         cameras=True,
+        joints=None,
     ):
         self.s = script
         self.p = np.array([0.45, 0.30, TABLE_Z + 0.25])
@@ -77,6 +78,7 @@ class Arm:
         self.joint_moves = []
         self.standing = standing
         self.cameras = cameras
+        self.joints = joints
         self.released_at = None
 
     # -- tools
@@ -129,6 +131,8 @@ class Arm:
         if not self.reachable(point, rot):
             return {"success": False, "within_servo_tolerance": False}
         q = tuple(np.round(np.array([0.3, 1.0, 0.9, 0.4, 0.2, 0.1]) + point[0] * 0.01, 6))
+        if self.joints is not None:
+            q = tuple(np.round(np.asarray(self.joints(point, rot), dtype=float), 6))
         self.solutions[q] = (point, rot)
         return {
             "success": True,
@@ -409,6 +413,34 @@ def test_a_facing_whose_pitch_path_does_not_solve_is_skipped(script):
     assert out["route"] == "standing", out["detail"]
     # The other end up (facing 180 deg) needs no turn about the vertical either.
     assert abs(out["facing_deg"]) == pytest.approx(180.0)
+
+
+def test_a_facing_whose_pitch_jumps_a_joint_is_skipped(script):
+    def joints(point, rot):
+        f, a = facing_of(rot)
+        q = np.array([0.3, 1.0, 0.9, -1.0, 0.2, 0.1])
+        # A quarter turn moves the wrist pitch by 1 rad, 0.03-0.26 rad a step.
+        q[3] += 1.0 - abs(a[2])
+        if abs(f) < 1.0 and abs(a[2]) < 0.1:
+            q[3] = 1.5708  # the last step of facing 0 jumps onto the limit
+        return q
+
+    arm = Arm(script, joints=joints)
+    out = stand(script, arm, verify=False)
+    assert out["route"] == "standing", out["detail"]
+    assert abs(out["facing_deg"]) == pytest.approx(180.0)
+
+
+def test_no_facing_without_a_joint_jump_moves_nothing(script):
+    def joints(point, rot):
+        a = rot @ np.array([0.0, 0.0, 1.0])
+        return [0.3, 1.0, 0.9, 1.5708 if abs(a[2]) < 0.1 else -1.0, 0.2, 0.1]
+
+    arm = Arm(script, joints=joints)
+    out = stand(script, arm, verify=False)
+    assert out["route"] == "unreachable"
+    assert "jumps" in out["detail"]
+    assert not arm.moves and not out["picked"]
 
 
 def test_a_facing_whose_turn_exceeds_the_last_joint_is_skipped(script):

@@ -613,3 +613,8 @@ tilt_first approach follows Algorithm 2 (InsertTilt) of Watson, Miller and
 Correll, "Autonomous Industrial Assembly using Force, Torque, and RGB-D
 sensing" (arXiv:2002.02580; paper only, no code). Its pose, lag, depth and
 wrist-camera helpers follow skills/pressing-a-brick-onto-studs.
+skills/standing-a-lying-domino-by-reorient-and-regrasp/scripts/stand_domino.py
+is written from the behaviour of normalize_domino in Franka-Domino-Project
+(https://github.com/Zhu-Chenyu/Franka-Domino-Project,
+place_dominoes/place_dominoes/place_dominoes.py), which has no license; none
+of its code is used.

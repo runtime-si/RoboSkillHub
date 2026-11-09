@@ -86,6 +86,11 @@ PITCH_STEP_DEG = 15.0
 the joints to a solved pitched pose (1.6 rad on a wrist joint) flung the held tile out of the jaws or knocked a
 neighbour."""
 
+PITCH_JOINT_JUMP = 0.6
+"""Largest change of any joint but the last between the IK solutions of two consecutive pitch steps [rad]. In a
+YAM station twin the steps of a passing facing moved the joints 0.2-0.5 rad each, then the last 15 deg step jumped
+the wrist pitch 1.27 rad onto its 1.5708 limit, and the tile was lost in that step."""
+
 CENTRE_TOLERANCE = 0.004
 """A wrist turn that moved the tool centre more than this is followed by a re-centring move [m] (a servo's 4 mm
 arrival bound)."""
@@ -486,6 +491,7 @@ def run(
     min_tool_height: float = MIN_TOOL_HEIGHT,
     facing_step_deg: float = FACING_STEP_DEG,
     pitch_step_deg: float = PITCH_STEP_DEG,
+    pitch_joint_jump: float = PITCH_JOINT_JUMP,
     joint_limits: list[list[float]] | None = None,
     verify: bool = True,
     camera_name: str = "",
@@ -722,6 +728,24 @@ def run(
         """The level axis the quarter turn is about, for facing ``f``: the approach goes from down to ``f``."""
         return np.cross(np.array([0.0, 0.0, -1.0]), heading(f))
 
+    def pitch_path(f: float, r_f: np.ndarray, high: np.ndarray) -> str:
+        """What fails for facing ``f``, or an empty string when every pitch step over ``high`` solves (from the
+        top-down hand to ``r_f``) and no joint but the last moves more than pitch_joint_jump between two steps."""
+        prev = np.zeros(0)
+        for i in range(n_pitch + 1):
+            deg = 90.0 * i / n_pitch
+            reply = ik(high, axis_angle(level_of(f), deg - 90.0) @ r_f)
+            if reply is None:
+                return f"pitch at {deg:.0f} deg"
+            q = (reply.get("joint_config") or {}).get("positions")
+            q = np.asarray(q if q is not None else [], dtype=np.float64).reshape(-1)
+            if q.size > 1 and prev.size == q.size:
+                jump = float(np.max(np.abs(q[:-1] - prev[:-1])))
+                if jump > float(pitch_joint_jump):
+                    return f"pitch at {deg:.0f} deg: a joint jumps {jump:.2f} rad"
+            prev = q
+        return ""
+
     passing: list[float] = []
     tried: list[str] = []
     g_rot, forward = grasp_rots[0], True
@@ -746,17 +770,9 @@ def run(
             if ik(release, r_f) is None:
                 tried.append(f"{psi:.0f}: release")
                 continue
-            high = np.array([*release[:2], lift_z])
-            stuck = next(
-                (
-                    i
-                    for i in range(n_pitch, 0, -1)
-                    if ik(high, axis_angle(level_of(psi), 90.0 * i / n_pitch - 90.0) @ r_f) is None
-                ),
-                0,
-            )
-            if stuck:
-                tried.append(f"{psi:.0f}: pitch at {90.0 * stuck / n_pitch:.0f} deg")
+            why = pitch_path(psi, r_f, np.array([*release[:2], lift_z]))
+            if why:
+                tried.append(f"{psi:.0f}: {why}")
                 continue
             if not passing:
                 g_rot, forward = g, fwd
