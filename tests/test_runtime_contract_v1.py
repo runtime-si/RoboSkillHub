@@ -692,3 +692,10 @@ def test_held_object_vocabulary_v12():
     }
     validate("HeldObject", held)
     assert CONTRACT["object_frames"]["domino"]["+x"].startswith("facing")
+
+
+def test_graph_assign_of_a_missing_value_is_a_routed_graph_error():
+    x = Scripted("x", [("succeeded", None)])
+    nodes = {"a": {"skill": "x", "assign": {"k": "$last.a.outputs.missing"}, "on": ALL}}
+    episode = run_graph(graph(nodes, {"x": "1.0.0"}), {"x": x}, {}, ctx_factory)
+    assert (episode["status"], episode["steps"][0]["failure_type"]) == ("failed", "graph_error")
