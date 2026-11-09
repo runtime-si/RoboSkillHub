@@ -27,6 +27,7 @@ from .contracts import (
     compose,
     invert,
     tcp_for_object_goal,
+    validate_pose,
 )
 
 __all__ = [
@@ -171,6 +172,12 @@ class SkillContext:
     clock: Callable[[], float] = time.time
     children: list[str] = field(default_factory=list)
     primitive_results: list[dict] = field(default_factory=list)
+    limits: Mapping[str, Any] = field(default_factory=dict)
+    """The station's trusted limits (read-only copy); requests cannot change them."""
+    backend_description: Mapping[str, Any] = field(default_factory=dict)
+    evidence_level: str = "unit_or_dryrun"
+    read_state: Callable[[], dict] | None = None
+    sleep: Callable[[float], None] = time.sleep
 
     def invoke(self, capability: str, request: dict) -> dict:
         if self.primitive is None:
@@ -195,6 +202,12 @@ class SkillContext:
 
     def cancelled(self) -> bool:
         return self.is_cancelled()
+
+    def state(self) -> dict:
+        """No-motion read of measured TCP pose and gripper feedback."""
+        if self.read_state is None:
+            raise Rejected("this context has no station state", failure_type="capability_missing")
+        return self.read_state()
 
     def now(self) -> float:
         return self.clock()
@@ -333,9 +346,26 @@ def primitive_skill_context(
 ) -> SkillContext:
     """A context whose primitives run on ``runtime`` under ``lease``."""
     description = runtime.backend.describe()
+    limits = runtime.limits
 
     def primitive(capability: str, request: dict, rid: str) -> dict:
         return runtime.invoke(capability, request, lease=lease, request_id=rid)
+
+    def read_state() -> dict:
+        timeout = max(0.01, min(limits.max_state_age_s, lease.remaining()))
+        state = runtime.backend.get_state(timeout_s=timeout)
+        if not isinstance(state, dict):
+            raise EvidenceMissing("backend state is not an object")
+        try:
+            pose = validate_pose(state.get("pose"), limits.frame_id)
+        except Rejected as exc:
+            raise EvidenceMissing(f"invalid measured TCP pose: {exc}") from exc
+        gripper = state.get("gripper") if isinstance(state.get("gripper"), dict) else {}
+        return {
+            "tcp_pose": pose,
+            "timestamp_s": state.get("timestamp_s"),
+            "gripper": {k: gripper.get(k) for k in ("holding", "width_m", "timestamp_s", "source")},
+        }
 
     return SkillContext(
         task_id=lease.task_id,
@@ -344,6 +374,10 @@ def primitive_skill_context(
         privileged_allowed=privileged_allowed,
         primitive=primitive,
         is_cancelled=lambda: lease.cancel_reason is not None,
+        limits=dict(vars(limits)),
+        backend_description=dict(description),
+        evidence_level=description.get("evidence_level", "unit_or_dryrun"),
+        read_state=read_state,
     )
 
 

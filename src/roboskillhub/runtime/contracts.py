@@ -147,6 +147,8 @@ class Limits:
     gripper_width_tolerance_m: float = 0.004
     held_object_tolerance_m: float = 0.02
     max_task_s: float = 600.0
+    max_contact_force_N: float = 0.0
+    """0 means the station has no configured contact-force limit: guarded_press is refused."""
 
     @classmethod
     def from_dict(cls, config: dict) -> Limits:
@@ -185,6 +187,7 @@ class Limits:
             "gripper_width_tolerance_m": (1e-4, 0.02),
             "held_object_tolerance_m": (1e-3, 0.05),
             "max_task_s": (1, 7200),
+            "max_contact_force_N": (0, 200),
         }
         for key, bounds in ranges.items():
             if key in values:
@@ -325,6 +328,22 @@ SCHEMAS = {
             },
         },
     },
+    "guarded_press": {
+        "required": ["axis", "max_travel_m", "speed_m_s", "force_limit_N"],
+        "properties": {
+            "timeout_s": _N,
+            "axis": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["frame_id", "vector"],
+                "properties": {"frame_id": _S, "vector": _V},
+            },
+            "max_travel_m": _N,
+            "speed_m_s": _N,
+            "force_limit_N": _N,
+            "hold_s": _N,
+        },
+    },
     "observe_objects": {
         "required": ["object_ids"],
         "properties": {
@@ -358,6 +377,7 @@ CAPABILITY_BUNDLES = {
     "set_gripper": "setting-gripper-with-feedback",
     "move_waypoints": "moving-through-waypoints",
     "observe_objects": "observing-object-poses",
+    "guarded_press": "pressing-with-contact-limit",
 }
 
 
@@ -382,6 +402,10 @@ def validate_request(capability: str, request: Any) -> dict:
         or len(set(request["object_ids"])) != len(request["object_ids"])
     ):
         raise Rejected("object_ids must be distinct nonempty strings")
+    if "axis" in request and (
+        not isinstance(request["axis"], dict) or set(request["axis"]) != {"frame_id", "vector"}
+    ):
+        raise Rejected("axis requires exactly frame_id and vector")
     if "held" in request:
         held = request["held"]
         if not isinstance(held, dict) or set(held) != {"object_id", "T_TCP_object"}:

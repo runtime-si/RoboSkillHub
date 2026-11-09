@@ -418,6 +418,12 @@ Existing requests and statuses are unchanged; every result now also carries
 | `move_waypoints` (1-32 poses, `linear`, optional `held`) | pose_feedback, cartesian_motion, stop; `linear: true` adds linear_cartesian_motion; `held` adds object_feedback | arrival at every waypoint; with `held`, the observed object within `held_object_tolerance_m` of `TCP · T_TCP_object` |
 | `observe_objects` (1-32 ids, optional `require_orientation`) | object_feedback; orientation adds object_pose_feedback | every object fresh, visible (and oriented); otherwise `unverified` with a per-object reason; simulator truth is `privileged` |
 
+`guarded_press` (`axis`, `max_travel_m`, `speed_m_s`, `force_limit_N`, contract 1.1)
+requires `contact_force_feedback`, `compliant_motion`, a declared `contact_signal`
+(unit N, rate, latency) and force-type `controller`, a backend `guarded_move` and a
+station `max_contact_force_N`; it reports the controller's stop and force trace and
+judges nothing about the part.
+
 No current backend declares `linear_cartesian_motion`, `contact_force_feedback`
 or `compliant_motion`, so requests needing them are rejected with
 `capability_missing`. The Isaac adapter declares `object_pose_feedback` only when

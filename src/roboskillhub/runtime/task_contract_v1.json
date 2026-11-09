@@ -201,7 +201,8 @@
         "held": "{object_id, T_TCP_object}?",
         "speed_m_s": "number?",
         "timeout_s": "number?"
-      }
+      },
+      "failure_evidence": "evidence.arrivals holds the arrivals reached before a failure"
     },
     "observe_objects": {
       "requires": [
@@ -218,6 +219,41 @@
         "require_orientation": "boolean?",
         "timeout_s": "number?"
       }
+    },
+    "guarded_press": {
+      "requires": [
+        "pose_feedback",
+        "contact_force_feedback",
+        "compliant_motion",
+        "stop"
+      ],
+      "since": "rsh-task/1.1",
+      "request": {
+        "axis": "{frame_id, vector}",
+        "max_travel_m": "number <= limits.max_contact_distance_m",
+        "speed_m_s": "number <= limits.max_speed_m_s",
+        "force_limit_N": "number <= limits.max_contact_force_N (0 = refused)",
+        "hold_s": "number?",
+        "timeout_s": "number?"
+      },
+      "backend": "guarded_move(axis, max_travel_m, speed_m_s, force_limit_N, hold_s, timeout_s) -> {samples:[{t_s,travel_m,force_N}], stop_reason, stop_confirmed, fault}; loop closed in the controller process",
+      "describe_must_declare": {
+        "contact_signal": {
+          "source": "str",
+          "unit": "N",
+          "rate_hz": ">0",
+          "max_latency_s": ">0",
+          "frame_id": "str?",
+          "quantity": "str?",
+          "calibration_id": "str?"
+        },
+        "controller": {
+          "kind": "force|admittance|impedance|hybrid",
+          "loop_hz": "number?",
+          "process": "str?"
+        }
+      },
+      "outcome": "succeeded: stop_reason force_threshold|travel_limit with stop_confirmed; unconfirmed stop or signal_lost -> unverified; timeout -> failed/timeout; fault -> failed/backend_error. Judges nothing about the workpiece."
     }
   },
   "schemas": {
@@ -731,7 +767,12 @@
       "observe(object_ids, require_orientation=False)",
       "cancelled()",
       "now()",
-      "result(status, phase=..., failure_type=..., evidence=..., observations=...)"
+      "result(status, phase=..., failure_type=..., evidence=..., observations=...)",
+      "state() -> {tcp_pose, timestamp_s, gripper}",
+      "sleep(s)",
+      "limits (read-only station limits)",
+      "backend_description",
+      "evidence_level (from backend describe().evidence_level, default unit_or_dryrun)"
     ],
     "gates": [
       "version match",
@@ -801,5 +842,13 @@
     "assign": "after a succeeded step whose post facts hold: {state_key: expression}",
     "visit_exhaustion": "a visit beyond max_visits yields failed/retry_budget_exhausted routed by the node's edges",
     "branch": "after a succeeded step: first rule {path, equals|exists, next} that holds overrides on.succeeded"
-  }
+  },
+  "contract_revision": "1.1",
+  "evidence_levels": [
+    "unit_or_dryrun",
+    "kinematic_sim",
+    "dynamic_sim_privileged",
+    "dynamic_sim_observed",
+    "real_observed"
+  ]
 }
