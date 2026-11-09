@@ -77,8 +77,14 @@ class World:
         self.efforts = kw.get("efforts", False)
         self.mover_opens = kw.get("mover_opens", True)
         self.on_open = kw.get("on_open")
+        self.slide = kw.get("slide", False)
         self.pushing = False
         self.log = []
+
+    def _inside(self):
+        d = self.real_tip() - self.real_entry()
+        depth = float(d @ AXIS)
+        return depth > 1e-6 and float(np.linalg.norm(d - AXIS * depth)) <= self.clear / 2 + 1e-9
 
     def real_tip(self):
         return self.p[1] + _rot(self.rot[1]) @ self.tip_in + self.true_offset
@@ -98,21 +104,31 @@ class World:
             fine = "tolerance" in kw
             target = target + (self.fine_error if fine else self.land_error) * (arm_id == 1)
             rot = pose["rotation"]
-            if arm_id == 1 and self.roll_deg and tool == "robot.go_to_pose" and not fine:
-                rot = _down_rolled(self.roll_deg)  # the solver leaves the roll unturned
+            if arm_id == 1 and self.roll_deg:
+                rot = _down_rolled(self.roll_deg)  # the solver keeps the roll the wrist has
             self.rot[arm_id] = rot
             self.pushing = False
             if arm_id == 1:
                 start = self.p[1].copy()
+                inside = self._inside()
                 self.p[1] = target
                 d = self.real_tip() - self.real_entry()
                 depth = float(d @ AXIS)
-                lateral = float(np.linalg.norm(d - AXIS * depth))
+                across = d - AXIS * depth
+                lateral = float(np.linalg.norm(across))
+                if inside and lateral > self.clear / 2:
+                    # The hole's walls stop the part across the axis.
+                    self.p[1] = self.p[1] - across * (1.0 - self.clear / 2 / lateral)
+                    self.pushing = True
+                    return {"reached": False, "outcome": "timeout"}
                 block = self.bottom if self.jam_at is None else self.jam_at
                 if lateral > self.clear / 2:
                     block = 0.0
                 if depth > block and float((target - start) @ AXIS) > 0:
                     over = depth - block
+                    if self.slide:  # the part slides back in the jaws, the hand goes on
+                        self.true_offset = self.true_offset - AXIS * over
+                        return {"reached": True, "outcome": "reached"}
                     self.p[1] = target - AXIS * over * (1.0 - self.holder_yield)
                     self.p[0] = self.p[0] + AXIS * over * self.holder_yield
                     self.pushing = True
@@ -124,6 +140,9 @@ class World:
         return go
 
     def ctx(self):
+        return FakeContext(self.tools())
+
+    def tools(self):
         def pose(arm_id=0):
             return {"pose": {"position": _vec(self.p[arm_id]), "rotation": self.rot[arm_id]}}
 
@@ -152,17 +171,15 @@ class World:
                 arms.append({"joint_state": js})
             return {"arms": arms}
 
-        return FakeContext(
-            {
-                "robot.get_ee_pose": pose,
-                "robot.get_gripper": lambda arm_id=0: {"position": self.grip[arm_id]},
-                "robot.go_to_pose": self._move("robot.go_to_pose"),
-                "robot.go_to_pose_cartesian": self._move("robot.go_to_pose_cartesian"),
-                "robot.open_gripper": open_gripper,
-                "robot.move_to_joints": move_to_joints,
-                "robot.get_observation": observation,
-            }
-        )
+        return {
+            "robot.get_ee_pose": pose,
+            "robot.get_gripper": lambda arm_id=0: {"position": self.grip[arm_id]},
+            "robot.go_to_pose": self._move("robot.go_to_pose"),
+            "robot.go_to_pose_cartesian": self._move("robot.go_to_pose_cartesian"),
+            "robot.open_gripper": open_gripper,
+            "robot.move_to_joints": move_to_joints,
+            "robot.get_observation": observation,
+        }
 
     def moves(self, arm_id):
         return [m for m in self.log if m[0].startswith("robot.") and m[1] == arm_id]
@@ -184,7 +201,11 @@ def test_happy_path_aligns_and_steps_in(script):
     w = World()
     ctx = w.ctx()
     out = script.run(
-        ctx, moving_tip=_vec(TIP), receiving_entry=_vec(ENTRY), insertion_axis=_vec(AXIS), settle_period=0.0
+        ctx,
+        moving_tip=_vec(TIP),
+        receiving_entry=_vec(ENTRY),
+        insertion_axis=_vec(AXIS),
+        settle_period=0.0,
     )
     assert out["route"] == "inserted", out["detail"]
     assert out["depth"] == pytest.approx(0.02, abs=1e-6)
@@ -199,7 +220,11 @@ def test_happy_path_aligns_and_steps_in(script):
     # 5 mm short, then steps of 2.5 mm to 20 mm in: 10 steps.
     assert out["steps"] == 10
     steps = [m for m in mover if m[0] == "robot.go_to_pose" and "tolerance" in m[3]]
-    assert len(steps) == 10 and steps[0][3]["tolerance"] == pytest.approx(0.0003)
+    assert steps[0][3]["tolerance"] == pytest.approx(0.0003)
+    np.testing.assert_allclose(
+        [m[2][1] for m in steps[:10]], -0.02 + np.arange(1, 11) * 0.0025, atol=1e-12
+    )
+    assert out["probes_resisted"] == 4  # then four probes across the axis, each undone
     for call in ctx.calls:
         if call.tool.startswith("robot.") and "arm_id" in call.kwargs:
             assert call.kwargs["arm_id"] == 1  # arm_id only for the nonzero arm
@@ -256,7 +281,9 @@ def test_a_landing_error_is_corrected_on_the_holders_entry(script):
 
 
 def test_alignment_that_never_converges_is_misaligned(script):
-    w = World(land_error=(0.002, 0.0, 0.0), fine_error=(0.002, 0.0, 0.0))  # every move lands 2 mm across
+    w = World(
+        land_error=(0.002, 0.0, 0.0), fine_error=(0.002, 0.0, 0.0)
+    )  # every move lands 2 mm across
     out = run(script, w)
     assert out["route"] == "misaligned", out["detail"]
     assert "off the entry's line" in out["detail"]
@@ -272,6 +299,27 @@ def test_a_wrong_in_hand_offset_stops_on_the_rim(script):
     np.testing.assert_allclose(w.real_tip() - w.true_offset, ENTRY - AXIS * 0.05, atol=1e-9)
 
 
+def test_a_part_that_slides_in_its_jaws_is_caught_by_the_probe(script):
+    w = World(true_offset=(0.0015, 0.0, 0.0), slide=True)  # on the face, sliding back in the hand
+    out = run(script, w)
+    assert out["route"] == "slipped", out["detail"]
+    assert out["probes_resisted"] == 0 and "slid in a hand" in out["detail"]
+    assert out["depth"] == pytest.approx(0.02, abs=1e-6)  # what the hands alone say
+    assert _depth(w) <= 0.0
+    out = run(script, World(true_offset=(0.0015, 0.0, 0.0), slide=True), verify=False)
+    assert out["route"] == "inserted"  # without the probe the slide reads as inserted
+
+
+def test_a_seated_part_resists_the_probes(script):
+    w = World()
+    out = run(script, w)
+    assert out["route"] == "inserted", out["detail"]
+    assert out["probes_resisted"] == 4
+    assert _depth(w) == pytest.approx(0.02, abs=1e-6)
+    out = run(script, World(clear=0.01), clearance=0.01)  # a loose fit, told: probes past it
+    assert out["route"] == "inserted" and out["probes_resisted"] == 4
+
+
 def test_a_jam_part_way_is_stalled_and_backs_off(script):
     w = World(jam_at=0.008)
     out = run(script, w)
@@ -283,7 +331,9 @@ def test_a_jam_part_way_is_stalled_and_backs_off(script):
 
 
 def test_a_holder_that_gives_way_is_felt(script):
-    w = World(jam_at=0.008, holder_yield=0.8)  # the push moves the holder more than it lags the mover
+    w = World(
+        jam_at=0.008, holder_yield=0.8
+    )  # the push moves the holder more than it lags the mover
     out = run(script, w)
     assert out["route"] == "stalled", out["detail"]
     assert "holder" in out["contact_signal"]
@@ -312,7 +362,9 @@ def test_signal_effort_without_efforts_is_unreachable(script):
 
 @pytest.mark.parametrize("how", ["route", "raise"])
 def test_unreachable_stand_off_or_meet_point(script, how):
-    w = World(refuse=lambda tool, a, t: (how if how == "raise" else "out of reach") if a == 1 else None)
+    w = World(
+        refuse=lambda tool, a, t: (how if how == "raise" else "out of reach") if a == 1 else None
+    )
     out = run(script, w)
     assert out["route"] == "unreachable" and "stand-off" in out["detail"]
     w = World(refuse=lambda tool, a, t: "out of reach" if a == 0 else None)
@@ -364,7 +416,7 @@ def test_a_free_wrist_roll_is_turned_back_on_the_last_joint(script):
 def test_a_tilted_hand_is_misaligned(script):
     w = World(roll_deg=6.0)
     out = run(script, w, fix_roll=False)
-    assert out["route"] == "misaligned" and "turned 6.0 deg" in out["detail"]
+    assert out["route"] == "misaligned" and "axes are 6.0 deg apart" in out["detail"]
 
 
 def test_offsets_in_the_tool_frame_match_world_points(script):
@@ -411,3 +463,24 @@ def test_example_declares_every_route():
     source = (SKILL_DIR / "scripts" / "insert_mid_air.py").read_text()
     routed = set(re.findall(r'finish\(\s*"([a-z_]+)"', source))
     assert routed == declared == {"inserted", "misaligned", "stalled", "slipped", "unreachable"}
+
+
+def test_a_connector_without_servo_knobs_still_steps(script):
+    w = World()
+    go = w._move("robot.go_to_pose")
+
+    def strict(pose, arm_id=0, **kw):
+        if kw:
+            raise TypeError(f"go_to_pose() got an unexpected keyword argument {next(iter(kw))!r}")
+        return go(pose, arm_id=arm_id)
+
+    ctx = FakeContext({**w.tools(), "robot.go_to_pose": strict})
+    out = script.run(
+        ctx,
+        moving_tip=_vec(TIP),
+        receiving_entry=_vec(ENTRY),
+        insertion_axis=_vec(AXIS),
+        settle_period=0.0,
+    )
+    assert out["route"] == "inserted", out["detail"]
+    assert all("tolerance" not in m[3] for m in w.moves(1))

@@ -44,6 +44,7 @@ gap:
   produces_outputs:
     depth: float
     lateral_error: float
+    axis_angle_deg: float
     lag_over_baseline: float
     holder_shift: float
     contact_signal: str
@@ -56,7 +57,7 @@ gap:
     holder_pose: Se3Pose
   exit_conditions:
     inserted: The moving tip, as the two hands' read-back poses and the in-hand offsets place it, went at least insert_depth less depth_tolerance past the holder's entry along the axis, and both jaws still read a hold (with release=mover, the mover then opened and backed out and the holder's jaws still hold). What the hands did, not a sighting of the part in the hole; a part that slid in its jaws reads as inserted.
-    misaligned: Nothing went in - the tip could not be brought within half the clearance of the entry's line (after align_tries corrections), a hand ended turned more than angle_tolerance_deg from the rotation its part was measured in, or the push stopped (lag, holder pushed, effort) with the tip less than 2 mm past the entry (the rim); the mover backed off to its stand-off, both still hold their parts.
+    misaligned: Nothing went in - the tip could not be brought within half the clearance of the entry's line (after three corrections), the two parts' axes (each turned with its hand since it was measured) stood more than angle_tolerance_deg apart, or the push stopped (lag, holder pushed, effort) with the tip less than 2 mm past the entry (the rim); the mover backed off to its stand-off, both still hold their parts.
     stalled: The push stopped with the tip past the entry but short of insert_depth less depth_tolerance (a jam, a burr, a tilted part); the mover backed off 3 mm so it stops pushing, both still hold. Also routed when the mover's jaws did not open for release=mover.
     slipped: A hand's jaws read at the stop - before anything moved (nothing held), or after the push or the release (a part fell out).
     unreachable: The two arm ids are equal or the connector reports no separate second arm, the holder could not reach the meet point or the mover its stand-off (free moves read back beyond reach_tolerance or refused), a wrist roll could not be turned back, a step was refused, or signal=effort with no efforts published; detail says which and what each hand still holds.
@@ -116,11 +117,14 @@ call.
    last joint (`robot.move_to_joints`, read back; PORTING lesson 10) and the
    hand re-centred.
 4. **Align on the holder's actual entry.** Both hands are read back, the tip
-   and the entry placed from them; the tip's offset across the axis must be
-   within half the diametral `clearance` (1 mm: 0.5 mm). Up to three
-   straight corrections of the mover (`tolerance` `fine_tolerance` 0.3 mm
-   passed to the connector), else `misaligned`. Either hand turned more than
-   `angle_tolerance_deg` (2 deg) from its measured rotation is `misaligned`.
+   and the entry placed from them, and the receiving part's axis turned with
+   the holder's hand since it was measured; the tip's offset across that axis
+   must be within half the diametral `clearance` (1 mm: 0.5 mm). Up to three
+   corrections of the mover (`robot.go_to_pose` with `tolerance`
+   `fine_tolerance` 0.3 mm, passed only to a verb that takes it), its wrist
+   roll turned back on the way, else `misaligned`. The two parts' axes more
+   than `angle_tolerance_deg` (2 deg) apart is `misaligned` (a hand that
+   tilted since the parts were measured).
 5. **Approach.** One straight move to 5 mm short of the entry, re-aligned
    there the same way.
 6. **Step in** `step` (2.5 mm) at a time with `robot.go_to_pose`, the
@@ -182,9 +186,10 @@ call.
   threshold).
 - **`CLEARANCE = 0.001` m**: the task this was checked on (a peg 1 mm under
   its hole); the lateral bound is half of it, floored at 0.2 mm.
-- **`FINE_TOLERANCE = 0.0003` m**: passed as the connector's `tolerance` on
-  alignment moves and steps; a simulator servo's default 4 mm ball is four
-  times the whole clearance.
+- **`FINE_TOLERANCE = 0.0003` m**: passed as `robot.go_to_pose`'s
+  `tolerance` on alignment moves and steps (the twin's
+  `go_to_pose_cartesian` takes none); a simulator servo's default 4 mm ball
+  is four times the whole clearance.
 - **`HOLDER_SHIFT_THRESHOLD = 0.002` m**: a choice (see the simulation
   check for what the holder read while the other arm stepped in free air).
 - **`ENTRY_MARGIN = 0.002` m, `DEPTH_TOLERANCE = 0.003` m, `BACKOFF =
@@ -192,8 +197,9 @@ call.
   the rim; a hand short by less than the lag threshold is in; backing off
   one lag stops the push; the straight approach ends beyond a servo's 4 mm
   ball from the rim.
-- **`ANGLE_TOLERANCE_DEG = 2`, `ROLL_TOLERANCE_DEG = 1`**: 2 deg tilts a 1 mm
-  clearance part by 0.7 mm across a 20 mm depth; 1 deg of free wrist roll
+- **`ANGLE_TOLERANCE_DEG = 2`, `ROLL_TOLERANCE_DEG = 1`**: two axes 2 deg
+  apart cross by 0.7 mm over a 20 mm depth, more than a 1 mm clearance's
+  half; 1 deg of free wrist roll
   swings a tip held 50 mm off the tool axis by 0.9 mm.
 - **`REACH_TOLERANCE = 0.02` m, `EMPTY_FRACTION = 0.04`**: as
   handing-over-between-arms.
