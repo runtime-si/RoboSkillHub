@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-19 tools, 109 skills, 2 policies, 1 recipe and 1 paper.
+19 tools, 110 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -122,6 +122,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`sliding-along-a-cable`](#sliding-along-a-cable) | execute | Slides the hand along a cable it holds toward one of the cable's ends. | any |
 | [`sliding-to-edge-then-picking`](#sliding-to-edge-then-picking) | execute | Picks a flat object too thin to pinch on its support. | any, *tuned on* yam_i2rt |
 | [`stacking-objects`](#stacking-objects) | execute | Stacks the object the hand holds centred on top of a target object. | any |
+| [`standing-a-lying-domino-by-reorient-and-regrasp`](#standing-a-lying-domino-by-reorient-and-regrasp) | execute | Stands a flat-lying domino upright so a top-down pick can take it. | any, 2 arms |
 | [`straightening-a-cable-toward-a-target-curve`](#straightening-a-cable-toward-a-target-curve) | execute | Pulls a cable lying flat on a table toward a target curve, one correction at a time. | any |
 | [`threading-a-cable-tip-through-a-ring`](#threading-a-cable-tip-through-a-ring) | execute | Threads the free tip of a held cable through a standing ring. | any |
 | [`tipping-over-a-surface-edge`](#tipping-over-a-surface-edge) | execute | Turn a body over on the surface it rests on instead of carrying it. | any, *tuned on* yam_i2rt, 2 arms, **sim only** |
@@ -1687,6 +1688,24 @@ Stacks the object the hand holds centred on top of a target object - turns the h
   - `stacked`: The descent over the target stopped on contact inside the contact window and within 8 mm of the planned point, the hand opened and retreated straight up; stacked_position is where the hand left the held object's bottom centre. What the hand did, not a check that the stack stands.
   - `misaligned`: The descent did not meet the target's top where expected - it stopped more than contact_tolerance (12 mm) above it, reached its bottom without stopping (the held object missed the top, or slid up the jaws), or stopped pushed sideways more than lateral_tolerance; the hand did not release and lifted the object back to the approach height.
   - `blocked`: The target's top is tilted more than 10 deg, no aligned turn can reach the contact pose (IK preview), the rise, the approach, the re-centring after a wrist turn or a descent move was refused, or the retreat after the release failed (`released` says which side of the release); `detail` says which.
+
+### standing-a-lying-domino-by-reorient-and-regrasp
+
+execute · robots: any, 2 arms · tasks: domino, reorientation · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/standing-a-lying-domino-by-reorient-and-regrasp/SKILL.md) · [upstream](https://github.com/Zhu-Chenyu/Franka-Domino-Project/blob/main/place_dominoes/place_dominoes/place_dominoes.py)
+
+Stands a flat-lying domino upright so a top-down pick can take it. Default strategy (handover, two arms) - this arm pinches the lying tile across its width, carries it flat to a point in the air between the arms, the helper arm pinches its other end across the thickness with a level approach and rolls a quarter turn on its last joint so the tile hangs upright, this arm takes the top end top-down across the broad faces, the helper lets go, and this arm sets the tile on its end at the staging spot; a depth check then confirms a tile stands there. Single-arm strategies (table_pivot, pose_pitch, hinge_tip) are kept but stood no tile in a YAM station twin. Use when a domino lies flat (from reading-domino-pips-and-orientation or a 6D pose) and must stand before placing-an-upright-domino-beside-neighbours picks it into a row.
+
+- **In**: `table_z` float, `tile_center` Vec3, `long_axis` Vec3
+- **Out**: `strategy` str, `pitch_joint` int, `picked` bool, `released` bool, `grasp_height` float, `grip_width` float, `facing_deg` float, `yaw_turn_deg` float, `pitch_turn_deg` float, `roll_turn_deg` float, `tilt_at_release_deg` float, `release_position` Vec3, `standing_tile` Se3Pose, `verified` bool, `tile_top` float, `standing_offset` float
+- **Calls**: connector `robot.close_gripper`, `robot.describe_arm`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`, `robot.set_grip`, `robot.solve_ik`
+- **Scripts**: [`stand_domino`](skills/standing-a-lying-domino-by-reorient-and-regrasp/scripts/stand_domino.py)
+- **Exits**:
+  - `standing`: Released and retreated, and the depth check sees a tile's top at standing height (within 10 mm of the tile's height) at or near the spot; with verify=false, what the hands did only. `standing_tile` is the pose to hand to placing-an-upright-domino-beside-neighbours; when the top was seen more than 8 mm from the spot, `standing_tile` is moved to where it was seen and `detail` says so.
+  - `fell`: Released, but the depth check sees no tile's top at standing height in the window around the spot (lying, on its side, or gone).
+  - `unverified`: Released and retreated, but no camera saw the spot whole and unoccluded.
+  - `ungraspable`: Nothing was lifted - the descent to the tile stopped high (a fingertip on it, or it is not where it was seen), the jaws closed on nothing or not across its width, or the grasp height leaves the fingertips over the tile.
+  - `dropped`: The tile was picked, then the jaws read empty or not across it (after the lift, during a pitch, at the handover point, after the helper took it).
+  - `unreachable`: A preview, move or turn was refused before the release - no handover point both arms reach, the helper's jaws not across the thickness, no room on a last joint, a chained IK step that would jump a joint by more than pitch_joint_jump, no spot where a single-arm strategy reaches the upright hand - or the retreat after the release. `detail` says which hand still holds the tile.
 
 ### straightening-a-cable-toward-a-target-curve
 
