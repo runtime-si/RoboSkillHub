@@ -22,7 +22,7 @@ rsync -az --delete -e "ssh -T -o BatchMode=yes" --include='*/' --include='*.py' 
   "$REPO/src/roboskillhub/" "$HOST:lego_isaac/rsh/src/roboskillhub/"
 ARGS=$(printf '%q ' "$@")
 "${SSH[@]}" "$HOST" "set -e; mkdir -p ~/lego_isaac/runs/$NAME; cd ~/lego_isaac
-  OMNI_KIT_ACCEPT_EULA=YES PYTHONPATH=\$HOME/lego_isaac/rsh/src nohup env/.venv/bin/python -m \
+  OMNI_KIT_ACCEPT_EULA=YES PYTHONUNBUFFERED=1 PYTHONPATH=\$HOME/lego_isaac/rsh/src nohup env/.venv/bin/python -m \
     roboskillhub.tasks.assembly_eval.lego_isaac_runner --roco \$HOME/lego_isaac/src/RoCo_BrickAssembly \
     --out runs/$NAME $ARGS > runs/$NAME/run.log 2>&1 < /dev/null &
   echo started \$!"

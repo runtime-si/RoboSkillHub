@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import random
 import sys
 import time
@@ -231,8 +232,13 @@ def make_policy(NaivePolicy):
     class EvalPolicy(NaivePolicy):
         """RoCo NaivePolicy, optionally re-aimed at goal poses (goal_fsm) with one perturbed placement."""
 
-        def __init__(self, env, cfg, mode, goal_T_W, path_to_id, pert, fault_index):
+        def __init__(self, env, cfg, mode, goal_T_W, path_to_id, part_lw, pert, fault_index):
             self.cfg, self.mode, self.goal_T_W, self.path_to_id = cfg, mode, goal_T_W, path_to_id
+            self.part_lw = part_lw
+            self.goal_turns = {}
+            self.plan_ctx = {}
+            self.reach = {}
+            self.infeasible = {}
             self.pert, self.fault_index = pert, fault_index
             self.ik_s = 0.0
             self.ik_report = {}
@@ -261,64 +267,152 @@ def make_policy(NaivePolicy):
                 self._plan_goal(plan, task_id)
             self.ik_s += time.perf_counter() - t0
 
+        def _place_targets(self, task_id, target_T, T_tcp_brick):
+            """TCP targets (preplace, place, retreat) for a brick target pose and the brick pose in the TCP frame."""
+            import numpy as np
+
+            b, u = self.cfg["baseline"], self.env.brick_unit_height
+            pert = self.pert if task_id == self.fault_index else Perturbation()
+            hold_inv = np.linalg.inv(T_tcp_brick)
+            preplace = target_T @ trans_z(b["preplace_z_units"] * u) @ hold_inv
+            if pert.press:
+                place = target_T @ trans_z(-b["press_depth_units"] * u) @ hold_inv
+            else:
+                place = target_T @ trans_z(pert.hover_above_seat_m) @ hold_inv
+            if pert.retreat_sweep_towards is not None:
+                # Horizontal sweep in the robot frame towards the neighbour's goal position.
+                towards = world_T_to_robot_T(
+                    self.goal_T_W[pert.retreat_sweep_towards], self.env.robot_pin.BASE_T
+                )
+                d = towards[:3, 3] - target_T[:3, 3]
+                d[2] = 0.0
+                d *= pert.retreat_sweep_distance_m / max(float(np.linalg.norm(d)), 1e-9)
+                retreat = target_T @ trans_z(pert.retreat_sweep_height_units * u) @ hold_inv
+                retreat[:3, 3] += d
+            else:
+                retreat = preplace
+            return preplace, place, retreat
+
         def _plan_goal(self, plan, task_id):
             env, b = self.env, self.cfg["baseline"]
             u = env.brick_unit_height
             pert = self.pert if task_id == self.fault_index else Perturbation()
             task = plan[task_id]
+            ik, joints, home = (
+                env.robot_pin.IK,
+                env.robot_pin.controllable_joints,
+                env.robot_pin.home_q,
+            )
             grab_T = env.get_prim_robot_T(task["hole_path"])
             goal_T = world_T_to_robot_T(self.goal_T_W[task["part"]], env.robot_pin.BASE_T)
-            fk = env.robot_pin.FK(env.robot_pin.home_q, ["tip_l", "tip_r"])
-            dl = ((fk["tip_l"][:3, 3] - grab_T[:3, 3]) ** 2).sum()
-            dr = ((fk["tip_r"][:3, 3] - grab_T[:3, 3]) ** 2).sum()
-            ee = "tip_l" if dl < dr else "tip_r"
-            target_T = goal_T @ _trans(*pert.place_offset_m) @ rot_z(pert.place_yaw_rad)
             seat = b["grasp_z_units"] * u
             pregrasp_T = grab_T @ trans_z(b["pregrasp_z_units"] * u)
             grasp_T = grab_T @ trans_z(seat)
-            preplace_T = target_T @ trans_z(seat + b["preplace_z_units"] * u)
-            if pert.press:
-                place_T = target_T @ trans_z(seat - b["press_depth_units"] * u)
-            else:
-                place_T = target_T @ trans_z(seat + pert.hover_above_seat_m)
-            if pert.retreat_sweep_m is not None:
-                retreat_T = (
-                    target_T
-                    @ trans_z(seat + pert.retreat_sweep_height_units * u)
-                    @ _trans(*pert.retreat_sweep_m)
+            nominal_hold = trans_z(-seat)
+            # Arm and goal orientation: both the grasp and the place must be reachable. A 2xN brick looks the same
+            # turned half a turn (a square one a quarter turn); a turned goal is used only if it is clearly better,
+            # since any in-hand offset is doubled by the turn.
+            L, W = self.part_lw[task["part"]]
+            turns = (0, 1, 2, 3) if L == W else (0, 2)
+            best, tried = None, []
+            r_m, r_rad = b["reach_tol_m"], b["reach_tol_rad"]
+            for ee in ("tip_l", "tip_r"):
+                qg, _ = ik({ee: grasp_T}, home.copy(), joints)
+                eg = _ik_error(env, qg, ee, grasp_T)
+                for k in turns:
+                    tgt = (
+                        goal_T
+                        @ rot_z(k * math.pi / 2)
+                        @ _trans(*pert.place_offset_m)
+                        @ rot_z(pert.place_yaw_rad)
+                    )
+                    pre, place, _ = self._place_targets(task_id, tgt, nominal_hold)
+                    qp, _ = ik({ee: pre}, qg.copy(), joints)
+                    qpl, _ = ik({ee: place}, qp.copy(), joints)
+                    errs = [eg, _ik_error(env, qp, ee, pre), _ik_error(env, qpl, ee, place)]
+                    ok = all(e["pos_m"] <= r_m and e["rot_rad"] <= r_rad for e in errs)
+                    score = sum(e["pos_m"] + 0.05 * e["rot_rad"] for e in errs) + (
+                        0.002 if k else 0.0
+                    )
+                    tried.append(
+                        {
+                            "ee": ee,
+                            "turn": k,
+                            "reachable": ok,
+                            "pos_m": [e["pos_m"] for e in errs],
+                            "rot_rad": [e["rot_rad"] for e in errs],
+                        }
+                    )
+                    if ok and (best is None or score < best[0]):
+                        best = (score, ee, k, tgt)
+            self.reach[task_id] = tried
+            if best is None:
+                self.infeasible[task_id] = (
+                    "no arm reaches both the grasp and the place pose (IK residual > tolerance)"
                 )
-            else:
-                retreat_T = preplace_T
-            ik = env.robot_pin.IK
-            joints = env.robot_pin.controllable_joints
+                best = (None, "tip_l", 0, goal_T)
+            _, ee, k, target_T = best
+            self.goal_turns[task_id] = k
+            self.plan_ctx[task_id] = {
+                "ee": ee,
+                "target_T": target_T,
+                "hole_path": task["hole_path"],
+            }
             sd = {
                 "ee_name": ee,
                 "to_brick": None,
                 "grab_brick": task["hole_path"],
-                "home": env.robot_pin.home_q.copy(),
-                "back_home": env.robot_pin.home_q.copy(),
+                "home": home.copy(),
+                "back_home": home.copy(),
             }
             sd["pregrasp"], _ = ik({ee: pregrasp_T}, sd["home"].copy(), joints)
             sd["grasp"], _ = ik({ee: grasp_T}, sd["pregrasp"].copy(), joints)
             sd["close_gripper"] = self.close_gripper(sd["grasp"], ee)
             sd["retreat_grasp"], _ = ik({ee: pregrasp_T}, sd["close_gripper"].copy(), joints)
-            sd["preplace"], _ = ik({ee: preplace_T}, sd["retreat_grasp"].copy(), joints)
-            sd["place"], _ = ik({ee: place_T}, sd["preplace"].copy(), joints)
+            self.state_dicts[task_id] = sd
+            self._fill_place(task_id, nominal_hold)
+            self.ik_report[task_id].update(
+                pregrasp=_ik_error(env, sd["pregrasp"], ee, pregrasp_T),
+                grasp=_ik_error(env, sd["grasp"], ee, grasp_T),
+            )
+
+        def _fill_place(self, task_id, hold):
+            env = self.env
+            ik, joints = env.robot_pin.IK, env.robot_pin.controllable_joints
+            pert = self.pert if task_id == self.fault_index else Perturbation()
+            sd, ctx = self.state_dicts[task_id], self.plan_ctx[task_id]
+            ee = ctx["ee"]
+            pre, place, retreat = self._place_targets(task_id, ctx["target_T"], hold)
+            sd["preplace"], _ = ik({ee: pre}, sd["retreat_grasp"].copy(), joints)
+            sd["place"], _ = ik({ee: place}, sd["preplace"].copy(), joints)
             sd["open_gripper"] = (
                 self.open_gripper(sd["place"], ee) if pert.open_on_release else sd["place"].copy()
             )
-            sd["retreat_place"], _ = ik({ee: retreat_T}, sd["open_gripper"].copy(), joints)
-            self.state_dicts[task_id] = sd
-            targets = {
-                "pregrasp": pregrasp_T,
-                "grasp": grasp_T,
-                "preplace": preplace_T,
-                "place": place_T,
-                "retreat_place": retreat_T,
-            }
-            self.ik_report[task_id] = {
-                "ee": ee,
-                **{k: _ik_error(env, sd[k], ee, T) for k, T in targets.items()},
+            sd["retreat_place"], _ = ik({ee: retreat}, sd["open_gripper"].copy(), joints)
+            rep = self.ik_report.setdefault(task_id, {"ee": ee})
+            rep.update(
+                preplace=_ik_error(env, sd["preplace"], ee, pre),
+                place=_ik_error(env, sd["place"], ee, place),
+                retreat_place=_ik_error(env, sd["retreat_place"], ee, retreat),
+            )
+
+        def replan_with_held_pose(self, task_id):
+            """After lifting: re-aim the place waypoints with the brick's measured pose in the gripper."""
+            import numpy as np
+
+            if self.mode != "goal_fsm" or task_id not in self.plan_ctx:
+                return None
+            t0 = time.perf_counter()
+            env, ctx = self.env, self.plan_ctx[task_id]
+            T_tcp = env.robot_pin.FK(self.cur_q, [ctx["ee"]])[ctx["ee"]]
+            hold = np.linalg.inv(T_tcp) @ env.get_prim_robot_T(ctx["hole_path"])
+            self._fill_place(task_id, hold)
+            self.ik_s += time.perf_counter() - t0
+            seat = self.cfg["baseline"]["grasp_z_units"] * env.brick_unit_height
+            d = hold[:3, 3] - np.array([0.0, 0.0, -seat])
+            return {
+                "held_offset_m": [float(v) for v in d],
+                "held_offset_norm_m": float(np.linalg.norm(d)),
             }
 
     return EvalPolicy
@@ -484,7 +578,7 @@ async def run_episode(args, cfg, seed: int) -> dict:
     start = rec.snap()
 
     EvalPolicy = make_policy(NaivePolicy)
-    policy = EvalPolicy(env, cfg, args.policy, goal_T_W, path_to_id, pert, fault_index)
+    policy = EvalPolicy(env, cfg, args.policy, goal_T_W, path_to_id, lw, pert, fault_index)
     b, pc = cfg["baseline"], cfg["postconditions"]
     probe_cfg = pc["probe"]
 
@@ -514,6 +608,15 @@ async def run_episode(args, cfg, seed: int) -> dict:
         ev0 = len(rec.events)
         rec.max_force.pop(pid, None)
         st["snapshots"]["pick_start"] = rec.snap()
+        st["reach"] = policy.reach.get(i)
+        if i in policy.infeasible:
+            st["skipped"], st["plan_infeasible"] = True, policy.infeasible[i]
+            st["events"], st["ee"], st["ik"] = [], None, None
+            steps_out.append(st)
+            policy.task_id, policy.state = i + 1, "home"
+            if policy.task_id < len(policy.plan):
+                policy.plan_goal_sequence(policy.plan, policy.task_id)
+            continue
         n = 0
         while policy.task_id == i:
             prev = policy.state
@@ -523,12 +626,31 @@ async def run_episode(args, cfg, seed: int) -> dict:
             if policy.state != prev:
                 if prev == "retreat_grasp":
                     st["snapshots"]["grasped"] = rec.snap()
+                    if cfg["baseline"].get("inhand_correction"):
+                        st["held"] = policy.replan_with_held_pose(i)
                 elif prev == "preplace":
                     st["snapshots"]["before_place"] = rec.snap()
                 elif prev == "open_gripper":
                     st["snapshots"]["released"] = rec.snap()
                 elif prev == "retreat_place":
                     st["snapshots"]["retreated"] = rec.snap()
+            if (
+                b.get("stop_on_engagement")
+                and policy.mode == "goal_fsm"
+                and policy.state == "place"
+                and "press_stop_step" not in st
+                and any(e["kind"] == "assembled" and e["hole"] == pid for e in rec.events[ev0:])
+            ):
+                # Guarded press: stop descending once BrickSim reports this brick engaged (privileged signal).
+                sd = policy.state_dicts[i]
+                sd["place"] = policy.cur_q.copy()
+                keep_closed = np.array_equal(sd["open_gripper"], sd["place"])
+                sd["open_gripper"] = (
+                    sd["place"].copy()
+                    if keep_closed
+                    else policy.open_gripper(sd["place"], sd["ee_name"])
+                )
+                st["press_stop_step"] = rec.step
             if n >= b["max_steps_per_brick"]:
                 st["timed_out"], st["last_phase"] = True, policy.state
                 break
@@ -564,6 +686,7 @@ async def run_episode(args, cfg, seed: int) -> dict:
         st["sim_steps"] = n
         st["ee"] = policy.state_dicts.get(i, {}).get("ee_name")
         st["ik"] = policy.ik_report.get(i)
+        st["goal_quarter_turns"] = policy.goal_turns.get(i)
         steps_out.append(st)
         if st["timed_out"]:
             break

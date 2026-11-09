@@ -10,7 +10,7 @@ CONFIG_PATH = Path(__file__).with_name("config") / "lego_eval_v1.json"
 
 # K: the skills the scripted graph may call; G: the fixed-order graph that sequences them. The baseline is one
 # privileged skill (exact brick poses from the simulator), so it is never reported as a vision-policy result.
-K_VERSION = {"lego.privileged_naive_fsm": "0.1.0"}
+K_VERSION = {"lego.privileged_naive_fsm": "0.2.0"}
 G_VERSION = {"graph_id": "lego-fixed-order-scripted", "version": "1.0.0"}
 OBSERVATION_MODE = "privileged_sim_state"
 

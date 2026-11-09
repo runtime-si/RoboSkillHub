@@ -186,6 +186,20 @@ def test_episode_outcome_needs_final_structure():
     assert (out["status"], out["failure_type"]) == ("failed", "postcondition_failed")
 
 
+def test_tool_skill_envelope():
+    from roboskillhub.tasks.assembly_eval.lego_tools import SKILLS
+
+    (tool,) = SKILLS
+    assert tool.kind == "tool" and tool.requires == frozenset()
+    ok = tool.run({"record": record(GOAL, [PLATE_CONN], ASSEMBLED, probe=GOAL), "index": 0})
+    assert ok["status"] == "succeeded" and ok["evidence"]["postcondition"]["passed"]
+    assert ok["privileged_inputs"] and ok["observations"][0]["privileged"]
+    assert "1" in ok["accepted_after"]
+    bad = tool.run({"record": record(GOAL, [], [], probe=GOAL), "index": 0})
+    assert bad["status"] == "failed" and bad["failure_type"] == "lego.not_seated"
+    assert bad["recovery_hints"] == ["retry_same"]
+
+
 @pytest.mark.parametrize("yaw_q", [0, 1, 2, 3])
 def test_footprint_cells_count(yaw_q):
     cells = footprint_cells((32, 32), (4, 2), (10, 10), yaw_q)

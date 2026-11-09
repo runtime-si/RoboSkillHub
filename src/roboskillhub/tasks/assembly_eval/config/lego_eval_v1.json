@@ -53,16 +53,22 @@
     "grasp_min_lift_m": 0.01
   },
   "baseline": {
-    "policy": "privileged waypoint FSM derived from rocobrick.policy.NaivePolicy (MIT); exact brick poses from the simulator",
+    "policy": "privileged waypoint FSM derived from rocobrick.policy.NaivePolicy (MIT); exact brick poses from the simulator; goal_fsm picks the arm and the symmetric goal turn by IK residual and re-aims the place waypoints with the brick's measured pose in the gripper",
     "privileged": true,
     "max_joint_step_rad": 0.005,
     "pregrasp_z_units": 4.0,
     "grasp_z_units": 0.97,
-    "preplace_z_units": 4.0,
-    "press_depth_units": 0.12,
+    "preplace_z_units": 3.0,
+    "press_depth_units": 0.3,
     "gripper_open": 0.2,
     "gripper_closed": 0.0,
-    "max_steps_per_brick": 6000
+    "max_steps_per_brick": 6000,
+    "inhand_correction": true,
+    "press_depth_note": "RoCo NaivePolicy presses 0.12 u (1.15 mm) past the seat; with the in-hand pose corrected that peaked at 0.86 N, below BrickSim's 1 N trigger (it only worked uncorrected because the brick sags ~0.8 mm in the gripper)",
+    "reach_tol_m": 0.005,
+    "reach_tol_rad": 0.05,
+    "stop_on_engagement": true,
+    "stop_on_engagement_note": "goal_fsm stops the press at the first BrickSim 'assembled' event for the placed brick (privileged engine signal; press_depth_units is then only the travel limit). Without it the arm keeps pushing the already welded structure 2.9 mm into the table and PhysX pushes the free baseplate sideways."
   },
   "faults": {
     "lateral_offset": {
@@ -88,12 +94,9 @@
       "keep_closed": true
     },
     "damaging_build": {
-      "retreat_sweep_m": [
-        -0.03,
-        0.0,
-        0.0
-      ],
-      "retreat_sweep_height_units": 0.5
+      "towards_part": "1",
+      "distance_m": 0.03,
+      "height_units": 0.5
     }
   },
   "randomization": {

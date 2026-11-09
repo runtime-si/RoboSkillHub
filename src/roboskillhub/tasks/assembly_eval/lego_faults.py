@@ -25,10 +25,10 @@ class Perturbation:
     press: bool = True  # False: stop above the seat instead of pressing into it
     hover_above_seat_m: float = 0.0
     open_on_release: bool = True
-    retreat_sweep_m: tuple[float, float, float] | None = (
-        None  # goal frame, replaces the vertical retreat
-    )
-    retreat_sweep_height_units: float = 0.0
+    # Retreat horizontally towards this part's goal position instead of straight up.
+    retreat_sweep_towards: str | None = None
+    retreat_sweep_distance_m: float = 0.0
+    retreat_sweep_height_units: float = 0.0  # above the seat, in brick heights
     skip_parts: tuple[str, ...] = field(default_factory=tuple)
 
 
@@ -57,9 +57,9 @@ FAULTS: dict[str, dict] = {
         "doc": "stop 1.2 mm above the seat and release, no press force: arrival without clutch",
     },
     "insufficient_support": {
-        "scenes": {"seq3_bridge": 2},
+        "scenes": {"seq3_stack": 2},
         "expect": ["lego.insufficient_support"],
-        "doc": "skip the two supporting bricks, then place the bridge brick at its goal pose",
+        "doc": "skip the supporting brick 1, then place brick 3 at its goal pose on top of it",
     },
     "lifted_on_release": {
         "scenes": {"single_on_brick": 0, "single_on_plate": 0},
@@ -67,7 +67,7 @@ FAULTS: dict[str, dict] = {
         "doc": "keep the gripper closed at release and retreat upwards",
     },
     "damaging_build": {
-        "scenes": {"seq3_bridge": 1},
+        "scenes": {"seq3_stack": 1},
         "expect": ["lego.structure_damaged"],
         "doc": "after placing brick 2, retreat sideways 30 mm towards brick 1 at half a brick above the seat",
     },
@@ -95,7 +95,8 @@ def perturbation(
         return Perturbation(open_on_release=not f["keep_closed"])
     if fault == "damaging_build":
         return Perturbation(
-            retreat_sweep_m=tuple(f["retreat_sweep_m"]),
-            retreat_sweep_height_units=f["retreat_sweep_height_units"],
+            retreat_sweep_towards=f["towards_part"],
+            retreat_sweep_distance_m=f["distance_m"],
+            retreat_sweep_height_units=f["height_units"],
         )
     raise KeyError(f"unknown fault {fault!r}")

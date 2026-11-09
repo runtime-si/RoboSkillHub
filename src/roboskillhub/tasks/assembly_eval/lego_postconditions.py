@@ -68,7 +68,10 @@ def evaluate_placement(record: dict, index: int, cfg: dict, accepted: dict[str, 
     out = {"part": pid, "index": index, "postconditions": [], "measured": {}}
 
     if step.get("skipped"):
-        out.update(status="rejected", failure_type="precondition_unmet", phase="validate")
+        ft = "unreachable" if step.get("plan_infeasible") else "precondition_unmet"
+        out.update(
+            status="rejected", failure_type=ft, phase="validate", reason=step.get("plan_infeasible")
+        )
         return out
     missing = [s for s in SNAPSHOTS if s not in snaps]
     if missing:

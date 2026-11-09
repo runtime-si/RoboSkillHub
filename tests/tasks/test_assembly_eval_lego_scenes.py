@@ -79,7 +79,8 @@ def test_fault_perturbations():
     assert not nf.press and nf.hover_above_seat_m > 0
     assert p("insufficient_support", CFG, ("1", "2")).skip_parts == ("1", "2")
     assert not p("lifted_on_release", CFG).open_on_release
-    assert p("damaging_build", CFG).retreat_sweep_m == (-0.03, 0.0, 0.0)
+    d = p("damaging_build", CFG)
+    assert (d.retreat_sweep_towards, d.retreat_sweep_distance_m) == ("1", 0.03)
     with pytest.raises(KeyError):
         p("teleport", CFG)
 

@@ -37,13 +37,25 @@ SCENES: dict[str, dict] = {
         "goal": {"1": {"brick_id": 2, "x": 0, "y": 0, "z": 0, "ori": 0, "color": "Red"}},
         "note": "one brick-on-plate connection",
     },
-    # Two 2x4 side by side on the plate, a third 2x4 turned 90 degrees bridging both.
+    # Two 2x4 side by side on the plate, a third 2x4 stacked on the first: three placements, one parent each.
+    "seq3_stack": {
+        "task_type": "2",
+        "goal": {
+            "1": {"brick_id": 2, "x": 0, "y": 0, "z": 0, "ori": 1, "color": "Red"},
+            "2": {"brick_id": 2, "x": 0, "y": 2, "z": 0, "ori": 1, "color": "Green"},
+            "3": {"brick_id": 2, "x": 0, "y": 0, "z": 1, "ori": 1, "color": "Blue"},
+        },
+        "note": "three bricks, three connections; brick 3 needs brick 1",
+    },
+    # Two 2x4 side by side on the plate, a third 2x4 turned 90 degrees bridging both. Orientations chosen so
+    # each brick can be picked and placed by one DexMate arm (checked with RoCo's Pinocchio IK; the mirrored
+    # layout needs a hand-over for brick 1).
     "seq3_bridge": {
         "task_type": "2",
         "goal": {
-            "1": {"brick_id": 2, "x": 0, "y": 0, "z": 0, "ori": 0, "color": "Red"},
-            "2": {"brick_id": 2, "x": 2, "y": 0, "z": 0, "ori": 0, "color": "Green"},
-            "3": {"brick_id": 2, "x": 0, "y": 1, "z": 1, "ori": 1, "color": "Blue"},
+            "1": {"brick_id": 2, "x": 0, "y": 0, "z": 0, "ori": 1, "color": "Red"},
+            "2": {"brick_id": 2, "x": 0, "y": 2, "z": 0, "ori": 1, "color": "Green"},
+            "3": {"brick_id": 2, "x": 1, "y": 0, "z": 1, "ori": 0, "color": "Blue"},
         },
         "note": "three bricks, four connections; brick 3 needs both 1 and 2 for full support",
     },
