@@ -37,6 +37,7 @@ _NODE_KEYS = {
     "retry_on",
     "max_visits",
     "assign",
+    "branch",
     "on",
     "note",
 }
@@ -52,7 +53,11 @@ def _edge_status(key: str) -> str:
 
 def _cycles_without_visit_budget(nodes: Mapping[str, dict]) -> list[list[str]]:
     """Strongly connected components (with a cycle) none of whose nodes has max_visits."""
-    graph = {n: {t for t in spec["on"].values() if t in nodes} for n, spec in nodes.items()}
+    graph = {
+        n: {t for t in [*spec["on"].values(), *(r.get("next") for r in spec.get("branch", []))]}
+        & set(nodes)
+        for n, spec in nodes.items()
+    }
     index: dict[str, int] = {}
     low: dict[str, int] = {}
     stack: list[str] = []
@@ -146,6 +151,12 @@ def load_graph(spec: Mapping, registry: Mapping[str, TaskSkill]) -> dict:
         node.setdefault("attempts", 1)
         node.setdefault("retry_on", [])
         node.setdefault("assign", {})
+        node.setdefault("branch", [])
+        for rule in node["branch"]:
+            if not isinstance(rule, dict) or set(rule) - {"path", "equals", "exists", "next"}:
+                errors.append(f"node {name}: branch rules hold path, equals/exists and next")
+            elif rule.get("next") not in nodes and rule.get("next") not in terminals:
+                errors.append(f"node {name}: branch -> unknown {rule.get('next')!r}")
         for key in ("attempts", "max_visits"):
             if key in node and (not isinstance(node[key], int) or node[key] < 1):
                 errors.append(f"node {name}: {key} must be a positive integer")
@@ -349,6 +360,8 @@ def run_graph(
         status, failure = result["status"], result.get("failure_type")
         edges = node["on"]
         target = edges.get(f"{status}:{failure}") or edges[status]
+        if status == "succeeded":
+            target = next((r["next"] for r in node["branch"] if _fact(r, scope)), target)
         step.update(
             status=status,
             failure_type=failure,

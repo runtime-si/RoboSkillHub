@@ -471,3 +471,18 @@ def test_make_result_envelope_is_valid():
     )
     with pytest.raises(Exception, match="vocabulary"):
         validate("SkillResult", make_result(skill, "failed", failure_type="made_up"))
+
+
+def test_graph_success_branch_can_finish_a_loop():
+    x = Scripted("x", [("succeeded", None)])
+    nodes = {
+        "a": {
+            "skill": "x",
+            "params": {"left": "$input.left"},
+            "branch": [{"path": "$last.a.outputs.n", "equals": 3, "next": "done"}],
+            "max_visits": 5,
+            "on": {**ALL, "succeeded": "a"},
+        }
+    }
+    episode = run_graph(graph(nodes, {"x": "1.0.0"}), {"x": x}, {"left": 1}, ctx_factory)
+    assert (episode["status"], episode["terminal"], x.calls) == ("succeeded", "done", 3)
