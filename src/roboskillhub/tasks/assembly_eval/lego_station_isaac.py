@@ -309,6 +309,19 @@ class LegoIsaacPhysics:
             )
         self.paths = paths
         self.path_to_id = {v: k for k, v in paths.items()}
+        if scene.get("fix_baseplate", True):
+            # The task's fixed baseplate: a fixed joint from the world to the plate part at its imported pose.
+            # (RoCo leaves the plate free on the table; pressing a held brick then drags it.)
+            plate = stage.GetPrimAtPath(paths[scene["plate_id"]])
+            m = UsdGeom.Xformable(plate).ComputeLocalToWorldTransform(0)
+            pj = UsdPhysics.FixedJoint.Define(stage, "/World/baseplate_fixed")
+            pj.CreateBody1Rel().SetTargets([plate.GetPath()])
+            tr = m.ExtractTranslation()
+            pj.CreateLocalPos0Attr(Gf.Vec3f(float(tr[0]), float(tr[1]), float(tr[2])))
+            rq = m.ExtractRotationQuat()
+            pj.CreateLocalRot0Attr(Gf.Quatf(float(rq.GetReal()), Gf.Vec3f(rq.GetImaginary())))
+            pj.CreateLocalPos1Attr(Gf.Vec3f(0, 0, 0))
+            pj.CreateLocalRot1Attr(Gf.Quatf(1, 0, 0, 0))
         out = Path("/tmp") / f"lego_station_{id(self)}.usda"
         stage.GetRootLayer().Export(str(out))
         self.usd_sha256 = hashlib.sha256(out.read_bytes()).hexdigest()

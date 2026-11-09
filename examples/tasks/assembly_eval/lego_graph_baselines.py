@@ -64,15 +64,29 @@ class LegoPhysicsEnv:
     independent verdict and the skill-vs-evaluator pairing."""
 
     def __init__(
-        self, registry, *, scene: str, out: Path, breakage: bool = False, grip_force_n: float = 15.0
+        self,
+        registry,
+        *,
+        scene: str,
+        out: Path,
+        breakage: bool = False,
+        grip_force_n: float = 2.0,
+        force_limit_n: float = 6.0,
+        fix_baseplate: bool = True,
     ):
         self.registry, self.scene, self.out, self.breakage = registry, scene, out, breakage
-        self.grip_force_n = grip_force_n
+        self.grip_force_n, self.force_limit_n = grip_force_n, force_limit_n
+        self.fix_baseplate = fix_baseplate
         self.episodes_run = 0
 
     def __call__(self, graph: dict, seed: int) -> dict:
         built = physics_lego_world(
-            seed, scene=self.scene, breakage=self.breakage, grip_force_n=self.grip_force_n
+            seed,
+            scene=self.scene,
+            breakage=self.breakage,
+            grip_force_n=self.grip_force_n,
+            force_limit_n=self.force_limit_n,
+            fix_baseplate=self.fix_baseplate,
         )
         runtime = Runtime(built["backend"], built["limits"])
         loaded = load_graph(graph, self.registry)
@@ -123,7 +137,10 @@ class LegoPhysicsEnv:
             .replace("{", "")
             .replace("}", "")
         )
-        d = d / f"seed_{seed}{'_breakage' if self.breakage else ''}_grip{self.grip_force_n:g}"
+        d = d / (
+            f"seed_{seed}{'_breakage' if self.breakage else ''}_grip{self.grip_force_n:g}"
+            f"_f{self.force_limit_n:g}{'_freeplate' if not self.fix_baseplate else ''}"
+        )
         d.mkdir(parents=True, exist_ok=True)
         (d / "episode.json").write_text(json.dumps(episode, default=str))
         (d / "independent.json").write_text(json.dumps(ind, default=str))
@@ -207,15 +224,29 @@ def main() -> None:
         "build list ($last.select.outputs.target.build); not Agent 5's graph",
     )
     ap.add_argument(
-        "--grip-force", type=float, default=15.0, help="pad drive force limit (N) of the hand"
+        "--grip-force", type=float, default=2.0, help="pad drive force limit (N) of the hand"
+    )
+    ap.add_argument(
+        "--force-limit", type=float, default=6.0, help="press force_limit_N (station max 10)"
+    )
+    ap.add_argument(
+        "--free-baseplate", action="store_true", help="plate free on the table (as RoCo)"
     )
     ap.add_argument("--out", type=Path, required=True)
     args = ap.parse_args()
     K, unavailable = load_registry()
     args.out.mkdir(parents=True, exist_ok=True)
-    bricks = {"single_on_plate": 1, "single_on_brick": 1, "seq3_stack": 3}[args.scene]
+    bricks = {"single_on_plate": 1, "single_on_brick": 1, "seq3_stack": 3, "seq3_spaced": 3}[
+        args.scene
+    ]
     env = LegoPhysicsEnv(
-        K, scene=args.scene, out=args.out, breakage=args.breakage, grip_force_n=args.grip_force
+        K,
+        scene=args.scene,
+        out=args.out,
+        breakage=args.breakage,
+        grip_force_n=args.grip_force,
+        force_limit_n=args.force_limit,
+        fix_baseplate=not args.free_baseplate,
     )
     summary = args.out / "summary.jsonl"
     try:

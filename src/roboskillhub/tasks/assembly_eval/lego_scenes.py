@@ -47,6 +47,17 @@ SCENES: dict[str, dict] = {
         },
         "note": "three bricks, three connections; brick 3 needs brick 1",
     },
+    # As seq3_stack with one free stud row between bricks 1 and 2 (lego.align_connection refuses a hand
+    # approach next to a placed brick: would_damage_build).
+    "seq3_spaced": {
+        "task_type": "2",
+        "goal": {
+            "1": {"brick_id": 2, "x": 0, "y": 0, "z": 0, "ori": 1, "color": "Red"},
+            "2": {"brick_id": 2, "x": 0, "y": 3, "z": 0, "ori": 1, "color": "Green"},
+            "3": {"brick_id": 2, "x": 0, "y": 0, "z": 1, "ori": 1, "color": "Blue"},
+        },
+        "note": "three bricks, three connections; brick 3 needs brick 1; bricks 1 and 2 one stud apart",
+    },
     # Two 2x4 side by side on the plate, a third 2x4 turned 90 degrees bridging both. Orientations chosen so
     # each brick can be picked and placed by one DexMate arm (checked with RoCo's Pinocchio IK; the mirrored
     # layout needs a hand-over for brick 1).

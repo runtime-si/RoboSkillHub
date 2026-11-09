@@ -124,7 +124,13 @@ def placement_cell(goal_contract: dict, plate: dict, studs=(2, 4), plate_studs=(
 
 
 def physics_lego_world(
-    seed: int, *, scene: str = "single_on_plate", breakage: bool = False, grip_force_n: float = 15.0
+    seed: int,
+    *,
+    scene: str = "single_on_plate",
+    breakage: bool = False,
+    grip_force_n: float = 2.0,
+    force_limit_n: float = 6.0,
+    fix_baseplate: bool = True,
 ) -> dict:
     physics = make_physics()
     goal_topo, prebuilt, ids, order = _topologies(scene)
@@ -157,6 +163,7 @@ def physics_lego_world(
         "feeder": feeder,
         "hand_start": HAND_START,
         "grip_force_N": grip_force_n,
+        "fix_baseplate": fix_baseplate,
         "thresholds": {
             "distance_tolerance": cfg["clutch_model"]["assembly"]["distance_tolerance_m"],
             "max_penetration": cfg["clutch_model"]["assembly"]["max_penetration_m"],
@@ -262,9 +269,10 @@ def physics_lego_world(
             "max_travel_m": 0.0105,
             "speed_m_s": 0.004,
             "timeout_s": 20.0,
-            "force_limit_N": 4.0,
+            "force_limit_N": force_limit_n,
             "hold_s": 0.2,
-            "limits_source": "assembly_eval lego_world v1: 4 N stop, 4x BrickSim's 1 N trigger; station max 10 N",
+            "limits_source": "assembly_eval lego_world v1: press stop set per run (default 6 N, 6x BrickSim's "
+            "1 N trigger); station max 10 N",
         },
         "release": {"open_width_m": 0.03, "retreat_height_m": 0.03},
         "verify_window": {"window_s": 0.5, "min_samples": 3, "max_obs_age_s": 2.0},
@@ -295,6 +303,10 @@ def physics_lego_world(
         "scene": scene,
         "breakage": breakage,
         "grip_force_N": grip_force_n,
+        "press_force_limit_N": force_limit_n,
+        "baseplate": "fixed to the table (fixed joint)"
+        if fix_baseplate
+        else "free on the table (as RoCo)",
         "targets": len(targets),
     }
     return {
@@ -398,7 +410,7 @@ def build_record(
         t_close = close["sim_s"] if close else 0.0
         pick_start = last("pick_start", t_close) or snaps[0]
         free = [pid for pid in order if pid not in assigned]
-        pid = min(free or order, key=lambda k: math.dist(goal_bs[k][0], s["parts"][b]["p"]))
+        pid = min(free or order, key=lambda k: math.dist(goal_bs[k][0], final["parts"][b]["p"]))
         assigned.setdefault(pid, b)
         press = next(
             (e for e in station.events if e["event"] == "press" and e["sim_s"] >= s["sim_s"]), None
