@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-22 tools, 127 skills, 2 policies, 1 recipe and 1 paper.
+23 tools, 127 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -23,6 +23,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`geometry`](#geometry) | perceive | Pure-math 3D geometry toolbox. | any, *tuned on* panda |
 | [`grounding-dino`](#grounding-dino) | perceive | Grounding DINO zero-shot object detection — natural-language queries to labeled 2D bounding boxes with confidence scores. | any |
 | [`locate-anything`](#locate-anything) | perceive | NVIDIA LocateAnything-3B (non-commercial licence) run locally on a GPU. | any |
+| [`mm-grounding-dino`](#mm-grounding-dino) | perceive | MM-Grounding-DINO open-vocabulary detection (OpenMMLab's open retraining of Grounding DINO, Apache-2.0 weights) with… | any, *tuned on* yam-station-orbbec-overhead |
 | [`molmo`](#molmo) | perceive | Visual pointing and Q&A via the Molmo VLM served from a self-hosted vLLM endpoint (OpenAI-compatible API). | any |
 | [`omdet-turbo`](#omdet-turbo) | perceive | OmDet-Turbo fast open-vocabulary detection (omlab/omdet-turbo-swin-tiny-hf, Apache-2.0). | any, *tuned on* yam-station-orbbec-overhead |
 | [`owlv2`](#owlv2) | perceive | OWLv2 open-vocabulary detection (google/owlv2-*, Apache-2.0) in two modes. | any |
@@ -283,6 +284,17 @@ NVIDIA LocateAnything-3B (non-commercial licence) run locally on a GPU -- catego
   - `locate-anything.detect`: Boxes for every instance of one or more categories (pixel box, label, score).
   - `locate-anything.ground`: Boxes for what a referring phrase names; drop-in for gemini-er.detect.
   - `locate-anything.point`: Pixel points for what a phrase names; drop-in for gemini-er.point.
+
+### mm-grounding-dino
+
+perceive · robots: any, *tuned on* yam-station-orbbec-overhead · tasks: pick-place, sorting · MIT · v0.1.0 · [`SKILL.md`](tools/mm-grounding-dino/SKILL.md) · [upstream](https://github.com/huggingface/transformers/tree/v4.57.1/src/transformers/models/mm_grounding_dino)
+
+MM-Grounding-DINO open-vocabulary detection (OpenMMLab's open retraining of Grounding DINO, Apache-2.0 weights) with grounding-dino's call and answer -- text phrases to labelled boxes. On the station's overhead frames the large checkpoint was the most precise detector the hub has measured, finding every 30 mm cube at ~1 m and the open boxes that owlv2 misses, at 2-9 false positives over 7 frames instead of 18-19. It finds fewer plugs than owlv2. Use when a workflow needs table parts and containers named by text with few false positives, as a drop-in for grounding-dino.detect or as a sahi backend. Needs transformers 4.x.
+
+- **Weights**: `hf://openmmlab-community/mm_grounding_dino_large_all@0445d0a0ae5f0fa6be689cf7243d4d0ef4ba7de0`
+- **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
+- **Functions**:
+  - `mm-grounding-dino.detect`: Open-vocabulary detection with MM-Grounding-DINO (labelled boxes + scores, grounding-dino's shape).
 
 ### molmo
 

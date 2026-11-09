@@ -1,0 +1,34 @@
+[project]
+name = "mm-grounding-dino-tool-bundle"
+version = "0.1.0.dev0"
+description = "MM-Grounding-DINO open-vocabulary detection (grounding-dino's call and answer). Runs out-of-process via gap_core.rpc.server (needs GPU)."
+readme = "SKILL.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+dependencies = [
+  "graph-as-policy-core",
+  "torch>=2.7",
+  # GroundingDinoProcessor.post_process calls torchvision::nms.
+  "torchvision>=0.22",
+  # MMGroundingDinoForObjectDetection arrived in 4.52. transformers 5.x loads these
+  # checkpoints without an error but decodes collapsed boxes (5.19.0 checked); the
+  # tool refuses 5.x at load.
+  "transformers>=4.52,<5",
+  "pillow>=10",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+# The engine commit sources.yaml pins, by URL, so the bundle resolves the same
+# wherever its checkout sits (a dev clone, a robot's `roboskillhub fetch`).
+[tool.uv.sources]
+graph-as-policy-core = { git = "https://github.com/graph-robots/graph-as-policy.git", rev = "09e45f8de27bc1a29629382ed7c2b9b4b384b3d6", subdirectory = "gap-core" }
