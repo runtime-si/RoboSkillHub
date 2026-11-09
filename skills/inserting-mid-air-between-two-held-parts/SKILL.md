@@ -45,6 +45,7 @@ gap:
     depth: float
     lateral_error: float
     axis_angle_deg: float
+    probes_resisted: int
     lag_over_baseline: float
     holder_shift: float
     contact_signal: str
@@ -56,10 +57,10 @@ gap:
     mover_pose: Se3Pose
     holder_pose: Se3Pose
   exit_conditions:
-    inserted: The moving tip, as the two hands' read-back poses and the in-hand offsets place it, went at least insert_depth less depth_tolerance past the holder's entry along the axis, and both jaws still read a hold (with release=mover, the mover then opened and backed out and the holder's jaws still hold). What the hands did, not a sighting of the part in the hole; a part that slid in its jaws reads as inserted.
+    inserted: The moving tip, as the two hands' read-back poses and the in-hand offsets place it, went at least insert_depth less depth_tolerance past the holder's entry along the axis, at least one of four probes across the axis (half the clearance plus 1 mm each way) was stopped or carried the holder along (verify, default on), and both jaws still read a hold (with release=mover, the mover then opened and backed out and the holder's jaws still hold). Felt by the hands, not seen.
     misaligned: Nothing went in - the tip could not be brought within half the clearance of the entry's line (after three corrections), the two parts' axes (each turned with its hand since it was measured) stood more than angle_tolerance_deg apart, or the push stopped (lag, holder pushed, effort) with the tip less than 2 mm past the entry (the rim); the mover backed off to its stand-off, both still hold their parts.
     stalled: The push stopped with the tip past the entry but short of insert_depth less depth_tolerance (a jam, a burr, a tilted part); the mover backed off 3 mm so it stops pushing, both still hold. Also routed when the mover's jaws did not open for release=mover.
-    slipped: A hand's jaws read at the stop - before anything moved (nothing held), or after the push or the release (a part fell out).
+    slipped: A hand's jaws read at the stop - before anything moved (nothing held), or after the push or the release (a part fell out); or the hands went the whole depth but no probe across the axis met a wall - the moving part sat on the receiving part's outside face and slid back along its jaw pads, which neither arm feels (both hands still hold, the parts are not joined).
     unreachable: The two arm ids are equal or the connector reports no separate second arm, the holder could not reach the meet point or the mover its stand-off (free moves read back beyond reach_tolerance or refused), a wrist roll could not be turned back, a step was refused, or signal=effort with no efforts published; detail says which and what each hand still holds.
   canonical_scripts:
     - insert_mid_air: scripts/insert_mid_air.py
@@ -139,8 +140,17 @@ call.
    - **effort**: when the observation carries both arms' joint efforts, a
      joint's residual against the mean of the free windows over
      `effort_threshold` (0.5 N.m) or four sigma.
-7. **Decide.** Tip within `depth_tolerance` (3 mm) of `insert_depth`:
-   `inserted` (a contact there is the bottom; the mover backs off 3 mm).
+7. **Seated check** (`verify`, on by default). The depth above is the
+   hands' and the in-hand offsets': a part pushed along its jaw pads slides
+   back in the hand without either arm lagging (measured, see below). With
+   the tip at depth, the mover is moved across the axis by half the
+   clearance plus 1 mm, both ways along two directions, and back each time:
+   a part in its hole stops at the wall (the mover falls short, or carries
+   the holder along, by more than 0.5 mm); one on the outside face does
+   not. No probe stopped: `slipped`.
+8. **Decide.** Tip within `depth_tolerance` (3 mm) of `insert_depth` and
+   seated: `inserted` (a contact there is the bottom; the mover backs off
+   3 mm).
    Stopped with the tip under 2 mm past the entry: `misaligned` (the rim),
    the mover goes back to its stand-off. Stopped further in: `stalled`, the
    mover backs off 3 mm. With `release: mover` an inserted mover opens and
@@ -162,7 +172,7 @@ call.
   `effort_threshold`, `depth_tolerance`, `fine_tolerance`,
   `step_max_steps` (0: the connector's), `reach_tolerance` (0.02 m),
   `angle_tolerance_deg`, `fix_roll` (true), `release` (`none` | `mover`),
-  `retreat`, `empty_fraction` (0.04), `settle_period` (0.3 s; 0 reads once).
+  `verify` (true), `retreat`, `empty_fraction` (0.04), `settle_period` (0.3 s; 0 reads once).
 
 ## Required end states
 
@@ -201,6 +211,9 @@ call.
   apart cross by 0.7 mm over a 20 mm depth, more than a 1 mm clearance's
   half; 1 deg of free wrist roll
   swings a tip held 50 mm off the tool axis by 0.9 mm.
+- **`PROBE_MARGIN = 0.001` m, `PROBE_RESIST = 0.0005` m**: the seated
+  probe goes 1 mm past the half-clearance; half of that, over the 0.3 mm
+  fine arrival ball, is a wall. A choice, checked in the twin below.
 - **`REACH_TOLERANCE = 0.02` m, `EMPTY_FRACTION = 0.04`**: as
   handing-over-between-arms.
 
