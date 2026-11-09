@@ -785,9 +785,8 @@ def test_table_pivot_stands_the_tile_and_sees_it_from_depth(script):
     # The approach ends level and along where the pitch joint takes it (+x here); the tile's broad faces face it.
     assert out["facing_deg"] == pytest.approx(0.0, abs=0.5)
     assert out["standing_tile"]["position"]["z"] == pytest.approx(TABLE_Z + 0.024)
-    # Upright on the table: the hand let go with the tool centre half the tile's height plus the grip offset up,
-    # less the press.
-    assert arm.released_at[2] == pytest.approx(TABLE_Z + 0.024 + 0.014 - 0.001, abs=1e-6)
+    # Upright on the table: the hand let go with the tool centre half the tile's height plus the grip offset up.
+    assert arm.released_at[2] == pytest.approx(TABLE_Z + 0.024 + 0.014, abs=1e-6)
 
 
 def test_table_pivot_air_pitch_turns_only_the_pitch_joint(script):
@@ -795,9 +794,10 @@ def test_table_pivot_air_pitch_turns_only_the_pitch_joint(script):
     out = joint_stand(script, arm, verify=False, pitch_step_deg=15.0, air_pitch_deg=60.0)
     assert out["route"] == "standing", out["detail"]
     deltas = [b - a for a, b in zip(arm.joint_moves, arm.joint_moves[1:], strict=False)]
-    air = [d for d in deltas if abs(d[3]) > 0.2 and np.allclose(np.delete(d, 3), 0.0)]
-    assert len(air) == 4  # 60 deg in 15 deg steps
-    assert all(abs(d[3]) == pytest.approx(math.radians(15.0), abs=1e-6) for d in air)
+    alone = [d[3] for d in deltas if abs(d[3]) > 0.2 and np.allclose(np.delete(d, 3), 0.0)]
+    assert all(abs(v) == pytest.approx(math.radians(15.0), abs=1e-6) for v in alone)
+    # The empty rehearsal: six steps up and six back; then 60 deg in the air in four.
+    assert sum(v > 0 for v in alone) == 6 + 4 and sum(v < 0 for v in alone) == 6
 
 
 def test_table_pivot_refuses_a_step_that_jumps_a_joint(script):

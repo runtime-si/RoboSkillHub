@@ -121,16 +121,16 @@ IK_STEP = 0.02
 """Longest straight chunk of a chained IK move [m]. In a YAM station twin 20 mm descents of the pitched hand moved
 each joint 0.07-0.08 rad."""
 
-SETDOWN_GAP = 0.002
-"""Height of the tilted tile's lower edge over the table when the hand stops over the spot [m]."""
+SETDOWN_GAP = 0.001
+"""Height of the flat tile's bottom over the table when the hand stops over the spot [m]."""
 
-PRESS = 0.001
-"""How far under the table the lower edge is commanded while the tile is turned upright on it [m], so it stays
-loaded (tipping-over-a-surface-edge presses the edge it turns about; a choice for a 10 g tile)."""
+PRESS = 0.0
+"""How far under the table the edge the tile turns about is commanded [m]. With 1 mm the tile left the jaws halfway
+up in a YAM station twin: the pinch is weak along the tile, and the press pushes the tile through it."""
 
 STAGE_STEP = 0.03
-"""With no staging spot given, spots are tried this far apart [m] out along the pitch plane from where the tile would
-stand if turned up in place; the ones whose set-down and upright hand pass the IK preview first."""
+"""With no staging spot given, spots are tried this far apart [m], out from where the tile lies along the pitch
+plane; the upright hand at each is previewed with the empty hand turned upright (the rehearsal)."""
 
 STAGE_REACH = 0.30
 """How far out the spots go [m]: in a YAM station twin the upright hand reached 40 mm over the table at 0.55 m from
@@ -1307,6 +1307,48 @@ def run(
                 "the last joint has no room to turn the tile into the pitch joint's plane",
             )
         e0 = min(ends, key=lambda en: abs(en[1]))[0]
+
+        # --- rehearse the upright hand with the hand empty: the pitch joint alone turns it a quarter, the solver
+        # (starting from there) previews the upright hand at each spot, the turn is undone. Previewed from the
+        # top-down arm, the upright hand failed to solve everywhere in a YAM station twin.
+        n_q = max(1, int(math.ceil(90.0 / max(1.0, float(pitch_step_deg)))))
+        for i in range(1, n_q + 1):
+            goal = q0.copy()
+            goal[pitch_j] += sign * math.radians(90.0 * i / n_q) / rate
+            why = to_joints(goal)
+            if why:
+                to_joints(q0)
+                return finish(
+                    "unreachable", f"rehearsing the quarter turn, step {i} of {n_q}: {why}"
+                )
+        r_f = rot_now()
+        a_f = r_f @ local_approach
+        if staging:
+            cands = [spot]
+        else:
+            n_out = (
+                int(math.floor(float(stage_reach) / max(1.0e-3, float(stage_step)) + 1.0e-9)) + 1
+            )
+            cands = [center[:2] + k * float(stage_step) * to_out[:2] for k in range(n_out)]
+        reach_ok: list[np.ndarray] = []
+        missed: list[str] = []
+        for xy in cands:
+            p_f = np.array([*xy, table_z + tl / 2.0]) - (gh - tt / 2.0) * a_f + s * z_up
+            _, why = ik_q(p_f, r_f)
+            if why:
+                missed.append(f"({xy[0]:.3f}, {xy[1]:.3f}): {why}")
+            else:
+                reach_ok.append(xy)
+        for i in range(n_q - 1, -1, -1):
+            goal = q0.copy()
+            goal[pitch_j] += sign * math.radians(90.0 * i / n_q) / rate
+            to_joints(goal)
+        if not reach_ok:
+            return finish(
+                "unreachable",
+                "the upright hand reaches no spot in the rehearsal "
+                f"({'; '.join(missed[:4])}{', ...' if len(missed) > 4 else ''}); nothing picked",
+            )
         grasp_point = np.array([*(center[:2] + s * e0[:2]), table_z + gh])
         why = pick(grasp_point, g_rot, e0)
         if why is not None:
@@ -1358,27 +1400,17 @@ def run(
         phi = turn_about(cl, e, z_up)
         r_phi = axis_angle(cl, phi)
         final_c = pivot + r_phi @ (c_t - pivot)
-        if staging:
-            spots = [spot]
-        else:
-            n_out = max(1, int(round(float(stage_reach) / max(1.0e-3, float(stage_step)))) + 1)
-            spots = [final_c[:2] + i * float(stage_step) * to_out[:2] for i in range(n_out)]
 
-        def plan_at(xy: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, str]:
+        def plan_at(xy: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
             shift = np.array([*(xy - final_c[:2]), table_z + SETDOWN_GAP - pivot[2]])
-            down = p + shift
             edge = pivot + shift - (SETDOWN_GAP + float(press)) * z_up
-            _, why = ik_q(down, r)
-            if not why:
-                _, why = ik_q(edge + r_phi @ (down - pivot - shift), r_phi @ r)
-            return shift, down, edge, why
+            return shift, p + shift, edge
 
-        previews = [(xy, *plan_at(xy)) for xy in spots]
-        order = [v for v in previews if not v[4]] + [v for v in previews if v[4]]
         tried: list[str] = []
         n_piv = max(1, int(math.ceil(abs(phi) / max(1.0, float(pivot_step_deg)))))
         stood = None
-        for xy, shift, down, edge, preview in order[: int(stage_attempts)]:
+        for xy in reach_ok[: int(stage_attempts)]:
+            shift, down, edge = plan_at(xy)
             here_now = _xyz(here())
             why = line_to(np.array([down[0], down[1], max(here_now[2], down[2])]), r)
             if not why:
@@ -1406,10 +1438,7 @@ def run(
             if not why:
                 stood = xy
                 break
-            tried.append(
-                f"({xy[0]:.3f}, {xy[1]:.3f}) upright {why}"
-                + (f" [preview: {preview}]" if preview else "")
-            )
+            tried.append(f"({xy[0]:.3f}, {xy[1]:.3f}) upright {why}")
             # Back down flat the way it came, lift a little, and try the next spot.
             for q in reversed(path[:-1]):
                 if q.size:
