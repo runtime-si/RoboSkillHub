@@ -173,7 +173,7 @@ def physics_domino_world(
     def interventions() -> int:
         """Pieces a person would have to pick up: lying anywhere at the end."""
         objs = station.physics.truth()["objects"]
-        return sum(1 for o in objs.values() if tilt_deg(o["quaternion_xyzw"]) > 45.0)
+        return sum(1 for o in objs.values() if tilt_deg(o["quat_xyzw"]) > 45.0)
 
     return {
         "backend": station,
