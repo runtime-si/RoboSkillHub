@@ -90,6 +90,14 @@ def parse_args(argv=None):
     ap.add_argument("--config", type=Path, default=None)
     ap.add_argument("--no-probe", action="store_true")
     ap.add_argument(
+        "--press-mode",
+        choices=["grip", "fingertip", "hybrid"],
+        default="grip",
+        help="grip: press while holding the brick (friction-limited); fingertip: release just above "
+        "the studs, close the empty fingers and push the brick top through the arm; hybrid: grip press, "
+        "then, only if BrickSim reports no engagement, release at the seat and push with the fingertips",
+    )
+    ap.add_argument(
         "--gripper-max-force",
         type=float,
         default=0.1,
@@ -238,6 +246,8 @@ def make_policy(NaivePolicy):
     class EvalPolicy(NaivePolicy):
         """RoCo NaivePolicy, optionally re-aimed at goal poses (goal_fsm) with one perturbed placement."""
 
+        press_mode = "grip"
+
         def __init__(self, env, cfg, mode, goal_T_W, path_to_id, part_lw, pert, fault_index):
             self.cfg, self.mode, self.goal_T_W, self.path_to_id = cfg, mode, goal_T_W, path_to_id
             self.part_lw = part_lw
@@ -281,7 +291,14 @@ def make_policy(NaivePolicy):
             pert = self.pert if task_id == self.fault_index else Perturbation()
             hold_inv = np.linalg.inv(T_tcp_brick)
             preplace = target_T @ trans_z(b["preplace_z_units"] * u) @ hold_inv
-            if pert.press:
+            if self.press_mode == "fingertip" and pert.press:
+                # Lower the brick to just above the stud tops; the press comes after the release.
+                place = (
+                    target_T
+                    @ trans_z(self.cfg["baseline"]["fingertip"]["release_above_seat_m"])
+                    @ hold_inv
+                )
+            elif pert.press:
                 place = target_T @ trans_z(-b["press_depth_units"] * u) @ hold_inv
             else:
                 place = target_T @ trans_z(pert.hover_above_seat_m) @ hold_inv
@@ -502,6 +519,7 @@ async def run_episode(args, cfg, seed: int) -> dict:
     scene = SCENES[args.scene]
     fault = None if args.fault == "none" else args.fault
     grip = "" if args.gripper_max_force == 0.1 else f"__grip{args.gripper_max_force:g}"
+    grip += "" if args.press_mode == "grip" else f"__{args.press_mode}"
     episode_id = f"{args.scene}__{args.policy}__{args.fault}__brk-{args.breakage}{grip}__s{seed}"
     work = args.out / "tasks" / episode_id
     task_dir = write_task_dir(args.scene, work / "task")
@@ -585,6 +603,7 @@ async def run_episode(args, cfg, seed: int) -> dict:
     start = rec.snap()
 
     EvalPolicy = make_policy(NaivePolicy)
+    EvalPolicy.press_mode = args.press_mode
     policy = EvalPolicy(env, cfg, args.policy, goal_T_W, path_to_id, lw, pert, fault_index)
     b, pc = cfg["baseline"], cfg["postconditions"]
     probe_cfg = pc["probe"]
@@ -602,6 +621,55 @@ async def run_episode(args, cfg, seed: int) -> dict:
         rec.drain(phase, subtask)
         if rec.step % 10 == 0:
             rec.traj.append({"step": rec.step, "phase": phase, "subtask": subtask})
+
+    def pert_for(i):
+        return pert if i == fault_index else Perturbation()
+
+    async def drive_to(q_goal, phase, i, max_step, stop=None):
+        """Joint-space interpolation as NaivePolicy does; returns early when ``stop()`` holds."""
+        cur = policy.cur_q.copy()
+        for _ in range(4000):
+            d = q_goal - cur
+            m = float(np.max(np.abs(d)))
+            cur = q_goal.copy() if m < max_step else cur + d / m * max_step
+            await advance(phase, i, cur)
+            if stop is not None and stop():
+                break
+            if m < max_step:
+                break
+        policy.cur_q = cur.copy()
+
+    async def fingertip_press(i, pid, ev0):
+        """Lift clear, close the empty fingers, push the brick top down until BrickSim engages it."""
+        fcfg = b["fingertip"]
+        sd = policy.state_dicts[i]
+        ee = sd["ee_name"]
+        ik, joints = env.robot_pin.IK, env.robot_pin.controllable_joints
+        T0 = env.robot_pin.FK(policy.cur_q, [ee])[ee]
+        T_up, T_press = T0.copy(), T0.copy()
+        T_up[2, 3] += fcfg["lift_m"]
+        T_press[2, 3] -= fcfg["press_below_release_m"]
+        q_up, _ = ik({ee: T_up}, policy.cur_q.copy(), joints)
+        q_closed = policy.close_gripper(q_up, ee)
+        q_press, _ = ik({ee: T_press}, q_closed.copy(), joints)
+        q_press = policy.close_gripper(q_press, ee)
+
+        def engaged():
+            return any(e["kind"] == "assembled" and e["hole"] == pid for e in rec.events[ev0:])
+
+        rec.max_force.pop(pid, None)
+        await drive_to(q_up, "fingertip_lift", i, b["max_joint_step_rad"])
+        await drive_to(q_closed, "fingertip_close", i, b["max_joint_step_rad"])
+        start = rec.step
+        await drive_to(q_press, "fingertip_press", i, fcfg["max_joint_step_rad"], stop=engaged)
+        out = {
+            "engaged": engaged(),
+            "press_steps": rec.step - start,
+            "max_force_n": rec.max_force.get(pid),
+            "ik_press": _ik_error(env, q_press, ee, T_press),
+        }
+        await drive_to(q_up, "fingertip_lift", i, b["max_joint_step_rad"])
+        return out
 
     for i, entry in enumerate(policy.plan):
         pid = entry["part"]
@@ -639,6 +707,14 @@ async def run_episode(args, cfg, seed: int) -> dict:
                     st["snapshots"]["before_place"] = rec.snap()
                 elif prev == "open_gripper":
                     st["snapshots"]["released"] = rec.snap()
+                    tip = args.press_mode == "fingertip" or (
+                        args.press_mode == "hybrid"
+                        and not any(
+                            e["kind"] == "assembled" and e["hole"] == pid for e in rec.events[ev0:]
+                        )
+                    )
+                    if tip and policy.mode == "goal_fsm" and pert_for(i).press:
+                        st["fingertip"] = await fingertip_press(i, pid, ev0)
                 elif prev == "retreat_place":
                     st["snapshots"]["retreated"] = rec.snap()
             if (
@@ -755,6 +831,7 @@ async def run_episode(args, cfg, seed: int) -> dict:
         "fault": args.fault,
         "breakage": args.breakage,
         "gripper_max_force": args.gripper_max_force,
+        "press_mode": args.press_mode,
         "fault_doc": FAULTS[fault]["doc"] if fault else None,
         "expected_failure_types": FAULTS[fault]["expect"] if fault else [None],
         "fault_index": fault_index,

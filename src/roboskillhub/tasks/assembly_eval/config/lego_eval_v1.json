@@ -68,7 +68,14 @@
     "reach_tol_m": 0.005,
     "reach_tol_rad": 0.05,
     "stop_on_engagement": true,
-    "stop_on_engagement_note": "goal_fsm stops the press at the first BrickSim 'assembled' event for the placed brick (privileged engine signal; press_depth_units is then only the travel limit). Without it the arm keeps pushing the already welded structure 2.9 mm into the table and PhysX pushes the free baseplate sideways."
+    "stop_on_engagement_note": "goal_fsm stops the press at the first BrickSim 'assembled' event for the placed brick (privileged engine signal; press_depth_units is then only the travel limit). Without it the arm keeps pushing the already welded structure 2.9 mm into the table and PhysX pushes the free baseplate sideways.",
+    "fingertip": {
+      "release_above_seat_m": 0.002,
+      "lift_m": 0.008,
+      "press_below_release_m": 0.006,
+      "max_joint_step_rad": 0.002,
+      "note": "--press-mode fingertip: release 2 mm above the seat (brick drops onto the stud tops), lift 8 mm, close the empty fingers, drive the TCP 6 mm below the release height (stopping at BrickSim's assembled event), lift 8 mm, retreat. The push goes through the arm joints, not through finger friction."
+    }
   },
   "faults": {
     "lateral_offset": {

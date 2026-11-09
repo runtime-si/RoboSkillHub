@@ -171,9 +171,11 @@ def evaluate_placement(record: dict, index: int, cfg: dict, accepted: dict[str, 
         if parts[parent].get("role") == "plate":
             continue
         g = record["goal_poses"][parent]
-        e = pose_error(
-            (g["p"], g["q"]), _pose(before, parent), _yaw_period(tuple(parts[parent]["lw"]))
-        )
+        actual = _pose(before, parent)
+        if actual is None:
+            absent.append(parent)
+            continue
+        e = pose_error((g["p"], g["q"]), actual, _yaw_period(tuple(parts[parent]["lw"])))
         if e["dxy_m"] > pc["structure_move_tol_m"] or abs(e["dz_m"]) > pc["structure_move_tol_m"]:
             absent.append(parent)
     supported = not absent
@@ -279,6 +281,16 @@ def evaluate_placement(record: dict, index: int, cfg: dict, accepted: dict[str, 
             and abs(err["dz_m"]) <= STUD_HEIGHT_M + pc["seated_z_tol_m"]
         )
         out.update(status="failed", failure_type="lego.not_seated" if near else "lego.misaligned")
+    if step.get("not_released"):
+        # Pressed but never released (the graph stopped first): the checks above are reported as measured,
+        # but a brick still in the gripper is not a completed placement.
+        out.update(
+            status="unverified",
+            failure_type="evidence_missing",
+            phase="release",
+            reason="graph stopped before the release; brick still in the gripper at the end",
+        )
+        return out
     if out["status"] == "succeeded":
         accepted[pid] = settled["parts"][pid]
     return out
