@@ -415,6 +415,17 @@ the MIT text under the line "Copyright (c) 2011-2023 GitHub Inc."); the file's
 header lists the changes, and the licenses are
 skills/pressing-a-brick-onto-studs/LICENSE.bricksim and LICENSE.icl.
 
+skills/verifying-brick-seated-by-height/scripts/verify_seat.py takes its
+acceptance tolerances from BrickSim
+(https://github.com/intelligent-control-lab/BrickSim,
+python/bricksim/mdp/connection_thresholds.py configure_assembly_thresholds,
+commit cbd5de3238e6ac12f44ef699e1507a9f16bdafc3), MIT License, Copyright (c)
+2026 Haowei Wen, and the LEGO stud height from Robotic_Lego_Manipulation
+(https://github.com/intelligent-control-lab/Robotic_Lego_Manipulation,
+include/Lego.hpp knob_height_, commit 9bc91654e708e4d8428ecfa76840103cacb2a19a),
+MIT License; the file's header lists the changes, and the licenses are
+skills/verifying-brick-seated-by-height/LICENSE.bricksim and LICENSE.icl.
+
 skills/checking-design-connectivity-and-collisions/scripts/check_design.py is
 adapted from BrickGPT (https://github.com/AvaLovelace1/BrickGPT, commit
 9c53c7cb65f9de0df89562cc74b2d2e270fbcab4: src/brickgpt/data/brick_structure.py

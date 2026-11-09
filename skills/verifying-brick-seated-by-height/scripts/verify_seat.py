@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import math
+import warnings
 from typing import Any, TypedDict
 
 import numpy as np
@@ -78,6 +79,9 @@ REFERENCE_WINDOW_FRACTION = 0.5
 """The ring's lowest surface counts as the seat's surface when it reads within this
 fraction of a brick height of the given seat height; otherwise the seat's own z is used
 (a brick stacked on one of the same footprint has the plate a whole brick lower around it)."""
+
+LOWER_SUPPORT = 0.1
+"""A lower surface needs this share of the ring's points to be taken as the reference."""
 
 LEVEL_STEP = 0.00005
 """Grid step of the two-level search [m]."""
@@ -258,6 +262,19 @@ def _two_layer_level(z: np.ndarray, stud_h: float) -> float:
     return float(grid[int(np.argmin(cost))])
 
 
+def _lowest_surface(z: np.ndarray, stud_h: float, gap: float) -> float:
+    """The lowest stud-covered surface with enough support among heights ``z``: the
+    two-level search, repeated on what lies more than ``gap`` under its answer (the plate
+    between neighbour bricks that fill most of the ring)."""
+    level = _two_layer_level(z, stud_h)
+    for _ in range(4):
+        lower = z[z < level - gap]
+        if lower.size < max(MIN_POINTS, LOWER_SUPPORT * z.size):
+            break
+        level = _two_layer_level(lower, stud_h)
+    return level
+
+
 def _two_layer_plane(pts: np.ndarray, stud_h: float) -> tuple[np.ndarray, float]:
     """Plane of a stud-covered face: each point is taken as on the face or on a stud
     top (a stud height up, lowered by it), the plane refitted, the worst residuals
@@ -313,7 +330,7 @@ def measure(
     seat_z = float(seat[2])
     ref_z, ref_used = seat_z, "world"
     if reference != "world" and int(ring.sum()) >= MIN_POINTS:
-        cand = _two_layer_level(pts[ring, 2], stud_h)
+        cand = _lowest_surface(pts[ring, 2], stud_h, 0.5 * body_h)
         if abs(cand - seat_z) <= REFERENCE_WINDOW_FRACTION * body_h:
             ref_z, ref_used = cand, "local"
     if reference == "local" and ref_used != "local":
@@ -408,8 +425,8 @@ def run(
             math.degrees(math.atan(TILT_FRACTION * stud_h / max(len_x, len_y))),
         )
     )
-    pos_tol = float(position_tolerance) if position_tolerance is not None else (
-        POSITION_FRACTION * pitch
+    pos_tol = (
+        float(position_tolerance) if position_tolerance is not None else (POSITION_FRACTION * pitch)
     )
     seat = _xyz(seat_position)
     on_arm: dict[str, Any] = {"arm_id": int(arm_id)} if arm_id else {}
@@ -564,12 +581,9 @@ def _read_depth(
             continue
         stack.append(np.where(d > 0, d, np.nan))
         cam = c
-    with np.errstate(all="ignore"):
-        import warnings
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RuntimeWarning)
-            depth = np.nanmedian(np.stack(stack), axis=0)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)  # all-NaN pixels: no reading
+        depth = np.nanmedian(np.stack(stack), axis=0)
     return np.nan_to_num(depth, nan=0.0), cam, ""
 
 

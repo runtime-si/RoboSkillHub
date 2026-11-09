@@ -61,12 +61,16 @@ def _trace_brick(o, d, pose, system, nx, ny):
     db = d @ rinv.T
     play = 0.0001
     hx, hy = nx * p / 2, ny * p / 2
-    t, _ = _box(ob, db, np.array([-hx + play, -hy + play, 0.0]), np.array([hx - play, hy - play, bh]))
+    t, _ = _box(
+        ob, db, np.array([-hx + play, -hy + play, 0.0]), np.array([hx - play, hy - play, bh])
+    )
 
     def valid(i, j):
         return (i >= 0) & (i < nx) & (j >= 0) & (j < ny)
 
-    ts, _, _ = _studs(ob - np.array([-hx, -hy, 0.0]), db, bh, s, rad, p, np.array([0.5, 0.5]), valid)
+    ts, _, _ = _studs(
+        ob - np.array([-hx, -hy, 0.0]), db, bh, s, rad, p, np.array([0.5, 0.5]), valid
+    )
     return np.minimum(t, ts)
 
 

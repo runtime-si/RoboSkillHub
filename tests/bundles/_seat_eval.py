@@ -54,7 +54,10 @@ def _quat(r):
 
 
 def _pose(m):
-    return {"position": dict(zip("xyz", map(float, m[:3, 3]), strict=True)), "rotation": _quat(m[:3, :3])}
+    return {
+        "position": dict(zip("xyz", map(float, m[:3, 3]), strict=True)),
+        "rotation": _quat(m[:3, :3]),
+    }
 
 
 def _axis_angle(axis, angle):
@@ -226,7 +229,7 @@ def main(trials=5):
     spec = importlib.util.spec_from_file_location("verify_seat", path)
     script = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(script)
-    print("| brick | truth | routes (of %d) | height error mm | tilt deg | coverage |" % trials)
+    print(f"| brick | truth | routes (of {trials}) | height error mm | tilt deg | coverage |")
     print("|---|---|---|---|---|---|")
     for system, studs, label, kw in CASES:
         outs = [run_case(script, system, studs, kw, seed) for seed in range(trials)]

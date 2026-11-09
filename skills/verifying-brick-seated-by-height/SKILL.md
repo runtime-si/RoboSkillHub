@@ -101,7 +101,9 @@ height. This skill reads the brick's top in the depth image and says which.
 3. **Reference**: in a ring 0.3-1.5 pitches outside the footprint, the
    lowest of two levels a stud height apart that explains the heights (the
    plate surface and its stud tops; taller things such as neighbour bricks
-   are capped out). If that level is within half a brick height of the given
+   are capped out), searched again among the points more than half a brick
+   under it while at least a tenth of the ring lies there (the plate between
+   neighbours that fill most of the ring). If that level is within half a brick height of the given
    seat z, it becomes the seat's surface (`reference: local`), and the
    camera's height error cancels. Otherwise (for example, a brick stacked on
    one of the same footprint, where the plate around it is a brick lower)
@@ -222,7 +224,7 @@ tall neighbours.
 - **`EDGE_INSET = 1.5 mm`**, **`VIEW_RANGES`**, **`MIN_VIEW_CLEARANCE`**:
   pressing-a-brick-onto-studs / refining-target-from-wrist-closeup.
 - **`RING_INNER / RING_OUTER = 0.3 / 1.5` pitch**, **`REFERENCE_WINDOW_FRACTION
-  = 0.5`**, **`TRIM_SIGMAS = 2.5`**, **`PLANE_ITERS = 6`**,
+  = 0.5`**, **`LOWER_SUPPORT = 0.1`**, **`TRIM_SIGMAS = 2.5`**, **`PLANE_ITERS = 6`**,
   **`NO_BRICK_COVERAGE = 0.25`**, **`MIN_POINTS = 40`**, **`FRAMES = 3`**:
   chosen on the synthetic depth above. With 0.5 mm per-pixel noise at
   0.2 m, the two-layer fit read a level LEGO 2x2 within 0.1 mm and 1.3 deg.
