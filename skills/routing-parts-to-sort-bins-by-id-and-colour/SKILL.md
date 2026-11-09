@@ -44,6 +44,7 @@ gap:
     - robot.close_gripper
     - robot.set_grip
     - colour.classify
+    - pose6d.register_mask
     - sam3.segment_text
     - geometry.mask_to_world_points
     - geometry.filter_noise
@@ -54,7 +55,8 @@ gap:
   # (list of {name, accepts?, drop_position, opening_half?, yaw_deg?, rim_z?, capacity?, overflow?,
   # description?, pixel?}), staging_zone ({center: Vec3, half: [hx, hy], yaw_deg?}, world) or
   # staging_roi ({top, bottom, left, right} frame fractions), rules, size_classes, bin_counts,
-  # camera_name, palette, white_ref, accept_ambiguous, part_id, categories, use_brickognize, wait,
+  # camera_name, palette, white_ref, accept_ambiguous, part_id, categories, use_brickognize,
+  # part_models ({name: pose6d mesh spec, e.g. {"box": [l, w, h]}, {"cube": s}}), wait,
   # max_wait_s, poll_s, settle_s, occupied_threshold, occupied_frames, motion_threshold; for the
   # execute step support_z, use_perception, lift_height, approach_clearance, release_over_rim,
   # retreat_height, footprint_margin, grasp_inputs, place_inputs, check_reach, arm_id.
@@ -70,6 +72,7 @@ gap:
     short_mm: float
     height_mm: float
     occupancy: float
+    pose6d_model: string
     release_position: Vec3
   exit_conditions:
     sorted: A part was captured and routed, the hand picked it (grasping-flat-objects read its jaw gap across it after the lift) and opened over the chosen bin with the part's bottom release_over_rim over the rim (taught bin), or placing-into-container-obb placed it (described bin); the bin's count went up by one. What the hand did, not a sighting of the part in the bin.
@@ -137,8 +140,17 @@ lego-sorter's conveyor cycle with the belt replaced by waiting:
    height in the zone) by 4 mm, or all of them for a flat part, give an upright
    box: `cv2.minAreaRect` in xy, the top at the 95th height percentile -
    `part_obb`, `long_mm`, `short_mm`, `height_mm`, `support_z`.
+   With `part_models` (`{name: mesh}` in pose6d's format: `{"box": [l, w, h]}`,
+   `{"cube": s}`, `{"cylinder": [r, h]}`), each model is fitted to the part's
+   mask with `pose6d.register_mask` (the support as its support plane); the
+   best `registered` fit by fitness replaces `part_obb` with the model's true
+   size and centre as an upright box (the model axis nearest vertical is the
+   height) and names the part id (`pose6d_model`) unless `part_id` was given.
+   No fit, or no pose6d server: the depth box stays, the detail says why.
+   The measured `long_mm` / `short_mm` / `height_mm` stay the depth box's.
 7. **Id and category (optional).** `part_id` if the caller knows it (e.g. from
-   a recognition skill), `categories` maps ids to categories;
+   a recognition skill) or the pose6d model's name, `categories` maps ids to
+   categories;
    `use_brickognize` (off by default) uploads the padded crop to the
    Brickognize parts API as lego-sorter does and takes the top item at score
    0.5; `size_classes` (`[{name, max_long_mm, min_short_mm, ...}]`, first match)

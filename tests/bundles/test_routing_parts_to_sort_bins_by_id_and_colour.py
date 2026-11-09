@@ -126,14 +126,14 @@ class Camera:
         return obs(self.frames[i])
 
 
-def plan_ctx(frames, classify=classify_by_mean):
+def plan_ctx(frames, classify=classify_by_mean, extra=None):
     cam = Camera(frames)
-    ctx = FakeContext({"robot.get_observation": cam, "colour.classify": classify})
+    ctx = FakeContext({"robot.get_observation": cam, "colour.classify": classify, **(extra or {})})
     return ctx, cam
 
 
 def run_plan(plan, frames, **kw):
-    ctx, cam = plan_ctx(frames, kw.pop("classify", classify_by_mean))
+    ctx, cam = plan_ctx(frames, kw.pop("classify", classify_by_mean), kw.pop("tools", None))
     args = {"bins": BINS, "staging_zone": ZONE, **FAST, **kw}
     return plan.run(ctx, reference=obs(render()), **args), ctx, cam
 
@@ -386,6 +386,75 @@ def test_brickognize_is_off_by_default_and_used_when_asked(plan, monkeypatch):
     monkeypatch.setattr(plan.urllib.request, "urlopen", down)
     out, _, _ = run_plan(plan, frames, bins=bins, use_brickognize=True)
     assert out["bin_name"] == "other" and "Brickognize unavailable" in out["detail"]
+
+
+MODELS = {"brick_30x20": {"box": [0.030, 0.020, 0.020]}, "cube_25": {"cube": 0.025}}
+
+
+@pytest.fixture(scope="module")
+def pose6d(skills_registry):
+    pytest.importorskip("scipy")
+    import importlib
+
+    assert skills_registry.get("pose6d").kind == "tool"
+    return importlib.import_module("gap_skills.tools.pose6d.tools")
+
+
+def test_pose6d_names_the_part_and_squares_its_box(plan, pose6d):
+    p = part(at=(0.010, -0.006), size=(0.030, 0.020, 0.020), yaw_deg=30.0, colour="yellow")
+    rules = [{"bin": "blue", "part_id": "brick_30x20"}]
+    out, ctx, _ = run_plan(
+        plan,
+        [render([p])] * 4,
+        part_models=MODELS,
+        rules=rules,
+        tools={"pose6d.register_mask": pose6d.register_mask},
+    )
+    assert out["route"] == "routed", out["detail"]
+    assert out["pose6d_model"] == "brick_30x20" and out["part_id"] == "brick_30x20"
+    assert out["bin_name"] == "blue" and out["matched_by"] == "rule 0"
+    assert out["pose6d_fitness"] >= 0.6
+    obb = out["part_obb"]
+    assert [obb["extent"][k] for k in "xyz"] == pytest.approx([0.015, 0.010, 0.010])
+    assert (obb["center"]["x"], obb["center"]["y"]) == pytest.approx((0.010, -0.006), abs=0.002)
+    assert obb["center"]["z"] == pytest.approx(0.010, abs=0.002)
+    q = obb["orientation"]
+    yaw = math.degrees(2 * math.atan2(q["z"], q["w"]))
+    assert (yaw - 30.0 + 90.0) % 180.0 - 90.0 == pytest.approx(0.0, abs=3.0)
+    assert len([c for c in ctx.calls if c.tool == "pose6d.register_mask"]) == 2
+
+
+def test_pose6d_no_fit_or_no_server_keeps_the_depth_box(plan, pose6d):
+    p = part(size=(0.030, 0.020, 0.020), yaw_deg=10.0)
+    frames = [render([p])] * 4
+    wrong = {"domino": {"box": [0.048, 0.024, 0.0075]}}
+    out, _, _ = run_plan(
+        plan, frames, part_models=wrong, tools={"pose6d.register_mask": pose6d.register_mask}
+    )
+    assert out["route"] == "routed" and out["bin_name"] == "red"
+    assert out["pose6d_model"] == "" and out["part_id"] == ""
+    assert "no model registered" in out["detail"]
+    assert out["part_obb"]["extent"]["z"] == pytest.approx(0.010, abs=0.001)
+
+    def down(**kw):
+        raise RuntimeError("pose6d not served")
+
+    out, _, _ = run_plan(plan, frames, part_models=MODELS, tools={"pose6d.register_mask": down})
+    assert out["route"] == "routed" and out["bin_name"] == "red"
+    assert "pose6d.register_mask failed" in out["detail"]
+    assert out["part_obb"]["extent"]["x"] == pytest.approx(0.015, abs=0.0015)
+
+
+def test_model_obb_is_upright_for_a_box_on_its_side(plan):
+    # A 30 x 20 x 10 box on its 30 x 10 face: Rz(90) Rx(90) puts object y up, object x along world y.
+    q = {"w": 0.5, "x": 0.5, "y": 0.5, "z": 0.5}
+    pose = {"position": {"x": 0.1, "y": 0.2, "z": 0.01}, "rotation": q}
+    obb = plan.model_obb(pose, {"box": [0.030, 0.020, 0.010]})
+    assert [obb["extent"][k] for k in "xyz"] == pytest.approx([0.015, 0.005, 0.010])
+    yaw = math.degrees(2 * math.atan2(obb["orientation"]["z"], obb["orientation"]["w"]))
+    assert (yaw - 90.0 + 90.0) % 180.0 - 90.0 == pytest.approx(0.0, abs=1e-6)
+    assert plan.model_obb(pose, "part.ply") is None
+    assert plan.model_obb(pose, {"cylinder": [0.005, 0.04]})["extent"]["x"] == pytest.approx(0.02)
 
 
 # ---------------------------------------------------------------- plan: lego-sorter's helpers

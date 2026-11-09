@@ -24,7 +24,8 @@
 # depth (a part the colour of the table); the part's mask for colour is the full-resolution change
 # (largest channel difference) in the padded blob, its colour from colour.classify (CIEDE2000 against
 # a palette) instead of HSV hue rules, and its footprint an upright box fitted to its depth points
-# (cv2.minAreaRect in xy, the top at the 95th height percentile) for the pick; the routing is a
+# (cv2.minAreaRect in xy, the top at the 95th height percentile) for the pick, optionally replaced by
+# the best pose6d fit of known part models (which also names the part id); the routing is a
 # configurable rule list (colour, category, part id, size bounds) over bins with capacities and an
 # overflow bin, falling back to the source's colour > category > unknown labels, and outputs the
 # chosen bin's world drop position; the source's lighting EMA, feeder-fringe and AE-ghost heuristics
@@ -155,6 +156,8 @@ class Output(TypedDict):
     occupancy: float
     part_pixel: list[float]
     edge_override: bool
+    pose6d_model: str
+    pose6d_fitness: float
     bin_counts: dict[str, int]
 
 
@@ -601,6 +604,74 @@ def footprint(
     }
 
 
+def model_obb(pose: dict[str, Any], mesh: Any) -> dict[str, Any] | None:
+    """An upright OrientedBoundingBox (yaw only, as footprint() makes) from a registered pose and its
+    primitive's edge lengths (box / cube / cylinder): the model axis nearest vertical is the height,
+    the longer of the other two sets the yaw. None for a mesh file (its size is not known here)."""
+    if isinstance(mesh, dict) and "box" in mesh:
+        size = [float(s) for s in mesh["box"]]
+    elif isinstance(mesh, dict) and "cube" in mesh:
+        size = [float(mesh["cube"])] * 3
+    elif isinstance(mesh, dict) and "cylinder" in mesh:
+        r, h = (float(s) for s in mesh["cylinder"])
+        size = [2 * r, 2 * r, h]
+    else:
+        return None
+    R = _quat_matrix(pose["rotation"])
+    up = int(np.argmax(np.abs(R[2, :])))
+    flat = sorted((i for i in range(3) if i != up), key=lambda i: -size[i])
+    axis = R[:2, flat[0]]
+    yaw = (math.atan2(axis[1], axis[0]) + math.pi / 2) % math.pi - math.pi / 2
+    return {
+        "center": {k: float(pose["position"][k]) for k in "xyz"},
+        "extent": {"x": size[flat[0]] / 2, "y": size[flat[1]] / 2, "z": size[up] / 2},
+        "orientation": {"w": math.cos(yaw / 2), "x": 0.0, "y": 0.0, "z": math.sin(yaw / 2)},
+    }
+
+
+def fit_models(
+    ctx: NodeContext,
+    frame: dict[str, Any],
+    mask: np.ndarray,
+    support_z: float,
+    models: dict[str, Any],
+) -> tuple[str, dict[str, Any] | None, str]:
+    """pose6d.register_mask of every known part model on the part's mask; the best ``registered``
+    fit by fitness. Returns (model name, its result + obb, note)."""
+    cam = _camera(frame)
+    d = _depth(frame)
+    if cam is None or d is None:
+        return "", None, "pose6d skipped: no depth or camera pose"
+    K, R, t = cam
+    T = np.eye(4)
+    T[:3, :3], T[:3, 3] = R, t
+    best: tuple[float, str, dict[str, Any]] | None = None
+    seen = []
+    for name, mesh in models.items():
+        try:
+            r = ctx.tool(
+                "pose6d.register_mask",
+                mask=mask.astype(np.uint8),
+                depth=d,
+                intrinsics=K,
+                mesh=mesh,
+                camera_pose=T,
+                up=[0.0, 0.0, 1.0],
+                support_plane=[0.0, 0.0, 1.0, -float(support_z)],
+            )
+        except Exception as exc:  # no pose6d server: keep the depth box
+            return "", None, f"pose6d.register_mask failed ({exc})"
+        status, fit = str(r.get("status", "")), float(r.get("fitness") or 0.0)
+        seen.append(f"{name} {status} {fit:.2f}")
+        if status == "registered" and (best is None or fit > best[0]):
+            best = (fit, str(name), r)
+    if best is None:
+        return "", None, "pose6d: no model registered (" + ", ".join(seen) + ")"
+    _, name, r = best
+    obb = model_obb(r["pose"], models[name])
+    return name, {**r, "obb": obb}, f"pose6d: {name} (" + ", ".join(seen) + ")"
+
+
 def brickognize(crop: np.ndarray, timeout_s: float) -> dict[str, Any]:
     """lego-sorter's Brickognize predict: the padded crop as JPEG to the parts endpoint; the best
     item's id, category and score."""
@@ -774,6 +845,7 @@ def run(
     categories: dict[str, str] | None = None,
     use_brickognize: bool = False,
     brickognize_timeout_s: float = 10.0,
+    part_models: dict[str, Any] | None = None,
     wait: bool = True,
     max_wait_s: float = MAX_WAIT_S,
     poll_s: float = POLL_S,
@@ -804,6 +876,8 @@ def run(
         "occupancy": 0.0,
         "part_pixel": [],
         "edge_override": False,
+        "pose6d_model": "",
+        "pose6d_fitness": -1.0,
         "bin_counts": counts,
     }
     notes: list[str] = []
@@ -962,8 +1036,16 @@ def run(
         )
     else:
         notes.append("no depth or camera pose: no part box for the pick")
-
     pid = out["part_id"]
+    if part_models and fp is not None:
+        model, fit, note = fit_models(ctx, frame, mask, fp["support_z"], part_models)
+        notes.append(note)
+        if fit is not None:
+            out["pose6d_model"], out["pose6d_fitness"] = model, float(fit.get("fitness") or 0.0)
+            if fit["obb"] is not None:
+                out["part_obb"] = fit["obb"]
+            pid = pid or slug(model)
+
     category = ""
     if use_brickognize and not pid:
         try:
