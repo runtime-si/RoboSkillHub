@@ -699,3 +699,8 @@ yolox/tracker/byte_tracker.py, matching.py and basetrack.py), MIT License,
 Copyright (c) 2021 Yifu Zhang. Its Kalman filter is written anew (upstream's
 yolox/tracker/kalman_filter.py comes from deep_sort and is not used). The file's
 header lists the changes.
+skills/calibrating-arm-to-arm-base-transform/scripts/handeye.py implements the
+robot-world / hand-eye closed form of Shah (J. Mechanisms Robotics 5(3), 2013),
+the method OpenCV's calibrateRobotWorldHandEye offers (Apache-2.0); no OpenCV
+source is copied. Its target detector uses the ArUco parameter values of the
+YAM station's real/calibrate_board.py (Apache-2.0).
