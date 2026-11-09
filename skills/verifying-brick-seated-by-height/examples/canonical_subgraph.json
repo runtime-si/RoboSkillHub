@@ -1,0 +1,35 @@
+{
+  "skill": "verifying-brick-seated-by-height",
+  "inputs": {"seat_position": "Vec3"},
+  "outputs": {
+    "height_error": {"$ref": "verify.height_error"},
+    "tilt_deg": {"$ref": "verify.tilt_deg"},
+    "coverage": {"$ref": "verify.coverage"},
+    "shift_estimate": {"$ref": "verify.shift_estimate"}
+  },
+  "nodes": {
+    "verify": {
+      "type": "script",
+      "script": "scripts/verify_seat.py",
+      "inputs": {
+        "seat_position": {"$ref": "in.seat_position"},
+        "system": "duplo",
+        "brick_studs": [2, 2]
+      }
+    }
+  },
+  "edges": [["START", "verify"], ["verify", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "seated",
+      "not_seated",
+      "high_by_stud",
+      "tilted",
+      "shifted_off_grid",
+      "no_brick",
+      "unverified"
+    ]
+  },
+  "on_error": "unreachable"
+}

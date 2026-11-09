@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-24 tools, 132 skills, 2 policies, 1 recipe and 1 paper.
+24 tools, 133 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -163,6 +163,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`verifying-a-cable-route`](#verifying-a-cable-route) | verify | Judge a finished cable route from a camera rather than from an evaluator. | any |
 | [`verifying-a-domino-cascade-from-video`](#verifying-a-domino-cascade-from-video) | verify | Decides from a short RGB(-D) clip of the overhead or a wrist camera which tiles of a planned domino line fell and… | any |
 | [`verifying-articulation-displacement`](#verifying-articulation-displacement) | verify | Checks from the camera whether a drawer or a door really moved as asked. | any |
+| [`verifying-brick-seated-by-height`](#verifying-brick-seated-by-height) | verify | Checks from a depth camera whether a placed LEGO or DUPLO brick is seated on its studs. | any |
 | [`verifying-build-against-model`](#verifying-build-against-model) | verify | Compares a brick build with its target model up to the current step. | any |
 | [`verifying-grasps`](#verifying-grasps) | verify | Three independent checks on one grasp attempt. | any |
 | [`verifying-insertion-by-probe-push`](#verifying-insertion-by-probe-push) | verify | Checks whether a held part is seated after an insertion by pushing it a few millimetres further along the insertion… | any |
@@ -2366,6 +2367,26 @@ Checks from the camera whether a drawer or a door really moved as asked - re-fin
   - `moved_wrong_way`: It travelled at least 30 mm against the expected sense (a close that opened it).
   - `inconsistent`: The handle was found, but the face normal is not the one expected (cosine under 0.9), the handle drifted more than 70 mm off the articulation, or a drawer moved more than 250 mm; most likely another handle or face was found, or the cabinet itself moved.
   - `not_seen`: The pointer found no handle, or no vertical face plane or nothing proud of it was found round the pointed pixel, in the frame after (or before) actuation; the hand may still hide it.
+
+### verifying-brick-seated-by-height
+
+verify · robots: any · tasks: assembly, lego · MIT · v0.1.0 · [`SKILL.md`](skills/verifying-brick-seated-by-height/SKILL.md) · [upstream](https://github.com/intelligent-control-lab/BrickSim/blob/cbd5de3238e6ac12f44ef699e1507a9f16bdafc3/python/bricksim/mdp/connection_thresholds.py)
+
+Checks from a depth camera whether a placed LEGO or DUPLO brick is seated on its studs - the brick's top face fitted as a plane inside its expected footprint (stud tops told apart from the face by their height), its height measured against the plate surface around the footprint (so the camera's extrinsic error cancels), its tilt, and how much of the footprint it covers - with BrickSim's connection tolerances (1 mm, 5 deg, 2 mm at LEGO pitch) as acceptance limits. A brick resting on the stud tops reads a whole stud height high (1.7 mm LEGO, 4.5 mm DUPLO), one with an end on the studs reads tilted, one on the wrong studs leaves part of its footprint at plate height. Moves the wrist camera over the seat first, or reads the current frame of any posed depth camera. Use after a brick is released (by any placing or pressing skill) to decide between going on, pressing again and re-seating, or as a standalone audit of a built cell.
+
+- **In**: `seat_position` Vec3
+- **Out**: `height_error` float, `tilt_deg` float, `edge_rise` float, `coverage` float, `shift_estimate` Vec3, `top_height` float, `reference` str, `reference_offset` float, `samples` int, `viewed_from` str
+- **Calls**: connector `robot.get_observation`, `robot.go_to_pose`, `robot.solve_ik`
+- **Scripts**: [`verify_seat`](skills/verifying-brick-seated-by-height/scripts/verify_seat.py)
+- **Exits**:
+  - `seated`: The top face reads within height_tolerance of the seated height (default min(1 mm, 0.35 stud heights) - 1.0 mm DUPLO, 0.6 mm LEGO), tilted no more than tilt_tolerance_deg, and the brick covers its footprint to within position_tolerance.
+  - `not_seated`: Flat and on its footprint, but the top reads higher than height_tolerance and under 0.6 stud heights - partly pressed.
+  - `high_by_stud`: The top reads 0.6 stud heights or more over the seated height and flat - resting on the stud tops (the detail adds the offset if it also stands off the footprint).
+  - `tilted`: Tilted more than tilt_tolerance_deg (default the smaller of BrickSim's 5 deg and the tilt that lifts the long side's far end half a stud height - DUPLO 2x2 4.0 deg, LEGO 2x2 3.0 deg, LEGO 2x4 1.5 deg) - one end on the studs.
+  - `shifted_off_grid`: Part of the footprint reads at plate height, so the brick stands more than position_tolerance (default a quarter pitch - 2 mm LEGO, 4 mm DUPLO) off it - on the wrong studs; shift_estimate says which way.
+  - `no_brick`: Under a quarter of the footprint reads at brick height - no brick at the seat (it came away with the gripper, or the seat is wrong).
+  - `unverified`: Not judged - no posed depth camera, too few depth points in the footprint, reference 'local' requested but no plate surface found, or the top reads below the seated height (seat height or calibration off); detail says which.
+  - `unreachable`: view 'move' and every view of the seat was out of reach or refused.
 
 ### verifying-build-against-model
 
