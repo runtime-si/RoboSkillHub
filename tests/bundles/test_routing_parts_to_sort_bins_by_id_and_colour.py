@@ -517,10 +517,10 @@ def sort_arm(**kw):
 def test_pick_and_drop_into_a_taught_bin(sort):
     arm = sort_arm()
     ctx = arm.ctx()
-    out = sort.run(ctx, part_obb=PART_OBB, sort_bin=BIN, bin_counts={"red": 1}, support_z=0.10)
+    out = sort.run(ctx, part_obb=PART_OBB, sort_bin=BIN, bin_counts={"blue": 1}, support_z=0.10)
     assert out["route"] == "sorted", out["detail"]
     assert out["grasp_route"] == "grasped" and out["place_route"] == "released"
-    assert out["bin_counts"] == {"red": 2}
+    assert out["bin_counts"] == {"blue": 1, "red": 1}
     # The part's bottom 15 mm over the rim at the opening's centre when the hand opened.
     r = out["release_position"]
     assert (r["x"], r["y"]) == pytest.approx((0.30, 0.30), abs=1e-6)
@@ -536,6 +536,32 @@ def test_pick_and_drop_into_a_taught_bin(sort):
     hang = 0.10 + 0.0125 + 0.0  # grasp tool z (0.45 x 25 mm tips + reach) minus the part's bottom
     assert carry[2] > 0.14 + 0.04
     assert hang > 0
+
+
+def test_each_part_into_a_bin_starts_at_the_next_drop_point(sort):
+    spots = []
+    for n in range(6):
+        out = sort.run(
+            sort_arm().ctx(), part_obb=PART_OBB, sort_bin=BIN, bin_counts={"red": n}, support_z=0.10
+        )
+        assert out["route"] == "sorted" and out["bin_counts"] == {"red": n + 1}
+        spots.append(
+            (round(out["release_position"]["x"], 4), round(out["release_position"]["y"], 4))
+        )
+    assert spots[0] == (0.30, 0.30) and len(set(spots[:5])) == 5 and spots[5] == spots[0]
+    for x, y in spots:
+        assert abs(x - 0.30) <= 0.045 - 0.0125 - 0.008 + 1e-6
+        assert abs(y - 0.30) <= 0.045 - 0.0125 - 0.008 + 1e-6
+    out = sort.run(
+        sort_arm().ctx(),
+        part_obb=PART_OBB,
+        sort_bin=BIN,
+        bin_counts={"red": 3},
+        support_z=0.10,
+        spread_drops=False,
+    )
+    r = out["release_position"]
+    assert (r["x"], r["y"]) == pytest.approx((0.30, 0.30), abs=1e-6)
 
 
 def test_a_failed_grasp_is_grasp_failed_and_counts_stay(sort):

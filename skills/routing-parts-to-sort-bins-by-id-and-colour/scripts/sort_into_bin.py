@@ -2,7 +2,8 @@
 # header): lego-sorter routes a part to a virtual bin label and leaves the move to an industrial arm's
 # taught dump poses (src/robot/dump.py); here the pick is grasping-flat-objects' script and the drop
 # reuses placing-into-container-obb - its whole script for a bin given by description (found with sam3),
-# or its footprint and drop-candidate helpers over a taught bin opening.
+# or its footprint and drop-candidate helpers over a taught bin opening, the n-th part into a bin starting
+# at the n-th drop point so parts do not pile up on the centre.
 """Pick the routed part off the staging pad and drop it into its bin."""
 
 from __future__ import annotations
@@ -156,6 +157,7 @@ def run(
     grasp_inputs: dict[str, Any] | None = None,
     place_inputs: dict[str, Any] | None = None,
     check_reach: bool = True,
+    spread_drops: bool = True,
     arm_id: int = 0,
 ) -> Output:
     on_arm: dict[str, Any] = {"arm_id": int(arm_id)} if arm_id else {}
@@ -241,6 +243,9 @@ def run(
             f"{footprint_margin * 1e3:.0f} mm a side; bin {name!r} opens "
             f"{inner[0] * 2e3:.0f} x {inner[1] * 2e3:.0f} mm; still holding",
         )
+    if spread_drops:
+        k = counts.get(name, 0) % len(cands)
+        cands = cands[k:] + cands[:k]
 
     def go(tool: str, position: np.ndarray) -> str:
         try:

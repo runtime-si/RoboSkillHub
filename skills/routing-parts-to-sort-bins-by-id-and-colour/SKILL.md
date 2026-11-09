@@ -59,7 +59,7 @@ gap:
   # part_models ({name: pose6d mesh spec, e.g. {"box": [l, w, h]}, {"cube": s}}), wait,
   # max_wait_s, poll_s, settle_s, occupied_threshold, occupied_frames, motion_threshold; for the
   # execute step support_z, use_perception, lift_height, approach_clearance, release_over_rim,
-  # retreat_height, footprint_margin, grasp_inputs, place_inputs, check_reach, arm_id.
+  # retreat_height, footprint_margin, grasp_inputs, place_inputs, check_reach, spread_drops, arm_id.
   produces_outputs:
     bin_name: string
     drop_position: Vec3
@@ -182,7 +182,9 @@ lego-sorter's conveyor cycle with the belt replaced by waiting:
    the rim, `opening_half`, `yaw_deg`): placing-into-container-obb's
    `footprint_reach` and `drop_candidates` (the opening centre, then half-way to
    each inner edge, each kept `footprint_margin` from the walls; `drop_failed`
-   when it fits nowhere); the hand rises to carry the part's bottom
+   when it fits nowhere). With `spread_drops` (default) the bin's n-th part
+   (by `bin_counts`) starts at the n-th of these points, so parts land beside
+   each other rather than on a pile in the centre. The hand rises to carry the part's bottom
    `approach_clearance` over the rim, goes over the drop point (IK preview
    first), down to the part's bottom `release_over_rim` over the rim, opens
    (the jaws must read open) and retreats `retreat_height`. The hand keeps its
@@ -251,7 +253,44 @@ thresholds (2.0 / 10 / 1.5 % at 8), `CROP_PAD_FRAC = 0.25`, the exposure gain
 
 ## Simulation check
 
-Pending (see the PR).
+A YAM station twin (left arm, overhead RGB-D camera 640 x 480) set up as a
+sorting cell: a 100 x 100 mm staging zone on the tablecloth, three open bins
+(100 x 100 x 40 mm, 3 mm walls): `red` and `blue` (capacity 4) and `other`
+(accepts `unknown`, overflow). Twelve blocks, 20-30 mm (cubes and 30 x 20 x
+20 / 30 x 30 x 25 bars) in LDraw red, blue, yellow and green, are dropped one
+at a time from 25 mm over the zone, +-12 mm and +-45 deg apart (the harness
+plays the feeder); each cycle is `plan_sort_route` -> `sort_into_bin` with
+`bin_counts` carried over, then the simulator's box of every part is read.
+5 red (the 5th must overflow), 4 blue, 2 yellow and 1 green (no bin: `other`).
+`colour.classify` with `lego_basic`, no `part_models`, no Brickognize.
+
+Run 1 (AutoDL RTX 4090, 2026-11-09, drops always at the bin centre - before
+`spread_drops`):
+
+- **Plan: 12 / 12** routed; colour right 12 / 12 (CIEDE2000 4.4-12.2; red
+  11-12, the others under 10); bin right 12 / 12 including the 5th red part
+  overflowing to `other` (`matched_by: colour, overflow`); footprint within
+  0.7 mm of the true size (long, short, height), occupancy 7.6-17.6 %.
+- **Execute: 12 / 12 grasped and released over the right bin** (`sorted`,
+  the part's bottom 16-22 mm over the rim), but by the simulator only
+  **7 / 12 ended inside the right bin** at the final tally (centre under
+  rim + 10 mm; one of the 7 was still on the pile at its own cycle's check
+  and slid in later). Every release was at the bin's centre, so later parts
+  landed on earlier ones: one 20 mm cube bounced over the far wall onto the
+  table, and four stayed on the pile at or above the rim (two of them, a
+  30 x 30 x 25 bar and a 25 mm cube, over 60 mm up on 3-4 earlier parts in
+  a 40 mm bin). This is what `spread_drops` (the n-th part to the
+  n-th drop point) is for; run 2 below measures it.
+- A cycle took ~7.5 min of wall time (the twin renders and steps slowly);
+  `max_wait_s` is wall-clock, so the 20 s default held.
+
+A second host (autodl14) whose renderer could not start its denoiser
+(`Failed to create NGX context`) gave noisy frames: occupancy 74-80 % on
+an empty-but-noisy zone and `staging_not_clear` (never settled) on the first
+two parts. The skill's change detection assumes a camera whose frame-to-frame
+noise is under `PIXEL_DIFF_THR`; that run was stopped and is not counted.
+
+Run 2: pending.
 
 ## Provenance
 
