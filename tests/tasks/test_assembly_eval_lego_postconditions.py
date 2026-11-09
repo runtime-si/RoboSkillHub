@@ -44,11 +44,12 @@ def record(
     goal_conns=None,
 ):
     released = released or settled_parts
-    start = {**(before or GOAL), "1": pose(x=0.2)}
+    before = before or {**GOAL, "1": pose(z=0.035)}
+    start = {**before, "1": pose(x=0.2)}
     snaps = {
         "pick_start": snap(start),
         "grasped": snap({**start, "1": pose(x=0.2, z=0.04)}),
-        "before_place": snap(before or GOAL),
+        "before_place": snap(before),
         "released": snap(released, conns),
         "retreated": snap(retreated or released, conns),
         "settled": snap(settled_parts, conns),
@@ -146,7 +147,9 @@ def test_brick_carried_up_by_the_gripper_is_lifted():
 def test_missing_parent_is_insufficient_support():
     goal_conn = {"stud": "2", "hole": "1", "offset": [0, 0], "yaw": 0}
     dropped = {"0": pose(), "1": pose(z=0.0032), "2": pose(x=0.1)}
-    rec = record(dropped, [], [], before=dropped, probe=dropped, goal_conns=goal_conn)
+    rec = record(
+        dropped, [], [], before={**dropped, "1": pose(z=0.045)}, probe=dropped, goal_conns=goal_conn
+    )
     rec["parts"]["2"] = {"lw": [4, 2], "role": "to_place"}
     rec["goal_poses"] = {"0": pose(), "1": pose(z=0.0032 + BRICK), "2": pose(z=0.0032)}
     v = verdict(rec)
@@ -192,6 +195,12 @@ def test_connection_broken_and_remade_is_not_damage():
         s["conns"] = [c for c in s["conns"] if c["hole"] != "3"]
     v = evaluate_placement(rec, 0, CFG, {"3": pose(x=0.064, z=0.0032)})
     assert v["failure_type"] == "lego.structure_damaged"
+
+
+def test_brick_dropped_in_transport_is_grasp_lost():
+    rec = record(GOAL, [], [], probe=GOAL, before={**GOAL, "1": pose(x=0.1, z=0.0)})
+    v = verdict(rec)
+    assert (v["status"], v["failure_type"], v["phase"]) == ("failed", "grasp_lost", "transport")
 
 
 def test_missing_snapshot_is_unverified():

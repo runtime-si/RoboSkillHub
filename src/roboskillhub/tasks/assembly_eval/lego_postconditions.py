@@ -135,6 +135,20 @@ def evaluate_placement(record: dict, index: int, cfg: dict, accepted: dict[str, 
         )
     )
 
+    # Transport: still held (well above its start height) when the press begins.
+    carried = (
+        snaps["before_place"]["parts"][pid]["p"][2] - snaps["pick_start"]["parts"][pid]["p"][2]
+    )
+    held_in_transport = carried >= pc["grasp_min_lift_m"]
+    out["postconditions"].append(
+        _check(
+            "held_until_place",
+            held_in_transport,
+            "brick z at the start of the press - start z >= grasp_min_lift_m",
+            {"rise_m": carried},
+        )
+    )
+
     # Release: the brick did not leave with the gripper.
     z_rel = snaps["released"]["parts"][pid]["p"][2]
     z_ret = snaps["retreated"]["parts"][pid]["p"][2]
@@ -234,6 +248,8 @@ def evaluate_placement(record: dict, index: int, cfg: dict, accepted: dict[str, 
         out.update(status="failed", failure_type="lego.structure_damaged")
     elif not grasped:
         out.update(status="failed", failure_type="grasp_missed", phase="grasp")
+    elif not held_in_transport:
+        out.update(status="failed", failure_type="grasp_lost", phase="transport")
     elif not stayed:
         out.update(status="failed", failure_type="lego.lifted_with_gripper")
     elif not supported:
