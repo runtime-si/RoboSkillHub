@@ -1,0 +1,23 @@
+{
+  "skill": "verifying-a-brick-connection-by-pull-up",
+  "inputs": {},
+  "outputs": {
+    "connected": {"$ref": "pull.connected"},
+    "rise": {"$ref": "pull.rise"},
+    "lag_over_baseline": {"$ref": "pull.lag_over_baseline"},
+    "released": {"$ref": "pull.released"}
+  },
+  "nodes": {
+    "pull": {
+      "type": "script",
+      "script": "scripts/pull_up_check.py",
+      "inputs": {}
+    }
+  },
+  "edges": [["START", "pull"], ["pull", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["connected", "not_connected", "not_holding"]
+  },
+  "on_error": "blocked"
+}

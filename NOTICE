@@ -712,3 +712,8 @@ URForceController.linear_push and do_insertion's termination criteria), whose
 file header is BSD-3-Clause, Copyright (c) 2021 OMRON SINIC X (the repository
 is MIT, Copyright (c) 2020 Team O2AC); the file's header lists the changes, and
 both licenses are in skills/pressing-in-with-guarded-push/LICENSE.o2ac.
+skills/verifying-a-brick-connection-by-pull-up/scripts/pull_up_check.py
+re-expresses the PullUp skill of CMU MFI's vibro_tactile_toolbox
+(https://github.com/cmu-mfi/vibro_tactile_toolbox, src/skill/common_skills.py
+and scripts/fts_detector.py), which declares MIT only in its package.xml and
+ships no LICENSE file; none of its code is used.
