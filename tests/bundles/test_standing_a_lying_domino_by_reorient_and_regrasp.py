@@ -201,7 +201,8 @@ class Arm:
         x = cam[0] + (uu - 320.0) * (0.9 - top) / f
         y = cam[1] - (vv - 240.0) * (0.9 - top) / f
         along = heading(self.facing)[:2]
-        rel = np.stack([x - TILE["x"], y - TILE["y"]], axis=-1)
+        sx, sy = self.stand_xy if self.stand_xy is not None else (TILE["x"], TILE["y"])
+        rel = np.stack([x - sx, y - sy], axis=-1)
         a = rel @ along
         c = rel @ np.array([-along[1], along[0]])
         half_a, half_c = (0.00375, 0.012) if self.standing else (0.024, 0.012)
@@ -217,6 +218,7 @@ class Arm:
         }
 
     facing = 0.0
+    stand_xy = None
 
     def ctx(self, gripper=True):
         tools = {
@@ -688,3 +690,197 @@ def test_produced_outputs_are_in_the_output(script):
     front = yaml.safe_load(text.split("---")[1])
     produced = set(front["gap"]["produces_outputs"])
     assert produced <= set(script.Output.__annotations__)
+
+
+# ----------------------------------------------------------------------------- joint_pitch
+
+
+PITCH_AXIS = np.array([0.0, -1.0, 0.0])
+"""The fake arm's pitch joint (joint 4) turns the hand about this level axis."""
+WRIST_LEVER = 0.2
+"""How far behind the tool centre, along the approach, the fake pitch joint's axis passes [m]."""
+
+
+class JointArm(Arm):
+    """A fake arm whose joints move the hand: joint 4 pitches it about a level axis through a point WRIST_LEVER
+    behind the tool centre, joint 5 turns it about a level axis with no room for a quarter turn, joint 6 turns it
+    about the approach. robot.solve_ik answers a little off the present joints, and a move to that answer lands on
+    the asked pose; ``jump(point, rot)`` adds a jump to an answer, ``ik_ok(point, rot)`` refuses one."""
+
+    def __init__(self, script, jump=None, ik_ok=None, **kw):
+        super().__init__(script, **kw)
+        self.q = np.array([0.0, 1.6, 1.2, -1.1, 0.0, 0.0])
+        self.jump = jump or (lambda point, rot: None)
+        self.ik_ok = ik_ok or (lambda point, rot: True)
+        self.asked = []
+
+    def solve_ik(self, pose, **kw):
+        point = np.array([pose["position"][k] for k in "xyz"])
+        rot = self.s.matrix(pose["rotation"])
+        self.asked.append((point, rot))
+        if not self.ik_ok(point, rot):
+            return {"success": False, "within_servo_tolerance": False}
+        q = self.q + 0.001 * (len(self.solutions) % 7 + 1)
+        extra = self.jump(point, rot)
+        if extra is not None:
+            q = q + np.asarray(extra, dtype=float)
+        key = tuple(np.round(q, 6))
+        self.solutions[key] = (point, rot)
+        return {
+            "success": True,
+            "joint_config": {"positions": list(key)},
+            "within_servo_tolerance": True,
+        }
+
+    def move_to_joints(self, joint_config, **kw):
+        goal = np.asarray(joint_config["positions"], dtype=float)
+        self.joint_moves.append(goal.copy())
+        key = tuple(np.round(goal, 6))
+        if key in self.solutions:
+            self.p, self.r = (v.copy() for v in self.solutions[key])
+        else:
+            dq = goal - self.q
+            z = np.array([0.0, 0.0, 1.0])
+            if abs(dq[3]) > 1e-9:
+                a = self.r @ z
+                pivot = self.p - WRIST_LEVER * a
+                turn = self.s.axis_angle(PITCH_AXIS, math.degrees(dq[3]))
+                self.p = pivot + turn @ (self.p - pivot)
+                self.r = turn @ self.r
+            if abs(dq[4]) > 1e-9:
+                self.r = self.s.axis_angle(np.array([1.0, 0.0, 0.0]), math.degrees(dq[4])) @ self.r
+            if abs(dq[5]) > 1e-9:
+                a = self.r @ z
+                self.r = self.s.axis_angle(a, math.degrees(dq[5]) * self.roll_gain) @ self.r
+        self.q = goal
+        return None
+
+
+def joint_stand(script, arm, **kw):
+    args = {
+        "table_z": TABLE_Z,
+        "tile_center": TILE,
+        "long_axis": {"x": 1.0, "y": 0.0, "z": 0.0},
+        "park_pose": {"position": {"x": 0.40, "y": 0.30, "z": TABLE_Z + 0.2}},
+    }
+    args.update(kw)
+    return script.run(arm.ctx(), **args)
+
+
+def test_joint_pitch_stands_the_tile_and_sees_it_from_depth(script):
+    first = joint_stand(script, JointArm(script), verify=False)
+    assert first["route"] == "standing", first["detail"]
+    arm = JointArm(script)
+    arm.facing = first["facing_deg"]
+    arm.stand_xy = (
+        first["standing_tile"]["position"]["x"],
+        first["standing_tile"]["position"]["y"],
+    )
+    out = joint_stand(script, arm)
+    assert out["route"] == "standing", out["detail"]
+    assert out["strategy"] == "joint_pitch" and out["pitch_joint"] == 4
+    assert out["picked"] and out["released"] and out["verified"]
+    assert out["pitch_turn_deg"] == pytest.approx(90.0, abs=0.5)
+    assert out["tilt_at_release_deg"] < 1.0
+    # The approach ends level and along where the pitch joint takes it (+x here); the tile's broad faces face it.
+    assert out["facing_deg"] == pytest.approx(0.0, abs=0.5)
+    assert out["standing_tile"]["position"]["z"] == pytest.approx(TABLE_Z + 0.024)
+    # Upright on the table: the hand let go with the tool centre half the tile's height plus the grip offset up,
+    # less the press.
+    assert arm.released_at[2] == pytest.approx(TABLE_Z + 0.024 + 0.014 - 0.001, abs=1e-6)
+
+
+def test_joint_pitch_turns_only_the_pitch_joint_in_the_air(script):
+    arm = JointArm(script)
+    out = joint_stand(script, arm, verify=False, pitch_step_deg=15.0)
+    assert out["route"] == "standing", out["detail"]
+    deltas = [b - a for a, b in zip(arm.joint_moves, arm.joint_moves[1:], strict=False)]
+    air = [d for d in deltas if abs(d[3]) > 0.2 and np.allclose(np.delete(d, 3), 0.0)]
+    assert len(air) == 4  # 60 deg in 15 deg steps
+    assert all(abs(d[3]) == pytest.approx(math.radians(15.0), abs=1e-6) for d in air)
+
+
+def test_joint_pitch_refuses_a_step_that_jumps_a_joint(script):
+    def jump(point, rot):
+        a = rot @ np.array([0.0, 0.0, 1.0])
+        if abs(a[2]) < 0.3:  # the last turns upright on the table
+            return [0.0, 0.0, 0.0, 0.9, 0.0, 0.0]
+        return None
+
+    arm = JointArm(script, jump=jump)
+    out = joint_stand(script, arm, verify=False)
+    assert out["route"] == "unreachable"
+    assert "would jump 0.90 rad" in out["detail"] and "still holding" in out["detail"]
+    assert not out["released"]
+    steps = [
+        np.max(np.abs(b[:-1] - a[:-1]))
+        for a, b in zip(arm.joint_moves, arm.joint_moves[1:], strict=False)
+    ]
+    assert max(steps) < 0.6
+
+
+def test_joint_pitch_routes_unreachable_when_no_joint_pitches_level_with_room(script):
+    arm = JointArm(script)
+    limits = [[-2.6, 0.0, 0.0, -1.2, -1.57, -2.09], [3.05, 3.65, 3.66, 0.2, 1.57, 2.09]]
+    out = joint_stand(script, arm, verify=False, joint_limits=limits)
+    assert out["route"] == "unreachable"
+    assert "no joint turns the hand about a level axis" in out["detail"]
+    assert not out["picked"]
+
+
+def test_joint_pitch_drop_in_the_air_is_dropped(script):
+    arm = JointArm(script, grip=lambda phase: 0.0 if phase == "pitch" else HOLD)
+
+    def gripper(**kw):
+        if not arm.closed:
+            return {"position": 1.0}
+        a = arm.r @ np.array([0.0, 0.0, 1.0])
+        return {"position": 0.0 if a[2] > -0.75 else HOLD}
+
+    arm.get_gripper = gripper
+    out = joint_stand(script, arm, verify=False)
+    assert out["route"] == "dropped"
+    assert "during the pitch" in out["detail"]
+
+
+def test_joint_pitch_moves_the_spot_out_when_the_first_does_not_solve(script):
+    first = joint_stand(script, JointArm(script), verify=False)
+    x0 = first["standing_tile"]["position"]["x"]
+
+    refused = []
+
+    def ik_ok(point, rot):
+        a = rot @ np.array([0.0, 0.0, 1.0])
+        # The first set-down asked for (the hand pitched, near the table) has no solution.
+        if not refused and point[2] < TABLE_Z + 0.06 and abs(a[2]) < 0.9:
+            refused.append(point)
+            return False
+        return True
+
+    arm = JointArm(script, ik_ok=ik_ok)
+    out = joint_stand(script, arm, verify=False)
+    assert out["route"] == "standing", out["detail"]
+    assert out["standing_tile"]["position"]["x"] == pytest.approx(x0 + 0.03, abs=0.002)
+
+
+def test_joint_pitch_stands_it_at_a_given_staging_spot(script):
+    spot = {"x": 0.70, "y": 0.26, "z": TABLE_Z}
+    arm = JointArm(script)
+    out = joint_stand(script, arm, verify=False, staging=spot)
+    assert out["route"] == "standing", out["detail"]
+    at = out["standing_tile"]["position"]
+    assert math.hypot(at["x"] - 0.70, at["y"] - 0.26) < 0.002
+
+
+def test_joint_pitch_turns_a_tile_lying_across_the_pitch_plane(script):
+    arm = JointArm(script)
+    out = joint_stand(script, arm, verify=False, long_axis={"x": 0.0, "y": 1.0, "z": 0.0})
+    assert out["route"] == "standing", out["detail"]
+    assert abs(out["yaw_turn_deg"]) == pytest.approx(90.0, abs=1.0)
+    assert out["facing_deg"] == pytest.approx(0.0, abs=0.5)
+
+
+def test_unknown_strategy_is_refused(script):
+    out = joint_stand(script, JointArm(script), strategy="tip_up")
+    assert out["route"] == "unreachable" and "not one of" in out["detail"]
+    assert not out["picked"]
