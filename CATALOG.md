@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-24 tools, 135 skills, 2 policies, 1 recipe and 1 paper.
+24 tools, 136 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -71,6 +71,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`tracking-identical-parts-by-id`](#tracking-identical-parts-by-id) | perceive | Keeps a stable id for each of many look-alike parts (dominoes, same-colour bricks, jigsaw pieces, cubes) across… | any |
 | [`tracking-objects`](#tracking-objects) | perceive | Long-running skill that drives the SAM3 tracker from the graph-scoped observation stream. | any |
 | [`tracking-points`](#tracking-points) | perceive | Tracks selected image points through the configured workcell tracking backend and reports visibility evidence. | yam_i2rt |
+| [`assigning-bricks-to-two-arms`](#assigning-bricks-to-two-arms) | plan | Assigns every brick of a LEGO or DUPLO build sequence to an arm. | any |
 | [`checking-design-connectivity-and-collisions`](#checking-design-connectivity-and-collisions) | plan | Checks a brick design on a stud grid before the arms build it. | any |
 | [`choosing-a-domino-move-by-end-matching`](#choosing-a-domino-move-by-end-matching) | plan | Chooses the robot's move in a game of dominoes and where the tile goes on the table. | any |
 | [`computing-brick-pose-from-stud-grid`](#computing-brick-pose-from-stud-grid) | plan | Converts between a cell on a LEGO or DUPLO baseplate's stud grid (x, y, layer, brick size such as 2x4, rotation… | any |
@@ -901,6 +902,21 @@ Tracks selected image points through the configured workcell tracking backend an
   - `failed`: The attempted operation or tracking update did not meet its required condition.
   - `unverified`: Available evidence is insufficient to establish the requested physical postcondition.
   - `rejected`: The request, station configuration or required backend capability is not accepted.
+
+### assigning-bricks-to-two-arms
+
+plan · robots: any · tasks: assembly, lego · MIT · v0.1.0 · [`SKILL.md`](skills/assigning-bricks-to-two-arms/SKILL.md) · [upstream](https://github.com/intelligent-control-lab/APEX-MR/blob/46a9448d9eaac5bd5973e0cd064623c5e7f5254e/src/python/task_assignment.py)
+
+Assigns every brick of a LEGO or DUPLO build sequence to an arm - which arm places it, from which stock brick, with which grasp (jaws across the brick's x or y, offset along it), and which other arm holds the structure while it is pressed - with APEX-MR's task-assignment MILP (each task one arm, one brick of its type and one grasp; a support arm that is never the placing arm and takes the same grasp side; stock bricks used once unless they are reusable stations; stock precedence; the per-arm load balanced in every window of n consecutive tasks, weight 1000, so the arms alternate), solved with SciPy's HiGHS. Costs are travel distances from each arm's base to the stock and on to the target, and grasps off the brick's centre cost more. Arm reach (a radius, and optionally an IK preview) and the fingers' room beside the target decide what is feasible. Use after planning-brick-assembly-order, when two arms build together and the graph needs per-brick arm, grasp and support duties before computing poses.
+
+- **In**: `sequence_json` string, `plate_origin` Vec3
+- **Out**: `assignment_json` string, `by_arm_json` string, `n_tasks` int, `n_support` int, `objective` float, `imbalance` float, `travel` float, `solve_s` float
+- **Calls**: connector `robot.solve_ik`
+- **Scripts**: [`assign_arms`](skills/assigning-bricks-to-two-arms/scripts/assign_arms.py)
+- **Exits**:
+  - `assignment_ready`: Every task has an arm, a stock brick (when stock is given) and a grasp, and every task that needs support has a second arm; assignment_json lists them in task order.
+  - `infeasible`: Some task has no feasible choice (out of every arm's reach, no stock brick of its size, the jaws too narrow or placed neighbours blocking the fingers on both grasp sides), more arms than tasks, or the MILP has no solution; detail names the tasks.
+  - `needs_support_arm`: The bricks can all be placed, but a task that needs support has no second arm that reaches its support point (or the support duties cannot be fitted with the rest); detail names the tasks.
 
 ### checking-design-connectivity-and-collisions
 

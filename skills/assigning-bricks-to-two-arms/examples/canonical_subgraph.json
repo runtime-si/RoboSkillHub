@@ -1,0 +1,31 @@
+{
+  "skill": "assigning-bricks-to-two-arms",
+  "inputs": {"sequence_json": "string", "plate_origin": "Vec3"},
+  "outputs": {
+    "assignment_json": {"$ref": "assign.assignment_json"},
+    "by_arm_json": {"$ref": "assign.by_arm_json"},
+    "imbalance": {"$ref": "assign.imbalance"}
+  },
+  "nodes": {
+    "assign": {
+      "type": "script",
+      "script": "scripts/assign_arms.py",
+      "inputs": {
+        "sequence_json": {"$ref": "in.sequence_json"},
+        "plate_origin": {"$ref": "in.plate_origin"},
+        "system": "lego",
+        "arms": [
+          {"arm_id": 0, "base": {"x": 0.0, "y": 0.305, "z": 0.023}, "reach_m": 0.55},
+          {"arm_id": 1, "base": {"x": 0.0, "y": -0.305, "z": 0.023}, "reach_m": 0.55}
+        ],
+        "check_ik": true
+      }
+    }
+  },
+  "edges": [["START", "assign"], ["assign", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["assignment_ready", "infeasible", "needs_support_arm"]
+  },
+  "on_error": "infeasible"
+}
