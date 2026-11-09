@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-19 tools, 107 skills, 2 policies, 1 recipe and 1 paper.
+19 tools, 108 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -72,6 +72,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`planning-articulation-opening`](#planning-articulation-opening) | plan | Plans the hand's path that opens a drawer or a door it already holds by the handle. | any |
 | [`planning-brick-assembly-order`](#planning-brick-assembly-order) | plan | Orders the bricks of a stud-grid design for a robot that presses each one down from above. | any |
 | [`planning-held-object-motion`](#planning-held-object-motion) | plan | Plans the carry and engagement phases for an already-held rigid object. | any |
+| [`routing-parts-to-sort-bins-by-id-and-colour`](#routing-parts-to-sort-bins-by-id-and-colour) | plan | Sorts parts dropped one at a time on a staging pad into bins. | any |
 | [`following-a-visual-plan`](#following-a-visual-plan) | propose | Follows a visual plan from robobrain.trace or molmo-motion.forecast (the shared visual-plan schema) the way those… | any |
 | [`grasping-concave-contour`](#grasping-concave-contour) | propose | Grasp an awkward rigid part by the waists in its own silhouette. | any |
 | [`proposing-short-axis-grasps`](#proposing-short-axis-grasps) | propose | Propose top-down grasps whose jaws close ACROSS an elongated object's short axis, derived from its oriented box. | any, **sim only** |
@@ -915,6 +916,25 @@ Plans the carry and engagement phases for an already-held rigid object: a cleara
 - **Exits**:
   - `planned`: A carry plan or an engagement plan was produced.
   - `blocked`: No feasible symmetry-equivalent held-object orientation was found, or the direct strategy was requested without an approach pose.
+
+### routing-parts-to-sort-bins-by-id-and-colour
+
+plan · robots: any · tasks: sorting, pick-place · MIT · v0.1.0 · [`SKILL.md`](skills/routing-parts-to-sort-bins-by-id-and-colour/SKILL.md) · [upstream](https://github.com/mbric/lego-sorter-public/blob/525683d3da4ec03017d9355afff8df2f5218b179/src/orchestrator/sort_cycle.py)
+
+Sorts parts dropped one at a time on a staging pad into bins - watches the pad against an empty reference frame (grey and depth change, largest blob in percent of the zone), waits until a part has landed and the zone stops moving, rejects a capture while two parts or a part on the zone's edge are in it, classifies the part's colour (colour.classify), measures its footprint from depth and optionally its part id, chooses the bin by a rule list (colour, then part id, then category, then an "unknown" bin) with per-bin capacities and an overflow bin, and outputs the bin's drop position; the execute step picks the part (grasping-flat-objects) and drops it into the bin (placing-into-container-obb's drop points over a taught bin, or its perceived place for a bin given by description). Use when parts arrive on a known pad one by one (a feeder, the other arm, a person) and must go to bins by colour or size - LEGO bricks before a build, dominoes, jigsaw pieces into edge / colour trays.
+
+- **In**: `reference` Observation
+- **Out**: `bin_name` string, `drop_position` Vec3, `part_obb` OrientedBoundingBox, `part_colour` string, `category` string, `part_id` string, `label` string, `long_mm` float, `short_mm` float, `height_mm` float, `occupancy` float, `pose6d_model` string, `release_position` Vec3
+- **Calls**: [`colour`](#colour), [`geometry`](#geometry), [`pose6d`](#pose6d), [`sam3`](#sam3); connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`, `robot.set_grip`, `robot.solve_ik`
+- **Scripts**: [`plan_sort_route`](skills/routing-parts-to-sort-bins-by-id-and-colour/scripts/plan_sort_route.py), [`sort_into_bin`](skills/routing-parts-to-sort-bins-by-id-and-colour/scripts/sort_into_bin.py)
+- **Exits**:
+  - `sorted`: A part was captured and routed, the hand picked it (grasping-flat-objects read its jaw gap across it after the lift) and opened over the chosen bin with the part's bottom release_over_rim over the rim (taught bin), or placing-into-container-obb placed it (described bin); the bin's count went up by one. What the hand did, not a sighting of the part in the bin.
+  - `unknown_part`: The part was captured but no rule matched and no bin accepts its colour, part id, category or "unknown" (or a rule names a bin not in bins); nothing moved.
+  - `bin_full`: The part's bin holds capacity parts (by bin_counts) and no overflow bin has room; nothing moved.
+  - `staging_empty`: No part landed (largest changed blob under occupied_threshold % of the zone for occupied_frames frames) within max_wait_s, the change was an empty-crop ghost, or there is no reference / camera frame or the zone projects outside it; nothing moved.
+  - `staging_not_clear`: Something landed but the capture was rejected 4 times (two parts in the zone), or it never settled (zone motion over motion_threshold) within max_wait_s; nothing moved - clear or singulate the pad.
+  - `grasp_failed`: The pick did not hold the part (every close read empty, too wide or too narrow, it slipped in the lift, or no grasp could be tried), there was no part box (no depth), or a perceived place found the hand empty; the hand is open, the part is on the pad or near it.
+  - `drop_failed`: The part was held but no drop point over the bin was reached (IK preview, a refused or short move), it does not fit the bin's opening, the jaws did not open, or a perceived place routed no_room / unreachable / container_not_found / not_released; still holding unless not_released.
 
 ### following-a-visual-plan
 

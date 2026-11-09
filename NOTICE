@@ -590,3 +590,9 @@ visual_servo_to_object, _compute_center_depth, get_target_mask,
 grasp_open_loop and _grasp),
 Apache License 2.0, Copyright (c) Hello Robot, Inc.; the file's header lists
 the changes.
+skills/routing-parts-to-sort-bins-by-id-and-colour/scripts/plan_sort_route.py
+is adapted from lego-sorter-public (https://github.com/mbric/lego-sorter-public,
+src/orchestrator/sort_cycle.py, src/orchestrator/routing.py and
+src/demo_brickognize/brickognize_client.py), MIT License, Copyright (c) 2026
+Matt Brickner; the file's header lists the changes, and the license is
+skills/routing-parts-to-sort-bins-by-id-and-colour/LICENSE.lego-sorter.

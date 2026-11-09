@@ -1,0 +1,97 @@
+{
+  "skill": "routing-parts-to-sort-bins-by-id-and-colour",
+  "inputs": {
+    "reference": "Observation"
+  },
+  "outputs": {
+    "bin_name": {
+      "$ref": "plan.bin_name"
+    },
+    "part_colour": {
+      "$ref": "plan.part_colour"
+    },
+    "drop_position": {
+      "$ref": "plan.drop_position"
+    },
+    "release_position": {
+      "$ref": "sort.release_position"
+    },
+    "bin_counts": {
+      "$ref": "sort.bin_counts"
+    }
+  },
+  "nodes": {
+    "plan": {
+      "type": "script",
+      "script": "scripts/plan_sort_route.py",
+      "inputs": {
+        "reference": {
+          "$ref": "in.reference"
+        },
+        "staging_zone": {
+          "center": {"x": 0.0, "y": 0.22, "z": 0.0},
+          "half": [0.05, 0.05]
+        },
+        "bins": [
+          {"name": "red", "drop_position": {"x": -0.10, "y": 0.40, "z": 0.042}, "opening_half": [0.045, 0.045], "capacity": 4},
+          {"name": "blue", "drop_position": {"x": 0.08, "y": 0.40, "z": 0.042}, "opening_half": [0.045, 0.045], "capacity": 4},
+          {"name": "other", "accepts": ["unknown"], "overflow": true, "drop_position": {"x": 0.02, "y": 0.03, "z": 0.042}, "opening_half": [0.045, 0.045]}
+        ],
+        "palette": "lego_basic"
+      }
+    },
+    "sort": {
+      "type": "script",
+      "script": "scripts/sort_into_bin.py",
+      "inputs": {
+        "part_obb": {
+          "$ref": "plan.part_obb"
+        },
+        "sort_bin": {
+          "$ref": "plan.sort_bin"
+        },
+        "bin_counts": {
+          "$ref": "plan.bin_counts"
+        },
+        "support_z": {
+          "$ref": "plan.support_z"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "plan"
+    ],
+    [
+      "sort",
+      "END"
+    ]
+  ],
+  "conditional_edges": {
+    "plan": {
+      "router_field": "route",
+      "mapping": {
+        "routed": "sort",
+        "unknown_part": "END",
+        "bin_full": "END",
+        "staging_empty": "END",
+        "staging_not_clear": "END"
+      }
+    }
+  },
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "sorted",
+      "unknown_part",
+      "bin_full",
+      "staging_empty",
+      "staging_not_clear",
+      "grasp_failed",
+      "drop_failed"
+    ]
+  },
+  "on_error": "grasp_failed"
+}
