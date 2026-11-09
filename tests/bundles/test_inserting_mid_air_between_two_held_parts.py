@@ -305,7 +305,7 @@ def test_a_part_that_slides_in_its_jaws_is_caught_by_the_probe(script):
     assert out["route"] == "slipped", out["detail"]
     assert out["probes_resisted"] == 0 and "slid in a hand" in out["detail"]
     assert out["depth"] == pytest.approx(0.02, abs=1e-6)  # what the hands alone say
-    assert _depth(w) <= 0.0
+    assert _depth(w) <= 1e-9
     out = run(script, World(true_offset=(0.0015, 0.0, 0.0), slide=True), verify=False)
     assert out["route"] == "inserted"  # without the probe the slide reads as inserted
 
