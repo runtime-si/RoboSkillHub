@@ -148,6 +148,11 @@ the piece, not the hand, over its point.
   (15 mm), `contact_window` (4 mm), `release_when_not_seated` (false), `hold_s`,
   `verify` (true), `camera`, `top_radius` (5 mm), `roll_limits`, `check_reach`,
   `reach_tolerance`, `arm_id` (passed only when nonzero).
+- `push_down` (false), `push_down_offset`: after the release, close the jaws
+  and push the piece's top down with the fingertips (until the command leads
+  the hand by 0.5 mm) at its centre plus the offset, puzzle_bot's last step.
+  Off by default: in the twin check it knocked a just-dropped piece back onto
+  its neighbours in the one trial it ran.
 - `approach`: `wiggle` (default), `tilt_first` or `offset_push` (below), with
   `seam_direction`, `tilt_deg` (10), `tilt_back` (3 mm), `piece_radius`
   (10 mm), `push_offset` (4 mm), `finger_reach` (10.2 mm).

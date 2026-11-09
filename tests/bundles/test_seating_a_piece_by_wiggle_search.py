@@ -371,14 +371,14 @@ def test_on_the_slot_it_drops_at_once_and_is_seated(script):
 
 def test_after_the_release_the_closed_fingertips_push_the_top_down(script):
     world = World()
-    out = run(script, world, push_down_offset={"x": 0.0, "y": 0.004, "z": 0.0})
+    out = run(script, world, push_down=True, push_down_offset={"x": 0.0, "y": 0.004, "z": 0.0})
     assert out["route"] == "seated", out["detail"]
     assert world.closed
     assert "pushed down, its top met 2.00 mm" in out["detail"]
     assert world.pressed_at
     assert world.pressed_at[0] == pytest.approx(SLOT[:2] + [0.0, 0.004], abs=1e-6)
     skipped = World()
-    out = run(script, skipped, push_down=False)
+    out = run(script, skipped)
     assert out["route"] == "seated" and not skipped.closed
     assert "pushed down" not in out["detail"]
 

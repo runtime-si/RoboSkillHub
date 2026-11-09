@@ -201,10 +201,11 @@ PUSH_OVER more, and a push stopping more than PUSH_SLACK short of the slot is
 jammed [m]."""
 
 PUSH_DOWN_DEPTH = 0.0005
-"""After the release the closed fingertips push the piece's top until the
-command leads the stopped hand by this much [m] (puzzle_bot's last step:
-release, then push down). On the YAM station twin a piece released half in,
-tilted 5 deg, otherwise read 1.2 mm high on the flush check."""
+"""With push_down, after the release the closed fingertips push the piece's top
+until the command leads the stopped hand by this much [m] (puzzle_bot's last
+step: release, then push down). Off by default: on the YAM station twin the
+push (5 mm off the piece's centre) knocked a just-dropped piece back onto its
+neighbours in the one trial it ran."""
 
 APPROACHES = ("wiggle", "tilt_first", "offset_push")
 
@@ -492,7 +493,7 @@ def run(
     piece_radius: float = PIECE_RADIUS,
     push_offset: float = PUSH_OFFSET,
     finger_reach: float = TIP_REACH,
-    push_down: bool = True,
+    push_down: bool = False,
     push_down_offset: dict[str, float] | None = None,
     arm_id: int = 0,
 ) -> Output:
