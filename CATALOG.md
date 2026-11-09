@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-20 tools, 114 skills, 2 policies, 1 recipe and 1 paper.
+20 tools, 115 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -117,6 +117,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`plugging-a-cable-end`](#plugging-a-cable-end) | execute | Carries a cable's held free end into a terminal port after the last crossing. | any, 2 arms |
 | [`pouring-by-wrist-roll`](#pouring-by-wrist-roll) | execute | Pours from a held container into a target container by standing the hand above the target's box at a set height and… | any |
 | [`pressing-a-brick-onto-studs`](#pressing-a-brick-onto-studs) | execute | Presses a held LEGO or DUPLO brick onto the studs under it and checks by height that it seated. | any |
+| [`pressing-with-contact-limit`](#pressing-with-contact-limit) | execute | Runs one bounded contact motion along an axis that the controller stops on a force threshold or travel limit, on a… | yam_i2rt |
 | [`pulling-drawer`](#pulling-drawer) | execute | Executes a bounded pull along a drawer axis using handle-grasp and opening evidence. | yam_i2rt |
 | [`pushing-objects`](#pushing-objects) | execute | Pushes a loose object across its support toward a goal point with a closed hand, never grasping it. | any |
 | [`pushing-on-plane`](#pushing-on-plane) | execute | Executes a bounded planar pushing segment and checks measured target displacement. | yam_i2rt |
@@ -1614,6 +1615,23 @@ Presses a held LEGO or DUPLO brick onto the studs under it and checks by height 
   - `not_holding`: The jaws read at their stop before anything moved, or after the release the wrist depth finds no brick top at the seat.
   - `unverified`: Released, but the height was not read (no wrist camera with a pose, no reachable view, fewer than 3 depth readings on the top, or verify false); detail says how far the press went.
   - `unreachable`: The seated (or tilted) hand pose failed the IK preview, or a move was refused; detail says which, and whether the brick is still held.
+
+### pressing-with-contact-limit
+
+execute · robots: yam_i2rt · tasks: assembly · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/pressing-with-contact-limit/SKILL.md)
+
+Runs one bounded contact motion along an axis that the controller stops on a force threshold or travel limit, on a backend that declares a calibrated contact-force signal and a compliant controller. Use when a graph must press or seat a part with a measured force limit; position-only pressing is refused.
+
+- **In**: `request_json` string
+- **Out**: `result_json` string, `status` string
+- **Calls**: [`workcell`](#workcell)
+- **Scripts**: [`main`](skills/pressing-with-contact-limit/scripts/main.py)
+- **Note**: Adapter-backed implementation; station setup and task-specific validation are required. No sim/real verification is claimed.
+- **Exits**:
+  - `succeeded`: The capability-specific postcondition is supported by the returned measurements.
+  - `failed`: The attempted operation or tracking update did not meet its required condition.
+  - `unverified`: Available evidence is insufficient to establish the requested physical postcondition.
+  - `rejected`: The request, station configuration or required backend capability is not accepted.
 
 ### pulling-drawer
 

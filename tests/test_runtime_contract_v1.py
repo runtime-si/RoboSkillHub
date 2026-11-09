@@ -486,3 +486,119 @@ def test_graph_success_branch_can_finish_a_loop():
     }
     episode = run_graph(graph(nodes, {"x": "1.0.0"}), {"x": x}, {"left": 1}, ctx_factory)
     assert (episode["status"], episode["terminal"], x.calls) == ("succeeded", "done", 3)
+
+
+# --- contract 1.1: guarded_press, context additions -------------------------
+
+CONTACT = BASE + ["contact_force_feedback", "compliant_motion"]
+
+
+class ContactStation(FakeStation):
+    def __init__(self, reply=None, declare=True):
+        super().__init__(capabilities=CONTACT)
+        self.reply = reply or {
+            "samples": [
+                {"t_s": 0.0, "travel_m": 0.0, "force_N": 0.0},
+                {"t_s": 0.2, "travel_m": 0.004, "force_N": 12.0},
+            ],
+            "stop_reason": "force_threshold",
+            "stop_confirmed": True,
+            "fault": "",
+        }
+        self.declare = declare
+
+    def describe(self):
+        out = super().describe()
+        if self.declare:
+            out["contact_signal"] = {
+                "source": "fake_ft",
+                "unit": "N",
+                "rate_hz": 500,
+                "max_latency_s": 0.01,
+            }
+            out["controller"] = {"kind": "admittance", "loop_hz": 500, "process": "fake"}
+        return out
+
+    def guarded_move(self, **kwargs):
+        self.calls.append("guarded_move")
+        return self.reply
+
+
+PRESS = {
+    "axis": {"frame_id": "world", "vector": [0, 0, -1]},
+    "max_travel_m": 0.01,
+    "speed_m_s": 0.005,
+    "force_limit_N": 15.0,
+}
+
+
+@pytest.fixture
+def contact_limits(limits):
+    from dataclasses import replace
+
+    return replace(limits, max_contact_force_N=30.0)
+
+
+def test_guarded_press_is_refused_without_contact_capabilities(contact_limits):
+    station = FakeStation()
+    out = Runtime(station, contact_limits).invoke("guarded_press", PRESS)
+    assert (out["status"], out["failure_type"]) == ("rejected", "capability_missing")
+    assert station.calls == []
+
+
+def test_guarded_press_needs_a_declared_signal_and_a_station_force_limit(limits, contact_limits):
+    station = ContactStation(declare=False)
+    out = Runtime(station, contact_limits).invoke("guarded_press", PRESS)
+    assert (out["status"], out["failure_type"]) == ("rejected", "capability_missing")
+    out = Runtime(ContactStation(), limits).invoke("guarded_press", PRESS)
+    assert (out["status"], out["failure_type"]) == ("rejected", "precondition_unmet")
+    out = Runtime(ContactStation(), contact_limits).invoke(
+        "guarded_press", {**PRESS, "force_limit_N": 50}
+    )
+    assert out["status"] == "rejected"
+    assert station.calls == []
+
+
+def test_guarded_press_reports_the_controller_stop(contact_limits):
+    ok = Runtime(ContactStation(), contact_limits).invoke("guarded_press", PRESS)
+    assert ok["status"] == "succeeded", ok
+    assert ok["evidence"]["max_force_N"] == 12.0 and ok["evidence"]["final_travel_m"] == 0.004
+    reply = {"samples": [], "stop_reason": "travel_limit", "stop_confirmed": False}
+    unsure = Runtime(ContactStation(reply), contact_limits).invoke("guarded_press", PRESS)
+    assert (unsure["status"], unsure["failure_type"]) == ("unverified", "evidence_missing")
+    lost = Runtime(
+        ContactStation({**reply, "stop_confirmed": True, "stop_reason": "signal_lost"}),
+        contact_limits,
+    )
+    assert lost.invoke("guarded_press", PRESS)["status"] == "unverified"
+    fault = {**reply, "stop_confirmed": True, "stop_reason": "fault", "fault": "e-stop"}
+    out = Runtime(ContactStation(fault), contact_limits).invoke("guarded_press", PRESS)
+    assert (out["status"], out["failure_type"]) == ("failed", "backend_error")
+
+
+def test_waypoint_failure_keeps_the_arrivals_reached(limits):
+    class Stuck(FakeStation):
+        def move_pose(self, target, **kw):
+            if target["position_m"][0] > 0.45:
+                return {"ok": False}
+            return super().move_pose(target, **kw)
+
+    out = Runtime(Stuck(), limits).invoke(
+        "move_waypoints", {"waypoints": [pose(0.4), pose(0.5)], "linear": False}
+    )
+    assert (out["status"], out["failure_type"]) == ("failed", "motion_not_converged")
+    assert len(out["evidence"]["arrivals"]) == 1
+
+
+def test_context_exposes_state_limits_and_evidence_level(limits):
+    rt = Runtime(FakeStation(), limits)
+    with rt.task_lease("ep-4", 30) as lease:
+        ctx = primitive_skill_context(rt, lease, request_id="r")
+        state = ctx.state()
+        assert state["tcp_pose"]["frame_id"] == "world"
+        assert state["gripper"]["width_m"] == pytest.approx(0.08)
+        assert ctx.limits["max_state_age_s"] == limits.max_state_age_s
+        assert ctx.evidence_level == "unit_or_dryrun"
+        assert callable(ctx.sleep)
+    with pytest.raises(Exception, match="no station state"):
+        offline_context().state()

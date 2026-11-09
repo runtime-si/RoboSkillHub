@@ -34,7 +34,11 @@ REQUIRES = {
     "set_gripper": {"pose_feedback", "gripper", "stop"},
     "move_waypoints": {"pose_feedback", "cartesian_motion", "stop"},
     "observe_objects": {"object_feedback"},
+    "guarded_press": {"pose_feedback", "contact_force_feedback", "compliant_motion", "stop"},
 }
+
+STOP_REASONS = ("force_threshold", "travel_limit", "timeout", "signal_lost", "fault")
+CONTROLLER_KINDS = ("force", "admittance", "impedance", "hybrid")
 
 SIM_TRUTH_SOURCES = frozenset({"simulation_truth", "sim_truth"})
 
@@ -306,6 +310,9 @@ class Runtime:
             elif capability == "move_waypoints":
                 self.phase = "transport"
                 result["evidence"] = self._waypoints(plan)
+            elif capability == "guarded_press":
+                self.phase = "contact"
+                result["evidence"] = self._guarded_press(plan, description)
             elif capability == "move_pose":
                 self.phase = "transport"
                 result["evidence"] = self._move(plan["target_pose"], linear=False)
@@ -433,6 +440,28 @@ class Runtime:
             )
         if capability == "move_waypoints":
             plan["waypoints"] = [self.limits.pose(w) for w in request["waypoints"]]
+        if capability == "guarded_press":
+            if request["axis"]["frame_id"] != self.limits.frame_id:
+                raise Rejected("axis frame must be the station frame")
+            plan["axis"] = {
+                "frame_id": self.limits.frame_id,
+                "vector": unit_vector(request["axis"]["vector"], "axis.vector"),
+            }
+            plan["max_travel_m"] = number(
+                request["max_travel_m"], "max_travel_m", 1e-4, self.limits.max_contact_distance_m
+            )
+            plan["speed_m_s"] = number(
+                request["speed_m_s"], "speed_m_s", 1e-5, self.limits.max_speed_m_s
+            )
+            if self.limits.max_contact_force_N <= 0:
+                raise Rejected(
+                    "station limits configure no max_contact_force_N",
+                    failure_type="precondition_unmet",
+                )
+            plan["force_limit_N"] = number(
+                request["force_limit_N"], "force_limit_N", 0.01, self.limits.max_contact_force_N
+            )
+            plan["hold_s"] = number(request.get("hold_s", 0.0), "hold_s", 0.0, 5.0)
         if "open_width_m" in plan and plan["open_width_m"] <= plan["close_width_m"]:
             raise Rejected("open_width_m must exceed close_width_m")
         if capability == "grasp":
@@ -735,8 +764,11 @@ class Runtime:
 
     def _waypoints(self, plan: dict) -> dict:
         linear = plan["linear"]
-        arrivals = [self._move(waypoint, linear=linear) for waypoint in plan["waypoints"]]
-        evidence = {"arrivals": arrivals, "linear": linear}
+        arrivals: list[dict] = []
+        # Kept in the result as they accrue, so a failure still reports the arrivals so far.
+        evidence = self.result["evidence"] = {"arrivals": arrivals, "linear": linear}
+        for waypoint in plan["waypoints"]:
+            arrivals.append(self._move(waypoint, linear=linear))
         held = plan.get("held")
         if held is not None:
             target = held["object_id"]
@@ -845,3 +877,77 @@ class Runtime:
             record["reason"] = "orientation required but not observed"
             return record, ("evidence_missing", f"{target}: {record['reason']}")
         return record, None
+
+    def _guarded_press(self, plan: dict, description: dict) -> dict:
+        signal = description.get("contact_signal")
+        controller = description.get("controller")
+        if not (
+            isinstance(signal, dict)
+            and signal.get("source")
+            and signal.get("unit") == "N"
+            and isinstance(signal.get("rate_hz"), (int, float))
+            and signal["rate_hz"] > 0
+            and isinstance(signal.get("max_latency_s"), (int, float))
+            and signal["max_latency_s"] > 0
+        ):
+            raise Rejected(
+                "backend declares no contact force signal with source, unit N, rate_hz and max_latency_s",
+                failure_type="capability_missing",
+            )
+        if not isinstance(controller, dict) or controller.get("kind") not in CONTROLLER_KINDS:
+            raise Rejected(
+                f"contact controller kind must be one of {CONTROLLER_KINDS}; position pressing is not compliant",
+                failure_type="capability_missing",
+            )
+        guarded_move = getattr(self.backend, "guarded_move", None)
+        if not callable(guarded_move):
+            raise Rejected("backend has no guarded_move()", failure_type="capability_missing")
+        self._remaining()
+        self.command_issued = True
+        self.last_command_at = time.time()
+        reply = guarded_move(
+            axis=plan["axis"],
+            max_travel_m=plan["max_travel_m"],
+            speed_m_s=plan["speed_m_s"],
+            force_limit_N=plan["force_limit_N"],
+            hold_s=plan["hold_s"],
+            timeout_s=self._remaining(),
+        )
+        self.last_command_at = time.time()
+        self.trace.append({"event": "guarded_move", "reply": reply})
+        if (
+            not isinstance(reply, dict)
+            or reply.get("stop_reason") not in STOP_REASONS
+            or not isinstance(reply.get("samples"), list)
+            or type(reply.get("stop_confirmed")) is not bool
+        ):
+            raise EvidenceMissing("guarded_move reply lacks samples, stop_reason or stop_confirmed")
+        forces = [s.get("force_N") for s in reply["samples"] if isinstance(s, dict)]
+        travel = [s.get("travel_m") for s in reply["samples"] if isinstance(s, dict)]
+        evidence = {
+            "contact_signal": signal,
+            "controller": controller,
+            "stop_reason": reply["stop_reason"],
+            "stop_confirmed": reply["stop_confirmed"],
+            "fault": reply.get("fault", ""),
+            "samples": reply["samples"],
+            "max_force_N": max((f for f in forces if isinstance(f, (int, float))), default=None),
+            "final_travel_m": travel[-1] if travel else None,
+            "force_limit_N": plan["force_limit_N"],
+            "max_travel_m": plan["max_travel_m"],
+            "criterion": "bounded motion ended on force_threshold or travel_limit with confirmed stop",
+        }
+        self.result["evidence"] = evidence
+        state = self._state(after=self.last_command_at)
+        evidence["measured_pose"] = state["pose"]
+        if not reply["stop_confirmed"]:
+            raise EvidenceMissing("controller did not confirm the stop")
+        if reply["stop_reason"] == "timeout":
+            raise ExecutionFailed("guarded motion timed out", failure_type="timeout")
+        if reply["stop_reason"] == "signal_lost":
+            raise EvidenceMissing("contact force signal was lost during the motion")
+        if reply["stop_reason"] == "fault":
+            raise ExecutionFailed(
+                f"controller fault: {evidence['fault']}", failure_type="backend_error"
+            )
+        return evidence
