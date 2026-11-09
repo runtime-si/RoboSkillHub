@@ -603,6 +603,7 @@ class _Hand:
         self.kw: dict[str, Any] = {"arm_id": self.id} if self.id else {}
         self.lower, self.upper, self.jump = np.asarray(lower), np.asarray(upper), float(jump)
         self.at_open, self.at_closed = 0.0, 0.0
+        self.local_approach = np.array([0.0, 0.0, 1.0])
         try:
             hand = ctx.tool("robot.describe_gripper", **self.kw)
             fit = (hand or {}).get("width_fit") or {}
@@ -705,6 +706,33 @@ class _Hand:
             why = self.step(p0 + (target - p0) * i / n, r_i)
             if why:
                 return f"{why} (step {i} of {n})"
+        return ""
+
+    def go(self, point: np.ndarray, rot: np.ndarray) -> str:
+        """A free move of the empty hand (the connector's own path), judged by where the hand ends."""
+        try:
+            why = _refusal(
+                self.ctx.tool(
+                    "robot.go_to_pose",
+                    pose={"position": _vec(point), "rotation": quat(rot)},
+                    **self.kw,
+                )
+            )
+        except Exception as exc:
+            why = str(exc) or type(exc).__name__
+        p, r = self.pose()
+        off = float(np.linalg.norm(p - point))
+        turned = angle_between(
+            r @ np.array([0.0, 0.0, 1.0]), np.asarray(rot) @ np.array([0.0, 0.0, 1.0])
+        )
+        if (
+            (why and not why.startswith("timeout"))
+            or off > REACH_TOLERANCE
+            or turned > 2.0 * ROLL_TOLERANCE_DEG
+        ):
+            return (
+                f"{why or 'ended off'}; the hand is {off * 1e3:.0f} mm and {turned:.0f} deg from it"
+            )
         return ""
 
     def grip(self, w: float) -> str:
@@ -1886,6 +1914,7 @@ def run(
         rb0 = matrix(gf_b["rotation"])
         b_approach = rb0.T @ _xyz(gf_b.get("approach") or {"x": 0.0, "y": 0.0, "z": -1.0})
         b_close = rb0.T @ _xyz(gf_b.get("close_axis") or {"x": 1.0, "y": 0.0, "z": 0.0})
+        hand_b.local_approach = b_approach
 
         # --- where: both bases from a test turn of each arm's first joint; handover points between them, out in
         # front, previewed for this arm (top-down, the tile's width along the helper's approach) and for the helper
@@ -1996,7 +2025,7 @@ def run(
         b_start, _ = hand_b.pose()
         why = hand_b.grip(tt + 2.0 * float(grip_clearance))
         if not why:
-            why = hand_b.line(pre_b, rb, turn=True)
+            why = hand_b.go(pre_b, rb)
         if not why:
             why = hand_b.line(g_b, rb)
         if why:
