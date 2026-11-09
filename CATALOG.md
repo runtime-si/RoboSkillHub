@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-18 tools, 102 skills, 2 policies, 1 recipe and 1 paper.
+18 tools, 103 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -77,6 +77,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`proposing-side-grasps`](#proposing-side-grasps) | propose | Propose horizontal (side-entry) grasps swept around an object's oriented box — twelve azimuths ranked by jaw margin. | any, **sim only** |
 | [`choosing-next-piece-and-slot`](#choosing-next-piece-and-slot) | select | Chooses the next jigsaw placement (which loose piece, which grid cell, which turn) from the board as believed, the… | any |
 | [`matching-a-piece-to-placed-neighbours`](#matching-a-piece-to-placed-neighbours) | select | Picks which of several loose jigsaw pieces fits an empty slot, and how far to turn it, by the shape of its sides alone. | any |
+| [`proposing-parallel-grasps-in-tight-clusters`](#proposing-parallel-grasps-in-tight-clusters) | select | Proposes top-down parallel-jaw grasps on small flat parts packed close together (jigsaw pieces, LEGO bricks, dominoes… | any |
 | [`sampling-labeled-points-in-mask`](#sampling-labeled-points-in-mask) | select | Picks the point on (or in) an object that a language instruction asks for. | any, *tuned on* yam-station-overhead-rgbd |
 | [`selecting-free-placement-spots`](#selecting-free-placement-spots) | select | Picks world-frame spots on a named surface where a held object can be set down. | any, *tuned on* yam-station-overhead-rgbd |
 | [`selecting-reachable-grasp`](#selecting-reachable-grasp) | select | Walk a ranked list of candidate grasp poses and take the first the arm can actually reach. | any, **sim only** |
@@ -986,6 +987,21 @@ Picks which of several loose jigsaw pieces fits an empty slot, and how far to tu
   - `fits`: One candidate fits clearly - its side types agree with the slot, its score is under max_fit (0.06) and the next candidate scores at least min_margin times worse (1.25; 1.6 with a single neighbour). best_id, best_rotation_deg and grip_point_board are the answer. With no neighbour, the only candidate whose side types fit the border sides.
   - `ambiguous`: The best fit does not stand out from the next candidate (or, with no neighbour, several candidates' side types fit); `ranked` lists them best first for another cue (the box picture, a test placement).
   - `no_fit`: No candidate's side types agree with the slot, the best score is over max_fit, or no candidate mask could be split into 4 sides (`pieces` says why per candidate); bad slot sides also land here.
+
+### proposing-parallel-grasps-in-tight-clusters
+
+select · robots: any · tasks: jigsaw, pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/proposing-parallel-grasps-in-tight-clusters/SKILL.md) · [upstream](https://github.com/andyzeng/arc-robot-vision/blob/728139e9ad0e003106c71a7c0d0a2fc9d8430644/parallel-jaw-grasping/baseline/predict.m)
+
+Proposes top-down parallel-jaw grasps on small flat parts packed close together (jigsaw pieces, LEGO bricks, dominoes lying flat) from one posed depth frame (wrist D405 or overhead) and optional part masks - builds a world heightmap, slides the two fingertip footprints over centres, 8 jaw headings plus the part's axes and growing openings (arc-robot-vision's finger fit), keeps grasps whose fingertips reach half the part's height into free gaps at the opening the hand comes down with, with no other part between the jaws, the finger body clear of tall neighbours and the plates on an edge rather than a corner, and ranks them by finger clearance, centring and coverage. Returns world grasp points, the closing heading and jaw opening for robot.grasp_frame / robot.set_grip, and the fraction of parts with a collision-free grasp. Use when a part to pick has neighbours within a few fingertip widths, before a grasp skill, to find a grasp that fits or learn that the cluster must be spread first; CPU only.
+
+- **In**: -
+- **Out**: `grasp_pose` Se3Pose, `position` Vec3, `close_heading_deg` float, `jaw_width_m` float, `object_width_m` float, `tip_z` float, `tool_z` float, `clearance_m` float, `score` float, `n_pieces` int, `n_graspable` int, `fraction_graspable` float, `support_z` float
+- **Calls**: connector `robot.describe_gripper`, `robot.get_observation`, `robot.grasp_frame`
+- **Scripts**: [`propose_cluster_grasps`](skills/proposing-parallel-grasps-in-tight-clusters/scripts/propose_cluster_grasps.py)
+- **Exits**:
+  - `proposed`: At least one grasp fits (the target's, or any part's without a target mask); `grasps` are best first, and the best one's position, close_heading_deg, jaw_width_m, tip_z / tool_z and grasp_pose (robot.grasp_frame's rotation at the tool centre) are flattened. Nothing moved.
+  - `too_crowded`: Parts were seen but no fingertip footprint fits beside any of them down to half their height, or every fit has another part between the jaws; `pieces` says why per part. Spread or singulate them (singulating-by-pushing), then call again.
+  - `nothing_graspable`: No part stands out of the support (too thin for the depth noise, or none in view), every part is wider than the hand or offers the plates only corners, the target mask covers no depth, or the frame has too few depth pixels; `reason` says which.
 
 ### sampling-labeled-points-in-mask
 

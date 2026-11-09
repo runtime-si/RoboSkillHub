@@ -1,0 +1,26 @@
+{
+  "skill": "proposing-parallel-grasps-in-tight-clusters",
+  "inputs": {
+    "target_mask": "Mask"
+  },
+  "outputs": {
+    "grasp_pose": {"$ref": "propose.grasp_pose"},
+    "position": {"$ref": "propose.position"},
+    "close_heading_deg": {"$ref": "propose.close_heading_deg"},
+    "jaw_width_m": {"$ref": "propose.jaw_width_m"},
+    "tip_z": {"$ref": "propose.tip_z"},
+    "clearance_m": {"$ref": "propose.clearance_m"}
+  },
+  "nodes": {
+    "propose": {
+      "type": "script",
+      "script": "scripts/propose_cluster_grasps.py",
+      "inputs": {
+        "mask": {"$ref": "in.target_mask"}
+      }
+    }
+  },
+  "edges": [["START", "propose"], ["propose", "END"]],
+  "exit": {"router_field": "route", "success_values": ["proposed", "too_crowded"]},
+  "on_error": "nothing_graspable"
+}

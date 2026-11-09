@@ -534,3 +534,10 @@ Clear_Background, Binarise, Detect_Pieces, Separate_Overlap and the side angle
 of Classify_Pieces), MIT License, Copyright (c) 2016 JP Strydom; the file's
 header lists the changes, and the license is
 skills/segmenting-and-picking-pieces-classical/LICENSE.jigsaw-puzzle-building-robot.
+
+skills/proposing-parallel-grasps-in-tight-clusters/scripts/propose_cluster_grasps.py
+is adapted from arc-robot-vision (https://github.com/andyzeng/arc-robot-vision,
+commit 728139e9ad0e003106c71a7c0d0a2fc9d8430644:
+parallel-jaw-grasping/baseline/predict.m, the parallel-jaw grasp baseline),
+Apache-2.0, Andy Zeng et al. (MIT-Princeton team, Amazon Robotics Challenge
+2017); the file's header lists the changes.
