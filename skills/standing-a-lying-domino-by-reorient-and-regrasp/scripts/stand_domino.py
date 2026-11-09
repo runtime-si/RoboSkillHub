@@ -2070,9 +2070,9 @@ def run(
                 "unreachable",
                 "the helper's last joint has no room for the quarter roll; nothing picked",
             )
-        e_target = -max(fits_up, key=lambda mf: mf[0])[
-            1
-        ]  # this arm's end of the tile, after the turn
+        # This arm's end of the tile after the turn: the heading the helper rolls up with the most room first.
+        e_targets = [-f for _, f in sorted(fits_up, key=lambda mf: -mf[0])]
+        e_target = e_targets[0]
 
         # --- pick (this arm, top-down across the width near one end): the end whose turn onto e_target is
         # shortest; lift.
@@ -2094,20 +2094,28 @@ def run(
             return why
         g_meas, e_local = held["g"], held["e"]
 
-        def square_to_target(at: np.ndarray) -> float:
+        def square_to_target(at: np.ndarray, target: np.ndarray) -> float:
             r = turn_last(
-                lambda r: turn_about(r @ local_approach, r @ e_local, e_target),
+                lambda r: turn_about(r @ local_approach, r @ e_local, target),
                 at,
                 "yaw_turn_deg",
                 step_deg=float(pitch_step_deg),
             )
-            return turn_about(r @ local_approach, r @ e_local, e_target)
+            return turn_about(r @ local_approach, r @ e_local, target)
 
-        err = square_to_target(_xyz(here()))
+        # The heading whose turn fits this arm's last joint; the other one when the helper can roll either way.
+        err = 180.0
+        for target in e_targets:
+            notes.clear()
+            err = square_to_target(_xyz(here()), target)
+            if abs(err) <= float(roll_tolerance_deg):
+                e_target = target
+                break
         if abs(err) > float(roll_tolerance_deg):
             return finish(
                 "unreachable",
-                f"the held tile stayed {err:+.0f} deg off its heading for the handover; still holding",
+                f"the held tile stayed {err:+.0f} deg off its heading for the handover "
+                f"({'; '.join(notes) or 'not turned'}); still holding",
             )
 
         # --- this arm to the handover point: the tile's centre at hp.
@@ -2122,7 +2130,7 @@ def run(
             return finish("unreachable", f"to the handover point: {why}; still holding")
         # The chained steps leave the roll free: square the held tile again (in a station twin its width had drifted
         # 35 deg off the helper's approach, and the helper's quarter roll then stood it at 55 deg).
-        err = square_to_target(_xyz(here()))
+        err = square_to_target(_xyz(here()), e_target)
         if abs(err) > float(roll_tolerance_deg):
             return finish(
                 "unreachable",
