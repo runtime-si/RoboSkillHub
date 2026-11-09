@@ -626,6 +626,22 @@ downloads the OmDet-Turbo checkpoint omlab/omdet-turbo-swin-tiny-hf
 Open-Vocabulary Detection with Efficient Fusion Head", 2024; original code
 om-ai-lab/OmDet, Apache-2.0) at a pinned commit on first use; none is stored
 here.
+tools/sam2/tools.py adapts code of Hugging Face transformers
+(https://github.com/huggingface/transformers, commit
+b39d97c836e8d9f0ee6035a87c7a3ce5eaea43a8 (v5.19.0):
+src/transformers/models/sam2_video/processing_sam2_video.py and
+modeling_sam2_video.py / edgetam_video/modeling_edgetam_video.py, the
+streaming-session recipe (init_video_session, add_inputs_to_inference_session,
+the model's per-frame call, post_process_masks) and propagate_in_video_iterator),
+Apache License 2.0, Copyright 2018- The Hugging Face team; the file's header
+lists the changes, and the license is tools/sam2/LICENSE.transformers. The
+bundle downloads the SAM 2.1 checkpoints facebook/sam2.1-hiera-tiny, -small,
+-base-plus and -large (Apache-2.0 model cards; Ravi et al., "SAM 2: Segment
+Anything in Images and Videos", 2024; facebookresearch/sam2, Apache-2.0) and
+yonigozlan/EdgeTAM-hf (Apache-2.0 model card, the transformers conversion of
+facebook/EdgeTAM; Zhou et al., "EdgeTAM: On-Device Track Anything Model",
+2025; facebookresearch/EdgeTAM, Apache-2.0) at pinned commits on first use;
+none are stored here.
 
 skills/grasping-by-wrist-camera-servoing/scripts/servo_grasp.py is adapted from
 Hello Robot's stretch_ai (https://github.com/hello-robot/stretch_ai, commit

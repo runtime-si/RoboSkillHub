@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-21 tools, 127 skills, 2 policies, 1 recipe and 1 paper.
+22 tools, 127 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -28,6 +28,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`owlv2`](#owlv2) | perceive | OWLv2 open-vocabulary detection (google/owlv2-*, Apache-2.0) in two modes. | any |
 | [`pose6d`](#pose6d) | perceive | 6D pose of a known rigid part from depth. | any |
 | [`sahi`](#sahi) | perceive | Slicing-aided detection (SAHI) of small parts. | any |
+| [`sam2`](#sam2) | perceive | SAM 2.1 promptable video mask tracking (facebook/sam2.1-hiera-*, Apache-2.0; EdgeTAM as the fast option). | any, *tuned on* yam-station-orbbec-overhead, yam-left-wrist-d405 |
 | [`sam3`](#sam3) | perceive | Segment Anything 3 — text-, point-, and box-prompted instance segmentation, plus a stateful streaming video tracker… | any |
 | [`track`](#track) | perceive | Google DeepMind TAPNext++ run locally on a GPU. | any |
 | [`vlm`](#vlm) | perceive | Free-form and yes/no visual question answering against a hosted vision-language model (OpenRouter API by default… | any |
@@ -340,6 +341,20 @@ Slicing-aided detection (SAHI) of small parts -- cuts the camera frame into over
   - `sahi.detect_sliced`: Detect small parts by running a detector on overlapping slices and merging the boxes (SAHI).
   - `sahi.slice_windows`: The overlapping slice windows SAHI cuts an image (or a region of it) into.
   - `sahi.merge`: Merge overlapping detections from several slices with SAHI's postprocess.
+
+### sam2
+
+perceive · robots: any, *tuned on* yam-station-orbbec-overhead, yam-left-wrist-d405 · tasks: pick-place, sorting, insertion · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/sam2/SKILL.md) · [upstream](https://github.com/huggingface/transformers/tree/b39d97c836e8d9f0ee6035a87c7a3ce5eaea43a8/src/transformers/models/sam2_video)
+
+SAM 2.1 promptable video mask tracking (facebook/sam2.1-hiera-*, Apache-2.0; EdgeTAM as the fast option) -- seeded with a box, points or a mask on one frame, follows one part through a live camera stream or a recorded clip, returning its mask, box and an occlusion-head presence call per frame, and picks it up again after an arm or hand has covered or moved it. Live sessions hold constant GPU memory. Use when a closed loop or a verify stage must keep the identity of one part (a cube, a box, a plug) while the arm or a hand passes over or moves it; seed it from a detector (owlv2, grounding-dino) or a sam3 mask. Not open-vocabulary.
+
+- **Weights**: `hf://facebook/sam2.1-hiera-base-plus@b7320756a13354e7530a63935656d35b2f91a290`
+- **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
+- **Functions**:
+  - `sam2.tracker_init`: Open a mask-tracking session on a live frame from a box, points or a mask.
+  - `sam2.tracker_update`: Advance a session by one frame; mask, box, confidence, presence.
+  - `sam2.tracker_close`: Free a session (idempotent).
+  - `sam2.track`: Track one object through a recorded clip from a prompt on any frame.
 
 ### sam3
 
