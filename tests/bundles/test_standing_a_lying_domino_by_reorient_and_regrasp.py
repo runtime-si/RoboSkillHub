@@ -395,6 +395,48 @@ def test_takes_the_first_facing_whose_pitched_release_solves(script):
     assert out["tilt_at_release_deg"] < 1.0
 
 
+def facing_of(rot):
+    a = rot @ np.array([0.0, 0.0, 1.0])
+    return math.degrees(math.atan2(a[1], a[0])), a
+
+
+def test_a_facing_whose_pitch_path_does_not_solve_is_skipped(script):
+    def reachable(point, rot):
+        f, a = facing_of(rot)
+        return not (-0.9 < a[2] < -0.1 and abs(f) < 1.0)
+
+    out = stand(script, Arm(script, reachable=reachable), verify=False)
+    assert out["route"] == "standing", out["detail"]
+    # The other end up (facing 180 deg) needs no turn about the vertical either.
+    assert abs(out["facing_deg"]) == pytest.approx(180.0)
+
+
+def test_a_facing_whose_turn_exceeds_the_last_joint_is_skipped(script):
+    def reachable(point, rot):
+        f, a = facing_of(rot)
+        return a[2] < -0.9 or abs(abs(f) - 60.0) < 1.0
+
+    arm = Arm(script, reachable=reachable)
+    arm.q[-1] = -1.9
+    out = stand(script, arm, verify=False)
+    assert out["route"] == "standing", out["detail"]
+    assert out["facing_deg"] == pytest.approx(-60.0)
+    assert out["yaw_turn_deg"] == pytest.approx(60.0, abs=0.5)
+
+
+def test_no_room_for_any_facing_is_routed_holding(script):
+    def reachable(point, rot):
+        f, a = facing_of(rot)
+        return a[2] < -0.9 or abs(f - 60.0) < 1.0
+
+    arm = Arm(script, reachable=reachable)
+    arm.q[-1] = -1.9
+    out = stand(script, arm, verify=False)
+    assert out["route"] == "unreachable"
+    assert "no room" in out["detail"] and "still holding" in out["detail"]
+    assert out["picked"]
+
+
 def test_no_reachable_facing_moves_nothing(script):
     def reachable(point, rot):
         return (rot @ np.array([0.0, 0.0, 1.0]))[2] < -0.9

@@ -716,44 +716,64 @@ def run(
         (wrap(theta + i * step, False) for i in range(int(round(360.0 / step)))),
         key=lambda f: (abs(wrap(f - theta, True)), abs(wrap(f - theta, False))),
     )
-    plan: tuple[np.ndarray, np.ndarray, np.ndarray, float, dict[str, Any]] | None = None
+    n_pitch = max(1, int(math.ceil(90.0 / max(1.0, float(pitch_step_deg)))))
+
+    def level_of(f: float) -> np.ndarray:
+        """The level axis the quarter turn is about, for facing ``f``: the approach goes from down to ``f``."""
+        return np.cross(np.array([0.0, 0.0, -1.0]), heading(f))
+
+    passing: list[float] = []
     tried: list[str] = []
+    g_rot, forward = grasp_rots[0], True
     for g in grasp_rots:
         grasp_ok: dict[bool, bool] = {}
         for psi in facings:
             u = heading(psi)
-            forward = float(heading(theta) @ u) >= 0.0
-            e0 = heading(theta) if forward else heading(theta + 180.0)
-            grasp_point = np.array([*(center[:2] + s * e0[:2]), table_z + gh])
-            if forward not in grasp_ok:
-                grasp_ok[forward] = ik(grasp_point, g) is not None
-                if not grasp_ok[forward]:
+            fwd = float(heading(theta) @ u) >= 0.0
+            if passing and fwd != forward:
+                continue
+            e0 = heading(theta) if fwd else heading(theta + 180.0)
+            if fwd not in grasp_ok:
+                grasp_ok[fwd] = (
+                    ik(np.array([*(center[:2] + s * e0[:2]), table_z + gh]), g) is not None
+                )
+                if not grasp_ok[fwd]:
                     tried.append(f"{psi:.0f}: grasp")
-            if not grasp_ok[forward]:
+            if not grasp_ok[fwd]:
                 continue
             r_f = pitched_rotation(u, local_approach, local_close, g.T @ e0)
             release = plan_release(spot, psi, table_z, size, gh, s, float(release_gap))
             if ik(release, r_f) is None:
                 tried.append(f"{psi:.0f}: release")
                 continue
-            hover = ik(np.array([*release[:2], lift_z]), r_f)
-            if hover is None:
-                tried.append(f"{psi:.0f}: over the release")
+            high = np.array([*release[:2], lift_z])
+            stuck = next(
+                (
+                    i
+                    for i in range(n_pitch, 0, -1)
+                    if ik(high, axis_angle(level_of(psi), 90.0 * i / n_pitch - 90.0) @ r_f) is None
+                ),
+                0,
+            )
+            if stuck:
+                tried.append(f"{psi:.0f}: pitch at {90.0 * stuck / n_pitch:.0f} deg")
                 continue
-            plan = (g, e0, grasp_point, psi, hover)
+            if not passing:
+                g_rot, forward = g, fwd
+            passing.append(psi)
+        if passing:
             break
-        if plan is not None:
-            break
-    if plan is None:
+    if not passing:
         return finish(
             "unreachable",
-            "no facing passes the IK preview for the grasp, the pitched hand over the staging spot and the "
+            "no facing passes the IK preview for the grasp, the pitch over the staging spot and the "
             f"release ({', '.join(tried[:12])}{', ...' if len(tried) > 12 else ''})",
         )
-    g_rot, e0, grasp_point, psi, _ = plan
+    e0 = heading(theta) if forward else heading(theta + 180.0)
+    grasp_point = np.array([*(center[:2] + s * e0[:2]), table_z + gh])
+    psi = passing[0]
     out["facing_deg"] = float(psi)
     out["standing_tile"] = standing_pose(spot, psi, table_z, size)
-    u = heading(psi)
     notes: list[str] = []
 
     roll_gain = [1.0]
@@ -850,6 +870,28 @@ def run(
     if why:
         return finish("dropped", f"after the lift: {why}")
 
+    # --- the facing: the first that passed whose turn about the vertical fits the last joint as it is now.
+    q = joints()
+
+    def yaw_fits(f: float) -> bool:
+        need = turn_about(r_grip @ local_approach, r_grip @ e_local, heading(f))
+        return q.size == 0 or any(
+            fits(q.size - 1, q[-1] + math.radians(need + m * 360.0) / roll_gain[0])
+            for m in (-1, 0, 1)
+        )
+
+    roomy = [f for f in passing if yaw_fits(f)]
+    if not roomy:
+        return finish(
+            "unreachable",
+            f"the last joint has no room to turn the held tile to any reachable facing "
+            f"({', '.join(f'{f:.0f}' for f in passing[:8])}); still holding",
+        )
+    psi = roomy[0]
+    u = heading(psi)
+    out["facing_deg"] = float(psi)
+    out["standing_tile"] = standing_pose(spot, psi, table_z, size)
+
     # --- over the staging spot, the held tile turned about the vertical so the end that goes up points along the
     # facing, then the quarter turn about the level axis through the tool centre, in steps.
     release = plan_release(spot, psi, table_z, size, g_meas, s, float(release_gap))
@@ -868,8 +910,8 @@ def run(
             "still holding",
         )
     a_before = r_now @ local_approach
-    level = np.cross(-z_up, u)
-    n = max(1, int(math.ceil(90.0 / max(1.0, float(pitch_step_deg)))))
+    level = level_of(psi)
+    n = n_pitch
     for i in range(1, n + 1):
         target = (
             pitched_rotation(u, local_approach, local_close, e_local)
