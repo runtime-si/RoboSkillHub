@@ -299,7 +299,7 @@ Visual pointing and Q&A via the Molmo VLM served from a self-hosted vLLM endpoin
 
 perceive · robots: any, *tuned on* yam-station-orbbec-overhead · tasks: pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/omdet-turbo/SKILL.md) · [upstream](https://github.com/huggingface/transformers/tree/b39d97c836e8d9f0ee6035a87c7a3ce5eaea43a8/src/transformers/models/omdet_turbo)
 
-OmDet-Turbo fast open-vocabulary detection (omlab/omdet-turbo-swin-tiny-hf, Apache-2.0) -- text prompts to labelled boxes in grounding-dino's shape at ~0.02 s a 640 x 480 frame and 0.6 GB of GPU memory, about 10x faster than owlv2 and grounding-dino. Use for video-rate re-detection of table-scale objects (an open box, a tray, a bin, a board, a held part) in closed loops or as a cheap sahi backend; on 15-30 px parts at ~1 m (cubes, plugs, bricks) it finds fewer than owlv2, so use owlv2 there.
+OmDet-Turbo fast open-vocabulary detection (omlab/omdet-turbo-swin-tiny-hf, Apache-2.0) -- text prompts to labelled boxes in grounding-dino's shape at ~0.02 s a 640 x 480 frame and 0.6 GB of GPU memory, 10x faster than owlv2 and 17-23x than grounding-dino on a shared GPU. Use for video-rate re-detection of table-scale objects (an open box, a tray, a bin, a board, a held part) in closed loops or as a cheap sahi backend; on 15-30 px parts at ~1 m (cubes, plugs, bricks) it finds fewer than owlv2, so use owlv2 there.
 
 - **Weights**: `hf://omlab/omdet-turbo-swin-tiny-hf@7fe93cecfb770c4d76cf71163956221249cab566`
 - **Runs**: in its own environment over `stdio-msgpack`, needs a GPU

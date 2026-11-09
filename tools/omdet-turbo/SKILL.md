@@ -2,8 +2,8 @@
 name: omdet-turbo
 description: OmDet-Turbo fast open-vocabulary detection (omlab/omdet-turbo-swin-tiny-hf,
   Apache-2.0) -- text prompts to labelled boxes in grounding-dino's shape at
-  ~0.02 s a 640 x 480 frame and 0.6 GB of GPU memory, about 10x faster than
-  owlv2 and grounding-dino. Use for video-rate re-detection of table-scale
+  ~0.02 s a 640 x 480 frame and 0.6 GB of GPU memory, 10x faster than owlv2
+  and 17-23x than grounding-dino on a shared GPU. Use for video-rate re-detection of table-scale
   objects (an open box, a tray, a bin, a board, a held part) in closed loops or
   as a cheap sahi backend; on 15-30 px parts at ~1 m (cubes, plugs, bricks)
   it finds fewer than owlv2, so use owlv2 there.
@@ -51,8 +51,15 @@ cam = ctx.tool("robot.get_observation")["cameras"][0]
 # grounding-dino's shape, so a skill can swap backends
 dets = ctx.tool("omdet-turbo.detect", image=cam["rgb"], prompts=["open box", "tray"])["detections"]
 # or as a sahi backend (one call per slice; ~0.1 s for a table ROI at 256 px)
-r = ctx.tool("sahi.detect_sliced", image=cam["rgb"], prompts=["cube"],
-             backend="omdet-turbo.detect", slice_px=256, roi=table_box, min_score=0.2)
+r = ctx.tool(
+    "sahi.detect_sliced",
+    image=cam["rgb"],
+    prompts=["cube"],
+    backend="omdet-turbo.detect",
+    slice_px=256,
+    roi=table_box,
+    min_score=0.2,
+)
 ```
 
 ## Tool
@@ -105,7 +112,8 @@ Reproduce with `tests/bundles/_open_vocab_station_eval.py` and
 | --- | --- | --- | --- | --- | --- | --- |
 | owlv2 base, full (hub's best for small parts) | 0.2 | **7 / 12** | **3 / 3** | 0 / 4 | 18 | 0.19 |
 | owlv2 base, ROI, s256 | 0.15 | **8 / 12** | 3 / 3 | 0 / 4 | 25 | 0.94 |
-| grounding-dino-base, ROI | 0.2 | 7 / 12 | 3 / 3 | 2 / 4 * | 18 * | 0.20 |
+| grounding-dino-base, full | 0.2 | 4 / 12 | 0 / 3 | 3 / 4 | 23 | 0.23-0.92 |
+| grounding-dino-base, ROI | 0.2 | 7 / 12 | 3 / 3 | 2 / 4 | 19 | 0.20-0.87 |
 | omdet-turbo, full | 0.2 | 1 / 12 | 0 / 3 | **4 / 4** | 16 | **0.022** |
 | omdet-turbo, ROI | 0.25 | 2 / 12 | 0 / 3 | **4 / 4** | 7 | **0.020** |
 | **omdet-turbo, ROI** | **0.3** | 1 / 12 | 0 / 3 | **4 / 4** | **2** | **0.020** |
@@ -113,7 +121,9 @@ Reproduce with `tests/bundles/_open_vocab_station_eval.py` and
 | omdet-turbo, ROI, s256 | 0.1 | 5 / 12 | 2 / 3 | 4 / 4 | 108 | 0.11 |
 | omdet-turbo, ROI, s256 | 0.2 | 3 / 12 | 1 / 3 | 4 / 4 | 49 | 0.11 |
 
-\* grounding-dino rows from the owlv2 PR (#101), same frames and protocol.
+The owlv2 and grounding-dino rows reproduce the owlv2 PR's (#101) on the same
+frames (owlv2 base: 7 / 12, 18 FP; grounding-dino-base: 4 / 12, 23 FP);
+grounding-dino's latency is given as the range over two runs on the shared GPU.
 
 - **Small parts: owlv2 stays the tool.** OmDet-Turbo finds 1-2 of 12 at a
   usable floor and none of the three cubes at ~1 m; lowering the floor to 0.1
@@ -122,11 +132,12 @@ Reproduce with `tests/bundles/_open_vocab_station_eval.py` and
 - **Open boxes: 4 / 4 at 2 FPs** on the table ROI at 0.3 (owlv2 base calls
   them "cube": 0 / 4; grounding-dino 2-3 / 4). Larger table objects are what
   it is good at.
-- **Latency**: 0.020-0.022 s a frame end to end (CPU preprocessing included)
-  on the busy GPU, against 0.19-0.22 s for owlv2 base and 0.23-0.37 s for
-  grounding-dino-base in the same run (owlv2 measured 0.06-0.07 s on an idle
-  4090 D in #101, so the gap on an idle GPU is ~3x). Peak torch memory 0.58
-  GB allocated, 0.69 GB reserved; first call (weights cached) 9.9 s.
+- **Latency**: median of 35 warm whole-frame calls 0.022 s (CPU
+  preprocessing included) on the busy GPU, against 0.22 s for owlv2 base and
+  0.37 / 0.51 s for grounding-dino-base (two runs) on the same GPU. owlv2
+  measured 0.06-0.07 s on an idle 4090 D in #101, so on an idle GPU expect
+  ~3x rather than 10x. Peak torch memory 0.58 GB allocated, 0.69 GB
+  reserved; first call (weights cached) 9.9 s.
 
 Use: `threshold=0.3` on a table ROI for boxes / trays / bins / boards and
 other table-scale objects when the loop needs a detector per frame; owlv2
