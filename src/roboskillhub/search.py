@@ -3,7 +3,7 @@
 gap's coordinator reads every description in the registry it is handed, so the
 registry is the prompt. Handing it the whole hub drowns the right skill among
 hundreds; this module narrows it: drop what cannot run on the robot, rank the
-rest against the instruction, keep the best per stage of a task, then add every
+rest against the instruction, keep relevant matches per stage of a task, then add every
 tool bundle the kept skills call.
 
 Ranking is BM25 over names, tags, task families and descriptions, raised by
@@ -26,10 +26,12 @@ _STOP = frozenset(
     "a an and are as at be by for from has in into is it its of on or that the then this to use used when "
     "with without one two its their them they which while".split()
 )
-_CORE_STAGES = ("perceive", "execute", "verify")
-"""Stages a task graph almost always needs; kept even when the words do not match."""
-
 FAMILY_WORDS: dict[str, tuple[str, ...]] = {
+    "motion": ("pose", "position", "cartesian", "waypoint", "位姿", "末端运动", "移动到"),
+    "grasp": ("grasp", "grip", "grasping", "抓取", "夹取", "抓住"),
+    "pushing": ("push", "pushing", "推物", "推动", "推块", "平面推"),
+    "drawer": ("drawer", "prismatic", "抽屉", "拉抽屉", "拉开"),
+    "point-tracking": ("track", "tracking", "tapir", "点跟踪", "点追踪", "跟踪点"),
     "pick-place": (
         "put",
         "place",
@@ -323,8 +325,8 @@ def select(
         by_stage.setdefault(bundle.stage, []).append(bundle)
     for stage, members in by_stage.items():
         matching = [b for b in members if scores[b.name] > 0][:per_stage]
-        if not matching and stage in _CORE_STAGES and not selection.recipes:
-            matching = members[:1]
+        # Missing a stage is not evidence that an unrelated skill fits it.
+        # Zero-score bundles enter only through explicit recipe/tool dependencies.
         for bundle in matching:
             chosen[bundle.name] = Pick(
                 bundle, scores[bundle.name], f"best {stage or 'unstaged'} match"

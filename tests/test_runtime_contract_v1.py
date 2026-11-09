@@ -1,0 +1,846 @@
+"""rsh-task/1: new primitives, failure types, task lease, task-skill gate and graphs.
+
+Uses a kinematic fake station: it proves contract logic, not physical behaviour.
+"""
+
+from __future__ import annotations
+
+import math
+import threading
+import time
+
+import pytest
+
+from roboskillhub.runtime import api
+from roboskillhub.runtime.contracts import (
+    SCHEMAS,
+    Limits,
+    compose,
+    invert,
+    real_time_factor,
+    tcp_for_object_goal,
+)
+from roboskillhub.runtime.engine import Runtime
+from roboskillhub.runtime.graph import GraphError, load_graph, run_graph
+from roboskillhub.runtime.task import (
+    CONTRACT,
+    SkillContext,
+    make_result,
+    offline_context,
+    primitive_skill_context,
+    run_task_skill,
+    validate,
+)
+
+BASE = ["pose_feedback", "cartesian_motion", "gripper", "stop", "object_feedback"]
+
+
+def pose(x=0.3, y=0.0, z=0.2, frame="world", q=(0.0, 0.0, 0.0, 1.0)):
+    return {"frame_id": frame, "position_m": [x, y, z], "quaternion_xyzw": list(q)}
+
+
+class FakeStation:
+    """Kinematic stand-in: arrives exactly, carries a held object rigidly."""
+
+    def __init__(self, capabilities=BASE, *, holding_feedback=True, release_sticks=False):
+        self.capabilities = list(capabilities)
+        self.tcp = pose()
+        self.width = 0.08
+        self.held: str | None = None
+        self.T_TCP_held = None
+        self.objects = {"d0": pose(0.4, 0.0, 0.024)}
+        self.holding_feedback = holding_feedback
+        self.release_sticks = release_sticks
+        self.slip = False
+        self.calls: list[str] = []
+        self.object_extra: dict = {}
+
+    def describe(self):
+        return {"frame_id": "world", "capabilities": self.capabilities, "backend": "fake"}
+
+    def get_state(self, *, timeout_s):
+        now = time.time() + 1e-4
+        objects = {}
+        for name, p in self.objects.items():
+            if name == self.held and not self.slip:
+                p = compose(self.tcp, self.T_TCP_held)
+                self.objects[name] = p
+            objects[name] = {
+                "position_m": p["position_m"],
+                "quaternion_xyzw": p["quaternion_xyzw"],
+                "frame_id": "world",
+                "timestamp_s": now,
+                "source": "fake_tracker",
+                **self.object_extra.get(name, {}),
+            }
+        gripper = {"width_m": self.width, "source": "fake_encoder", "timestamp_s": now}
+        if self.holding_feedback:
+            gripper["holding"] = self.held is not None
+        return {"pose": self.tcp, "timestamp_s": now, "objects": objects, "gripper": gripper}
+
+    def move_pose(self, target, *, speed_m_s, timeout_s, linear):
+        self.calls.append("move")
+        self.tcp = target
+        return {"ok": True}
+
+    def set_gripper(self, width_m, *, timeout_s):
+        self.calls.append(f"gripper:{width_m}")
+        self.width = width_m
+        if width_m >= 0.05 and not self.release_sticks:
+            self.held = None
+        elif width_m < 0.05 and self.held is None:
+            obj = self.objects["d0"]
+            if math.dist(obj["position_m"], self.tcp["position_m"]) < 0.03:
+                self.held = "d0"
+                self.T_TCP_held = compose(invert(self.tcp, frame_id="tcp"), obj, frame_id="tcp")
+                self.width = 0.024
+        return {"ok": True}
+
+    def stop(self):
+        self.calls.append("stop")
+
+
+@pytest.fixture
+def limits():
+    return Limits.from_dict(
+        {
+            "frame_id": "world",
+            "workspace_min_m": [-1, -1, 0],
+            "workspace_max_m": [1, 1, 1],
+            "max_speed_m_s": 0.2,
+            "max_contact_distance_m": 0.3,
+            "gripper_min_width_m": 0.0,
+            "gripper_max_width_m": 0.1,
+        }
+    )
+
+
+def test_contract_json_is_the_published_v1():
+    assert CONTRACT["contract_version"] == "rsh-task/1"
+    assert {"set_gripper", "move_waypoints", "observe_objects"} <= set(SCHEMAS)
+    assert set(CONTRACT["primitives"]) == set(SCHEMAS)
+
+
+def test_transform_helpers_round_trip():
+    T_W_tcp = pose(0.3, 0.1, 0.2, q=(0, 0, math.sin(math.pi / 4), math.cos(math.pi / 4)))
+    T_TCP_obj = pose(0.0, 0.0, 0.05, frame="tcp")
+    T_W_obj = compose(T_W_tcp, T_TCP_obj)
+    back = tcp_for_object_goal(T_W_obj, T_TCP_obj)
+    assert math.dist(back["position_m"], T_W_tcp["position_m"]) < 1e-9
+    assert (
+        abs(
+            abs(
+                sum(
+                    a * b
+                    for a, b in zip(
+                        back["quaternion_xyzw"], T_W_tcp["quaternion_xyzw"], strict=True
+                    )
+                )
+            )
+            - 1
+        )
+        < 1e-9
+    )
+
+
+def test_legacy_results_gain_failure_type_without_losing_fields(limits):
+    rt = Runtime(FakeStation(capabilities=["pose_feedback"]), limits)
+    result = rt.invoke("move_pose", {"target_pose": pose()})
+    assert result["status"] == "rejected"
+    assert result["failure_type"] == "capability_missing"
+    assert result["contract_version"] == "rsh-task/1"
+    for key in (
+        "schema_version",
+        "invocation_id",
+        "capability",
+        "skill",
+        "version",
+        "evidence",
+        "trace",
+    ):
+        assert key in result
+    out = Runtime(FakeStation(), rt.limits).invoke("move_pose", {"target_pose": pose(x=5)})
+    assert out["failure_type"] == "unreachable"
+
+
+def test_release_requires_holding_feedback_false(limits):
+    station = FakeStation()
+    rt = Runtime(station, limits)
+    station.tcp = pose(0.4, 0.0, 0.024)
+    closed = rt.invoke("set_gripper", {"width_m": 0.01, "purpose": "close"})
+    assert closed["status"] == "succeeded", closed
+    released = rt.invoke("set_gripper", {"width_m": 0.08, "purpose": "release", "target_id": "d0"})
+    assert released["status"] == "succeeded"
+    assert released["evidence"]["object_after"]["position_m"]
+    station.release_sticks = True
+    rt.invoke("set_gripper", {"width_m": 0.01, "purpose": "close"})
+    stuck = rt.invoke("set_gripper", {"width_m": 0.08, "purpose": "release"})
+    assert (stuck["status"], stuck["failure_type"]) == ("failed", "release_failed")
+    assert "stop" in station.calls
+
+
+def test_release_without_holding_feedback_is_unverified(limits):
+    rt = Runtime(FakeStation(holding_feedback=False), limits)
+    result = rt.invoke("set_gripper", {"width_m": 0.08, "purpose": "release"})
+    assert (result["status"], result["failure_type"]) == ("unverified", "evidence_missing")
+
+
+def test_close_on_nothing_is_grasp_missed(limits):
+    rt = Runtime(FakeStation(), limits)
+    result = rt.invoke("set_gripper", {"width_m": 0.01, "purpose": "close"})
+    assert (result["status"], result["failure_type"]) == ("failed", "grasp_missed")
+    assert result["recovery_hints"] == ["reobserve", "regrasp"]
+
+
+def test_linear_waypoints_need_a_declared_linear_backend(limits):
+    station = FakeStation()
+    rt = Runtime(station, limits)
+    result = rt.invoke("move_waypoints", {"waypoints": [pose()], "linear": True})
+    assert (result["status"], result["failure_type"]) == ("rejected", "capability_missing")
+    assert station.calls == []
+
+
+def test_waypoints_are_all_checked_before_any_motion(limits):
+    station = FakeStation()
+    rt = Runtime(station, limits)
+    result = rt.invoke("move_waypoints", {"waypoints": [pose(), pose(x=3)], "linear": False})
+    assert result["status"] == "rejected" and station.calls == []
+
+
+def test_held_transport_verifies_object_follows_tcp(limits):
+    station = FakeStation()
+    rt = Runtime(station, limits)
+    station.tcp = pose(0.4, 0.0, 0.024)
+    rt.invoke("set_gripper", {"width_m": 0.01, "purpose": "close"})
+    held = {"object_id": "d0", "T_TCP_object": pose(0, 0, 0, frame="tcp")}
+    request = {"waypoints": [pose(0.4, 0, 0.1), pose(0.5, 0, 0.1)], "linear": False, "held": held}
+    ok = rt.invoke("move_waypoints", request)
+    assert ok["status"] == "succeeded", ok
+    assert ok["evidence"]["held"]["error_m"] < 1e-6
+    station.slip = True
+    slipped = rt.invoke("move_waypoints", {**request, "waypoints": [pose(0.2, 0, 0.1)]})
+    assert (slipped["status"], slipped["failure_type"]) == ("failed", "held_object_slipped")
+
+
+def test_observe_objects_statuses_and_privilege(limits):
+    station = FakeStation()
+    rt = Runtime(station, limits)
+    ok = rt.invoke("observe_objects", {"object_ids": ["d0"]})
+    assert ok["status"] == "succeeded"
+    obs = ok["evidence"]["observations"][0]
+    validate("Observation", obs)
+    assert obs["privileged"] is False
+    missing = rt.invoke("observe_objects", {"object_ids": ["d0", "ghost"]})
+    assert (missing["status"], missing["failure_type"]) == ("unverified", "object_not_observed")
+    assert missing["evidence"]["observations"][1]["reason"]
+    station.object_extra["d0"] = {"source": "simulation_truth"}
+    truth = rt.invoke("observe_objects", {"object_ids": ["d0"]})
+    assert truth["evidence"]["observations"][0]["privileged"] is True
+    no_pose = rt.invoke("observe_objects", {"object_ids": ["d0"], "require_orientation": True})
+    assert (no_pose["status"], no_pose["failure_type"]) == ("rejected", "capability_missing")
+    station.object_extra["d0"] = {"timestamp_s": time.time() - 10}
+    stale = rt.invoke("observe_objects", {"object_ids": ["d0"]})
+    assert (stale["status"], stale["failure_type"]) == ("unverified", "stale_observation")
+
+
+class LeasedStation(FakeStation):
+    def __init__(self):
+        super().__init__()
+        self.leases = []
+
+    def begin_invocation(self, *, timeout_s):
+        self.leases.append("begin")
+        return {"ok": True}
+
+    def end_invocation(self):
+        self.leases.append("end")
+        return {"ok": True}
+
+
+def test_task_lease_covers_many_primitives_and_rejects_nesting(limits):
+    station = LeasedStation()
+    rt = Runtime(station, limits)
+    with rt.task_lease("ep-1", 30) as lease:
+        a = rt.invoke("move_pose", {"target_pose": pose()}, lease=lease, request_id="ep-1/n0")
+        b = rt.invoke("observe_objects", {"object_ids": ["d0"]}, lease=lease)
+        nested = rt.invoke("move_pose", {"target_pose": pose()})
+        assert (nested["status"], nested["failure_type"]) == ("rejected", "nested_lease")
+        busy: dict = {}
+        t = threading.Thread(
+            target=lambda: busy.update(
+                rt.invoke("move_pose", {"target_pose": pose(), "timeout_s": 0.2})
+            )
+        )
+        t.start()
+        t.join()
+        assert (busy["status"], busy["failure_type"]) == ("rejected", "station_busy")
+    assert a["status"] == b["status"] == "succeeded"
+    assert a["task_id"] == "ep-1" and a["request_id"] == "ep-1/n0"
+    assert station.leases == ["begin", "end"]
+    late = rt.invoke("move_pose", {"target_pose": pose()}, lease=lease)
+    assert late["failure_type"] == "lease_expired"
+
+
+def test_cancelled_lease_stops_and_rejects_later_calls(limits):
+    station = FakeStation()
+    rt = Runtime(station, limits)
+    with rt.task_lease("ep-2", 30) as lease:
+        lease.cancel("operator abort")
+        result = rt.invoke("move_pose", {"target_pose": pose()}, lease=lease)
+        assert (result["status"], result["failure_type"]) == ("rejected", "cancelled")
+    assert station.calls == []
+
+
+def test_api_describe_lists_requirements_and_contract(monkeypatch):
+    monkeypatch.delenv("ROBOSKILLHUB_STATION", raising=False)
+    data = api.describe()
+    assert data["contract_version"] == "rsh-task/1"
+    rows = {r["capability"]: r for r in data["capabilities"]}
+    assert rows["move_waypoints"]["requires_if"]["linear=true"] == ["linear_cartesian_motion"]
+    assert rows["observe_objects"]["configured"] is False
+
+
+# --- task-skill gate --------------------------------------------------------
+
+
+class PlaceSkill:
+    skill_id = "domino.place_upright"
+    version = "0.1.0"
+    kind = "skill"
+    requires = frozenset(
+        {"pose_feedback", "cartesian_motion", "gripper", "stop", "object_feedback"}
+    )
+    input_schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["object_id"],
+        "properties": {"object_id": {"type": "string"}},
+    }
+    readiness = "unit-tested"
+
+    def __init__(self, claim_without_evidence=False):
+        self.claim_without_evidence = claim_without_evidence
+
+    def run(self, request, ctx):
+        obs = ctx.observe([request["object_id"]])
+        if self.claim_without_evidence:
+            return ctx.result(self, "succeeded", phase="verify")
+        observations = obs["evidence"]["observations"]
+        return ctx.result(
+            self,
+            "succeeded",
+            phase="verify",
+            evidence={"postcondition": {"name": "observed", "passed": True, "criterion": "seen"}},
+            observations=observations,
+        )
+
+
+def test_task_skill_gate(limits):
+    station = FakeStation()
+    rt = Runtime(station, limits)
+    with rt.task_lease("ep-3", 30) as lease:
+        ctx = primitive_skill_context(rt, lease, request_id="ep-3/place")
+        good = run_task_skill(PlaceSkill(), {"object_id": "d0"}, ctx)
+        assert good["status"] == "succeeded" and good["children"]
+        validate("SkillResult", good)
+        ctx = primitive_skill_context(rt, lease, request_id="ep-3/bluff")
+        bluff = run_task_skill(PlaceSkill(claim_without_evidence=True), {"object_id": "d0"}, ctx)
+        assert (bluff["status"], bluff["failure_type"]) == ("unverified", "evidence_missing")
+        bad = run_task_skill(PlaceSkill(), {"object": "d0"}, ctx)
+        assert (bad["status"], bad["failure_type"]) == ("rejected", "invalid_request")
+    blind = run_task_skill(PlaceSkill(), {"object_id": "d0"}, offline_context())
+    assert (blind["status"], blind["failure_type"]) == ("rejected", "capability_missing")
+
+
+# --- graph -----------------------------------------------------------------
+
+
+class Scripted:
+    """A tool whose outcomes are scripted, for graph semantics only."""
+
+    kind = "tool"
+    requires = frozenset()
+    input_schema = {"type": "object"}
+    readiness = "unit-tested"
+
+    def __init__(self, skill_id, outcomes, version="1.0.0"):
+        self.skill_id = skill_id
+        self.version = version
+        self.outcomes = list(outcomes)
+        self.calls = 0
+
+    def run(self, request, ctx):
+        self.calls += 1
+        status, failure = self.outcomes[min(self.calls - 1, len(self.outcomes) - 1)]
+        return ctx.result(self, status, failure_type=failure, outputs={"n": self.calls, **request})
+
+
+def ctx_factory(node, request_id, timeout_s):
+    return SkillContext(task_id="g", request_id=request_id)
+
+
+def graph(nodes, skills, start="a"):
+    return {
+        "graph_id": "t",
+        "version": "1.0.0",
+        "contract_version": "rsh-task/1",
+        "skills": skills,
+        "start": start,
+        "nodes": nodes,
+        "terminals": {"done": "succeeded", "abort": "failed", "unsure": "unverified"},
+        "budgets": {"max_steps": 20, "max_total_attempts": 10, "timeout_s": 60},
+    }
+
+
+ALL = {"succeeded": "done", "failed": "abort", "unverified": "unsure", "rejected": "abort"}
+
+
+def test_graph_load_rejects_unsafe_edges_and_unbounded_cycles():
+    k = {"x": Scripted("x", [("succeeded", None)])}
+    with pytest.raises(GraphError, match="must not end in a succeeded"):
+        load_graph(
+            graph({"a": {"skill": "x", "on": {**ALL, "unverified": "done"}}}, {"x": "1.0.0"}), k
+        )
+    with pytest.raises(GraphError, match="no edge for rejected"):
+        on = {k2: v for k2, v in ALL.items() if k2 != "rejected"}
+        load_graph(graph({"a": {"skill": "x", "on": on}}, {"x": "1.0.0"}), k)
+    with pytest.raises(GraphError, match="no node with max_visits"):
+        load_graph(graph({"a": {"skill": "x", "on": {**ALL, "failed": "a"}}}, {"x": "1.0.0"}), k)
+    with pytest.raises(GraphError, match="graph binds 2.0.0"):
+        load_graph(graph({"a": {"skill": "x", "on": ALL}}, {"x": "2.0.0"}), k)
+    with pytest.raises(GraphError, match="unknown failure_type"):
+        load_graph(
+            graph({"a": {"skill": "x", "on": {**ALL, "failed:oops": "abort"}}}, {"x": "1.0.0"}), k
+        )
+
+
+def test_graph_retries_then_routes_by_failure_type_and_exhausts_visits():
+    x = Scripted(
+        "x", [("failed", "grasp_missed"), ("failed", "grasp_missed"), ("failed", "lego.not_seated")]
+    )
+    nodes = {
+        "a": {
+            "skill": "x",
+            "attempts": 2,
+            "retry_on": ["failed"],
+            "max_visits": 2,
+            "on": {
+                **ALL,
+                "failed:lego.not_seated": "abort",
+                "failed": "a",
+                "failed:retry_budget_exhausted": "abort",
+            },
+        }
+    }
+    episode = run_graph(graph(nodes, {"x": "1.0.0"}), {"x": x}, {}, ctx_factory)
+    assert episode["status"] == "failed"
+    assert [s["failure_type"] for s in episode["steps"]] == ["grasp_missed", "lego.not_seated"]
+    # The second visit retries lego.not_seated too: retry_on is keyed by status.
+    assert episode["counters"]["attempts"] == 4
+
+
+def test_graph_budget_and_state_assignment():
+    x = Scripted("x", [("succeeded", None)])
+    nodes = {
+        "a": {
+            "skill": "x",
+            "params": {"slot": "$input.slots.0"},
+            "assign": {"placed": "$last.a.outputs.slot"},
+            "max_visits": 100,
+            "on": {**ALL, "succeeded": "a"},
+        }
+    }
+    spec = graph(nodes, {"x": "1.0.0"})
+    spec["budgets"]["max_total_attempts"] = 50
+    episode = run_graph(spec, {"x": x}, {"slots": ["s0"]}, ctx_factory)
+    assert (episode["status"], episode["failure_type"]) == ("failed", "step_budget_exhausted")
+    assert episode["final_state"]["placed"] == "s0"
+
+
+def test_graph_missing_input_is_a_rejected_step_not_a_crash():
+    x = Scripted("x", [("succeeded", None)])
+    nodes = {"a": {"skill": "x", "params": {"slot": "$input.nope"}, "on": ALL}}
+    episode = run_graph(graph(nodes, {"x": "1.0.0"}), {"x": x}, {}, ctx_factory)
+    assert episode["steps"][0]["failure_type"] == "precondition_unmet"
+    assert x.calls == 0 and episode["status"] == "failed"
+
+
+def test_make_result_envelope_is_valid():
+    skill = Scripted("x", [])
+    validate(
+        "SkillResult", make_result(skill, "failed", failure_type="domino.toppled_after_release")
+    )
+    with pytest.raises(Exception, match="vocabulary"):
+        validate("SkillResult", make_result(skill, "failed", failure_type="made_up"))
+
+
+def test_graph_success_branch_can_finish_a_loop():
+    x = Scripted("x", [("succeeded", None)])
+    nodes = {
+        "a": {
+            "skill": "x",
+            "params": {"left": "$input.left"},
+            "branch": [{"path": "$last.a.outputs.n", "equals": 3, "next": "done"}],
+            "max_visits": 5,
+            "on": {**ALL, "succeeded": "a"},
+        }
+    }
+    episode = run_graph(graph(nodes, {"x": "1.0.0"}), {"x": x}, {"left": 1}, ctx_factory)
+    assert (episode["status"], episode["terminal"], x.calls) == ("succeeded", "done", 3)
+
+
+# --- contract 1.1: guarded_press, context additions -------------------------
+
+CONTACT = BASE + ["contact_force_feedback", "compliant_motion"]
+
+
+class ContactStation(FakeStation):
+    def __init__(self, reply=None, declare=True):
+        super().__init__(capabilities=CONTACT)
+        self.reply = reply or {
+            "samples": [
+                {"t_s": 0.0, "travel_m": 0.0, "force_N": 0.0},
+                {"t_s": 0.2, "travel_m": 0.004, "force_N": 12.0},
+            ],
+            "stop_reason": "force_threshold",
+            "stop_confirmed": True,
+            "fault": "",
+        }
+        self.declare = declare
+
+    def describe(self):
+        out = super().describe()
+        if self.declare:
+            out["contact_signal"] = {
+                "source": "fake_ft",
+                "unit": "N",
+                "rate_hz": 500,
+                "max_latency_s": 0.01,
+            }
+            out["controller"] = {"kind": "admittance", "loop_hz": 500, "process": "fake"}
+        return out
+
+    def guarded_move(self, **kwargs):
+        self.calls.append("guarded_move")
+        return self.reply
+
+
+PRESS = {
+    "axis": {"frame_id": "world", "vector": [0, 0, -1]},
+    "max_travel_m": 0.01,
+    "speed_m_s": 0.005,
+    "force_limit_N": 15.0,
+}
+
+
+@pytest.fixture
+def contact_limits(limits):
+    from dataclasses import replace
+
+    return replace(limits, max_contact_force_N=30.0)
+
+
+def test_guarded_press_is_refused_without_contact_capabilities(contact_limits):
+    station = FakeStation()
+    out = Runtime(station, contact_limits).invoke("guarded_press", PRESS)
+    assert (out["status"], out["failure_type"]) == ("rejected", "capability_missing")
+    assert station.calls == []
+
+
+def test_guarded_press_needs_a_declared_signal_and_a_station_force_limit(limits, contact_limits):
+    station = ContactStation(declare=False)
+    out = Runtime(station, contact_limits).invoke("guarded_press", PRESS)
+    assert (out["status"], out["failure_type"]) == ("rejected", "capability_missing")
+    out = Runtime(ContactStation(), limits).invoke("guarded_press", PRESS)
+    assert (out["status"], out["failure_type"]) == ("rejected", "precondition_unmet")
+    out = Runtime(ContactStation(), contact_limits).invoke(
+        "guarded_press", {**PRESS, "force_limit_N": 50}
+    )
+    assert out["status"] == "rejected"
+    assert station.calls == []
+
+
+def test_guarded_press_reports_the_controller_stop(contact_limits):
+    ok = Runtime(ContactStation(), contact_limits).invoke("guarded_press", PRESS)
+    assert ok["status"] == "succeeded", ok
+    assert ok["evidence"]["max_force_N"] == 12.0 and ok["evidence"]["final_travel_m"] == 0.004
+    reply = {"samples": [], "stop_reason": "travel_limit", "stop_confirmed": False}
+    unsure = Runtime(ContactStation(reply), contact_limits).invoke("guarded_press", PRESS)
+    assert (unsure["status"], unsure["failure_type"]) == ("unverified", "evidence_missing")
+    lost = Runtime(
+        ContactStation({**reply, "stop_confirmed": True, "stop_reason": "signal_lost"}),
+        contact_limits,
+    )
+    assert lost.invoke("guarded_press", PRESS)["status"] == "unverified"
+    fault = {**reply, "stop_confirmed": True, "stop_reason": "fault", "fault": "e-stop"}
+    out = Runtime(ContactStation(fault), contact_limits).invoke("guarded_press", PRESS)
+    assert (out["status"], out["failure_type"]) == ("failed", "backend_error")
+
+
+def test_waypoint_failure_keeps_the_arrivals_reached(limits):
+    class Stuck(FakeStation):
+        def move_pose(self, target, **kw):
+            if target["position_m"][0] > 0.45:
+                return {"ok": False}
+            return super().move_pose(target, **kw)
+
+    out = Runtime(Stuck(), limits).invoke(
+        "move_waypoints", {"waypoints": [pose(0.4), pose(0.5)], "linear": False}
+    )
+    assert (out["status"], out["failure_type"]) == ("failed", "motion_not_converged")
+    assert len(out["evidence"]["arrivals"]) == 1
+
+
+def test_context_exposes_state_limits_and_evidence_level(limits):
+    rt = Runtime(FakeStation(), limits)
+    with rt.task_lease("ep-4", 30) as lease:
+        ctx = primitive_skill_context(rt, lease, request_id="r")
+        state = ctx.state()
+        assert state["tcp_pose"]["frame_id"] == "world"
+        assert state["gripper"]["width_m"] == pytest.approx(0.08)
+        assert ctx.limits["max_state_age_s"] == limits.max_state_age_s
+        assert ctx.evidence_level == "unit_or_dryrun"
+        assert callable(ctx.sleep)
+    with pytest.raises(Exception, match="no station state"):
+        offline_context().state()
+
+
+# --- contract 1.2: move_joints, observation order ----------------------------
+
+NAMES = ["j1", "j2"]
+
+
+class JointStation(FakeStation):
+    def __init__(self, stall=False):
+        super().__init__(capabilities=BASE + ["joint_position_feedback", "joint_motion"])
+        self.q = [0.0, 0.0]
+        self.stall = stall
+
+    def describe(self):
+        return {
+            **super().describe(),
+            "joints": {
+                "names": NAMES,
+                "lower_rad": [-1.0, -1.0],
+                "upper_rad": [1.0, 1.0],
+                "max_velocity_rad_s": [1.0, 1.0],
+            },
+        }
+
+    def get_state(self, *, timeout_s):
+        state = super().get_state(timeout_s=timeout_s)
+        state["joints"] = {
+            "names": NAMES,
+            "positions_rad": list(self.q),
+            "timestamp_s": state["timestamp_s"],
+            "source": "fake_encoders",
+        }
+        return state
+
+    def move_joints(self, q_path, *, speed_rad_s, timeout_s):
+        self.calls.append("move_joints")
+        if not self.stall:
+            self.q = list(q_path[-1])
+        return {"ok": True}
+
+
+def test_move_joints_checks_limits_steps_and_arrival(limits):
+    path = [[0.1, 0.0], [0.2, 0.1], [0.3, 0.2]]
+    ok = Runtime(JointStation(), limits).invoke("move_joints", {"q_path": path})
+    assert ok["status"] == "succeeded", ok
+    assert ok["evidence"]["final_rad"] == [0.3, 0.2]
+    station = JointStation()
+    out = Runtime(station, limits).invoke("move_joints", {"q_path": [[1.5, 0.0]]})
+    assert (out["status"], out["failure_type"]) == ("rejected", "unreachable")
+    out = Runtime(station, limits).invoke("move_joints", {"q_path": [[0.5, 0.0]]})
+    assert (out["status"], out["failure_type"]) == ("rejected", "precondition_unmet")
+    assert station.calls == []
+    stuck = Runtime(JointStation(stall=True), limits).invoke("move_joints", {"q_path": path})
+    assert (stuck["status"], stuck["failure_type"]) == ("failed", "motion_not_converged")
+    plain = Runtime(FakeStation(), limits).invoke("move_joints", {"q_path": path})
+    assert (plain["status"], plain["failure_type"]) == ("rejected", "capability_missing")
+
+
+def test_context_state_includes_joints(limits):
+    rt = Runtime(JointStation(), limits)
+    with rt.task_lease("ep-j", 30) as lease:
+        state = primitive_skill_context(rt, lease, request_id="r").state()
+    assert state["joints"]["names"] == NAMES
+
+
+def test_explicit_occlusion_is_not_observed_with_the_providers_reason(limits):
+    station = FakeStation()
+    station.object_extra["d0"] = {
+        "visibility": "occluded",
+        "position_m": None,
+        "reason": "behind the gripper",
+    }
+    out = Runtime(station, limits).invoke("observe_objects", {"object_ids": ["d0"]})
+    assert (out["status"], out["failure_type"]) == ("unverified", "object_not_observed")
+    assert out["evidence"]["observations"][0]["reason"] == "behind the gripper"
+
+
+def test_held_object_vocabulary_v12():
+    held = {
+        "object_id": "d0",
+        "gripper_id": "g",
+        "T_TCP_object": pose(0, 0, 0, frame="tcp"),
+        "estimate": "grasp_geometry_prior",
+        "timestamp_s": 1.0,
+        "valid": False,
+        "invalidated_reason": "grasp_lost",
+        "invalidated_detail": "jaw width collapsed",
+    }
+    validate("HeldObject", held)
+    assert CONTRACT["object_frames"]["domino"]["+x"].startswith("facing")
+
+
+def test_graph_assign_of_a_missing_value_is_a_routed_graph_error():
+    x = Scripted("x", [("succeeded", None)])
+    nodes = {"a": {"skill": "x", "assign": {"k": "$last.a.outputs.missing"}, "on": ALL}}
+    episode = run_graph(graph(nodes, {"x": "1.0.0"}), {"x": x}, {}, ctx_factory)
+    assert (episode["status"], episode["steps"][0]["failure_type"]) == ("failed", "graph_error")
+
+
+# --- contract 1.3: station refusals, reachability query, real-time factor ----
+
+
+class RefusingStation(FakeStation):
+    def __init__(self, refuse=lambda pose: True, **kw):
+        super().__init__(**kw)
+        self.refuse = refuse
+        self.queries = []
+
+    def move_pose(self, pose, *, speed_m_s, timeout_s, linear):
+        if self.refuse(pose):
+            return {
+                "ok": False,
+                "error": "joint 6 at limit",
+                "failure_type": "unreachable",
+                "refused_before_motion": True,
+            }
+        return super().move_pose(pose, speed_m_s=speed_m_s, timeout_s=timeout_s, linear=linear)
+
+    def reachable(self, poses, *, chain, timeout_s):
+        self.queries.append((len(poses), chain))
+        return [
+            {"ok": not self.refuse(p), "reason": None if not self.refuse(p) else "j6"}
+            for p in poses
+        ]
+
+
+def test_station_refusal_is_unreachable_with_the_reason(limits):
+    out = Runtime(RefusingStation(), limits).invoke("move_pose", {"target_pose": pose(0.3, 0, 0.2)})
+    assert (out["status"], out["failure_type"]) == ("rejected", "unreachable")
+    assert "joint 6 at limit" in out["error"]["message"]
+    assert out["station_refusal"]["reason"] == "joint 6 at limit"
+    second = RefusingStation(refuse=lambda p: p["position_m"][2] < 0.15)
+    waypoints = [pose(0.3, 0, 0.2), pose(0.3, 0, 0.1)]
+    out = Runtime(second, limits).invoke(
+        "move_waypoints", {"waypoints": waypoints, "linear": False}
+    )
+    assert (out["status"], out["failure_type"]) == ("failed", "unreachable")
+    assert len(out["evidence"]["arrivals"]) == 1
+
+
+def test_reachability_query_moves_nothing(limits):
+    caps = BASE + ["reachability_query"]
+    station = RefusingStation(refuse=lambda p: p["position_m"][0] > 0.35, capabilities=caps)
+    out = Runtime(station, limits).invoke(
+        "check_reachability",
+        {"poses": [pose(0.3, 0, 0.2), pose(0.4, 0, 0.2), pose(9, 0, 0.2)], "chain": False},
+    )
+    assert out["status"] == "succeeded", out
+    assert [r["ok"] for r in out["evidence"]["results"]] == [True, False, False]
+    assert out["evidence"]["results"][2]["source"] == "station_limits"
+    assert station.queries == [(2, False)] and station.calls == []
+    plain = Runtime(FakeStation(), limits).invoke(
+        "check_reachability", {"poses": [pose(0.3, 0, 0.2)]}
+    )
+    assert plain["failure_type"] == "capability_missing"
+
+
+def test_real_time_factor_stretches_deadlines(limits):
+    class Slow(FakeStation):
+        def describe(self):
+            return {**super().describe(), "real_time_factor": 0.25}
+
+    rt = Runtime(Slow(), limits)
+    with rt.task_lease("ep-slow", 10) as lease:
+        assert lease.remaining() > 30
+    out = rt.invoke("move_pose", {"target_pose": pose(0.3, 0, 0.2), "timeout_s": 2})
+    assert {"event": "deadline_scaled", "real_time_factor": 0.25} in out["trace"]
+    assert real_time_factor({"real_time_factor": 3}) == 1.0
+    assert real_time_factor({"real_time_factor": 0.001}) == 0.05
+
+
+def test_context_carries_contact_description_only_for_compliant_stations(limits):
+    class Press(FakeStation):
+        def describe(self):
+            return {
+                **super().describe(),
+                "capabilities": BASE + ["contact_force_feedback", "compliant_motion"],
+                "contact_signal": {
+                    "quantity": "force",
+                    "unit": "N",
+                    "frame_id": "world",
+                    "calibration_id": "tare",
+                },  # fmt: skip
+                "controller": {"kind": "impedance", "loop_hz": 120, "process": "sim", "extra": 1},
+                "contact_limits": {"max_force_N": 50.0, "max_travel_m": 0.01},
+            }
+
+    capped = Limits.from_dict({**vars(limits), "max_contact_force_N": 10.0})
+    for station, lim, expect in ((Press(), capped, 10.0), (FakeStation(), limits, None)):
+        rt = Runtime(station, lim)
+        with rt.task_lease("ep-c", 10) as lease:
+            ctx = primitive_skill_context(rt, lease, request_id="r")
+        if expect is None:
+            assert ctx.contact_description is None
+        else:
+            d = ctx.contact_description
+            assert d["limits"]["max_force_N"] == expect and d["limits"]["max_travel_m"] == 0.01
+            assert d["controller"] == {"kind": "impedance", "loop_hz": 120, "process": "sim"}
+
+
+def test_sim_time_is_passed_through_when_the_backend_gives_it(limits):
+    class Simulated(FakeStation):
+        def get_state(self, *, timeout_s):
+            state = super().get_state(timeout_s=timeout_s)
+            for item in state["objects"].values():
+                item["sim_time_s"] = 12.5
+            return {**state, "sim_time_s": 12.5}
+
+    rt = Runtime(Simulated(), limits)
+    out = rt.invoke("observe_objects", {"object_ids": ["d0"]})
+    record = out["evidence"]["observations"][0]
+    assert record["sim_time_s"] == 12.5 and record["timestamp_s"] > 1.7e9
+    validate("Observation", record)
+    with pytest.raises(ValueError, match="sim_time_s"):
+        validate("Observation", {**record, "sim_time_s": -1.0})
+    moved = rt.invoke("move_pose", {"target_pose": pose(0.3, 0, 0.2)})
+    assert moved["evidence"]["state_sim_time_s"] == 12.5
+    with rt.task_lease("ep-sim", 10) as lease:
+        ctx = primitive_skill_context(rt, lease, request_id="r")
+        assert ctx.state()["sim_time_s"] == 12.5
+
+    plain = Runtime(FakeStation(), limits)
+    record = plain.invoke("observe_objects", {"object_ids": ["d0"]})["evidence"]["observations"][0]
+    assert "sim_time_s" not in record
+    assert (
+        "state_sim_time_s"
+        not in plain.invoke("move_pose", {"target_pose": pose(0.3, 0, 0.2)})["evidence"]
+    )
+    with plain.task_lease("ep-plain", 10) as lease:
+        assert "sim_time_s" not in primitive_skill_context(plain, lease, request_id="r").state()
+    bad = Simulated()
+    bad.get_state = lambda *, timeout_s: {
+        **FakeStation.get_state(bad, timeout_s=timeout_s),
+        "sim_time_s": float("nan"),
+    }
+    assert (
+        "state_sim_time_s"
+        not in Runtime(bad, limits).invoke("move_pose", {"target_pose": pose(0.3, 0, 0.2)})[
+            "evidence"
+        ]
+    )

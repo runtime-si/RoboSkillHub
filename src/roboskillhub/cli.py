@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import sys
@@ -222,6 +223,94 @@ def cmd_new(args) -> int:
     return 0
 
 
+def cmd_discover(args) -> int:
+    from .discovery import discover, load_candidates
+
+    data = load_candidates(args.root or find_root())
+    rows = discover(
+        data,
+        args.query,
+        category=args.category,
+        destination=args.destination,
+        priority=args.priority,
+        include_research_only=args.include_research_only,
+    )
+    if args.json:
+        print(
+            json.dumps(
+                {"query": args.query, "invocable_in_hub": False, "candidates": rows},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+    else:
+        print("Source-reviewed candidates; adaptation and validation required before invocation.")
+        for row in rows:
+            license_id = row["code_license"]["id"]
+            print(f"{row['priority']}  {row['id']}  [{row['hub_destination']}]  {row['name']}")
+            print(f"    code license: {license_id}; weights: {row['weights']['license']}")
+            print(f"    {row['source_url']}")
+        print(
+            f"{len(rows)} candidates; --json includes entrypoints, prerequisites and intake steps"
+        )
+    return 0
+
+
+def cmd_check_candidates(args) -> int:
+    from .discovery import load_candidates
+
+    data = load_candidates(args.root or find_root())
+    unpinned = sum(row["source_revision"] is None for row in data["candidates"])
+    print(f"{len(data['candidates'])} source candidates: metadata valid, {unpinned} unpinned")
+    print(
+        "This checks intake metadata only; it does not execute upstream code or validate hardware."
+    )
+    return 0
+
+
+def cmd_runtime(args) -> int:
+    from .runtime.api import describe, invoke
+
+    if args.runtime_action in ("list", "describe"):
+        with contextlib.redirect_stdout(sys.stderr):
+            result = describe(args.station)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.runtime_action == "invoke":
+        request = json.loads(Path(args.request).read_text(encoding="utf-8"))
+        with contextlib.redirect_stdout(sys.stderr):
+            result = invoke(args.capability, request, args.station)
+        print(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False))
+        return 0 if result["status"] == "succeeded" else 1
+    # Local JSON-lines protocol: one request/reply per line, no network listener.
+    # Station selection is trusted process configuration, never request data.
+    for line in sys.stdin:
+        ident = None
+        try:
+            if len(line) > 8 * 1024 * 1024:
+                raise ValueError("request exceeds 8 MiB; pass frames_path instead of image bytes")
+            message = json.loads(line)
+            if not isinstance(message, dict):
+                raise ValueError("message must be an object")
+            ident = message.get("id")
+            method = message.get("method")
+            if method == "describe":
+                with contextlib.redirect_stdout(sys.stderr):
+                    result = describe(args.station)
+            elif method == "invoke":
+                params = message.get("params", {})
+                with contextlib.redirect_stdout(sys.stderr):
+                    result = invoke(params["capability"], params["request"], args.station)
+            else:
+                raise ValueError("method must be describe or invoke")
+            response = {"id": ident, "result": result}
+            encoded = json.dumps(response, ensure_ascii=False, allow_nan=False)
+        except (ValueError, TypeError, KeyError, RuntimeError, OSError) as exc:
+            encoded = json.dumps({"id": ident, "error": {"message": str(exc)}}, ensure_ascii=False)
+        print(encoded, flush=True)
+    return 0
+
+
 def cmd_sources(args) -> int:
     from .source_index import find_sources, load_source_index
 
@@ -401,6 +490,25 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("name")
     p.set_defaults(fn=cmd_new)
 
+    p = sub.add_parser("discover", help="find reviewed upstream materials (not executable bundles)")
+    p.add_argument(
+        "query", nargs="?", default="", help="English or Chinese keywords, separated by spaces"
+    )
+    p.add_argument("--category", help="exact category from candidates/catalog.json")
+    p.add_argument("--destination", choices=("tool", "skill", "policy", "recipe"))
+    p.add_argument("--priority", choices=("P1", "P2", "P3"))
+    p.add_argument(
+        "--include-research-only",
+        action="store_true",
+        help="also list noncommercial research sources; weights have separate terms",
+    )
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(fn=cmd_discover)
+
+    sub.add_parser("check-candidates", help="validate source-intake metadata").set_defaults(
+        fn=cmd_check_candidates
+    )
+
     from .source_index import LICENSE_STATUSES, REVIEW_LEVELS
 
     p = sub.add_parser("sources", help="find indexed upstream sources (never executable bundles)")
@@ -416,6 +524,18 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("check-sources", help="validate the separate source index").set_defaults(
         fn=cmd_check_sources
     )
+
+    p = sub.add_parser("runtime", help="inspect and invoke station-bound capabilities")
+    rsub = p.add_subparsers(dest="runtime_action", required=True)
+    for action in ("list", "describe", "invoke", "serve"):
+        r = rsub.add_parser(action)
+        r.add_argument("--station", help="trusted station YAML; defaults to ROBOSKILLHUB_STATION")
+        if action == "invoke":
+            from .runtime.contracts import SCHEMAS
+
+            r.add_argument("capability", choices=tuple(SCHEMAS))
+            r.add_argument("--request", required=True, help="path to input JSON")
+        r.set_defaults(fn=cmd_runtime)
     return parser
 
 
