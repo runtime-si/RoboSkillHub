@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-27 tools, 146 skills, 2 policies, 1 recipe and 1 paper.
+27 tools, 147 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -131,6 +131,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`moving-both-arms-together`](#moving-both-arms-together) | execute | Moves both hands to their target poses as one coordinated motion. | any, 2 arms |
 | [`moving-through-waypoints`](#moving-through-waypoints) | execute | Moves the measured tool pose through a bounded list of waypoints on the configured YAM or Isaac workcell adapter… | yam_i2rt |
 | [`moving-to-pose`](#moving-to-pose) | execute | Moves the measured tool pose through the configured YAM or Isaac workcell adapter. | yam_i2rt |
+| [`picking-a-peg-with-a-side-grasp`](#picking-a-peg-with-a-side-grasp) | execute | Picks a peg with the left arm (pin, dowel, pen, rod, plug body) across its shaft, at a grip point that leaves at least… | any, 2 arms, **sim only** |
 | [`picking-and-placing-two-objects`](#picking-and-placing-two-objects) | execute | Picks two objects with two arms, one each, and places both. | any, 2 arms |
 | [`picking-upright-dominoes-from-a-loading-rack`](#picking-upright-dominoes-from-a-loading-rack) | execute | Takes the next domino out of a slotted loading rack, where tiles stand one per slot at a known pitch, instead of… | any |
 | [`placing-an-upright-domino-beside-neighbours`](#placing-an-upright-domino-beside-neighbours) | execute | Picks a standing domino top-down and sets it upright at a slot in a row without touching the tiles already standing… | any |
@@ -1841,6 +1842,25 @@ Moves the measured tool pose through the configured YAM or Isaac workcell adapte
   - `failed`: The attempted operation or tracking update did not meet its required condition.
   - `unverified`: Available evidence is insufficient to establish the requested physical postcondition.
   - `rejected`: The request, station configuration or required backend capability is not accepted.
+
+### picking-a-peg-with-a-side-grasp
+
+execute · robots: any, 2 arms, **sim only** · tasks: insertion, reorientation · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/picking-a-peg-with-a-side-grasp/SKILL.md) · [upstream](https://github.com/runtime-si/RoboSkillHub/tree/main/skills/standing-a-lying-domino-by-reorient-and-regrasp)
+
+Picks a peg with the left arm (pin, dowel, pen, rod, plug body) across its shaft, at a grip point that leaves at least 25 mm of the free end (the end opposite the tip) clear of the pads, and holds it with its axis vertical, free end up, at a handover point both arms reach. A standing peg is taken with a level side grasp; a lying peg is taken top-down across the shaft (a level grasp of a lying peg puts a finger under the table and the tool centre under the 14 mm floor), lifted, turned about the vertical, and pitched a quarter turn about the closing axis. The roll is set on the last joint (+/-2.09 rad) from forward kinematics, the hold is confirmed from the jaw opening, and the axis tilt is read back. Use when an elongated part (8-12 mm shaft, 60-120 mm long) must end upright in the left hand, free end up, for a top-down regrasp by the right arm (handing-over-a-peg-to-a-top-down-grasp reads `left_grip`).
+
+- **In**: `peg_pose` Se3Pose, `table_z` float
+- **Out**: `posture` str, `picked` bool, `axis_tilt_deg` float, `tilt_source` str, `grip_from_free_end_m` float, `grip_width_m` float, `facing_deg` float, `free_end` Vec3
+- **Calls**: connector `robot.close_gripper`, `robot.describe_arm`, `robot.describe_gripper`, `robot.forward_kinematics`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`, `robot.solve_ik`, `sim.get_object_obb`
+- **Scripts**: [`pick_peg`](skills/picking-a-peg-with-a-side-grasp/scripts/pick_peg.py)
+- **Exits**:
+  - `holding_vertical`: The left hand holds the peg at the handover point with its axis within tilt_threshold_deg (8) of vertical, free end up, at least min_exposed_m (less 4 mm) of it beyond the pads; `left_grip` is set. `tilt_source` says whether the tilt is the hand's (no re-perception, so what the hand did, not what the peg did) or perceived.
+  - `grasp_failed`: The descent stopped short of the grasp (a fingertip on the peg, or the peg moved), or the jaws closed to a width outside diameter -3 / +7 mm. Opened and backed out; nothing held.
+  - `dropped`: The jaws read narrower than the shaft after the lift, at the handover point or at the end, or the re-perceived peg is not between the jaws.
+  - `slipped`: Held at the handover point, but the axis is more than tilt_threshold_deg from vertical, or less of the free end is exposed than needed; still holding (`left_grip` is set so a caller can decide).
+  - `ungraspable`: Nothing moved. The peg cannot leave min_exposed_m free beyond the pads, is wider than the open hand, leans between standing and lying, or (lying) the fingertips at the tool-centre floor stand over the shaft's equator.
+  - `upside_down`: Nothing moved. The peg stands on its free end (tip up); one arm cannot turn it end over end.
+  - `unreachable`: No grasp plus held pose passed the IK preview for both arms (nothing moved), or a move, the lift, the turn or the last-joint correction was refused (`detail` says whether the left hand still holds the peg).
 
 ### picking-and-placing-two-objects
 

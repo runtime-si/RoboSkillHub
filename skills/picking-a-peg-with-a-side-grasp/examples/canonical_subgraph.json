@@ -1,0 +1,30 @@
+{
+  "skill": "picking-a-peg-with-a-side-grasp",
+  "inputs": {"peg": "Any", "peg_pose": "Se3Pose", "table_z": "float"},
+  "outputs": {
+    "left_grip": {"$ref": "pick.left_grip"},
+    "axis_tilt_deg": {"$ref": "pick.axis_tilt_deg"},
+    "posture": {"$ref": "pick.posture"},
+    "free_end": {"$ref": "pick.free_end"},
+    "detail": {"$ref": "pick.detail"}
+  },
+  "nodes": {
+    "pick": {
+      "type": "script",
+      "script": "scripts/pick_peg.py",
+      "inputs": {
+        "peg": {"$ref": "in.peg"},
+        "peg_pose": {"$ref": "in.peg_pose"},
+        "table_z": {"$ref": "in.table_z"},
+        "arm_id": 0,
+        "other_arm_id": 1
+      }
+    }
+  },
+  "edges": [["START", "pick"], ["pick", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["holding_vertical", "grasp_failed", "dropped", "slipped", "ungraspable", "upside_down"]
+  },
+  "on_error": "unreachable"
+}
