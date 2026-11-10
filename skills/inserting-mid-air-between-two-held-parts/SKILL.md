@@ -301,7 +301,7 @@ torsional friction on the blade-tip pads (~/yam_gap/skill_sources/SIM_GRIP.md). 
 | twin | peg in | held socket's axis error over the trials | socket's offset from the left tool centre |
 |---|---|---|---|
 | grip fix (impratio 100, solimp 0.99), no pad torsion | 0 of 9 | 22.5 -> 78.1 deg | 14.2 -> 22.4 mm |
-| + pad torsion (condim 4, 0.004 m), first 7 trials | 1 of 7 (trial 0, 0 mm injected: 17.0 mm deep, 0.75 mm off axis, 4.1 deg); trial 4 (1 mm) part-way, 2.2 mm | 4.1 -> 57.2 deg | 15.8 -> 17.3 mm |
+| + pad torsion (condim 4, 0.004 m), first 8 trials | 1 of 8 (trial 0, 0 mm injected: 17.0 mm deep, 0.75 mm off axis, 4.1 deg); trial 4 (1 mm) part-way, 2.2 mm | 4.1 -> 66.1 deg | 15.8 -> 17.3 mm |
 
 - Pad torsion keeps the parts in place in the jaws between trials: the socket's offset from the tool centre now
   stays within 1.5 mm. The first clean insertion went 17 mm deep.
