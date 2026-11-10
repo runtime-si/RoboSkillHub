@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-27 tools, 146 skills, 2 policies, 1 recipe and 1 paper.
+27 tools, 147 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -122,6 +122,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grasping-short-axis`](#grasping-short-axis) | execute | Deterministic short-axis-aligned grasp with CuRobo. | any, *tuned on* panda |
 | [`grasping-with-feedback`](#grasping-with-feedback) | execute | Approaches a supplied grasp pose, closes the gripper and checks available grasp evidence through a configured workcell… | yam_i2rt |
 | [`grasping-with-planner`](#grasping-with-planner) | execute | Top-down grasping via a fast axis-locked linear descend with a collision-aware cuRobo fallback. | any, *tuned on* panda |
+| [`handing-over-a-peg-to-a-top-down-grasp`](#handing-over-a-peg-to-a-top-down-grasp) | execute | Takes a vertical peg (pen, pin, dowel, rod, plug body) that one arm holds in a side grasp with its free end up, onto a… | any, 2 arms |
 | [`handing-over-between-arms`](#handing-over-between-arms) | execute | Hands the object one arm holds to the other arm. | any, 2 arms |
 | [`holding-steady-while-other-arm-acts`](#holding-steady-while-other-arm-acts) | execute | One arm holds an object still. | any, 2 arms |
 | [`inserting-a-peg-with-pose-refinement`](#inserting-a-peg-with-pose-refinement) | execute | Inserts a held peg into a perceived hole in three stages. | any |
@@ -1693,6 +1694,23 @@ Top-down grasping via a fast axis-locked linear descend with a collision-aware c
 - **Exits**:
   - `grasped`: Object held in the gripper after `close`.
   - `failed`: Any failure during the grasp attempt — the cartesian descend AND the collision-aware planner fallback both failed (a raise propagating to `on_error`). Coordinator routes to abort.
+
+### handing-over-a-peg-to-a-top-down-grasp
+
+execute · robots: any, 2 arms · tasks: insertion, bimanual · MIT · v0.1.0 · [`SKILL.md`](skills/handing-over-a-peg-to-a-top-down-grasp/SKILL.md) · [upstream](https://github.com/robotwin-Platform/RoboTwin/blob/main/envs/handover_block.py)
+
+Takes a vertical peg (pen, pin, dowel, rod, plug body) that one arm holds in a side grasp with its free end up, onto a top-down grasp on the other arm - the receiver comes down along -z over the free end with its jaws along the giver's jaw axis, bites as deep as the gap above the giver's pads allows (refused before anything moves when that gap is under 5 mm), closes and checks its jaw opening against the peg's diameter; only then does the giver open and back out horizontally, and the hold is rechecked after the back-out and on a short lift. Returns `held` (the peg's pose in the receiver's tool frame, the tip's offset below it, the axis tilt and a 1-sigma) for a top-down insertion. Use when a side-grasped peg must be regrasped from above before a top-down insertion (between picking-a-peg-with-a-side-grasp and inserting-a-held-peg-top-down), on a two-arm station with both arms addressable by arm_id and the receiver empty.
+
+- **In**: -
+- **Out**: `receiver_grip` float, `bite_m` float, `finger_gap_m` float, `receiver_grasp_pose` Se3Pose, `peg_top` Vec3
+- **Calls**: connector `robot.close_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`
+- **Scripts**: [`hand_over_peg`](skills/handing-over-a-peg-to-a-top-down-grasp/scripts/hand_over_peg.py)
+- **Exits**:
+  - `handed_over`: The receiver closed across the shaft (jaw width within width_tolerance of the diameter), the giver opened and backed out retreat_distance horizontally, and the receiver's jaws still held after the back-out and after a receiver_lift lift; `held` is the peg in the receiver's tool frame.
+  - `receiver_missed`: The receiver stopped short coming down, closed to the stop, or closed wider than the peg (not across the shaft); it opened and went back up to its pre-grasp, the giver never opened and still holds the peg.
+  - `dropped`: The giver's jaws were at the stop at the start (no peg), or the receiver's jaws ran to the stop after the giver opened, during its back-out or on the lift; `detail` says when.
+  - `collision_risk`: Pre-checked before the receiver comes down - the peg stands less than BITE_MIN + 10.2 mm fingertip reach + min_finger_gap above the giver's pads, or the receiver's jaw roll stays more than 20 deg off the giver's jaw axis; nothing touched the peg, the giver still holds it.
+  - `unreachable`: No separate receiver arm, the peg leans more than max_tilt_deg, the giver could not reach handover_position, the receiver could not reach its pre-grasp over the peg with either wrist solution, the giver's jaws did not open, or it could not back out (then the receiver holds the peg); `detail` says which.
 
 ### handing-over-between-arms
 

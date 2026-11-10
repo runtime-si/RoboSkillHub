@@ -1,0 +1,30 @@
+{
+  "skill": "handing-over-a-peg-to-a-top-down-grasp",
+  "inputs": {
+    "peg": "dict",
+    "left_grip": "dict"
+  },
+  "outputs": {
+    "held": {"$ref": "handover.held"},
+    "receiver_grip": {"$ref": "handover.receiver_grip"},
+    "peg_top": {"$ref": "handover.peg_top"}
+  },
+  "nodes": {
+    "handover": {
+      "type": "script",
+      "script": "scripts/hand_over_peg.py",
+      "inputs": {
+        "peg": {"$ref": "in.peg"},
+        "left_grip": {"$ref": "in.left_grip"},
+        "giver_arm": 0,
+        "receiver_arm": 1
+      }
+    }
+  },
+  "edges": [["START", "handover"], ["handover", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["handed_over", "receiver_missed", "dropped", "collision_risk"]
+  },
+  "on_error": "unreachable"
+}
