@@ -191,6 +191,21 @@ class PullUpCheck(_HubSkill):
         return result
 
 
+def _seat_options() -> dict:
+    """verifying-brick-seated-by-height options from the environment (LEGO_SEAT_ESTIMATOR,
+    LEGO_SEAT_HEIGHT_TOL_M, LEGO_SEAT_TILT_TOL_DEG); none set: the skill's defaults."""
+    import os
+
+    opts: dict = {}
+    if os.environ.get("LEGO_SEAT_ESTIMATOR"):
+        opts["face_estimator"] = os.environ["LEGO_SEAT_ESTIMATOR"]
+    if os.environ.get("LEGO_SEAT_HEIGHT_TOL_M"):
+        opts["height_tolerance"] = float(os.environ["LEGO_SEAT_HEIGHT_TOL_M"])
+    if os.environ.get("LEGO_SEAT_TILT_TOL_DEG"):
+        opts["tilt_tolerance_deg"] = float(os.environ["LEGO_SEAT_TILT_TOL_DEG"])
+    return opts
+
+
 class VerifySeatDepth(_HubSkill):
     skill_id = "hub.verify_seat_depth"
     bundle, script = "verifying-brick-seated-by-height", "verify_seat.py"
@@ -221,6 +236,7 @@ class VerifySeatDepth(_HubSkill):
             seat_yaw_deg=_yaw_deg(pose["quaternion_xyzw"]),
             brick_studs=list(m.get("brick", {}).get("studs", [2, 4])),
             system=m.get("brick", {}).get("system", "lego"),
+            **_seat_options(),
         )
         return self._finish(
             ctx,
