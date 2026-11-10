@@ -253,7 +253,9 @@ def test_the_drop_spot_is_chosen_clear_of_what_stands_round_the_hand(script):
 
 def test_no_clear_spot_is_refused(script):
     # Pieces 2 mm proud every 3 cm (1 cm gaps): table everywhere between them, no clear 47 mm disc.
-    field = [(0.3 + 0.03 * i, 0.1 + 0.03 * j, 0.01, 0.002) for i in range(-9, 10) for j in range(-9, 10)]
+    field = [
+        (0.3 + 0.03 * i, 0.1 + 0.03 * j, 0.01, 0.002) for i in range(-9, 10) for j in range(-9, 10)
+    ]
     arm = Arm(q6_deg=0.0, gain=1.0, obstacles=field)
     out = script.run(arm.ctx(), turn_deg=150.0, grasp_z=0.02, gain=1.0)
     assert out["route"] == "unreachable" and "drop spot" in out["detail"]
