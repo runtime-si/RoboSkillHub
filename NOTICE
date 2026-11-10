@@ -850,3 +850,10 @@ skills/picking-flat-pieces-by-suction-cup/scripts/suction_points.py reimplements
 baseline of arc-robot-vision (https://github.com/andyzeng/arc-robot-vision, commit 728139e9ad0e,
 suction-based-grasping/baseline/predict.m) in numpy, Apache License 2.0, Copyright (c) 2017 Andy Zeng et al.;
 the licence is skills/picking-flat-pieces-by-suction-cup/LICENSE.arc-robot-vision. The file's header lists the changes.
+
+skills/supporting-an-overhang-with-the-second-arm/scripts/support_and_press.py
+follows the support primitive of APEX-MR
+(https://github.com/intelligent-control-lab/APEX-MR, src/lego_policy.cpp
+LegoPolicy::support, and its sup_dx / sup_dy / sup_dz support offsets), MIT
+License, Copyright (c) Intelligent Control Lab, Carnegie Mellon University; no
+code is copied, and the press is the hub's pressing-a-brick-onto-studs.

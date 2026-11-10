@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-29 tools, 160 skills, 2 policies, 1 recipe and 1 paper.
+29 tools, 161 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -171,6 +171,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`stacking-objects`](#stacking-objects) | execute | Stacks the object the hand holds centred on top of a target object. | any |
 | [`standing-a-lying-domino-by-reorient-and-regrasp`](#standing-a-lying-domino-by-reorient-and-regrasp) | execute | Stands a flat-lying domino upright so a top-down pick can take it. | any, 2 arms |
 | [`straightening-a-cable-toward-a-target-curve`](#straightening-a-cable-toward-a-target-curve) | execute | Pulls a cable lying flat on a table toward a target curve, one correction at a time. | any |
+| [`supporting-an-overhang-with-the-second-arm`](#supporting-an-overhang-with-the-second-arm) | execute | Presses a LEGO / DUPLO brick onto a cantilevered or loosely held part with two arms. | any, 2 arms |
 | [`threading-a-cable-tip-through-a-ring`](#threading-a-cable-tip-through-a-ring) | execute | Threads the free tip of a held cable through a standing ring. | any |
 | [`tipping-over-a-surface-edge`](#tipping-over-a-surface-edge) | execute | Turn a body over on the surface it rests on instead of carrying it. | any, *tuned on* yam_i2rt, 2 arms, **sim only** |
 | [`transporting-objects`](#transporting-objects) | execute | Move the currently-held object to a destination and release. | any, *tuned on* panda |
@@ -2501,6 +2502,26 @@ Pulls a cable lying flat on a table toward a target curve, one correction at a t
   - `grasp_failed`: Two grasps in a row (one without a camera) closed on nothing; the hand is open over the cable.
   - `lost_cable`: The cable was not found by the camera, its fit was empty, or the cable seen is shorter than min_coverage (80 %) of the target in plan (part of it hidden or out of view).
   - `unreachable`: No pick among the PICK_TRIES (3) largest discrepancies was reachable (grasping-a-cable-lying-flat routed unreachable for each), or the carry to the place was refused; after a refused carry the cable was set down where the hand stood and released. `detail` says which.
+
+### supporting-an-overhang-with-the-second-arm
+
+execute · robots: any, 2 arms · tasks: assembly, lego, bimanual · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/supporting-an-overhang-with-the-second-arm/SKILL.md) · [upstream](https://github.com/intelligent-control-lab/APEX-MR/blob/6b5a17f1133c3f739caf50fa0fff6c478ef73b7a/src/lego_policy.cpp)
+
+Presses a LEGO / DUPLO brick onto a cantilevered or loosely held part with two arms - the support arm closes its hand and goes to a support pose under or beside the part (given as a pose, a point, or APEX-MR's support offset in studs from a brick), the other arm runs pressing-a-brick-onto-studs, and the support's read-back pose before and after says whether the structure moved. Use when a press would bend or break off an overhang, or push a loose sub-assembly away, and a second arm can reach a spot that takes the press force.
+
+- **In**: `seat_position` Vec3
+- **Out**: `press_route` string, `press_detail` string, `support_used` bool, `support_drift_mm` float
+- **Calls**: connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_cartesian_until_contact`, `robot.move_to_joints`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`support_and_press`](skills/supporting-an-overhang-with-the-second-arm/scripts/support_and_press.py)
+- **Exits**:
+  - `seated`: The press ended `seated` and the support hand drifted under moved_tolerance (3 mm) during it.
+  - `not_seated`: The press ended `not_seated` (partly pressed), the structure held still.
+  - `misaligned`: The press ended `misaligned`.
+  - `not_holding`: The press found no brick in its hand.
+  - `unverified`: Released, height not read.
+  - `structure_moved`: The support hand drifted more than 3 mm during the press - the part it holds gave way or the structure shifted.
+  - `support_unreachable`: The support arm could not reach the approach or the support pose (routed or raised refusal); nothing was pressed.
+  - `unreachable`: The press's own motion was refused.
 
 ### threading-a-cable-tip-through-a-ring
 
