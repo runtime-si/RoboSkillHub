@@ -105,7 +105,9 @@ def _brick(o, d, position, quat, studs=(2, 4)) -> np.ndarray:
         for j in range(1, ny):
             cx, cy = -nx * PITCH / 2 + i * PITCH, -ny * PITCH / 2 + j * PITCH
             s = TUBE_SIDE / 2
-            t = np.minimum(t, _box(ob, db, (cx - s, cy - s, 0.0), (cx + s, cy + s, BRICK_H - TOP_T)))
+            t = np.minimum(
+                t, _box(ob, db, (cx - s, cy - s, 0.0), (cx + s, cy + s, BRICK_H - TOP_T))
+            )
     return np.minimum(
         t, _studs(ob, db, BRICK_H, STUD_H, STUD_R, PITCH, nx, ny, -nx * PITCH / 2, -ny * PITCH / 2)
     )
@@ -130,7 +132,9 @@ def render(
     entries: position_m, quaternion_xyzw, class) seen from ``cam_pose`` (4x4, OpenCV camera in world)."""
     w, h = size
     u, v = np.meshgrid(np.arange(w) + 0.0, np.arange(h) + 0.0)
-    dc = np.stack([(u - k[0, 2]) / k[0, 0], (v - k[1, 2]) / k[1, 1], np.ones_like(u)], -1).reshape(-1, 3)
+    dc = np.stack([(u - k[0, 2]) / k[0, 0], (v - k[1, 2]) / k[1, 1], np.ones_like(u)], -1).reshape(
+        -1, 3
+    )
     d = dc @ cam_pose[:3, :3].T
     o = np.broadcast_to(cam_pose[:3, 3], d.shape).copy()
     with np.errstate(divide="ignore", invalid="ignore"):

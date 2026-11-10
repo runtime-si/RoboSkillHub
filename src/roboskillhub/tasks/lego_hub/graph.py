@@ -45,7 +45,11 @@ class Gate:
         status = request["status"]
         if status not in ("succeeded", "failed", "unverified", "rejected"):
             return ctx.result(self, "rejected", phase="validate", failure_type="invalid_request")
-        failure = None if status == "succeeded" else (request.get("failure_type") or "postcondition_failed")
+        failure = (
+            None
+            if status == "succeeded"
+            else (request.get("failure_type") or "postcondition_failed")
+        )
         return ctx.result(
             self, status, phase="verify", failure_type=failure, evidence={"gated_on": status}
         )
@@ -53,7 +57,12 @@ class Gate:
 
 def _pass(next_node: str, mode: str) -> dict:
     if mode == "report":
-        return {"succeeded": next_node, "failed": next_node, "unverified": next_node, "rejected": next_node}
+        return {
+            "succeeded": next_node,
+            "failed": next_node,
+            "unverified": next_node,
+            "rejected": next_node,
+        }
     return _edges(next_node)
 
 
@@ -64,6 +73,7 @@ def lego_press_hub(
     pull_up: bool = True,
     depth: bool = True,
     track: bool = True,
+    through_seat: bool = False,
     **press_kwargs: Any,
 ) -> dict:
     if mode not in ("report", "strict"):
@@ -88,8 +98,14 @@ def lego_press_hub(
         }
         g["skills"]["hub.classify_resting_face"] = HUB_VERSION
 
+    if through_seat:
+        # Diagnostic: release the brick wherever a failed seat left it, so the verifiers and the evaluator
+        # judge the same physical state (lego.guarded_seat's own verdict is in the episode).
+        nodes["seat"]["on"] = {**nodes["seat"]["on"], "failed": "release", "unverified": "release"}
     if pull_up:
-        nodes["seat"]["on"] = {k: ("pullup" if v == "release" else v) for k, v in nodes["seat"]["on"].items()}
+        nodes["seat"]["on"] = {
+            k: ("pullup" if v == "release" else v) for k, v in nodes["seat"]["on"].items()
+        }
         nodes["pullup"] = {
             "skill": "hub.pull_up_check",
             "params": {"object_id": "$last.select.outputs.piece"},
@@ -104,7 +120,12 @@ def lego_press_hub(
     chain = [n for n, on in (("depth", depth), ("track", track)) if on]
     if chain:
         first = chain[0]
-        nodes["verify"]["on"] = {"succeeded": first, "failed": first, "unverified": first, "rejected": first}
+        nodes["verify"]["on"] = {
+            "succeeded": first,
+            "failed": first,
+            "unverified": first,
+            "rejected": first,
+        }
         if depth:
             nodes["depth"] = {
                 "skill": "hub.verify_seat_depth",
@@ -148,7 +169,10 @@ def lego_press_hub(
             g["skills"]["hub.track_build"] = HUB_VERSION
         nodes["gate"] = {
             "skill": "hub.gate",
-            "params": {"status": "$last.verify.status", "failure_type": "$last.verify.failure_type"},
+            "params": {
+                "status": "$last.verify.status",
+                "failure_type": "$last.verify.failure_type",
+            },
             "timeout_s": 5,
             "max_visits": nodes["verify"].get("max_visits", 10),
             "on": verify_on,
@@ -158,7 +182,7 @@ def lego_press_hub(
 
     g["graph_id"] += f"+hub-{mode}"
     g["params"] = {**g.get("params", {}), "hub": {"mode": mode, "face": face, "pull_up": pull_up,
-                                                   "depth": depth, "track": track}}  # fmt: skip
+                                                   "depth": depth, "track": track, "through_seat": through_seat}}  # fmt: skip
     b = g["budgets"]
     g["budgets"] = {
         **b,

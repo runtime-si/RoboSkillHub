@@ -32,7 +32,12 @@ _OBJ, _STR, _ARR = {"type": "object"}, {"type": "string"}, {"type": "array"}
 
 
 def _schema(required: list[str], **props: dict) -> dict:
-    return {"type": "object", "additionalProperties": False, "required": required, "properties": props}
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": required,
+        "properties": props,
+    }
 
 
 def _yaw_deg(q_xyzw) -> float:
@@ -129,9 +134,26 @@ class PullUpCheck(_HubSkill):
         if "hold_lag_m" in request:
             kw["hold_lag"] = float(request["hold_lag_m"])
         # Station time follows wall time; the settle loop's own sleeps let it catch up.
-        out, tools = self._run_hub(ctx, {"pieces": []}, **kw)
+        tools = GapTools(ctx, [], seed=int(request.get("seed", 0)))
+        tools.watch = request.get("object_id")
+        out = load_script(self.bundle, self.script).run(tools, **kw)
+        log = tools.watch_log
+        zs = [e["obj_z"] for e in log if e["obj_z"] is not None]
+        brick_rise = (max(zs) - zs[0]) if len(zs) > 1 else None
+        hand = [e["tcp_z"] for e in log]
+        hand_rise = (max(hand) - hand[0]) if len(hand) > 1 else None
         held = [request["object_id"]] if request.get("object_id") else None
-        return self._finish(ctx, out, tools, {"connected": bool(out.get("connected"))}, observe=held)
+        result = self._finish(
+            ctx,
+            out,
+            tools,
+            {"connected": bool(out.get("connected")), "brick_rise_m": brick_rise},
+            observe=held,
+        )
+        result["evidence"]["pull_log"] = log
+        result["evidence"]["brick_rise_m"] = brick_rise
+        result["evidence"]["hand_rise_m"] = hand_rise
+        return result
 
 
 class VerifySeatDepth(_HubSkill):
@@ -169,7 +191,10 @@ class VerifySeatDepth(_HubSkill):
             ctx,
             out,
             tools,
-            {"seated": out["route"] == "seated", "height_error_m": float(out.get("height_error", 0.0))},
+            {
+                "seated": out["route"] == "seated",
+                "height_error_m": float(out.get("height_error", 0.0)),
+            },
         )
 
 
@@ -209,7 +234,11 @@ class ClassifyRestingFace(_HubSkill):
         out, tools = self._run_hub(
             ctx,
             {**request, "pieces": pieces},
-            brick_position={"x": float(p[0]), "y": float(p[1]), "z": float(request.get("table_z", 0.0))},
+            brick_position={
+                "x": float(p[0]),
+                "y": float(p[1]),
+                "z": float(request.get("table_z", 0.0)),
+            },
             brick_studs=list(request.get("studs", [2, 4])),
             system=request.get("system", "lego"),
             table_height=float(request.get("table_z", 0.0)),
@@ -244,9 +273,9 @@ class TrackBuild(_HubSkill):
         track = load_script(self.bundle, self.script).run
         state = request.get("state_json") or ""
         tracked = [b["id"] for b in json.loads(state)["bricks"]] if state else []
-        plate = request.get("plate_id") or ((request.get("mating") or {}).get("baseplate") or {}).get(
-            "object_id"
-        )
+        plate = request.get("plate_id") or (
+            (request.get("mating") or {}).get("baseplate") or {}
+        ).get("object_id")
         new = (
             [m["target_id"] for m in request.get("prebuilt") or []]
             if request["action"] == "init"

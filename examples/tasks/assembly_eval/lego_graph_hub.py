@@ -42,6 +42,8 @@ def _hub_brief(step: dict) -> dict:
         "failure_type": r.get("failure_type"),
         "route": ev.get("hub_route") or (r.get("outputs") or {}).get("verdict"),
         "reason": (ev.get("reason") or "")[:240],
+        "brick_rise_m": ev.get("brick_rise_m"),
+        "hand_rise_m": ev.get("hand_rise_m"),
     }
 
 
@@ -63,8 +65,10 @@ def pair(episode: dict, ind: dict) -> list[dict]:
         for node in HUB_NODES.values():
             v = by[node][k] if k < len(by[node]) else None
             row[node] = v
-            row[f"{node}_agree"] = None if v is None or v["status"] == "unverified" else (
-                (v["status"] == "succeeded") == ok
+            row[f"{node}_agree"] = (
+                None
+                if v is None or v["status"] == "unverified"
+                else ((v["status"] == "succeeded") == ok)
             )
         out.append(row)
     return out
@@ -78,15 +82,22 @@ def main() -> None:
     ap.add_argument("--mode", choices=["report", "strict"], default="report")
     ap.add_argument("--no-face", action="store_true")
     ap.add_argument("--no-pullup", action="store_true")
+    ap.add_argument(
+        "--through-seat", action="store_true", help="release after a failed seat too (diagnostic)"
+    )
     ap.add_argument("--breakage", action="store_true")
     ap.add_argument("--grip-force", type=float, default=2.0)
     ap.add_argument("--force-limit", type=float, default=6.0)
-    ap.add_argument("--fault", default=None, help="lego_station.STATION_FAULTS, on the last placement")
+    ap.add_argument(
+        "--fault", default=None, help="lego_station.STATION_FAULTS, on the last placement"
+    )
     ap.add_argument("--out", type=Path, required=True)
     args = ap.parse_args()
     K, unavailable = load_registry()
     args.out.mkdir(parents=True, exist_ok=True)
-    bricks = {"single_on_plate": 1, "single_on_brick": 1, "seq3_stack": 3, "seq3_spaced": 3}[args.scene]
+    bricks = {"single_on_plate": 1, "single_on_brick": 1, "seq3_stack": 3, "seq3_spaced": 3}[
+        args.scene
+    ]
     base.pair = pair
     env = base.LegoPhysicsEnv(
         K,
@@ -101,6 +112,7 @@ def main() -> None:
         mode=args.mode,
         face=not args.no_face,
         pull_up=not args.no_pullup,
+        through_seat=args.through_seat,
         recovery=False,
         attempts=1,
         bricks=bricks,
@@ -123,7 +135,11 @@ def main() -> None:
                 "graph_failure_type": ep.get("failure_type"),
                 "independent": ep["independent"]["outcome"],
                 "steps": [
-                    (s["node"], (s.get("result") or {}).get("status"), (s.get("result") or {}).get("failure_type"))
+                    (
+                        s["node"],
+                        (s.get("result") or {}).get("status"),
+                        (s.get("result") or {}).get("failure_type"),
+                    )
                     for s in ep.get("steps", [])
                 ],
                 "wall_s": round(ep["wall_s"], 1),

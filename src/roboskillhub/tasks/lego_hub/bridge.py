@@ -95,16 +95,36 @@ def _quat_xyzw(r: np.ndarray) -> list[float]:
     t = float(np.trace(r))
     if t > 0:
         s = 2 * math.sqrt(t + 1)
-        w, x, y, z = 0.25 * s, (r[2, 1] - r[1, 2]) / s, (r[0, 2] - r[2, 0]) / s, (r[1, 0] - r[0, 1]) / s
+        w, x, y, z = (
+            0.25 * s,
+            (r[2, 1] - r[1, 2]) / s,
+            (r[0, 2] - r[2, 0]) / s,
+            (r[1, 0] - r[0, 1]) / s,
+        )
     elif r[0, 0] > r[1, 1] and r[0, 0] > r[2, 2]:
         s = 2 * math.sqrt(1 + r[0, 0] - r[1, 1] - r[2, 2])
-        w, x, y, z = (r[2, 1] - r[1, 2]) / s, 0.25 * s, (r[0, 1] + r[1, 0]) / s, (r[0, 2] + r[2, 0]) / s
+        w, x, y, z = (
+            (r[2, 1] - r[1, 2]) / s,
+            0.25 * s,
+            (r[0, 1] + r[1, 0]) / s,
+            (r[0, 2] + r[2, 0]) / s,
+        )
     elif r[1, 1] > r[2, 2]:
         s = 2 * math.sqrt(1 + r[1, 1] - r[0, 0] - r[2, 2])
-        w, x, y, z = (r[0, 2] - r[2, 0]) / s, (r[0, 1] + r[1, 0]) / s, 0.25 * s, (r[1, 2] + r[2, 1]) / s
+        w, x, y, z = (
+            (r[0, 2] - r[2, 0]) / s,
+            (r[0, 1] + r[1, 0]) / s,
+            0.25 * s,
+            (r[1, 2] + r[2, 1]) / s,
+        )
     else:
         s = 2 * math.sqrt(1 + r[2, 2] - r[0, 0] - r[1, 1])
-        w, x, y, z = (r[1, 0] - r[0, 1]) / s, (r[0, 2] + r[2, 0]) / s, (r[1, 2] + r[2, 1]) / s, 0.25 * s
+        w, x, y, z = (
+            (r[1, 0] - r[0, 1]) / s,
+            (r[0, 2] + r[2, 0]) / s,
+            (r[1, 2] + r[2, 1]) / s,
+            0.25 * s,
+        )
     return [float(x), float(y), float(z), float(w)]
 
 
@@ -128,6 +148,8 @@ class GapTools:
         self.calls: list[str] = []
         self.renders = 0
         self.observations: dict[str, dict] = {}
+        self.watch: str | None = None
+        self.watch_log: list[dict] = []
 
     # gap's NodeContext surface used by the scripts
     def tool(self, name: str, **kw: Any) -> Any:
@@ -163,7 +185,10 @@ class GapTools:
     def _observation(self, **_kw) -> dict:
         state = self.ctx.state()
         tcp = state["tcp_pose"]
-        obs: dict[str, Any] = {"arms": [{"ee_pose": _gap_pose(tcp), "joint_state": {}}], "cameras": []}
+        obs: dict[str, Any] = {
+            "arms": [{"ee_pose": _gap_pose(tcp), "joint_state": {}}],
+            "cameras": [],
+        }
         if self.camera:
             cam = _matrix(tcp) @ CAMERA_IN_TCP
             clean = D.render(self._objects(), cam)
@@ -184,8 +209,26 @@ class GapTools:
     def _go_to_pose(self, pose: dict, **_kw) -> dict:
         r = self.ctx.invoke(
             "move_pose",
-            {"target_pose": _contract_pose(pose), "speed_m_s": self.speed, "timeout_s": self.timeout},
+            {
+                "target_pose": _contract_pose(pose),
+                "speed_m_s": self.speed,
+                "timeout_s": self.timeout,
+            },
         )
+        if self.watch:
+            # The watched object's height after each move (pull-up: did the brick come up?).
+            seen = (self.ctx.observe([self.watch]).get("evidence") or {}).get("observations") or [
+                {}
+            ]
+            tcp = self.ctx.state()["tcp_pose"]["position_m"]
+            p = seen[0].get("position_m")
+            self.watch_log.append(
+                {
+                    "cmd_z": float(pose["position"]["z"]),
+                    "tcp_z": float(tcp[2]),
+                    "obj_z": None if p is None else float(p[2]),
+                }
+            )
         if r.get("status") == "succeeded":
             return {"outcome": "reached", "reached": True}
         ft = r.get("failure_type") or ""
@@ -207,6 +250,7 @@ class GapTools:
 
     def _open(self, **_kw) -> dict:
         r = self.ctx.invoke(
-            "set_gripper", {"width_m": MAX_OPENING_M, "purpose": "release", "timeout_s": self.timeout}
+            "set_gripper",
+            {"width_m": MAX_OPENING_M, "purpose": "release", "timeout_s": self.timeout},
         )
         return {"success": r.get("status") == "succeeded"}
