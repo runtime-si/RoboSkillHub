@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-27 tools, 148 skills, 2 policies, 1 recipe and 1 paper.
+28 tools, 149 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -28,6 +28,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`omdet-turbo`](#omdet-turbo) | perceive | OmDet-Turbo fast open-vocabulary detection (omlab/omdet-turbo-swin-tiny-hf, Apache-2.0). | any, *tuned on* yam-station-orbbec-overhead |
 | [`owlv2`](#owlv2) | perceive | OWLv2 open-vocabulary detection (google/owlv2-*, Apache-2.0) in two modes. | any |
 | [`pose6d`](#pose6d) | perceive | 6D pose of a known rigid part from depth. | any |
+| [`rfdetr`](#rfdetr) | perceive | RF-DETR (Roboflow, Apache-2.0) train-and-run tools for a small station-specific detector. | any |
 | [`sahi`](#sahi) | perceive | Slicing-aided detection (SAHI) of small parts. | any |
 | [`sam2`](#sam2) | perceive | SAM 2.1 promptable video mask tracking (facebook/sam2.1-hiera-*, Apache-2.0; EdgeTAM as the fast option). | any, *tuned on* yam-station-orbbec-overhead, yam-left-wrist-d405 |
 | [`sam3`](#sam3) | perceive | Segment Anything 3 — text-, point-, and box-prompted instance segmentation, plus a stateful streaming video tracker… | any |
@@ -77,6 +78,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`tracking-identical-parts-by-id`](#tracking-identical-parts-by-id) | perceive | Keeps a stable id for each of many look-alike parts (dominoes, same-colour bricks, jigsaw pieces, cubes) across… | any |
 | [`tracking-objects`](#tracking-objects) | perceive | Long-running skill that drives the SAM3 tracker from the graph-scoped observation stream. | any |
 | [`tracking-points`](#tracking-points) | perceive | Tracks selected image points through the configured workcell tracking backend and reports visibility evidence. | yam_i2rt |
+| [`training-a-part-detector-from-auto-labels`](#training-a-part-detector-from-auto-labels) | perceive | Gets a fast station-specific detector for a fixed set of parts (bricks, dominoes, jigsaw pieces) without hand labelling. | any, *tuned on* yam-station-orbbec-overhead, yam-left-wrist-d405 |
 | [`aligning-parts-by-connector-constraints`](#aligning-parts-by-connector-constraints) | plan | Turns connector statements about a LEGO or DUPLO build. | any |
 | [`assigning-bricks-to-two-arms`](#assigning-bricks-to-two-arms) | plan | Assigns every brick of a LEGO or DUPLO build sequence to an arm. | any |
 | [`checking-design-connectivity-and-collisions`](#checking-design-connectivity-and-collisions) | plan | Checks a brick design on a stud grid before the arms build it. | any |
@@ -367,6 +369,18 @@ perceive · robots: any · tasks: pick-place, insertion, reorientation, sorting 
 - **Functions**:
   - `pose6d.register_mesh`: 6D pose of a known part (box / cube / cylinder primitive or mesh file) from its point cloud, with fitness, RMSE, coverage and its symmetric equivalents.
   - `pose6d.register_mask`: 6D pose of a known part from its segmentation mask and a depth frame (camera centre used as the viewpoint); world pose when a camera pose is given.
+
+### rfdetr
+
+perceive · robots: any · tasks: pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/rfdetr/SKILL.md) · [upstream](https://github.com/roboflow/rf-detr/tree/1.12.0)
+
+RF-DETR (Roboflow, Apache-2.0) train-and-run tools for a small station-specific detector -- fine-tune Nano / Small / Medium / Large from its COCO checkpoint on a COCO-format folder (e.g. one written by training-a-part-detector-from-auto-labels), then detect at 7 ms a 640 x 480 frame with labelled boxes in grounding-dino's shape. Use when an open-vocabulary detector is too slow or too noisy for a fixed set of parts (bricks, dominoes, pieces) seen by the station's own cameras.
+
+- **Weights**: `https://repo.roboflow.com/rfdetr/nano_coco/checkpoint_best_regular.pth`
+- **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
+- **Functions**:
+  - `rfdetr.train`: Fine-tune RF-DETR (Apache-2.0 sizes) on a COCO-format dataset folder; returns the model directory.
+  - `rfdetr.detect`: Run a trained RF-DETR model on an image (labelled boxes + scores, grounding-dino's shape).
 
 ### sahi
 
@@ -993,6 +1007,22 @@ Tracks selected image points through the configured workcell tracking backend an
   - `failed`: The attempted operation or tracking update did not meet its required condition.
   - `unverified`: Available evidence is insufficient to establish the requested physical postcondition.
   - `rejected`: The request, station configuration or required backend capability is not accepted.
+
+### training-a-part-detector-from-auto-labels
+
+perceive · robots: any, *tuned on* yam-station-orbbec-overhead, yam-left-wrist-d405 · tasks: pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/training-a-part-detector-from-auto-labels/SKILL.md) · [upstream](https://github.com/autodistill/autodistill/tree/838e1c39f9fd)
+
+Gets a fast station-specific detector for a fixed set of parts (bricks, dominoes, jigsaw pieces) without hand labelling. An open-vocabulary teacher (mm-grounding-dino by default, through sahi.detect_sliced for 10-30 px parts) boxes a folder of station frames from a caption ontology ("lego brick" -&gt; brick, "domino" -&gt; domino). The boxes become a COCO dataset with a train / valid split, the labels are checked (per-class counts, empty frames), and a small RF-DETR student is fine-tuned on them with tools/rfdetr. Routes detector_trained, too_few_labels, label_quality_low or training_failed. Use when a closed loop needs a detector for a fixed set of parts and the open-vocabulary detectors are too slow (0.3-2 s a frame) - once per station and part set, again when new parts arrive; the student runs in 7 ms.
+
+- **In**: `frames_dir` string, `ontology` string, `out_dir` string
+- **Out**: `model_path` string, `n_images` int, `n_empty` int, `median_score` float, `dataset_dir` string
+- **Calls**: [`mm-grounding-dino`](#mm-grounding-dino), [`rfdetr`](#rfdetr), [`sahi`](#sahi)
+- **Scripts**: [`train_from_auto_labels`](skills/training-a-part-detector-from-auto-labels/scripts/train_from_auto_labels.py)
+- **Exits**:
+  - `detector_trained`: The teacher's labels passed the checks, the dataset was written to out_dir/dataset and rfdetr.train wrote the model directory model_path (use it with rfdetr.detect).
+  - `too_few_labels`: Some class has fewer than min_labels (50) teacher boxes over all frames; counts says which; add frames that show it (or lower min_score).
+  - `label_quality_low`: The teacher found nothing in more than max_empty (50 %) of the frames - wrong prompts, wrong scale or frames without the parts; nothing was trained.
+  - `training_failed`: rfdetr.train raised (no GPU, out of memory, a broken dataset) - the on_error route; the dataset stays in out_dir/dataset.
 
 ### aligning-parts-by-connector-constraints
 
