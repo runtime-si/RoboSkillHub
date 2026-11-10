@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-29 tools, 153 skills, 2 policies, 1 recipe and 1 paper.
+29 tools, 154 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -59,6 +59,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`estimating-relative-rotation-and-symmetry`](#estimating-relative-rotation-and-symmetry) | perceive | How far a part is turned in the image plane between a reference view and the current view (both from the wrist camera… | any, *tuned on* yam-left-wrist-d405-renders |
 | [`framing-a-target-by-mask-edge-steering`](#framing-a-target-by-mask-edge-steering) | perceive | Moves the wrist camera until a named target lies wholly inside its image with a margin. | any |
 | [`localizing-a-piece-in-a-reference-image`](#localizing-a-piece-in-a-reference-image) | perceive | Finds which grid cell of a jigsaw's box picture one piece belongs to, and how far the piece is turned, from a close-up… | any |
+| [`measuring-a-held-piece-from-the-wrist-camera`](#measuring-a-held-piece-from-the-wrist-camera) | perceive | Measures where a flat held part (a jigsaw piece) sits in the gripper. | any |
 | [`observing-object-poses`](#observing-object-poses) | perceive | Reads independently observed object positions, and orientations where the backend provides them, from the configured… | yam_i2rt |
 | [`perceiving-deformable-linear-objects`](#perceiving-deformable-linear-objects) | perceive | Read a cable's ordered 3D centreline from one RGB-D frame and keep it current across a task. | any |
 | [`perceiving-functional-features`](#perceiving-functional-features) | perceive | Locates a language-described functional part of a rigid object or fixture from calibrated RGB-D and fits a typed loop… | any |
@@ -727,6 +728,21 @@ Finds which grid cell of a jigsaw's box picture one piece belongs to, and how fa
   - `located`: The best cell's score is at least min_score (0.45) and beats every other cell by min_margin (0.04; 0.10 when the scale was guessed from the mask area); col, row and angle_deg are the answer.
   - `ambiguous`: The best cell does not stand out (repetitive or flat art); `candidates` ranks the cells for a shape check. A low-texture piece always lands here, with the flat cells of its colour as candidates.
   - `not_found`: The best score is under min_score, a flat piece matches no flat cell, or the input could not be used (empty mask, no scale, no placement inside the picture).
+
+### measuring-a-held-piece-from-the-wrist-camera
+
+perceive · robots: any · tasks: jigsaw, pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/measuring-a-held-piece-from-the-wrist-camera/SKILL.md)
+
+Measures where a flat held part (a jigsaw piece) sits in the gripper - x, y, yaw and its bottom's height relative to the tool centre, with uncertainty - from one wrist depth frame, by fitting the part's known top-down shape (its mask from before the pick) to what the camera sees past the blades - depth points at the part's top height say "part here", points on the surface below traced back to that height say "no part here" - with a coarse-to-fine search round the expected grip. Use when a pick may have slipped or turned the part and a place needs its true offset and yaw (e.g. seating-a-piece-by-wiggle-search's held_offset and yaw_error_deg), after the pick and again after turning it; no motion, about 1.5 s on CPU.
+
+- **In**: `piece_mask` Mask, `metres_per_pixel` float, `grip_width_m` float
+- **Out**: `n_piece_points` int, `score` float
+- **Calls**: connector `robot.get_ee_pose`, `robot.get_observation`
+- **Scripts**: [`measure_held`](skills/measuring-a-held-piece-from-the-wrist-camera/scripts/measure_held.py)
+- **Exits**:
+  - `measured`: The fit is sharp (spread of near-best poses under 1.5 mm and 4 deg); tcp_piece {x, y, z, yaw_deg} gives the body centre (z its bottom) and the piece frame's yaw in the tool frame, world_pose the same in the world, sigma the spread.
+  - `ambiguous`: A fit was found but too little of the piece is visible to pin it down (spread over 1.5 mm or 4 deg); the pose is returned with its spread.
+  - `not_seen`: No wrist camera with depth, an empty mask, or under 60 depth points at a piece-top height under the jaws (nothing held, or out of view).
 
 ### observing-object-poses
 
