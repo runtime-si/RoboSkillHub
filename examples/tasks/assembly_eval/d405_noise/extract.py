@@ -31,11 +31,17 @@ for f in sorted(glob.glob(sys.argv[1] + "/*/**/episode.json", recursive=True)):
         g = groups[k] if k < len(groups) else {}
         post = {c["name"]: c["passed"] for c in p["postconditions"]}
         row = {
-            "episode": f"{name}/seed{e['seed']}", "seed": e["seed"], "scene": scene, "fault": fault, "k": k,
+            "episode": f"{name}/seed{e['seed']}",
+            "seed": e["seed"],
+            "scene": scene,
+            "fault": fault,
+            "k": k,
             "truth_pick": bool(post.get("grasped") and post.get("held_until_place")),
-            "truth_place": p["status"] == "succeeded", "failure_type": p["failure_type"],
+            "truth_place": p["status"] == "succeeded",
+            "failure_type": p["failure_type"],
         }
-        pick = g.get("pick"); conf = g.get("confirm")
+        pick = g.get("pick")
+        conf = g.get("confirm")
         if pick:
             r, ev, o = res(pick)
             row["pick_status"], row["pick_held"] = r.get("status"), o.get("held")
@@ -53,13 +59,21 @@ for f in sorted(glob.glob(sys.argv[1] + "/*/**/episode.json", recursive=True)):
             row["release_status"], row["release_holding"] = r.get("status"), m.get("holding")
         if g.get("pullup"):
             r, ev, o = res(g["pullup"])
-            row["pull_route"], row["brick_rise_m"], row["pull_status"] = ev.get("hub_route") or o.get("route"), ev.get("brick_rise_m"), r.get("status")
+            row["pull_route"], row["brick_rise_m"], row["pull_status"] = (
+                ev.get("hub_route") or o.get("route"),
+                ev.get("brick_rise_m"),
+                r.get("status"),
+            )
         if g.get("verify"):
             r, ev, o = res(g["verify"])
             row["verify_verdict"], row["verify_status"] = o.get("verdict"), r.get("status")
         if g.get("depth"):
             r, ev, o = res(g["depth"])
-            row["seat_route"], row["height_error_m"], row["depth_status"] = ev.get("hub_route") or o.get("route"), o.get("height_error_m"), r.get("status")
+            row["seat_route"], row["height_error_m"], row["depth_status"] = (
+                ev.get("hub_route") or o.get("route"),
+                o.get("height_error_m"),
+                r.get("status"),
+            )
         rows.append(row)
 Path(sys.argv[2]).write_text("\n".join(json.dumps(r, default=str) for r in rows) + "\n")
 print(len(rows), "placements from", len({r["episode"] for r in rows}), "episodes")

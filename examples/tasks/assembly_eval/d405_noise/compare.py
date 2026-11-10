@@ -18,13 +18,28 @@ ray = [r for r in ray if key(r) in have]
 
 
 def fused(r):
-    rel = "stalled_jammed" if (r.get("release_status") == "failed" or r.get("release_holding") is True) else ("reached" if r.get("release_status") else "")
-    return F.run(None, "place", release_grip_route=rel, seat_route=r.get("seat_route") or "", height_error_m=r.get("height_error_m"),
-                 pull_route="not_connected" if r.get("brick_rise_m") is not None else "", brick_rise_m=r.get("brick_rise_m"))["route"]
+    rel = (
+        "stalled_jammed"
+        if (r.get("release_status") == "failed" or r.get("release_holding") is True)
+        else ("reached" if r.get("release_status") else "")
+    )
+    return F.run(
+        None,
+        "place",
+        release_grip_route=rel,
+        seat_route=r.get("seat_route") or "",
+        height_error_m=r.get("height_error_m"),
+        pull_route="not_connected" if r.get("brick_rise_m") is not None else "",
+        brick_rise_m=r.get("brick_rise_m"),
+    )["route"]
 
 
 def depth(r):
-    return None if not r.get("seat_route") or r.get("depth_status") == "unverified" else r["seat_route"] == "seated"
+    return (
+        None
+        if not r.get("seat_route") or r.get("depth_status") == "unverified"
+        else r["seat_route"] == "seated"
+    )
 
 
 def score(rows, judge):
@@ -45,12 +60,42 @@ def score(rows, judge):
 
 
 print(f"{len(ren)} rendered placements matched with {len(ray)} ray-cast ones")
-print("| depth source | judge | false done | successes accepted | uncertain | failures caught |\n|---|---|---|---|---|---|")
+print(
+    "| depth source | judge | false done | successes accepted | uncertain | failures caught |\n|---|---|---|---|---|---|"
+)
 for name, rows in (("ray-cast (round 3)", ray), ("Isaac RTX render", ren)):
     print(f"| {name} | depth seat alone | {score(rows, depth)} |")
     print(f"| {name} | fused (#162) | {score(rows, fused)} |")
 hs = [round(r["height_error_m"] * 1e3, 2) for r in ren if r.get("height_error_m") is not None]
-print("rendered height errors (mm), succeeded:", sorted(round(r["height_error_m"] * 1e3, 2) for r in ren if r.get("height_error_m") is not None and r["truth_place"]))
-print("rendered height errors (mm), failed:", sorted(round(r["height_error_m"] * 1e3, 2) for r in ren if r.get("height_error_m") is not None and not r["truth_place"]))
-print("ray-cast height errors (mm), succeeded:", sorted(round(r["height_error_m"] * 1e3, 2) for r in ray if r.get("height_error_m") is not None and r["truth_place"]))
-print("ray-cast height errors (mm), failed:", sorted(round(r["height_error_m"] * 1e3, 2) for r in ray if r.get("height_error_m") is not None and not r["truth_place"]))
+print(
+    "rendered height errors (mm), succeeded:",
+    sorted(
+        round(r["height_error_m"] * 1e3, 2)
+        for r in ren
+        if r.get("height_error_m") is not None and r["truth_place"]
+    ),
+)
+print(
+    "rendered height errors (mm), failed:",
+    sorted(
+        round(r["height_error_m"] * 1e3, 2)
+        for r in ren
+        if r.get("height_error_m") is not None and not r["truth_place"]
+    ),
+)
+print(
+    "ray-cast height errors (mm), succeeded:",
+    sorted(
+        round(r["height_error_m"] * 1e3, 2)
+        for r in ray
+        if r.get("height_error_m") is not None and r["truth_place"]
+    ),
+)
+print(
+    "ray-cast height errors (mm), failed:",
+    sorted(
+        round(r["height_error_m"] * 1e3, 2)
+        for r in ray
+        if r.get("height_error_m") is not None and not r["truth_place"]
+    ),
+)

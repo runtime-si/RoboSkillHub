@@ -77,7 +77,36 @@ What to know:
 
 ## Re-run: depth seat and the #162 fused judge on noisy rendered depth
 
-RESULTS_PLACEHOLDER
+LEGO physics station with the RTX cameras (#171), `LEGO_RENDER=1
+LEGO_RENDER_NOISE=fitted` (and `fitted:2`), single_on_plate + single_on_brick x
+{no fault + 6 station faults} x seeds 3-5 (42 placements each), the #162
+thresholds unchanged:
+
+| wrist depth | judge | false done | successes accepted | uncertain | failures caught |
+|---|---|---|---|---|---|
+| RTX render + old noise model (#171) | depth seat | 0/21 | 15/21 | 12 | 15/21 |
+| RTX render + old noise model | fused #162 | 0/21 | 15/21 | 6 | 21/21 |
+| **RTX render + fitted noise** | depth seat | 0/18 | **0/24** | 12 | 12/18 |
+| **RTX render + fitted noise** | fused #162 | **0/18** | **0/24** | 24 | 18/18 |
+| RTX render + fitted noise x2 | depth seat | 0/18 | 0/24 | 12 | 12/18 |
+| RTX render + fitted noise x2 | fused #162 | 0/18 | 0/24 | 24 | 18/18 |
+
+(The re-runs' physics put 24 of 42 placements in the seat this time, against
+21 in #171: the outcome of the same seed is not bit-identical between runs.)
+
+- **The verdicts do not hold.** Under the fitted noise the depth seat check
+  routed **every** brick `tilted` - all 24 seated ones too - so it accepts
+  nothing; the fused judge stays safe (no false done) but passes no success.
+- Seat height errors under the noise: seated 0.92-1.17 mm (x2: 1.01-2.21),
+  failed 2.21-2.80 mm (x2: 2.38-3.66), against 0.06-0.11 / 1.75-1.81 mm
+  without it: the gap between seated and not seated shrinks from 1.6 mm to
+  ~1 mm (and closes at x2).
+- The likely cause is the smooth term (1.0 mm at 15 cm over a 30 px scale):
+  across a 2x4 brick's top it reads as a tilt beyond the seat check's
+  tolerance. That term is fitted on wood and includes the table's relief, so
+  it overstates the sensor; the next step is to fit it on a flat reference (or
+  on repeated frames of a static scene, which separates sensor from relief)
+  and to re-tune the seat check's tilt and height tolerances on noisy depth.
 
 ## In the LEGO station
 
