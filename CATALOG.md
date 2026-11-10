@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-28 tools, 149 skills, 2 policies, 1 recipe and 1 paper.
+28 tools, 150 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -195,6 +195,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`returning-to-a-recorded-pose`](#returning-to-a-recorded-pose) | recover | Opens the gripper and drives the arm back to a joint configuration recorded earlier in the episode, then checks from a… | any |
 | [`classifying-failure-type-vlm`](#classifying-failure-type-vlm) | judge | Classifies why a manipulation step failed from camera frames taken before, during (optional, a short video as frames)… | any |
 | [`detecting-subtask-success`](#detecting-subtask-success) | judge | Checks whether a subtask is done from the latest frame of every camera at one moment. | any |
+| [`judging-assembly-steps-by-fused-checks`](#judging-assembly-steps-by-fused-checks) | judge | Turns the routes and numbers of the hub's per-step checks into one verdict for an assembly step. | any |
 | [`judging-attempt-success-from-frames-robojev`](#judging-attempt-success-from-frames-robojev) | judge | Decides whether a step succeeded from cameras alone with one calibrated number. | any |
 | [`judging-step-with-before-now-vlm`](#judging-step-with-before-now-vlm) | judge | Judges the current subgoal of a task from camera frames taken before the step and now. | any |
 | [`scoring-step-progress-from-one-frame`](#scoring-step-progress-from-one-frame) | judge | Judges whether a step is done from the current camera frame alone. | any |
@@ -2887,6 +2888,20 @@ Checks whether a subtask is done from the latest frame of every camera at one mo
   - `not_yet`: Asked once (timeout_s 0) and the reply was FINAL ANSWER no, or had no FINAL ANSWER even after the follow-up (read as no, as upstream did).
   - `timed_out`: timeout_s &gt; 0 passed without a yes; `checks` replies were all no or unparsed.
   - `no_view`: Nothing was judged - no camera had RGB in any observation, or every vlm.query call raised; `reason` says which.
+
+### judging-assembly-steps-by-fused-checks
+
+judge · robots: any · tasks: lego, pick-place, domino, jigsaw · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/judging-assembly-steps-by-fused-checks/SKILL.md)
+
+Turns the routes and numbers of the hub's per-step checks into one verdict for an assembly step - done, failed with the reason, or uncertain - trusting per step type the checks that see its failure modes. Pick - the gripper-opening stall (and a scene-diff / VLM check only to contradict). Place / press - depth seat height and the brick's rise under the pull-up must both pass; the jaws must have opened at the release; a camera VLM only breaks a tie towards failure; RynnValue's remaining time can hold back a done. Routes done, failed or uncertain. Use when a LEGO, domino or jigsaw graph must decide after a pick or a place whether to go on, retry or ask, with whichever of those checks ran; logic only, no motion, no camera.
+
+- **In**: `step_type` string
+- **Out**: `reason` string, `step_type` string
+- **Scripts**: [`fuse_checks`](skills/judging-assembly-steps-by-fused-checks/scripts/fuse_checks.py)
+- **Exits**:
+  - `done`: Pick - the jaws stopped on the part (tracking-gripper-opening-stall stalled_on_object, or the hand reports it held) and no camera check contradicts. Place - the jaws opened at the release, the depth seat reads seated within max_height_error_m (0.3 mm) and the brick rose at most max_pull_rise_m (0.6 mm) under the pull-up; and RynnValue, if given, expects at most rynn_veto_s (2.5 s) more.
+  - `failed`: A check that sees this failure mode failed - the jaws closed on nothing or on the wrong width (pick), did not open at the release, both geometric checks failed, the only geometric check failed, or they disagree and the camera judge says not done; `reason` names it.
+  - `uncertain`: The evidence cannot pass the step - no geometric check ran (a camera judge alone passes unseated bricks), only one of the two ran and passed, they disagree without a camera "not done", the jaws hold something the camera says is still at the source, or RynnValue vetoed a done.
 
 ### judging-attempt-success-from-frames-robojev
 
