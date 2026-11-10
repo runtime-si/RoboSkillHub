@@ -1,0 +1,56 @@
+# One capability, several implementations. Every implementation returns the same outputs;
+# the exit is decided by the shared verifier (roboskillhub.capability.verify_pick), never by
+# the implementation's own claim. Format: docs/capabilities.md.
+capability_version: 1
+capability: pick_object
+version: 0.1.0
+description: Pick one object off the table with one arm and hold it clear of the support.
+
+inputs:
+  object_ref: {type: object, required: true, one_of: [id, text, point]}
+  arm: {type: string, enum: [left, right, auto], default: auto}
+  grasp_hint: {type: pose, required: false}
+
+outputs:
+  held_object: {type: string}
+  T_TCP_object: {type: pose, required: false}
+  evidence: {type: object}
+
+exits:
+  picked: The object is in the jaws and followed the hand over the lift.
+  missed: The jaws closed on nothing, or nothing says the object is held.
+  slipped: The jaws closed on the object, but it was lost on the lift.
+  unreachable: No arm can reach a grasp on the object; nothing was attempted.
+  refused: A precondition failed or the implementation declined; nothing was attempted.
+  timeout: The attempt ran past timeout_s.
+
+preconditions: [object_visible, arm_free, gripper_open]
+timeout_s: 30
+
+verifier: verify_pick
+
+implementations:
+  - id: program-grasp
+    kind: program
+    bundle: program-grasp
+  - id: hub-grasp
+    kind: skill
+    bundle: hub-grasp
+  - id: policy:molmoact2-yam
+    kind: policy
+    bundle: molmoact2-yam
+  - id: policy:pi05-yam
+    kind: policy
+    bundle: pi05-yam
+
+# Per setting. Judged from the newest eval record of an implementation for the asked
+# embodiment and setting; the record's own `passed` is not trusted.
+acceptance:
+  sim:
+    min_episodes: 50
+    min_success_rate: 0.8
+    max_false_picked_rate: 0.01
+  real:
+    min_episodes: 20
+    min_success_rate: 0.8
+    max_false_picked_rate: 0.01

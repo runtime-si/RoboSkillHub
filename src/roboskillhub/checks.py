@@ -17,6 +17,7 @@ import ast
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from .catalog import Catalog, Issue
@@ -587,6 +588,25 @@ def check_evals(catalog: Catalog) -> list[Issue]:
     return out
 
 
+def check_capabilities(root: Path) -> list[Issue]:
+    import yaml
+
+    from .capability.spec import capabilities_dir, validate
+
+    out: list[Issue] = []
+    for path in sorted(capabilities_dir(root).glob("*.yaml")):
+        where = path.relative_to(root).as_posix()
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except yaml.YAMLError as exc:
+            out.append(Issue("error", where, f"invalid YAML: {exc}"))
+            continue
+        out.extend(Issue("error", where, msg.split(": ", 1)[-1]) for msg in validate(data, where))
+        if isinstance(data, dict) and data.get("capability") != path.stem:
+            out.append(Issue("error", where, "capability must match the file name"))
+    return out
+
+
 def check_all(
     catalog: Catalog, api: GapApi | None = None, *, require_gap: bool = False
 ) -> list[Issue]:
@@ -609,4 +629,5 @@ def check_all(
     for paper in catalog.papers.values():
         out.extend(check_paper(paper, catalog))
     out.extend(check_evals(catalog))
+    out.extend(check_capabilities(catalog.root))
     return out

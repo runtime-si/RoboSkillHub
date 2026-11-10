@@ -17,8 +17,9 @@ A VLM verdict only breaks a tie between the measurements; it never overrides one
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
-from typing import Any, Literal, Sequence
+from typing import Any, Literal
 
 from . import hub_skills
 
@@ -113,11 +114,11 @@ def _vec(v: Sequence[float]) -> tuple[float, float, float]:
 
 
 def _sub(a, b):
-    return tuple(p - q for p, q in zip(a, b))
+    return tuple(p - q for p, q in zip(a, b, strict=True))
 
 
 def _dot(a, b) -> float:
-    return sum(p * q for p, q in zip(a, b))
+    return sum(p * q for p, q in zip(a, b, strict=True))
 
 
 def _norm(a) -> float:
@@ -145,10 +146,7 @@ def classify_trace(
         travel = abs(value - start)
         if travel < mod.MIN_TRAVEL_M or value < target_m or target_m >= start:
             return {"route": "stalled_jammed", "actual_m": value, "samples": i + 1}
-        if (
-            expected_width_m is not None
-            and abs(value - expected_width_m) > mod.WIDTH_TOLERANCE_M
-        ):
+        if expected_width_m is not None and abs(value - expected_width_m) > mod.WIDTH_TOLERANCE_M:
             return {"route": "unexpected_width", "actual_m": value, "samples": i + 1}
         return {"route": "stalled_on_object", "actual_m": value, "samples": i + 1}
     return {"route": "still_moving", "actual_m": trace[-1], "samples": len(trace)}
@@ -324,11 +322,7 @@ def verify_pick(obs: PickObservation, claim: str | None = None) -> PickVerdict:
     failed = _precondition_failures(obs)
     if failed:
         return done("refused", f"preconditions not met: {', '.join(failed)}")
-    if (
-        obs.elapsed_s is not None
-        and obs.timeout_s is not None
-        and obs.elapsed_s > obs.timeout_s
-    ):
+    if obs.elapsed_s is not None and obs.timeout_s is not None and obs.elapsed_s > obs.timeout_s:
         return done("timeout", f"took {obs.elapsed_s:.1f} s, over the {obs.timeout_s:.0f} s limit")
     attempted = _attempted(evidence["gripper"], votes)
     if claim in ("unreachable", "refused") and not attempted:

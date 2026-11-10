@@ -10,7 +10,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 import types
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 from types import ModuleType
 
@@ -20,7 +20,7 @@ GRIPPER_STALL = ("tracking-gripper-opening-stall", "track_opening.py")
 SCENE_DIFF = ("checking-pick-by-scene-diff", "check_scene_diff.py")
 
 
-@lru_cache(maxsize=None)
+@cache
 def load(skill: str, script: str) -> ModuleType:
     path = SKILLS / skill / "scripts" / script
     if not path.is_file():
@@ -31,9 +31,7 @@ def load(skill: str, script: str) -> ModuleType:
         placeholder.NodeContext = object  # type: ignore[attr-defined]
         sys.modules["gap"] = placeholder
     try:
-        spec = importlib.util.spec_from_file_location(
-            f"_rsh_skill_{skill.replace('-', '_')}", path
-        )
+        spec = importlib.util.spec_from_file_location(f"_rsh_skill_{skill.replace('-', '_')}", path)
         assert spec and spec.loader
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)

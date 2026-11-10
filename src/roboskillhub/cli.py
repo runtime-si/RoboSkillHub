@@ -311,6 +311,42 @@ def cmd_runtime(args) -> int:
     return 0
 
 
+def cmd_capability(args) -> int:
+    from .capability.select import select
+    from .capability.spec import list_capabilities, load_capability
+
+    root = args.root or find_root()
+    if args.capability_action == "list":
+        for name in list_capabilities(root):
+            spec = load_capability(name, root)
+            impls = ", ".join(i.id for i in spec.implementations)
+            print(f"{name:20} {len(spec.exits)} exits; {impls}")
+        return 0
+    spec = load_capability(args.name, root)
+    if args.capability_action == "show":
+        print(json.dumps(spec.raw, ensure_ascii=False, indent=2))
+        return 0
+    choices = select(spec, root, args.embodiment, args.setting)
+    if args.json:
+        print(json.dumps([c.to_dict() for c in choices], ensure_ascii=False, indent=2))
+    else:
+        for c in choices:
+            if not c.eligible and not args.why:
+                continue
+            mark = "ok " if c.eligible else "-- "
+            print(f"{mark}{c.implementation.id}")
+            if args.why:
+                for line in c.why:
+                    print(f"     {line}")
+        if not any(c.eligible for c in choices):
+            print(
+                f"no implementation of {spec.name} passed the {args.setting} gate on "
+                f"{args.embodiment}" + ("" if args.why else " (--why shows each)"),
+                file=sys.stderr,
+            )
+    return 0 if any(c.eligible for c in choices) else 1
+
+
 def cmd_sources(args) -> int:
     from .source_index import find_sources, load_source_index
 
@@ -536,6 +572,22 @@ def build_parser() -> argparse.ArgumentParser:
             r.add_argument("capability", choices=tuple(SCHEMAS))
             r.add_argument("--request", required=True, help="path to input JSON")
         r.set_defaults(fn=cmd_runtime)
+
+    p = sub.add_parser(
+        "capability", help="capability contracts and their eval-gated implementations"
+    )
+    csub = p.add_subparsers(dest="capability_action", required=True)
+    csub.add_parser("list").set_defaults(fn=cmd_capability)
+    c = csub.add_parser("show")
+    c.add_argument("name")
+    c.set_defaults(fn=cmd_capability)
+    c = csub.add_parser("select", help="implementations that passed the gate on a robot")
+    c.add_argument("name")
+    c.add_argument("--embodiment", required=True)
+    c.add_argument("--setting", choices=("sim", "real"), default="sim")
+    c.add_argument("--why", action="store_true", help="also list rejected ones, with reasons")
+    c.add_argument("--json", action="store_true")
+    c.set_defaults(fn=cmd_capability)
     return parser
 
 
