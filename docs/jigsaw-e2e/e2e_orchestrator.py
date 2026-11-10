@@ -191,32 +191,37 @@ def run(ctx: NodeContext, index: int, start_dx: float, start_dy: float, start_ya
         handle_err_mm=round(1e3 * math.dist(handle_xy, (tp["x"] + 0, tp["y"] + 0)), 2),
     )
 
-    # 3. Side types and the piece's yaw from them (the slot needs S, E, N, W = META sides at yaw 0).
-    cls = _skill("classifying-piece-sides-for-border-first", "classify_sides.py").run(
-        ctx, piece_mask=mask * 255
-    )
+    # 3. Side types and the yaw at which all four read as the slot needs (else re-scan once, closer).
     want = list(META["sides"])
-    best = None
-    if cls["route"] != "no_piece":
-        types, normals = cls["side_types"], cls["side_normals_deg"]
-        for m in range(4):
-            # Hypothesis: classify side m is the piece's south side (normal = yaw - 90).
-            seq = [types[(m + i) % 4] for i in range(4)]
-            score = sum(a == b for a, b in zip(seq, want, strict=True))
-            yaw = _wrap(normals[m] + 90.0)
-            if best is None or score > best[0]:
-                best = (score, yaw)
-    yaw_est = best[1] if best else 0.0
+    clsmod = _skill("classifying-piece-sides-for-border-first", "classify_sides.py")
+    cls = clsmod.run(ctx, piece_mask=mask * 255, expected_sides=want)
+    rescans = 0
+    if cls["route"] in ("mismatch", "no_piece"):
+        rescans = 1
+        scan2 = _skill("scanning-the-board-into-a-wrist-mosaic", "scan_mosaic.py").run(
+            ctx, region_center=region, region_size=[0.08, 0.08], px_per_m=3000.0
+        )
+        hm2 = np.nan_to_num(scan2["height_map"], nan=0.0)
+        b2 = cv2.morphologyEx(
+            (hm2 > 0.001).astype(np.uint8), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8)
+        )
+        n2, lab2, st2, _ = cv2.connectedComponentsWithStats(b2)
+        if n2 >= 2:
+            m2 = (lab2 == 1 + int(np.argmax(st2[1:, cv2.CC_STAT_AREA]))).astype(np.uint8)
+            cls = clsmod.run(ctx, piece_mask=m2 * 255, expected_sides=want)
+    yaw_est = float(cls.get("yaw_deg", 0.0))
     _log(
         "classify",
         route=cls["route"],
-        piece_class=cls.get("piece_class"),
+        rescans=rescans,
         sides=cls.get("side_types"),
-        matched=best[0] if best else 0,
+        agree=cls.get("sides_agree"),
         yaw_est=round(yaw_est, 2),
         yaw_true=round(_wrap(truth0["yaw_deg"]), 2),
         yaw_err=round(_wrap(yaw_est - truth0["yaw_deg"]), 2),
     )
+    if cls["route"] in ("mismatch", "no_piece"):
+        return done("classify")
 
     # 4. Grip choice at the slot with the station blades (board cells as occupied cells).
     org_board = [slot["x"] - 1.5 * cw, slot["y"] - 1.5 * ch]
@@ -286,10 +291,44 @@ def run(ctx: NodeContext, index: int, start_dx: float, start_dy: float, start_ya
     if lifted < 0.01:
         return done("pick")
 
+    meas = _skill("measuring-a-held-piece-from-the-wrist-camera", "measure_held.py")
+    gw = float(META["grip_width"])
+
+    def measure(prior, tag):
+        out = meas.run(ctx, piece_mask=mask, metres_per_pixel=mpp, prior=prior, grip_width_m=gw)
+        tru = ctx.tool("check.piece_pose")
+        if "world_pose" in out:
+            wp = out["world_pose"]
+            # Truth: the piece origin (cell centre) and its yaw change since the scan (the template's frame).
+            _log(
+                "measure_" + tag,
+                route=out["route"],
+                err_mm=[
+                    round((wp["x"] - tru["position"]["x"]) * 1e3, 2),
+                    round((wp["y"] - tru["position"]["y"]) * 1e3, 2),
+                    round((wp["z"] - tru["position"]["z"]) * 1e3, 2),
+                ],
+                yaw_err=round(_wrap(wp["yaw_deg"] - (tru["yaw_deg"] - truth0["yaw_deg"])), 2),
+                sigma=out.get("sigma"),
+                pts=out.get("n_piece_points"),
+            )
+        else:
+            _log("measure_" + tag, route=out["route"], detail=out.get("detail"))
+        return out
+
+    m1 = measure({"x": piece_xy[0], "y": piece_xy[1], "yaw_deg": 0.0}, "pick")
+    slip1 = m1["world_pose"]["yaw_deg"] if m1["route"] == "measured" else 0.0
+    ee1 = _pose(ctx.tool("robot.get_ee_pose"))["position"]
+    rel1 = (
+        np.array([m1["world_pose"]["x"], m1["world_pose"]["y"]])
+        if m1["route"] == "measured"
+        else np.array(piece_xy)
+    ) - [ee1["x"], ee1["y"]]
+
     # 6. Turn to the slot's yaw (0), drop spot chosen by the skill.
-    turn = _wrap(-yaw_est)
+    turn = _wrap(-(yaw_est + slip1))
     rot_out = _skill("rotating-a-held-piece-within-wrist-limits", "rotate_piece.py").run(
-        ctx, turn_deg=turn, grasp_z=grasp_z, grip_width_m=float(META["grip_width"])
+        ctx, turn_deg=turn, grasp_z=grasp_z, grip_width_m=gw
     )
     held = ctx.tool("check.piece_pose")
     _log(
@@ -299,34 +338,53 @@ def run(ctx: NodeContext, index: int, start_dx: float, start_dy: float, start_ya
         turn=round(turn, 1),
         held=bool(held["position"]["z"] - slot["z"] > 0.01),
         piece_yaw_after=round(_wrap(held["yaw_deg"]), 2),
+        gripper=ctx.tool("robot.get_gripper"),
     )
     if (
         rot_out["route"] not in ("turned", "turned_with_regrasp")
         or held["position"]["z"] - slot["z"] < 0.01
     ):
-        return done("rotate")
-
-    # 7. Seat. The piece's centre relative to the tool centre is estimated from the mosaic (piece centroid
-    # minus handle centre, turned with the piece); the slot is the true one (a localizer's job, not run here).
-    v = np.array(piece_xy) - np.array(handle_xy)
-    a = math.radians(turn)
-    off = np.array([[math.cos(a), -math.sin(a)], [math.sin(a), math.cos(a)]]) @ v
+        return done(
+            "rotate",
+            rotate_route=rot_out["route"],
+            truly_held=bool(held["position"]["z"] - slot["z"] > 0.01),
+        )
+    ee2 = _pose(ctx.tool("robot.get_ee_pose"))["position"]
+    a = math.radians(rot_out.get("turned_deg", turn))
+    rr = np.array([[math.cos(a), -math.sin(a)], [math.sin(a), math.cos(a)]])
+    p2 = rr @ rel1 + [ee2["x"], ee2["y"]]
+    m2 = measure(
+        {"x": float(p2[0]), "y": float(p2[1]), "yaw_deg": slip1 + rot_out.get("turned_deg", turn)},
+        "turned",
+    )
+    # 7. Seat with the measured offset and the measured remaining yaw error.
     ee = _pose(ctx.tool("robot.get_ee_pose"))["position"]
-    held_offset = {
-        "x": float(off[0]),
-        "y": float(off[1]),
-        "z": float(held["position"]["z"] - ee["z"]),
-    }
-    true_off = [held["position"][k] - ee[k] for k in "xy"]
+    if m2["route"] == "measured":
+        wp = m2["world_pose"]
+        held_offset = {"x": wp["x"] - ee["x"], "y": wp["y"] - ee["y"], "z": wp["z"] - ee["z"]}
+        yaw_err = _wrap(-(yaw_est + wp["yaw_deg"]))
+    else:
+        held_offset = {"x": float(p2[0] - ee["x"]), "y": float(p2[1] - ee["y"]), "z": -0.0132}
+        yaw_err = 0.0
+    tru = ctx.tool("check.piece_pose")
+    true_off = [tru["position"][k] - ee[k] for k in "xy"]
     seat = _skill("seating-a-piece-by-wiggle-search", "seat_piece.py").run(
-        ctx, slot_position=slot, held_offset=held_offset, yaw_error_deg=0.0, max_probes=30
+        ctx,
+        slot_position=slot,
+        held_offset=held_offset,
+        yaw_error_deg=yaw_err,
+        max_probes=30,
+        max_time_s=300.0,
     )
     _log(
         "seat",
         route=seat["route"],
         probes=seat.get("probes"),
-        offset_err_mm=[round((off[i] - true_off[i]) * 1e3, 2) for i in range(2)],
+        yaw_err_given=round(yaw_err, 2),
+        yaw_err_true=round(_wrap(-tru["yaw_deg"]), 2),
+        offset_err_mm=[round((held_offset[k] - true_off[i]) * 1e3, 2) for i, k in enumerate("xy")],
     )
+    a = math.radians(turn)
 
     # 8. Flush check from the wrist camera (the seat skill ends with the camera over the piece).
     obs = ctx.tool("robot.get_observation")
