@@ -72,6 +72,10 @@ does not automatically release a held object.
 The authoritative machine-readable contracts are returned by `runtime list`.
 Unknown request fields are rejected.
 
+These are station primitives. Task-level capabilities with several interchangeable
+implementations (`pick_object`: program, hub skill or policy), a shared verifier and
+eval-gated selection are in [capabilities.md](capabilities.md).
+
 ### `move_pose` / `moving-to-pose`
 
 Required: `target_pose`.
