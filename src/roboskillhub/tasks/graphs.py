@@ -48,6 +48,7 @@ def _pick_chain(
     grasps: str,
     expect_state: str | None,
     classify: dict | None = None,
+    grasp: str = "$input.grasp",
 ) -> dict[str, dict]:
     """observe piece -> (classify) -> grasp candidate -> pick, shared by both graphs.
 
@@ -85,10 +86,10 @@ def _pick_chain(
             "skill": "core.grasp_candidate_from_pose",
             "params": {
                 "observation": "$last.observe_piece.outputs.first",
-                "T_object_TCP": "$input.grasp.T_object_TCP",
+                "T_object_TCP": f"{grasp}.T_object_TCP",
                 "pregrasp_height_m": "$input.grasp.pregrasp_height_m",
                 "lift_height_m": "$input.grasp.lift_height_m",
-                "open_width_m": "$input.grasp.open_width_m",
+                "open_width_m": f"{grasp}.open_width_m",
                 "close_width_m": "$input.grasp.close_width_m",
             },
             "on": _edges("pick"),
@@ -309,6 +310,8 @@ def lego_press(
             grasps=grasps,
             expect_state=None,
             classify={"lattice": "$input.lattice", "expected_state": "loose"},
+            # The world picks each target's grasp (closing axis clear of what is built before it).
+            grasp="$last.select.outputs.target.grasp",
         ),
         "transport": {
             "skill": "core.transport_held",
@@ -318,6 +321,7 @@ def lego_press(
                 "approach_height_m": clearance_m,
                 "descend": False,
                 "speed_m_s": speed_m_s,
+                "clear_above_z_m": "$input.travel_clear_z_m",
             },
             "timeout_s": 30,
             "on": _edges(
@@ -347,6 +351,11 @@ def lego_press(
                 "build": "$last.bind.outputs.build",
                 "held": "$last.confirm.outputs.held",
                 "limits": "$input.align_limits",
+                **(
+                    {"close_axis": "$last.select.outputs.target.grasp.close_axis"}
+                    if grasps == "configured"
+                    else {}
+                ),
             },
             "timeout_s": 20,
             # A retry needs fresh holding evidence, so it goes back through confirm.
@@ -375,7 +384,7 @@ def lego_press(
                 "connection_id": "$last.select.outputs.target.connection_id",
                 "object_id": "$last.select.outputs.piece",
                 "press": "$last.seat.outputs.press",
-                "open_width_m": "$input.release.open_width_m",
+                "open_width_m": "$last.select.outputs.target.grasp.release_open_width_m",
                 "retreat_height_m": "$input.release.retreat_height_m",
             },
             "timeout_s": 20,
