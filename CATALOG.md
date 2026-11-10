@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-29 tools, 159 skills, 2 policies, 1 recipe and 1 paper.
+29 tools, 160 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -141,6 +141,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`moving-through-waypoints`](#moving-through-waypoints) | execute | Moves the measured tool pose through a bounded list of waypoints on the configured YAM or Isaac workcell adapter… | yam_i2rt |
 | [`moving-to-pose`](#moving-to-pose) | execute | Moves the measured tool pose through the configured YAM or Isaac workcell adapter. | yam_i2rt |
 | [`picking-and-placing-two-objects`](#picking-and-placing-two-objects) | execute | Picks two objects with two arms, one each, and places both. | any, 2 arms |
+| [`picking-flat-pieces-by-suction-cup`](#picking-flat-pieces-by-suction-cup) | execute | Picks a flat piece (jigsaw piece, tile, card, thin plate) by its top face with a small suction cup. | any |
 | [`picking-upright-dominoes-from-a-loading-rack`](#picking-upright-dominoes-from-a-loading-rack) | execute | Takes the next domino out of a slotted loading rack, where tiles stand one per slot at a known pitch, instead of… | any |
 | [`placing-an-upright-domino-beside-neighbours`](#placing-an-upright-domino-beside-neighbours) | execute | Picks a standing domino top-down and sets it upright at a slot in a row without touching the tiles already standing… | any |
 | [`placing-held-feature`](#placing-held-feature) | execute | Move a held object so one of its declared features lands on a target point. | any, **sim only** |
@@ -2003,6 +2004,24 @@ Picks two objects with two arms, one each, and places both - each object goes to
   - `one_placed`: One arm placed its object, the other did not; failed_arms names it and outcome_a / outcome_b say why (grasp_missed, dropped, move_refused, clearance).
   - `none_placed`: Neither arm placed its object; failed_arms names both, outcome_a / outcome_b say why.
   - `unreachable`: No assignment of the two objects to the two arms has an IK preview reaching every pose of both plans, the arm ids are equal, or the connector reports no separate second arm; failed_arms names the arm(s) without a plan and nothing moved.
+
+### picking-flat-pieces-by-suction-cup
+
+execute · robots: any · tasks: jigsaw, pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/picking-flat-pieces-by-suction-cup/SKILL.md) · [upstream](https://github.com/andyzeng/arc-robot-vision/blob/728139e9ad0e/suction-based-grasping/baseline/predict.m)
+
+Picks a flat piece (jigsaw piece, tile, card, thin plate) by its top face with a small suction cup - scores cup points on the piece's mask from one depth frame by local surface-normal variance (the ARC suction baseline, Apache-2.0) at least a cup radius inside the edge, comes down on the best one until contact, switches the vacuum on, lifts 5 mm and checks the piece's rim rose with it, then optionally carries it and releases. Use when pieces sit in tight slots or touch their neighbours so finger pads cannot reach beside them. NEEDS HARDWARE the YAM station does not have today - an 8-10 mm cup beside the fingers, a vacuum pump and valve that the connector switches with robot.set_suction.
+
+- **In**: `target_mask` Mask
+- **Out**: `affordance` float, `rim_rise_m` float, `sealed` bool, `reason` string
+- **Calls**: connector `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.move_cartesian_until_contact`, `robot.set_suction`
+- **Scripts**: [`pick_suction`](skills/picking-flat-pieces-by-suction-cup/scripts/pick_suction.py)
+- **Note**: Needs hardware the YAM station lacks today: an 8-10 mm suction cup on the hand and a vacuum pump + valve switched by the connector (robot.set_suction).
+- **Exits**:
+  - `picked`: The cup sealed (the connector's vacuum reading, or else the piece's rim rose at least half the 5 mm test lift in the camera) and the piece is held at the approach height - or, with place_point, was carried there and released.
+  - `no_seal`: Vacuum on but the piece did not come up (lip over an edge, a gap or a knob neck, a porous face); vacuum off, the hand backed off, nothing is held.
+  - `dropped_in_transport`: The connector's vacuum reading lost the seal on the way to place_point (needs a vacuum sensor; without one a drop is not seen until the next look).
+  - `no_valid_cup_point`: No mask pixel lies a cup radius plus 1 mm inside the mask, the best affordance is under min_affordance (0.5), the mask does not match the depth frame, or the camera has no depth / intrinsics / pose; nothing moved.
+  - `unreachable`: The approach or contact move was refused, or robot.set_suction failed (no vacuum hardware served); the vacuum was not left on.
 
 ### picking-upright-dominoes-from-a-loading-rack
 
