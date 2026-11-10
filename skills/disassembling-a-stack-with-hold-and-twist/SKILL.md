@@ -112,6 +112,15 @@ plate, 2.5 N per stud; harness not in the hub):
 | (-0.08, 0.09), brick turned 90 deg | none | 2 | 0 | unverified 2: the brick lifted ~100 mm **with the plate still clutched to it** (plate up 101-102 mm) |
 | (-0.08, 0.09), brick turned 90 deg | right arm on the corner stud, 2 mm | 1 | 0 | base_moved (support drift 3.9 mm, twist slipped); the plate then blew up in the solver - not a valid trial |
 
+| (-0.08, 0.09), 90 deg, plate 60 g | none | 3 | 0 | unverified 3: brick lifted with the plate still clutched (plate up 99.3 / 100.8 / 100.6 mm) |
+| (-0.08, 0.09), 90 deg, plate 60 g | right arm, corner stud, 0.5 mm | 2 | 0 | base_moved 2 (support drift 3.87 / 3.81 mm, twist slipped), then the solver blew up |
+
+The 60 g rows stand for a plate carrying a few bricks (a 15 g plate is the
+lightest case); the drift is the same at 15 g / 2 mm and 60 g / 0.5 mm, so it
+is not the support's press: the lever pulls the still-clutched plate up into
+the support fingers, the brick slips out of the twist hand, and the rigid
+contact between a held plate and a pair-force clutch blows up in the solver.
+
 The IK probe found all four support points reachable with the plate moved
 towards the middle (bench y <= 0.09). The no-support rows show the problem
 the skill is for (the base comes along). Support has **not** yet been shown
