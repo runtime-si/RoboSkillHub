@@ -284,6 +284,11 @@ class Pick:
         }
         if "speed_m_s" in request:
             primitive["speed_m_s"] = request["speed_m_s"]
+        if "speed_limit_m_s" in request:
+            # A grasp-dependent cap (e.g. a brick pinched by its small end faces swings in a fast carry).
+            primitive["speed_m_s"] = min(
+                primitive.get("speed_m_s", request["speed_limit_m_s"]), request["speed_limit_m_s"]
+            )
         child = ctx.invoke("grasp", primitive)
         if child["status"] != "succeeded":
             return _relay(self, ctx, child, "grasp")
@@ -333,6 +338,8 @@ class TransportHeld:
         approach_height_m=_NUM,
         descend={"type": "boolean"},
         speed_m_s=_NUM,
+        speed_limit_m_s=_NUM,
+        clear_above_z_m=_NUM,
     )
 
     def run(self, request: dict, ctx: SkillContext) -> dict:
@@ -348,7 +355,20 @@ class TransportHeld:
         if not 0.005 <= request["approach_height_m"] <= 0.2:
             return ctx.result(self, "rejected", phase="validate", failure_type="invalid_request")
         tcp_goal = tcp_for_object_goal(request["goal"], held["T_TCP_object"])
-        waypoints = [translated(tcp_goal, [0, 0, request["approach_height_m"]])]
+        hover = translated(tcp_goal, [0, 0, request["approach_height_m"]])
+        waypoints = []
+        if "clear_above_z_m" in request:
+            # Carry the object with its origin (a brick's bottom) above clear_above_z_m - over the build's
+            # stud tops - and only then descend to the hover: a straight line from the lift down to the
+            # hover sweeps the object through a flush neighbour's studs.
+            lift_tcp = tcp_goal["position_m"][2] - request["goal"]["position_m"][2]
+            travel_z = request["clear_above_z_m"] + lift_tcp
+            if hover["position_m"][2] < travel_z:
+                now = ctx.state()["tcp_pose"]
+                if now["position_m"][2] < travel_z:
+                    waypoints.append({**now, "position_m": [*now["position_m"][:2], travel_z]})
+                waypoints.append({**hover, "position_m": [*hover["position_m"][:2], travel_z]})
+        waypoints.append(hover)
         if request["descend"]:
             waypoints.append(tcp_goal)
         primitive = {

@@ -29,6 +29,9 @@ PLATE_ROT_WXYZ = (1.0, 0.0, 0.0, 0.0)
 STUD_PITCH_M = 0.008
 FEEDER = {"x0": 0.20, "dx": 0.05, "y": -0.20}
 SPARES = 1
+TRAVEL_MARGIN_M = 0.01
+PREASSEMBLY_HEIGHT_M = 0.014
+HOVER_BIAS_AWAY_M = 0.0005
 HAND_START = (0.30, -0.10, 0.10, 0.0)
 
 
@@ -121,6 +124,60 @@ def placement_cell(goal_contract: dict, plate: dict, studs=(2, 4), plate_studs=(
     y = round((p[1] + plate_studs[1] * STUD_PITCH_M / 2) / STUD_PITCH_M - fy / 2)
     layer = round(p[2] / 0.0096)
     return {"stud_x": int(x), "stud_y": int(y), "layer": int(layer), "yaw_quarter_turns": rot // 90}
+
+
+GRASP_ACROSS = {
+    # close_axis 0: jaws close along the brick's 2-stud side (16 mm), TCP y along brick x.
+    0: {
+        "quaternion_xyzw": None,
+        "open_width_m": 0.026,
+        "release_open_width_m": 0.03,
+        "carry_speed_m_s": 0.05,
+    },
+    # close_axis 1: jaws close along the 4-stud side (32 mm), TCP y along brick y; the pads stand on the
+    # 2-stud end faces. The hand opens 50 mm (lego_station_isaac.HandSpec.max_opening).
+    1: {
+        "quaternion_xyzw": [1.0, 0.0, 0.0, 0.0],
+        "open_width_m": 0.042,
+        "release_open_width_m": 0.046,
+        # Pinched by its 16 x 9.6 mm end faces the brick swings about the closing axis in a 20 mm/s carry
+        # at 2 N (held_object_slipped in 1-2 of 10); at 4 mm/s it stayed within 0.2 mm.
+        "carry_speed_m_s": 0.008,
+    },
+}
+
+
+def _cell(m: dict, plate_pose: dict):
+    from roboskillhub.tasks.lego.geometry import Cell
+
+    c = placement_cell(m["mating_pose"], plate_pose)
+    return Cell(c["stud_x"], c["stud_y"], c["layer"] + 1, c["yaw_quarter_turns"] * 90)
+
+
+def grasp_close_axes(prebuilt: list[dict], targets: list[dict], plate_pose: dict) -> list[int]:
+    """For each target in build order, the closing axis whose finger rows (``lego.geometry.finger_cells``,
+    the rows ``lego.align_connection`` checks as ``approach_clear_of_build``) are clear of everything built
+    before it - the pre-built bricks and the earlier targets - preferring the 16 mm side. Two bricks placed
+    flush along their long sides (seq3_stack) need the second one held by its ends: across its 16 mm side one
+    pad would go down between the two bricks."""
+    from roboskillhub.tasks.lego.geometry import (
+        PlacedBrick,
+        brick_type,
+        finger_cells,
+        occupied_cells,
+    )
+
+    bt = brick_type("lego", [2, 4])
+    build = [PlacedBrick(m["target_id"], bt, _cell(m, plate_pose)) for m in prebuilt]
+    axes = []
+    for t in targets:
+        cell = _cell(t["mating"], plate_pose)
+        occ = occupied_cells(build)
+        top = max([c[2] for c in occ] + [cell.layer])
+        clear = [a for a in (0, 1) if not any(c in occ for c in finger_cells(bt, cell, a, top))]
+        axes.append(clear[0] if clear else 0)
+        build.append(PlacedBrick(t["target_id"], bt, cell))
+    return axes
 
 
 def physics_lego_world(
@@ -240,6 +297,22 @@ def physics_lego_world(
                 "build": prebuilt_matings + [mating(q) for q in order[:k]],
             }
         )
+    for t, axis in zip(
+        targets, grasp_close_axes(prebuilt_matings, targets, plate_pose), strict=True
+    ):
+        t["grasp"] = {
+            "close_axis": axis,
+            "T_object_TCP": {
+                "frame_id": "object",
+                "position_m": [0.0, 0.0, 0.013],
+                "quaternion_xyzw": GRASP_ACROSS[axis]["quaternion_xyzw"]
+                or q_mul(q_from_axis_angle([0, 0, 1], math.pi / 2), [1.0, 0.0, 0.0, 0.0]),
+            },
+            "open_width_m": GRASP_ACROSS[axis]["open_width_m"],
+            # The release must open wider than the brick across the closing axis (32 mm for close_axis 1).
+            "release_open_width_m": GRASP_ACROSS[axis]["release_open_width_m"],
+            "carry_speed_m_s": GRASP_ACROSS[axis]["carry_speed_m_s"],
+        }
     inputs = {
         "targets": targets,
         "feeder": {"pieces": [f["id"] for f in feeder]},
@@ -249,6 +322,19 @@ def physics_lego_world(
         "prebuilt": prebuilt_matings,
         "gripper_id": "floating_parallel_gripper",
         "table_z": 0.0,
+        # Carried bricks stay above the finished build's stud tops (plus TRAVEL_MARGIN_M) until they are
+        # over their seat: core.transport_held's clear_above_z_m.
+        "travel_clear_z_m": plate_pose["position_m"][2]
+        + max(
+            [
+                m["placement"]["layer"] + 1
+                for m in [*prebuilt_matings, *(t["mating"] for t in targets)]
+            ]
+            + [1]
+        )
+        * 0.0096
+        + 0.0017
+        + TRAVEL_MARGIN_M,
         "grasp": {
             # TCP 13 mm above the brick bottom (pad tips 2.8 mm above it), TCP z down, closing axis (TCP y)
             # along the brick's 16 mm side.
@@ -269,13 +355,20 @@ def physics_lego_world(
         "align_limits": {
             "xy_tolerance_m": 0.0005,
             "yaw_tolerance_deg": 2.0,
-            "preassembly_height_m": 0.01,
+            # The held brick hovers with its bottom over a same-layer neighbour's stud tops (9.6 + 1.7 mm)
+            # plus 2.7 mm: at 10 mm a brick placed flush beside another hung 0.4 mm over its top face and
+            # rubbed on it while align corrected (seq3_stack brick 2).
+            "preassembly_height_m": PREASSEMBLY_HEIGHT_M,
+            # Hover (and press) 0.5 mm off the seat away from a same-layer brick flush beside it: a brick
+            # held by its end faces swings toward that neighbour as its walls meet the studs and landed on
+            # the neighbour's studs in 8/10 seq3_stack runs (2 N) without it, 1/10 with it.
+            "hover_bias_away_m": HOVER_BIAS_AWAY_M,
             "workspace_min_m": [0.0, -0.35, 0.0],
             "workspace_max_m": [0.6, 0.35, 0.3],
             "limits_source": "assembly_eval lego_world v1 (simulated station; not calibrated hardware)",
         },
         "press_limits": {
-            "max_travel_m": 0.0105,
+            "max_travel_m": PREASSEMBLY_HEIGHT_M + 0.0005,
             "speed_m_s": 0.004,
             "timeout_s": 20.0,
             "force_limit_N": force_limit_n,
