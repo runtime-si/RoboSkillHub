@@ -271,6 +271,60 @@ on the pool (LeRobot views and joint groups named after the roles) had only a
 backbone tensors equal, 16 x 14 chunks, 6.0 GB). Its final checkpoint was not
 there to evaluate (the run had restarted at step 37 of 6000).
 
+## π0.5 backend (`--backend pi05`)
+
+`pi05_backend.py` serves openpi's π0.5 through LeRobot's `PI05Policy` behind the
+same wire; `profiles/yam-pi05-molmoact2.yaml` is the VLA_SKILL_SPEC profile
+(checkpoint + revision + sha256, tokenizer, roles -> image keys, 14-D state,
+joint offset, gripper units, 30 x 14 abs joints at 30 Hz). Same data, joint
+frame and gripper units as `yam-molmoact2`, so `gr00t.act` / `run_skill`
+work unchanged (`--wire-frame station` applies the profile's offset in the
+server instead, for clients that send the station frame).
+
+```bash
+uv venv --python 3.12 && uv pip install "lerobot[pi,dataset]==0.7.0"   # torch 2.15+cu132, transformers 5.22.2
+.venv/bin/python server.py --backend pi05 --profile yam-pi05-molmoact2 --port 5560
+```
+
+The checkpoint's processor names the gated `google/paligemma-3b-pt-224`
+tokenizer; the profile substitutes the ungated `leo009/paligemma-3b-pt-224`,
+whose `tokenizer.model` is byte-identical (sha256 8986bb4f...) to openpi's
+public `gs://big_vision/paligemma_tokenizer.model`. `torch.compile`
+(max-autotune, in the checkpoint's config) is off unless the profile's
+`extra.compile` is set: it costs ~7 min at startup.
+
+### YAM π0 / π0.5 checkpoints checked (2026-11-10)
+
+| checkpoint | format | data | io | licence |
+|---|---|---|---|---|
+| **helen9975/pi05-molmoact-yam** @6b50a13 (served) | LeRobot PyTorch, 200k steps (tag step-100000) | MolmoAct2-BimanualYAM (5,145 ep) | top/left/right 360x640, state 14, 30 x 14 abs joints @30 Hz, gripper 0..1 | card Apache-2.0; base pi05_base (PaliGemma, Gemma terms) |
+| NUSMAGIC/pi05-MolmoAct2-YAM | LeRobot, 100k | same (card copied from Jiafei1224) | same | card Apache-2.0 |
+| robocurve/pi0.5-yam @ee17bb3 | openpi JAX/Orbax, 12 GB | same | 16 x 14 abs, needs the private `yam_pi05` config (robocurve/pi05-yam-replication) | Gemma |
+| jeqcho/pi05-yam-bimanual | openpi JAX, 45 GB | same | 16 x 14, `yam_pi05` config not published | card Apache-2.0 |
+| agents2agents/Pi0.5-BimanualYAM-Jetson-Thor | TensorRT for Thor only | robocurve's | 16 x 14 | Gemma |
+| openpi pi05_base / pi05_droid / pi0(5)_aloha | openpi | base / DROID Franka / ALOHA (Trossen) | not YAM | Apache-2.0 code, Gemma terms for weights |
+| i2rt-robotics/yam-abc-reproduce | code only (openpi `pi0_yam` / `pi05_yam` (+ LoRA) configs, `yam_policy.py`) | your own LeRobot data | 14-D, top + 2 wrists, delta joints for arms | Apache-2.0 |
+
+No YAM-pretrained π0/π0.5 weights from i2rt or TRI were found (the i2rt org
+publishes no models on Hugging Face; `yam-abc-reproduce` trains from
+`gs://openpi-assets/checkpoints/pi05_base`). Many other community YAM π0.5
+fine-tunes (single tasks: vials, towels, pouring) exist; none is on our scene.
+
+### Measured (π0.5)
+
+2026-11-10, rshgpu2 (RTX PRO 6000 Blackwell), lerobot 0.7.0, bf16, 10 flow
+steps, no compile, `eval/smoke_pi05.py`, in-process:
+
+| load | chunk | per chunk mean / p50 / p95 | GPU memory (alloc / reserved / peak) |
+|---|---|---|---|
+| 69.5 s | 30 x 14 | 149 / 140 / 234 ms | 8.9 / 9.4 / 9.1 GB |
+
+Open-loop on the held-out `allenai/19012026-block-13` episode 0 ("spell out
+NEURIPS", 6,139 frames, a chunk every 60 frames, 102 chunks): MSE 0.0037,
+MAE 0.030 rad in raw joint units, against 0.0086 for holding the current
+state - the wiring (image keys, state, normalisation, tokenizer) is right.
+Twin episodes: not run yet (expect the same rig gap as the GR00T fine-tune).
+
 ## GR00T 2
 
 GR00T 2 (announced 2026-11-09; research.nvidia.com/labs/gear/gr00t-2/) is a

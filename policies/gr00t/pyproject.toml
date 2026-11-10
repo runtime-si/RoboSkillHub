@@ -21,6 +21,11 @@ dependencies = [
   "msgpack-numpy>=0.4.8",
 ]
 
+# --backend pi05 runs in its own environment (LeRobot's PI05Policy; transformers 5.22 clashes with
+# Isaac-GR00T's 4.57): `uv venv --python 3.12 && uv pip install "lerobot[pi,dataset]==0.7.0"`.
+[project.optional-dependencies]
+pi05 = ["lerobot[pi,dataset]==0.7.0", "pyyaml>=6"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
