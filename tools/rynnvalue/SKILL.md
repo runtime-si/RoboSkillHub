@@ -101,7 +101,25 @@ support 7, grasp missed 4, partially seated 3. Baselines on the same units:
 judges through `vlm.query` on Gemini: `detecting-subtask-success` (last frame)
 and `judging-step-with-before-now-vlm` (pick-start frame -> last frame).
 
-GEMINI_TABLE
+| judge (input) | main: acc, succ recall, false done / 14, AUROC | other view: same / 14 | force 1.0: same / 22 |
+|---|---|---|---|
+| **RynnValue-8B**, 8 frames, remaining <= 2.0 s | 0.68, 3/11, **0**, 0.75 | 0.76, 5/11, **0**, 0.92 | 0.84, 0/3, 1, 0.94 |
+| RynnValue-8B, its Success verdict | 0.56, 0/11, 0 | 0.56, 0/11, 0 | 0.88, 0/3, 0 |
+| RynnValue-8B, first + last frame only (AUROC) | 0.49 | 0.64 | 0.73 |
+| RynnValue-4B, 8 frames (AUROC) | 0.46 | 0.54 | 0.89 |
+| densereward.progress, last frame, >= 0.85 (#124) | 0.48, 1/11, 3, 0.45 | 0.56, 2/11, 2, 0.55 | 0.36, 0/3, 13, 0.14 |
+| detecting-subtask-success, gemini-3-flash | 0.52, 10/11, 11 | 0.56, 11/11, 11 | 0.80, 3/3, 5 |
+| detecting-subtask-success, gemini-robotics-er-2 | 0.52, 9/11, 10 | 0.64, 11/11, 9 | 0.84, 2/3, 3 |
+| judging-step-with-before-now-vlm, gemini-3-flash | 0.56, 11/11, 11 | 0.56, 11/11, 11 | 0.68, 3/3, 8 |
+| judging-step-with-before-now-vlm, gemini-robotics-er-2 | 0.60, 11/11, 10 | 0.60, 11/11, 10 | 0.80, 3/3, 5 |
+
+Failures each judge called done, all 75 units (8B at 2.0 s / DenseReward /
+detect flash / detect ER-2 / judge flash / judge ER-2): not seated (20) 1 / 6 /
+19 / 13 / 19 / 14; partially seated (3) 0 / 2 / 3 / 3 / 3 / 3; structure
+damaged (8) 0 / 0 / 5 / 6 / 5 / 6; insufficient support (7) 0 / 2 / 0 / 0 / 3 / 2;
+grasp lost (8) 0 / 5 / 0 / 0 / 0 / 0; grasp missed (4) 0 / 3 / 0 / 0 / 0 / 0.
+Latency: RynnValue-8B 1.0 s (0.2 s without the analysis), DenseReward 0.1 s,
+the Gemini judges 3-4 s per call (median).
 
 What to know:
 
@@ -119,8 +137,15 @@ What to know:
   These thresholds were read off the same 75 units (in-sample).
 - The 4B is not a cheaper substitute on these frames (AUROC 0.46 / 0.54 /
   0.89).
-- Mm-level failures (a brick 1.7 mm high, a 9 degree yaw) are where every
-  judge struggles; see the per-failure table.
+- **The VLM judges see the grasp failures and miss the seating ones.** Both
+  Gemini judges passed nearly every success and caught every lost / missed
+  grasp, but called 13-19 of 20 unseated bricks (resting ~1.7 mm high or 9 deg
+  off) and 5-6 of 8 damaged structures done. RynnValue at 2.0 s called one of
+  those done; it pays for that by passing few successes. Neither replaces a
+  geometric seating check (verifying-brick-seated-by-height, pull-up).
+- **DenseReward (#124) does not transfer to these frames**: it scored most
+  grasp failures (8 of 12) done and ranked worse than chance in the force-1.0
+  set. Its pick-and-place training scenes are far from a BrickSim baseplate.
 
 ## Licence
 

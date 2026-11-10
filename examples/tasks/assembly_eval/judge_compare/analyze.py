@@ -1,11 +1,16 @@
-"""Compare the success judges on the LEGO placement units (manifest.json + *_results.jsonl)."""
+"""Compare the success judges on the LEGO placement units (results/manifest.json + the judges' JSONL there).
+
+Pipeline (GPU steps on a host with the RoCo/BrickSim stack and the judges' venvs):
+rynn_capture.py (episodes + frames) -> build_manifest.py -> rynn_eval.py / dr_eval.py (GPU) and
+gemini_eval.py (local, Gemini key) -> analyze.py [threshold_s]. The frames themselves are not in the repo.
+"""
 
 import json
 import sys
 from collections import defaultdict
 from pathlib import Path
 
-H = Path(__file__).resolve().parent
+H = Path(__file__).resolve().parent / "results"
 units = {u["id"]: u for u in json.loads((H / "manifest.json").read_text())}
 
 
