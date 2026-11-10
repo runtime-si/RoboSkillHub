@@ -1,9 +1,9 @@
 {
   "skill": "inserting-a-held-peg-top-down",
   "inputs": {
-    "held": "dict",
-    "hole": "dict",
-    "peg": "dict"
+    "held": "string",
+    "hole": "string",
+    "peg": "string"
   },
   "outputs": {
     "tip_depth": {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import logging
 import math
 import os
@@ -84,6 +85,12 @@ CAM_MAX_TOTAL = 0.006
 CAM_MIN_POINTS = 20
 """Least depth pixels on the peg's lowest 3 mm, and on the rim, for a camera reading."""
 
+CAM_MIN_SHAFT = 0.015
+"""Least visible shaft length for the camera to read the peg's axis [m]."""
+
+CAM_MIN_TILT_DEG = 0.5
+"""A seen axis tilt under this leaves the registration's [deg]."""
+
 CAM_RIM_BAND = 0.0015
 """Depth points within this of the mouth plane are the fixture's top face [m]."""
 
@@ -150,6 +157,11 @@ class Output(TypedDict):
     tip_in_tcp: dict[str, Any]
     hole_position: dict[str, float]
     elapsed_s: float
+
+
+def _parsed(value: Any) -> dict[str, Any]:
+    """A dict input given as a dict or as its JSON text (gap has no open-dict type)."""
+    return json.loads(value) if isinstance(value, str) else dict(value)
 
 
 def _vec3(v: Any) -> np.ndarray:
@@ -295,6 +307,10 @@ def read_tip_and_mouth(
             if n > 1e-9:
                 c = c + away / n * (2.0 * peg_radius / math.pi)
             out["tip"] = c + axis * float(np.max((low - c) @ axis))
+        if float(peg_s.max() - peg_s.min()) >= CAM_MIN_SHAFT:
+            centred = peg_pts - peg_pts.mean(axis=0)
+            direction = np.linalg.svd(centred, full_matrices=False)[2][0]
+            out["axis"] = direction if direction @ axis > 0 else -direction
 
     ring = hole_radius + search + 0.004
     face = (np.abs(plane_h) <= CAM_RIM_BAND) & (np.linalg.norm(lat, axis=1) <= ring)
@@ -305,7 +321,11 @@ def read_tip_and_mouth(
         bins = np.floor((ang + math.pi) / (2 * math.pi) * 24).astype(int) % 24
         rims = [f[bins == b][np.argmin(rad[bins == b])] for b in range(24) if np.any(bins == b)]
         if len(rims) >= CAM_MIN_RIM_BINS:
-            fit = fit_circle(np.asarray(rims))
+            # A bin whose rim the shaft hides reads a far point: keep the near ones.
+            rims = np.asarray(rims)
+            radii = np.linalg.norm(rims, axis=1)
+            rims = rims[radii <= np.median(radii) + 0.001]
+            fit = fit_circle(rims) if len(rims) >= CAM_MIN_RIM_BINS else None
             if fit is not None and abs(fit[1] - hole_radius) <= max(0.002, 0.3 * hole_radius):
                 out["mouth"] = mouth_pred + R[:, :2] @ fit[0]
                 out["rim_radius"] = fit[1]
@@ -314,9 +334,9 @@ def read_tip_and_mouth(
 
 def run(
     ctx: NodeContext,
-    held: dict[str, Any],
-    hole: dict[str, Any],
-    peg: dict[str, Any] | None = None,
+    held: dict[str, Any] | str,
+    hole: dict[str, Any] | str,
+    peg: dict[str, Any] | str | None = None,
     insert_depth: float | None = None,
     standoff: float = STANDOFF,
     enter_depth: float = ENTER_DEPTH,
@@ -341,6 +361,7 @@ def run(
     import time
 
     t0 = time.monotonic()
+    held, hole, peg = _parsed(held), _parsed(hole), _parsed(peg) if peg is not None else None
     if arm_id is None:
         arm_id = 1 if str(held.get("arm", "right")).lower().startswith("r") else 0
     kw_arm: dict[str, Any] = {"arm_id": int(arm_id)} if int(arm_id) else {}
@@ -459,7 +480,8 @@ def run(
             if not seen or "tip" not in seen or "mouth" not in seen:
                 logger.info("inserting-a-held-peg-top-down: camera step %d saw %s", step, seen)
                 break
-            out["refined_by"] = "camera"
+            if out["refined_by"] == "arm":
+                out["refined_by"] = "camera"
             # The tip seen shifts the registration (a tilted or offset hold); the mouth
             # seen replaces the estimate. Both lateral to the axis.
             tip_seen, mouth_seen = seen["tip"], seen["mouth"]
@@ -468,6 +490,31 @@ def run(
             if step == 0:
                 tip_T = tip_T.copy()
                 tip_T[:3, 3] += H[:3, :3].T @ d_tip
+                seen_axis = seen.get("axis")
+                pred_axis = H[:3, :3] @ tip_T[:3, 2]
+                if (
+                    seen_axis is not None
+                    and math.degrees(math.acos(max(-1.0, min(1.0, float(seen_axis @ pred_axis)))))
+                    >= CAM_MIN_TILT_DEG
+                ):
+                    # A tilted hold: re-register the tip frame and align again.
+                    tip_T[:3, :3] = _frame_with_z(H[:3, :3].T @ seen_axis)
+                    out["tip_in_tcp"] = pose_of(tip_T)
+                    again = sibling("align").run(
+                        ctx,
+                        hole_centre=_vec(mouth),
+                        hole_axis=_vec(axis),
+                        peg_in_tcp=pose_of(tip_T),
+                        standoff=float(standoff),
+                        lateral_tolerance=max(0.0005, min(0.002, clearance / 2 + chamfer)),
+                        check_reach=check_reach,
+                        arm_id=int(arm_id),
+                    )
+                    if again["route"] == "unreachable":
+                        return finish("unreachable", f"re-align: {again.get('detail', '')}")
+                    pre = matrix(again["pre_insert_pose"])
+                    out["refined_by"] = "camera+tilt"
+                    continue
                 out["tip_in_tcp"] = pose_of(tip_T)
             m_shift = mouth_seen - mouth
             m_shift -= axis * float(m_shift @ axis)
@@ -492,7 +539,7 @@ def run(
             why = move(T, cartesian=False)
             if why:
                 return finish("unreachable", f"camera correction {step + 1} refused ({why})")
-        if out["refined_by"] == "camera":
+        if out["refined_by"] != "arm":
             mouth = _vec3(out["hole_position"])
             pre = pre.copy()
             pre[:3, 3] += total

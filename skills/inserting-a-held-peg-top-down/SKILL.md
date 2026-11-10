@@ -36,7 +36,8 @@ gap:
     - robot.solve_ik
     - robot.open_gripper
     - robot.close_gripper
-  # Inputs (not listed: gap has no open-dict type here, so they are wired from a script node):
+  # Inputs (not listed: gap has no open-dict type here; each is a dict or its JSON text,
+  # wired from a script node):
   # held {arm: "right", T_TCP_object: Se3Pose, tip_offset_m, axis_tilt_deg, sigma_mm} (the
   # handover's output), hole {T_world_mouth: Se3Pose (z down into the hole), diameter_m,
   # depth_m, chamfer_m?}, peg {length_m, diameter_m, mass_kg?, axis_in_object, tip_end}.
@@ -142,7 +143,25 @@ the hand's is `inserted`, higher is `slipped_in_grip`.
 
 ## Simulation check
 
-Pending (see the PR): YAM station twin with SIM_GRIP=1, right arm.
+YAM station twin (MuJoCo at 500 Hz, SIM_GRIP=1), right arm. A 10 x 100 mm
+peg (32-gon prism, 20 g) stands on the table and the right arm grasps it top-down
+15 mm under its top, then lifts it over a 1.5 kg block with a round hole
+(32 sectors, 30 mm deep, 0.5 mm chamfer). The skill gets a nominal `held` (the
+peg on the tool's axis, no tilt, sigma 1.5 mm) and a hole estimate shifted
+by the case's offset. Simulator ground truth only sets the case up and judges it.
+
+First rollout (clearance 0.5 mm, offset 2 mm, hand tilt 0): the twin's grasp
+left the peg 5.0 deg tilted and 6.4 mm off-centre in the fingers. The wrist
+camera gave no reading (`refined_by: arm`). The descent was blocked at the mouth,
+and the spiral entered on its second probe. The push took the hand 28.5 mm in,
+but the peg slid 10.6 mm up the fingers. The top probe reported
+`slipped_in_grip`, which was correct: the true tip depth was 6.6 mm. The
+probe's own estimate of the tip depth was 17.9 mm, off by 11 mm, because the
+tilted peg's top is not where the probe looked. The rollout took 345 s of wall
+time.
+
+The sweep is not finished: clearances 1.0 / 0.5 / 0.2 mm, offsets 0 / 2 / 4 mm,
+hand tilt 0 / 3 deg, 5 seeds each. See the PR for its status.
 
 ## Limits
 
