@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-26 tools, 146 skills, 2 policies, 1 recipe and 1 paper.
+27 tools, 146 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -42,6 +42,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`densereward`](#densereward) | judge | DenseReward reward models (Qwen3-VL-4B fine-tunes, Apache-2.0) run locally on a GPU. | any |
 | [`predicates`](#predicates) | judge | Geometric yes/no judgments over poses and boxes the graph already holds. | any |
 | [`robojev`](#robojev) | judge | RoboJev-27B success judge (josefchen/RoboJev-27B, Apache-2.0). | any |
+| [`rynnvalue`](#rynnvalue) | judge | RynnValue value model (RynnBrain / Qwen3-VL, 8B or 4B, Apache-2.0) run locally on a GPU. | any |
 
 ## Skills
 
@@ -542,6 +543,17 @@ RoboJev-27B success judge (josefchen/RoboJev-27B, Apache-2.0) - given the task s
 - **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
 - **Functions**:
   - `robojev.judge`: Calibrated P(task completed) for one attempt from its main-camera frames (start to end) and final frames of other cameras.
+
+### rynnvalue
+
+judge · robots: any · tasks: pick-place, lego · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/rynnvalue/SKILL.md) · [upstream](https://github.com/alibaba-damo-academy/RynnValue/blob/cd29294f1ac56bc817074bd665ba92b630936ad7/rynn_infer/inference.py)
+
+RynnValue value model (RynnBrain / Qwen3-VL, 8B or 4B, Apache-2.0) run locally on a GPU -- reads a task instruction and up to 8 frames of a clip (oldest first) and returns, for every frame, the predicted remaining time in seconds until the task is complete, plus a generated analysis with Match (clip fits the instruction) and Success verdicts. One forward pass, ~0.2 s for 8 frames on the 8B. Use when a judge stage has the frames of a step (start to now) and wants a ranking-quality "how close to done" signal -- an alternative backend to robobrain.progress / densereward.progress for progress and stall scoring; threshold it on your own frames before routing on it.
+
+- **Weights**: `hf://Alibaba-DAMO-Academy/RynnValue-8B-Quantile@0fb3ac12c73844ea1abaf4f767c895aae248a9ec`
+- **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
+- **Functions**:
+  - `rynnvalue.remaining_time`: Remaining seconds to completion for each frame of a clip (oldest first, at most 8 used) plus Match / Success from the model's analysis.
 
 ## Skill details
 

@@ -799,3 +799,11 @@ file's header lists the changes, and the license is
 tools/robojev/LICENSE.robojev. The bundle downloads the RoboJev-27B weights
 (josefchen/RoboJev-27B at e089a9b69a365744b80765057d86583647af95a9, declared
 Apache-2.0 on its model card) from Hugging Face; none are redistributed here.
+tools/rynnvalue/tools.py follows the inference of RynnValue
+(https://github.com/alibaba-damo-academy/RynnValue, commit
+cd29294f1ac56bc817074bd665ba92b630936ad7: rynn_infer/inference.py
+parse_analysis's regexes, frame sampling and the generate settings),
+Apache-2.0, Copyright Alibaba DAMO Academy; the model and processor code are
+loaded from the pinned Hugging Face revisions of
+Alibaba-DAMO-Academy/RynnValue-8B-Quantile and RynnValue-4B-Quantile
+(Apache-2.0) with trust_remote_code and are not copied.
