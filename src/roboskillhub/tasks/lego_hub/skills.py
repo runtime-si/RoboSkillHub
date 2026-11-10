@@ -126,6 +126,12 @@ class _HubSkill:
         )
 
 
+MAX_PULL_RISE_M = 0.0006
+"""judging-assembly-steps-by-fused-checks' max_pull_rise_m: a clutched brick rises at most this much."""
+SLIP_MARGIN_M = 0.001
+"""The hand rose at least this much more than the brick: the jaws slid on it."""
+
+
 class PullUpCheck(_HubSkill):
     skill_id = "hub.pull_up_check"
     bundle, script = "verifying-a-brick-connection-by-pull-up", "pull_up_check.py"
@@ -157,6 +163,21 @@ class PullUpCheck(_HubSkill):
         hand = [e["tcp_z"] for e in log]
         hand_rise = (max(hand) - hand[0]) if len(hand) > 1 else None
         held = [request["object_id"]] if request.get("object_id") else None
+        slid = (
+            out["route"] == "not_connected"
+            and brick_rise is not None
+            and hand_rise is not None
+            and brick_rise <= MAX_PULL_RISE_M
+            and hand_rise - brick_rise >= SLIP_MARGIN_M
+        )
+        if slid:
+            # The hand rose and the brick did not: the jaws slid on a clutched brick (2 N pads on the
+            # Isaac station), which the hand's tracking lag alone reads as "nothing held the lift".
+            out = {
+                **out,
+                "route": "connected",
+                "detail": out.get("detail", "") + "; the brick stayed: jaws slid",
+            }
         result = self._finish(
             ctx,
             out,

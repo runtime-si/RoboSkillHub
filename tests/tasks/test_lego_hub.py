@@ -77,6 +77,13 @@ class Station:
             p = list(request["target_pose"]["position_m"])
             if self.stall is not None:
                 p[2] = min(p[2], self.stall)
+            if self.holding and self.stall is None:  # a free held brick follows the hand
+                for o in self.objects.values():
+                    if o.get("class") == "lego_brick":
+                        o["position_m"] = [
+                            *o["position_m"][:2],
+                            o["position_m"][2] + p[2] - self.tcp[2],
+                        ]
             self.tcp = p
             return {"status": "succeeded"}
         if capability == "set_gripper":
@@ -196,6 +203,20 @@ def test_pull_up_reads_a_stalled_hand_as_connected_and_a_free_one_as_not(K):
     r = _run(K, "hub.pull_up_check", {"object_id": "b1"}, st)
     assert r["status"] == "failed" and r["failure_type"] == "lego.not_seated"
     assert r["evidence"]["pull_log"]
+    # Jaws sliding on a clutched brick: the hand rises, the brick does not.
+    slip = Station({"b1": brick(SEAT)}, tcp=seat_tcp, holding=True, width=0.016)
+    slip.holding_follow = False
+    orig = slip.primitive
+
+    def no_follow(capability, request, rid):
+        keep = dict(slip.objects["b1"])
+        out = orig(capability, request, rid)
+        slip.objects["b1"] = keep
+        return out
+
+    slip.primitive = no_follow
+    r = _run(K, "hub.pull_up_check", {"object_id": "b1"}, slip)
+    assert r["status"] == "succeeded" and "jaws slid" in r["evidence"]["reason"]
 
 
 def test_track_build_seeds_places_and_flags_floating_and_moved_bricks(K):
