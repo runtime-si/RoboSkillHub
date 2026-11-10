@@ -521,7 +521,10 @@ def _seated_by_observation(res: SkillResult, p: dict, s: Any) -> tuple[bool, dic
     corners = [rel[2][0] * x + rel[2][1] * y + rel[2][3] for x in (-lx, lx) for y in (-ly, ly)]
     d["corner_max_dz_m"], d["corner_min_dz_m"] = max(corners), min(corners)
     tol = p["seat_depth_tolerance_m"]
-    depth_ok = abs(d["dz_m"]) <= tol
+    # Only height over the seat means unseated. Deeper than the nominal seat is the support sitting low:
+    # BrickSim seats each layer ~0.4 mm under the nominal model, so a second-layer brick read -0.74 mm and
+    # was failed as misaligned (pyramid6 / wall7 brick 5-7). Deeper than a stud height is still refused.
+    depth_ok = -s.stud_height_m <= d["dz_m"] <= tol
     corners_ok = d["corner_max_dz_m"] <= tol
     lat_ok = d["lateral_m"] <= th["lateral_m"]
     yaw_ok = abs(d["yaw_deg"]) <= th["yaw_deg"]
