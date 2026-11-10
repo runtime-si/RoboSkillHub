@@ -1,6 +1,6 @@
 {
   "skill": "picking-a-peg-with-a-side-grasp",
-  "inputs": {"peg": "Any", "peg_pose": "Se3Pose", "table_z": "float"},
+  "inputs": {"peg": "object", "peg_pose": "Se3Pose", "table_z": "float"},
   "outputs": {
     "left_grip": {"$ref": "pick.left_grip"},
     "axis_tilt_deg": {"$ref": "pick.axis_tilt_deg"},

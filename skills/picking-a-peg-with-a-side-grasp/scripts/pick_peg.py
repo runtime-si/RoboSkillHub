@@ -58,6 +58,19 @@ RIGHT_BITE = 0.012
 """How far under the free end the receiving arm's top-down tool centre is previewed [m]. Only a reach check: the
 receiving skill picks its own depth within the exposed length."""
 
+HANDOVER_NUDGES = (
+    (0.0, 0.0, 0.0),
+    (0.0, 0.0, -0.04),
+    (0.0, -0.05, 0.0),
+    (0.0, 0.05, 0.0),
+    (0.05, 0.0, 0.0),
+    (-0.05, 0.0, 0.0),
+    (0.0, -0.05, -0.04),
+    (0.05, -0.05, 0.0),
+)
+"""Offsets of the handover point tried after the given one [m], in order: in a YAM station twin a level hand put its
+wrist joints (4, 5) on their +/-1.57 rad limits within a few centimetres of points that solved."""
+
 FACING_FAN_DEG = (
     0.0,
     20.0,
@@ -139,6 +152,7 @@ class Output(TypedDict):
     grip_width_m: float
     facing_deg: float
     free_end: dict[str, float]
+    handover_point: dict[str, float]
 
 
 # ----------------------------------------------------------------------------- geometry
@@ -502,6 +516,7 @@ def run(
         "grip_width_m": -1.0,
         "facing_deg": 0.0,
         "free_end": _vec(free_end),
+        "handover_point": {},
     }
 
     def finish(route: str, why: str) -> Output:
@@ -652,44 +667,60 @@ def run(
     except Exception as exc:
         return finish("unreachable", f"the arm's pose could not be read ({exc})")
 
-    plan: dict[str, Any] = {}
+    refusals: dict[str, str] = {}
+    counts: dict[str, int] = {}
+    cache: dict[tuple, str] = {}
+
+    def refused(label: str, point: np.ndarray, rot: np.ndarray) -> bool:
+        key = (label, *np.round(point, 4), *np.round(rot, 4).ravel())
+        if key not in cache:
+            cache[key] = hand.ik(point, rot)[1]
+        why = cache[key]
+        if why:
+            refusals[label] = refusals.get(label) or why
+            counts[label] = counts.get(label, 0) + 1
+        return bool(why)
+
+    def receiver_ok(top: np.ndarray, u: np.ndarray) -> bool:
+        key = ("receiver", *np.round(top, 4), *np.round(u, 3))
+        if key not in cache:
+            cache[key] = "" if receiver_reaches(top, u) else "no top-down IK at the free end"
+        if cache[key]:
+            refusals["receiver"] = cache[key]
+            counts["receiver"] = counts.get("receiver", 0) + 1
+        return not cache[key]
+
+    # Candidates that do not depend on the handover point: (heading turn, approach, grasp rotation, held rotation).
+    candidates: list[tuple[float, np.ndarray, np.ndarray, np.ndarray, np.ndarray]] = []
     if posture == "lying":
         tz, why = topdown_tool_height(float(grip_pt[2]), table_z, tip_reach, float(min_tool_height))
         if why:
             return finish("ungraspable", why)
-        tcp_grasp = np.array([grip_pt[0], grip_pt[1], tz])
+        tcp = np.array([grip_pt[0], grip_pt[1], tz])
+        offset = tz - float(
+            grip_pt[2]
+        )  # tool centre over the shaft's axis; ahead of it after the pitch
+        pre = tcp + Z * float(hover)
         try:
             rots = grasp_rotations(None, math.degrees(math.atan2(fh[1], fh[0])) + 90.0)
         except Exception as exc:
             return finish("unreachable", f"no grasp frame ({exc})")
-        offset = tz - float(
-            grip_pt[2]
-        )  # tool centre over the shaft's axis; after the pitch, ahead of it
+        lift_pt = tcp + Z * float(lift_height)
         for delta in FACING_FAN_DEG:
             u = axis_angle(Z, delta) @ fh
-            k_axis = np.cross(-Z, u)
-            top = h + u * offset + Z * s
             for r in rots:
-                if hand.ik(tcp_grasp + Z * hover, r)[1] or hand.ik(tcp_grasp, r)[1]:
+                if refused("pre-grasp", pre, r) or refused("grasp", tcp, r):
                     continue
                 r_yawed = axis_angle(Z, delta) @ r
-                r_pitched = axis_angle(k_axis, 90.0) @ r_yawed
-                if hand.ik(h, r_yawed)[1] or hand.ik(h, r_pitched)[1]:
+                if refused("turned at the lift", lift_pt, r_yawed):
                     continue
-                if not receiver_reaches(top, u):
-                    continue
-                plan = {
-                    "u": u,
-                    "delta": delta,
-                    "r": r,
-                    "r_yawed": r_yawed,
-                    "r_held": r_pitched,
-                    "tcp": tcp_grasp,
-                }
-                break
-            if plan:
-                break
+                candidates.append(
+                    (delta, u, r, r_yawed, axis_angle(np.cross(-Z, u), 90.0) @ r_yawed)
+                )
     else:
+        tcp, offset = grip_pt.copy(), 0.0
+        if float(grip_pt[2]) - table_z < float(min_tool_height):
+            return finish("ungraspable", "the grip point is under the tool-centre floor")
         toward = grip_pt - p_start
         u0 = (
             unit(np.array([toward[0], toward[1], 0.0]))
@@ -698,32 +729,52 @@ def run(
         )
         for delta in FACING_FAN_DEG:
             u = axis_angle(Z, delta) @ u0
-            heading = math.degrees(math.atan2(u[1], u[0])) + 90.0
             try:
-                rots = grasp_rotations(u, heading)
+                rots = grasp_rotations(u, math.degrees(math.atan2(u[1], u[0])) + 90.0)
             except Exception as exc:
                 return finish("unreachable", f"no grasp frame ({exc})")
-            if float(grip_pt[2]) - table_z < float(min_tool_height):
-                return finish("ungraspable", "the grip point is under the tool-centre floor")
-            top = h + Z * s
             for r in rots:
-                if hand.ik(grip_pt - u * hover, r)[1] or hand.ik(grip_pt, r)[1] or hand.ik(h, r)[1]:
+                if refused("pre-grasp", tcp - u * float(hover), r) or refused("grasp", tcp, r):
                     continue
-                if not receiver_reaches(top, u):
-                    continue
-                plan = {"u": u, "delta": delta, "r": r, "r_held": r, "tcp": grip_pt.copy()}
-                break
-            if plan:
-                break
+                candidates.append((delta, u, r, r, r))
+
+    # The handover point: the given one, then a few near it; the first where a candidate's held pose and the
+    # receiver's top-down reach both solve.
+    plan: dict[str, Any] = {}
+    h_given = h.copy()
+    for nudge in HANDOVER_NUDGES:
+        h = h_given + np.asarray(nudge)
+        for delta, u, r, r_yawed, r_held in candidates:
+            if refused("held at the handover point", h, r_held):
+                continue
+            if not receiver_ok(h + u * offset + Z * s, u):
+                continue
+            plan = {
+                "u": u,
+                "delta": delta,
+                "r": r,
+                "r_yawed": r_yawed,
+                "r_held": r_held,
+                "tcp": tcp,
+                "h": h,
+            }
+            break
+        if plan:
+            break
     if not plan:
         return finish(
             "unreachable",
             f"no {'top-down' if posture == 'lying' else 'level'} grasp and held pose at the handover point "
-            f"({h[0]:.3f}, {h[1]:.3f}, {h[2]:.3f}) passed the IK preview for both arms; nothing moved",
+            f"({h_given[0]:.3f}, {h_given[1]:.3f}, {h_given[2]:.3f}) or {len(HANDOVER_NUDGES) - 1} points near it "
+            f"passed the IK preview for both arms ({len(candidates)} grasps passed); nothing moved (refusals: "
+            + "; ".join(f"{k} x{counts.get(k, 0)}, e.g. {v}" for k, v in refusals.items())
+            + ")",
         )
+    h = plan["h"]
+    out["handover_point"] = _vec(h)
     u, r_grasp, tcp = plan["u"], plan["r"], plan["tcp"]
     out["facing_deg"] = float(math.degrees(math.atan2(u[1], u[0])))
-    pre = tcp + Z * hover if posture == "lying" else tcp - u * hover
+    pre = tcp + Z * float(hover) if posture == "lying" else tcp - u * float(hover)
 
     # --- approach and close
     try:
@@ -791,8 +842,6 @@ def run(
         return finish("dropped", gone)
     if posture == "lying":
         why = hand.line(p_lift, plan["r_yawed"]) if abs(plan["delta"]) > 1.0e-6 else ""
-        if not why:
-            why = hand.line(h, plan["r_yawed"])
         if not why:
             why = hand.line(h, plan["r_held"])
         if why:

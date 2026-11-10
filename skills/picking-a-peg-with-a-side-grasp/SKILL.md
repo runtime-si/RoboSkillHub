@@ -16,7 +16,7 @@ license: Apache-2.0
 compatibility: requires gap>=0.1
 metadata:
   category: manipulation
-  tags: [peg, side-grasp, reorientation, bimanual, handover, insertion]
+  tags: [peg, side-grasp, reorientation, bimanual, handover, insertion, sim-only]
   hub:
     stage: execute
     embodiments: [any]
@@ -111,8 +111,8 @@ inserting-a-held-peg-top-down can put the tip into a hole.
 3. **Plan before moving.** For each heading of the held approach (the free
    end's heading first, then fanned out by 20-30 deg steps), the IK preview
    checks: the pre-grasp and the grasp (both wrist solutions from
-   `robot.grasp_frame`), the hand top-down and pitched (lying) or level
-   (standing) at the handover point, and the right arm's top-down reach at the
+   `robot.grasp_frame`), the hand turned at the lift and pitched at the
+   handover point (lying) or level there (standing), and the right arm's top-down reach at the
    free end there. The last joint is set from forward kinematics in every
    preview, so its limit is checked on the roll the hand will really have.
 4. **Grasp.**
@@ -124,9 +124,9 @@ inserting-a-held-peg-top-down can put the tip into a hole.
      shaft's axis.
 5. **Close and check.** The jaw gap must read diameter -3 / +7 mm.
 6. **Lift, turn, carry.** Lift 60 mm, rechecking the jaws. Lying: turn about the
-   vertical so the free end points along the chosen heading, carry top-down to the
-   handover point, pitch a quarter turn about the closing axis (10 deg chained IK
-   steps, joint jumps over 0.6 rad refused). That turns the free end up and leaves
+   vertical so the free end points along the chosen heading, then carry to the
+   handover point while pitching a quarter turn about the closing axis (chained IK
+   steps of at most 20 mm and 10 deg, joint jumps over 0.6 rad refused). That turns the free end up and leaves
    the approach level. Standing: carry at the grasp rotation.
 7. **Stand it up on the last joint.** The axis is read back from the hand, and
    any lean about the approach over 4 deg is turned out on the last joint. A YAM
@@ -150,11 +150,57 @@ inserting-a-held-peg-top-down can put the tip into a hole.
 
 ## Simulation check
 
-Pending (filled in below after the twin runs).
+A YAM station twin (RoboSimStudio, both arms, linear_4310 hands, MuJoCo 500 Hz with the SIM_GRIP=1 grip fix,
+harness `~/sim-wt/peg-side-grasp`, GCP pool rshgpu3). The pegs are rigid cylinders, 15 g, friction 0.8. Each is handed
+to the skill as its simulator box (standing in for perception), with `object_name="peg"` so the end state is
+re-perceived. Truth comes from the simulator after a 100-step wait. Handover point: tool centre at (0.55, 0.05),
+0.20 m over the table (0.30 m in front of the left base, 0.25 m toward the right arm). Lying pegs lie 0.30 m in
+front of the left base. Standing pegs stand 0.48 m out: at 0.30 m a level hand 40-60 mm over the table put joint 4
+on its 1.57 rad limit.
+
+**With the receiver's reach preview (the default): 0 of 8 moved.** Every case routed `unreachable` before moving.
+Ten lying grasps and three standing grasps passed the preview. Held poses at the handover point solved for some of
+them, but the right arm's top-down reach at the free end (0.25-0.30 m over the table at y = 0.05) never solved at the
+given point or the 7 points near it.
+
+**Receiver preview off (`other_arm_id=-1`), left arm only:**
+
+| peg (d x L) | posture | route | true tilt | true exposed | notes |
+|---|---|---|---|---|---|
+| 8 x 80 mm | standing | holding_vertical | 0.18 deg | 32.0 mm | jaws 9.9 mm; tilt unchanged after 2 s |
+| 10 x 100 mm | standing | holding_vertical | 0.11 deg | 42.0 mm | jaws 11.9 mm |
+| 12 x 120 mm | standing | holding_vertical | 0.41 deg | 52.0 mm | jaws 13.9 mm |
+| 10 x 100 mm, yaw 0 | lying | dropped | - | - | jaws read empty at the handover point: lost during the carry-and-pitch |
+| 12 x 120 mm, yaw 0 | lying | dropped | - | - | the same |
+| 10 x 100 mm, yaw 60 | lying | unreachable | - | - | joint 4 hit -1.57 at pitch step 5 of 12; the jaws read 11.4 mm then, but the peg was later found off the table |
+| 10 x 100 mm, yaw 180 | lying | unreachable | - | - | joint 4 hit -1.57 at step 3 of 12; still holding |
+| 12 x 120 mm, yaw 20 | lying | grasp_failed | - | - | the jaws closed to 3.7 mm; the peg stayed on the table |
+| 8 x 80 mm | lying | ungraspable | - | - | at the 14 mm floor the fingertips stand 3.8 mm over the table, over the 4 mm equator |
+
+- Standing: 3 of 3 held. The skill's perceived tilt and exposed length match the truth to 0.01 deg and 0.1 mm. The
+  axis sits 1.0-1.1 mm from the tool centre. Minimum arm-to-arm clearance was 280 mm.
+- Lying: 0 of 5. The single-arm quarter pitch is the weak step. This is the same failure the domino skill
+  measured for its single-arm strategies (joint 4 on its limit, the part lost in the pitch). Ideas not yet tried:
+  pitch in the air before carrying, a handover point farther out (joint 4 had room at 0.4-0.5 m), or the domino
+  skill's helper-arm roll (the right arm takes the lying peg's end level and rolls).
+- Not exercised: a real YAM; `slipped` in the twin (no peg pivoted past 8 deg); the receiver preview passing.
+
+Sample `left_grip` (10 x 100 mm standing peg, `holding_vertical`):
+
+```json
+{"T_base_tcp": {"position": {"x": 0.5525, "y": 0.0500, "z": 0.9480},
+                "rotation": {"w": 0.5843, "x": 0.3975, "y": 0.5849, "z": -0.3980}},
+ "T_TCP_object": {"position": {"x": 0.00025, "y": -0.0000024, "z": 0.00107},
+                  "rotation": {"w": 0.5386, "x": -0.4577, "y": -0.5400, "z": 0.4570}},
+ "exposed_len_m": 0.0420}
+```
 
 ## Limits
 
-- No real-YAM run.
+- No real-YAM run. In the twin, lying pegs were not stood up (0/5), and no handover point passed the receiver's reach
+  preview: see Simulation check.
 - Without `object_name` (or a re-perceived pose), `axis_tilt_deg` is the hand's: a peg that pivoted in the pads
   reads vertical. The pivot is the known weak mode of a pinch on a round shaft (SIM_GRIP.md).
 - `T_base_tcp` is in the world frame the robot tools use, not an arm-base frame.
+- Tagged `sim-only` because it allows `sim.get_object_obb` (the twin's stand-in for re-perceiving the held peg, used
+  only when `object_name` is set). With `object_name` empty it calls only robot.* tools.
