@@ -9,7 +9,8 @@ each other camera, and answers false / true at one position; the released calibr
 Adapted from the RoboJev client (github.com/josefchen/robojev at 79a5e2f, ``robojev/robojev.py``,
 Apache-2.0, licence in LICENSE.robojev): the prompt strings (``DENSE_QUESTION``, ``dense_state_text``,
 ``camera_name``, the ``[kind] noul`` / ``[options]`` / ``[decision]:`` frame and the image
-placeholders), the frame picking (``pick_frames``), the 288 px short side with a JPEG round trip,
+placeholders), the frame picking (``pick_frames``; short clips are padded with their last frame
+instead of spread evenly - see its docstring), the 288 px short side with a JPEG round trip,
 and the read-out ``1 / (1 + exp(((lp_false + b_false) - (lp_true + b_true)) / T))``. Changed: the
 model runs in this process through transformers (``Qwen3_5ForConditionalGeneration`` and its
 processor) instead of behind a vLLM server - one forward pass, the last position's logits of the
@@ -101,12 +102,19 @@ def dense_state_text(task: str, cameras: list[str], frames: int = FRAMES) -> str
 
 
 def pick_frames(count: int, frames: int = FRAMES) -> list[int]:
-    """``frames`` indices evenly spaced over ``count`` frames, first and last included (repeats when short)."""
+    """``frames`` indices over ``count`` frames, first and last included.
+
+    From ``frames`` frames up, evenly spaced (the client's rule). Shorter clips keep every frame but
+    the last once and fill the rest with the last: the client's even spread turns a start / end pair
+    into five starts and five ends, which the model read as "not done" on every successful twin
+    attempt (P 0.007-0.012); one start and nine ends gave P 0.97-0.98 (SKILL.md, Measured)."""
     if count < 1:
         raise ValueError("at least one frame is needed")
     if frames == 1:
         return [count - 1]
-    return [round(i * (count - 1) / (frames - 1)) for i in range(frames)]
+    if count >= frames:
+        return [round(i * (count - 1) / (frames - 1)) for i in range(frames)]
+    return list(range(count - 1)) + [count - 1] * (frames - count + 1)
 
 
 def _resized(image: np.ndarray) -> Any:

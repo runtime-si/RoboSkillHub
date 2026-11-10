@@ -18,7 +18,7 @@ metadata:
     tasks: [pick-place, assembly, sorting]
     weights:
       uri: hf://josefchen/RoboJev-27B@e089a9b69a365744b80765057d86583647af95a9
-      sha256: WEIGHTS_SHA
+      sha256: 4d09cc33a74084a50fa09a4c8cf36fe572a02575917d9f8c9b22ed42a8027813
       license: Apache-2.0 (model card; base autotrust/JEV-27B-VL, Apache-2.0, built on Qwen); the card notes the training-data licence chain is not fully reconstructed
     provenance:
       authors: [Josef Chen]
@@ -62,8 +62,9 @@ r["p_done"]  # calibrated P(task done)
 `{p_done, logit_false, logit_true, frames_used, views_used, prompt_state, model}`.
 
 - `frames`: RGB uint8 frames of the attempt from one camera, start first,
-  end last, any number - ten are taken evenly (first and last included,
-  repeated when there are fewer, as the RoboJev client does).
+  end last, any number - ten are taken evenly (first and last included); a
+  shorter clip keeps each frame once and repeats the last (not the client's
+  even spread, which made start / end pairs read as not done - Measured).
 - `views`: camera name -> that camera's last frame.
 - `camera`: the main camera's name; names containing `top`, `front` or
   `wrist` get the model's own wording ("overhead camera"...), others
@@ -97,7 +98,14 @@ bf16 on one GPU: 55.6 GB allocated. Env knobs: `GAP_ROBOJEV_MODEL`,
 
 ## Measured
 
-MEASURED
+2026-11-09 on a GCP RTX PRO 6000 (96 GB), transformers 5.19.0, torch 2.10.0,
+bf16: 55.6 GB allocated, 10 s for the first call (load from a warm disk
+cache), 0.7 s per answer after (11 images). On 24 scripted twin attempts
+(skills/judging-attempt-success-from-frames-robojev, Checks) every attempt
+was right at 0.5 with all frames (successes 0.991-1.000, failures <= 0.015).
+A smoke clip: the full successful attempt 0.991, cut before the release
+0.246, cut at the lift 0.024; the same frames with a wrong task sentence
+0.006.
 
 ## Limits
 

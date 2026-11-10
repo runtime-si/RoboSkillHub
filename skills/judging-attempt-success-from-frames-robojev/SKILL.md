@@ -68,9 +68,9 @@ its answer a probability; this skill feeds it what a graph has.
 1. **Main camera**: `camera`, else the first non-wrist camera with RGB in the
    observation now (the overhead one on the YAM station), else a wrist one.
 2. **Clip**: `frames` (images or CameraFrames, start to end), else that
-   camera's frame in `before` and now - a two-frame clip, which RoboJev's
-   frame picking turns into five starts and five ends, as its client does
-   for a short clip.
+   camera's frame in `before` and now - a two-frame clip, which tools/robojev
+   pads to one start and nine ends (RoboJev's client would send five and
+   five, which read as "not done" on every successful attempt; Checks).
 3. **Extra views**: the last frame of every other camera now (`views` names
    them; `use_views: false` none). RoboJev was trained with the final views
    of other cameras appended.
@@ -88,7 +88,37 @@ box."), `frames`, `before`, `camera`, `views`, `use_views` (true),
 
 ## Checks
 
-CHECKS
+CPU unit tests (`tests/bundles/test_judging_attempt_success_from_frames_robojev.py`,
+17 with the tool's; the model faked): the prompt, frame picking, the
+calibrated read-out, the vLLM path, and the skill's frame sources, camera
+choice, views, routes and bad inputs.
+
+**Twin attempts** (YAM station twin, left arm, GCP RTX PRO 6000; harness not
+in the hub): 24 scripted "put the cube in the box" attempts, 12 waypoint
+frames each from the calibrated overhead camera and the wrist camera; 10
+succeed, 14 fail on purpose - grasp 5 cm off (3), released beside the box (3),
+dropped on the way (3), released on the rim (3), never closed the hand (2). The
+label is the simulator's (cube resting inside the box). Scored with
+`python -m tests.bundles._robojev_twin_eval DIR` (real RoboJev-27B, 0.7 s an
+answer). Baseline: the hub's judging-step-with-before-now-vlm with Gemini
+Robotics-ER 2 as `vlm.query` (BEFORE = first frames, NOW = last).
+
+| input | RoboJev: right at 0.5 | RoboJev P(done), successes / failures | RoboJev routes (0.7 / 0.3) | judge_step + Gemini-ER |
+|---|---|---|---|---|
+| all 12 overhead frames + wrist end | 24 / 24 | 0.991-1.000 / <= 0.015 | 24 right, 0 uncertain | - |
+| start + end overhead + wrist end | 24 / 24 | 0.973-0.98 / <= 0.013 | 24 right, 0 uncertain | 24 / 24 complete vs not; 13 of 14 failures `in_progress`, 1 `failed` |
+| all frames, no wrist view | 24 / 24 | >= 0.980 / <= 0.011 | 24 right | - |
+| successful attempts cut at the lift (not done) | 9 / 10 | max 0.73 | 7 failure, 2 uncertain, 1 success | 10 / 10 `in_progress` |
+
+The start / end row uses this bundle's padding (one start, nine ends); with
+RoboJev's own even spread (five and five) every success read as not done
+(P 0.007-0.012, 14 / 24 right). The cost: a short clip cut before the
+outcome is padded with its last frame too, which made one lift-only clip look
+done (P 0.73); with the even spread all ten were <= 0.025. Record more than
+two frames where it matters. On this (easy) task Gemini through judge_step
+is as accurate on done-vs-not, but calls nearly every failure `in_progress`
+(continue) rather than `failed`; RoboJev gives a calibrated number locally in
+0.7 s with no API.
 
 ## Limits
 

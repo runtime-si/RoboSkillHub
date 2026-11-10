@@ -51,10 +51,11 @@ def _img(v, h=48, w=64):
 # -- tools/robojev ----------------------------------------------------------------------------
 
 
-def test_pick_frames_spans_start_to_end_and_repeats_when_short(rj):
+def test_pick_frames_spans_start_to_end_and_pads_short_clips_with_the_end(rj):
     assert rj.pick_frames(12) == [0, 1, 2, 4, 5, 6, 7, 9, 10, 11]
     assert rj.pick_frames(10) == list(range(10))
-    assert rj.pick_frames(2) == [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
+    assert rj.pick_frames(2) == [0] + [1] * 9
+    assert rj.pick_frames(4) == [0, 1, 2] + [3] * 7
     assert rj.pick_frames(1) == [0] * 10
     with pytest.raises(ValueError):
         rj.pick_frames(0)
