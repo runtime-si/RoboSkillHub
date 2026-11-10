@@ -46,7 +46,11 @@ def yam_domino_world(
     table_offset_m: float = 0.008,
     tcp_floor_m: float = TCP_FLOOR_M,
     cfg: YamPhysicsConfig | None = None,
+    observations: str = "truth",
+    vision=None,
 ) -> dict:
+    """``observations="vision"`` with a ``yam_vision.YamVision`` estimates the tile poses from the
+    rendered overhead camera instead of reading the simulator truth (the default)."""
     spec_true = world_spec(slots, table_offset_m=table_offset_m if fault == "table_offset" else 0.0)
     spec_cal = world_spec(slots)
     feeders = feeder_poses_for_seed(spec_true, seed)
@@ -61,6 +65,8 @@ def yam_domino_world(
         fault_index=slots - 1 if fault_index is None else fault_index,
         table_offset_m=table_offset_m,
         tcp_floor_m=tcp_floor_m,
+        observations=observations,
+        vision=vision,
     )
     size = [spec_cal.tile.height, spec_cal.tile.width, spec_cal.tile.thickness]
     slot_list = []
@@ -151,7 +157,7 @@ def yam_domino_world(
         "describe": describe,
         "task_success": lambda: independent()["layout"]["status"] == "succeeded",
         "independent": independent,
-        "privileged_allowed": True,
+        "privileged_allowed": observations == "truth",
         "interventions": interventions,
         "station": station,
     }
