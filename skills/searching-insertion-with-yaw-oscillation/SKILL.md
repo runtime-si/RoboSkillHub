@@ -39,8 +39,11 @@ gap:
     sink: float
     rest_z: float
     tries: int
+    confirmed: bool
+    confirm_travel: float
   exit_conditions:
-    dropped_in: A turn was stopped short with the hand already drop_depth under the resting height (the part dropped in while the wrist swept through the matching yaw); or, pressed at some yaw, the hand followed its command (lag over the free baseline under half contact_lag) and sank at least drop_depth (2 mm) under the resting height - the part entered its socket; yaw_found_deg is the hand's yaw from the start (read back). The press is unloaded; the hand still holds the part there.
+    dropped_in: Confirmed (unless confirm is false) by a sideways probe that met a wall within confirm_probe after the hand sank, where a turn was stopped short with the hand already drop_depth under the resting height (the part dropped in while the wrist swept through the matching yaw); or, pressed at some yaw, the hand followed its command (lag over the free baseline under half contact_lag) and sank at least drop_depth (2 mm) under the resting height - the part entered its socket; yaw_found_deg is the hand's yaw from the start (read back). The press is unloaded; the hand still holds the part there.
+    unconfirmed: The hand sank as if the part dropped, but the confirmation probe moved the hand confirm_probe (6 mm) sideways without meeting a wall - the part is not in a socket (it slid in the jaws, or walked off the socket on its rim). The hand still holds it, over where it stopped.
     no_drop: Every yaw in +-yaw_range_deg was pressed without a drop; the press is unloaded and (return_on_fail) the wrist turned back to the start.
     jammed: A turn stopped more than jam_deg (3 deg) short of its command - the part is held against turning (a key wall, friction); the press is unloaded where it stands.
     blocked: The jaws read at their closed stop after a press (the part left the hand; check_holding), no socket felt from start_lift over the start to max_descent under it, a lift or descent step, press or wrist turn was refused, or the last joint had no room for the next turn; `detail` says which.
@@ -81,7 +84,14 @@ until its soft wrist feels a torque; here the turn is a search for the drop.
    learnt, re-commanded up to three times to within 0.3 deg; this also takes
    the press off), then press again at the resting position and check the
    sink. A turn that ends more than `jam_deg` short of its yaw is `jammed`.
-4. **End.** Unload the press (command the hand where it stands). After a
+4. **Confirm a drop.** Proprioception alone cannot tell a drop from the part
+   sliding up the jaws or walking off the socket on its rim. So after a drop,
+   the press is unloaded and the hand is moved sideways in 0.5 mm steps up to
+   `confirm_probe`. A part in its socket meets a wall within the socket's
+   clearance, and the hand then lags its command by `confirm_lag`
+   (`dropped_in`, `confirm_travel` says where). A part that rides freely is
+   `unconfirmed`. The hand returns over the drop either way.
+5. **End.** Unload the press (command the hand where it stands). After a
    fruitless search turn back to the start (`return_on_fail`).
 
 A connector with no joint reading gets the turn as a rotation command instead
@@ -95,6 +105,9 @@ PORTING lesson 10).
   (0.002 m), `jam_deg` (3).
 - `start_lift` (0.003 m), `max_descent` (0.010 m), `descent_step`
   (0.0005 m), `contact_lag` (0.0015 m).
+- `confirm` (true), `confirm_direction` (Vec3, x/y used; default world +x),
+  `confirm_probe` (0.006 m, longer than the socket's total clearance plus
+  `confirm_lag`), `confirm_lag` (0.001 m), `check_holding` (true).
 - `return_on_fail` (true), `roll_limits` (the last joint's range, rad;
   default +-2.0944), `step_tolerance` (0.0002 m, passed as the servo's
   `tolerance`), `step_max_steps` (0), the settle constants, `arm_id` (passed
@@ -145,27 +158,36 @@ Setup:
   tops. The grasp turns the cube about -18 deg in the jaws (the twin's wrist
   roll is free; lesson 10), so the turn needed is the socket's angle plus
   about 18 deg.
-- Skill defaults. One rollout per socket angle. "In" means the cube's bottom
-  ended under the wall tops (sim ground truth).
+- Skill defaults.
 
-| socket vs cube start | turn needed | route | yaw reported (try) | ground truth |
-|---|---|---|---|---|
-| -14 deg | +4.3 deg | dropped_in | +6.0 (2) | in: 0.3 deg off, bottom 3.7 mm under the wall tops |
-| 0 deg | +19.0 deg | dropped_in | +18.0 (6) | in: bottom 3.4 mm under the wall tops |
-| +20 deg | +39.7 deg | dropped_in | -24.2 (9) | **false**: still on the wall tops, 16 deg off; the cube slid in the jaws all at once |
-| +33 deg | -38.8 deg | no_drop, "sliding in the jaws" note (3.2 mm crept) | - | correct refusal: the cube had walked 7.2 mm off the socket's centre on the rim |
+With the sideways confirmation (defaults), 16 rollouts: 8 socket angles x 2
+hover offsets (seed 0: centred; seed 1: 0.8 mm off). Ground truth: "in" means
+the cube's bottom ended at least 1 mm under the wall tops on the socket's
+centre.
 
-- Two of four found the yaw and entered. One false drop, one honest
-  no_drop.
-- In an earlier run with the same grip, the part dropped in while a turn
-  swept through the matching yaw, and the walls then stopped the turn. That
-  read `jammed`. Such a stop is now `dropped_in` when the hand has sunk.
-  `jammed` itself ran only in the unit tests.
-- Two earlier runs (3 mm press, 1 mm descent steps) also lost the cube out of
-  the jaws entirely and called it a drop. Hence the lower press, the "sudden"
-  test and the closed-jaws check (`blocked`).
-- Before the grip fix, no run felt the socket at all (three parameter sets):
-  the held cube crept up the jaws under any push.
+| socket vs cube start | seed 0 | seed 1 |
+|---|---|---|
+| -40 deg | blocked (cube lost from the jaws) | blocked (lost) |
+| -25 deg | jammed (in, 3.8 mm) | jammed (in, 3.5 mm) |
+| -14 deg | dropped_in, confirmed (in, 3.5 mm) | dropped_in, confirmed (in, 3.5 mm) |
+| 0 deg | unconfirmed (in, only 1.3 mm) | dropped_in, confirmed (in, 2.5 mm) |
+| +8 deg | blocked (lost) | **unconfirmed (not in: on the wall tops; a false drop caught)** |
+| +20 deg | no_drop (not in) | no_drop (**in, 10.7 mm**: the cube slid down the jaws into the socket and the hand never sank) |
+| +33 deg | dropped_in, confirmed (**lip only: 0.4 mm under the wall tops**) | no_drop (not in) |
+| +45 deg | no_drop (not in) | unconfirmed (not in, on the rim) |
+
+- Every confirmed `dropped_in` was in the socket: 3 of 4 at 2.5-3.5 mm, and 1 with only its lip
+  engaged (0.4 mm).
+- The confirmation turned both of the run's false drops (+8 deg seed 1, +45 deg seed 1) into `unconfirmed`.
+  The previous version, without it, reported one false drop in four runs.
+- Of the six cubes that ended in the socket, three were confirmed. The other three were reported
+  conservatively: twice `jammed`, once `unconfirmed` (only 1.3 mm in). A seventh, +20 deg seed 1,
+  dropped through the jaws into the socket with the hand never sinking, and read `no_drop`.
+- Three of 16 cubes left the jaws during the turns and were caught as `blocked` (closed jaws).
+  Turning a part pressed on a rim twists it in the jaws; the twin's blade-tip contacts carry
+  little torsional friction.
+- Before the grip fix, no run felt the socket at all: the held cube crept up the jaws under any
+  push.
 - Nothing ran on a real YAM.
 
 ## Limits

@@ -94,6 +94,16 @@ SETTLE_TIMEOUT = 3.0
 """The hand has settled when two reads SETTLE_PERIOD apart [s] differ by less than
 SETTLE_QUIET [m], or after SETTLE_TIMEOUT [s] (a real YAM station's still())."""
 
+CONFIRM_PROBE = 0.006
+CONFIRM_STEP = 0.0005
+CONFIRM_LAG = 0.001
+"""Drop confirmation: after a drop the hand moves sideways CONFIRM_PROBE [m] in
+CONFIRM_STEP steps; a part in its socket meets a wall within the socket's total
+clearance (3 mm for a 30 mm part in a 33 mm hole), and the hand then lags its
+command by over CONFIRM_LAG [m]; a part that only slid in the jaws, or walked off
+on the rim, rides the rim freely. The probe must be longer than the clearance plus
+CONFIRM_LAG. Choices, checked in a station twin (see SKILL.md)."""
+
 STOP_MARGIN = 0.002
 """Jaw gap within this of the closed stop reads as nothing held [m]
 (pressing-a-brick-onto-studs' test)."""
@@ -107,6 +117,8 @@ class Output(TypedDict):
     yaw_found_deg: float
     yaw_read_deg: float
     sink: float
+    confirmed: bool
+    confirm_travel: float
     rest_z: float
     tries: int
 
@@ -289,6 +301,10 @@ def run(
     contact_lag: float = CONTACT_LAG,
     return_on_fail: bool = True,
     check_holding: bool = True,
+    confirm: bool = True,
+    confirm_direction: dict[str, float] | None = None,
+    confirm_probe: float = CONFIRM_PROBE,
+    confirm_lag: float = CONFIRM_LAG,
     roll_limits: list[float] | None = None,
     step_tolerance: float = STEP_TOLERANCE,
     step_max_steps: int = 0,
@@ -311,6 +327,8 @@ def run(
         "yaw_found_deg": 0.0,
         "yaw_read_deg": 0.0,
         "sink": 0.0,
+        "confirmed": False,
+        "confirm_travel": -1.0,
         "rest_z": float(p0[2]),
         "tries": 0,
     }
@@ -413,8 +431,57 @@ def run(
         p, _ = settle()
         return "", p, float(p[2] - press_at[2]) - base
 
+    def confirm_drop(detail: str) -> Output:
+        """Probe sideways: a wall within the probe confirms the drop."""
+        if not confirm:
+            out["confirmed"] = False
+            return finish("dropped_in", detail + "; not confirmed (confirm false)")
+        p0, r = settle()
+        d = np.array([1.0, 0.0, 0.0])
+        if confirm_direction is not None:
+            d = np.array([float(confirm_direction[k]) for k in "xy"] + [0.0])
+            d /= float(np.linalg.norm(d)) or 1.0
+        hold = stay(p0)
+        kind, why = arm.move(hold, r)
+        if kind == "refused":
+            return finish("blocked", detail + f"; the confirmation's hold was refused: {why}")
+        q, _ = settle()
+        side0 = float(np.dot(hold - q, d))
+        n = math.ceil(float(confirm_probe) / CONFIRM_STEP - 1e-9)
+        hit = -1.0
+        for i in range(1, n + 1):
+            cmd = hold + d * min(i * CONFIRM_STEP, float(confirm_probe))
+            kind, why = arm.move(cmd, r)
+            if kind == "refused":
+                arm.move(hold, r)
+                return finish("blocked", detail + f"; confirmation step {i} refused: {why}")
+            q, _ = settle()
+            if float(np.dot(cmd - q, d)) - side0 > float(confirm_lag):
+                hit = float(np.dot(q - p0, d))
+                break
+        arm.move(hold, r)
+        out["confirm_travel"] = hit
+        if hit >= 0.0:
+            out["confirmed"] = True
+            return finish(
+                "dropped_in",
+                detail + f"; confirmed: a wall stopped the hand {hit * 1e3:.1f} mm sideways",
+            )
+        return finish(
+            "unconfirmed",
+            detail.replace("; still holding", "")
+            + f"; but the hand moved {confirm_probe * 1e3:.0f} mm sideways without meeting a wall: "
+            "the part is not in a socket (it slid in the jaws or walked off on the rim); still holding",
+        )
+
+    def stay(p: np.ndarray) -> np.ndarray:
+        """The command that keeps the hand at ``p`` without pushing: ``p`` less the
+        free-motion lag (an arm that stands millimetres over its aim in free air would
+        otherwise rise that much, lifting the part out of its socket)."""
+        return p - np.array([0.0, 0.0, base])
+
     def unload(p: np.ndarray, r: np.ndarray) -> None:
-        kind, why = arm.move(p, r)
+        kind, why = arm.move(stay(p), r)
         if kind == "refused":
             notes.append(f"unloading the press was refused ({why}); the arm may still be pushing")
 
@@ -438,8 +505,7 @@ def run(
                     # the way, and the socket's walls stopped the rest of the turn.
                     out["yaw_found_deg"] = state["yaw"]
                     out["sink"] = sunk
-                    return finish(
-                        "dropped_in",
+                    return confirm_drop(
                         f"the turn to {yaw:+.0f} deg stopped at {state['yaw']:+.1f} deg with the hand "
                         f"{sunk * 1e3:.1f} mm under the resting height: the part dropped in on the way "
                         f"(try {k + 1} of {len(order)}); still holding",
@@ -469,8 +535,7 @@ def run(
         if held <= float(contact_lag) / 2 and sink >= float(drop_depth) and sudden:
             out["yaw_found_deg"] = state["yaw"]
             unload(p, r)
-            return finish(
-                "dropped_in",
+            return confirm_drop(
                 f"the hand sank {sink * 1e3:.1f} mm under the resting height at "
                 f"{state['yaw']:+.1f} deg (try {k + 1} of {len(order)}); still holding",
             )

@@ -45,6 +45,8 @@ class Arm:
         refuse_joint=None,
         refuse_pose=None,
         start_z=None,
+        walls=True,
+        wall_gap=0.0015,
     ):
         z = START[2] if start_z is None else start_z
         self.p = np.array([START[0], START[1], z])
@@ -56,6 +58,8 @@ class Arm:
         self.refuse_joint = refuse_joint or (lambda q: None)
         self.refuse_pose = refuse_pose or (lambda p: None)
         self.poses, self.turns = [], []
+        self.walls, self.wall_gap, self.in_x = walls, wall_gap, None
+        self.rim = surface if surface is not None else 0.0
 
     @property
     def yaw(self):
@@ -70,7 +74,13 @@ class Arm:
         z = self.cmd[2] + self.sag
         if self.surface is not None:
             z = max(z, self._barrier())
-        self.p = np.array([self.cmd[0], self.cmd[1], z])
+        x = self.cmd[0]
+        # In the socket (under its rim) the walls allow wall_gap either way.
+        if self.surface is not None and self.walls and z < self.rim - 0.001:
+            if self.in_x is None:
+                self.in_x = x
+            x = min(max(x, self.in_x - self.wall_gap), self.in_x + self.wall_gap)
+        self.p = np.array([x, self.cmd[1], z])
 
     def go(self, pose, **kwargs):
         target = np.array([pose["position"][k] for k in "xyz"], dtype=float)
@@ -354,3 +364,40 @@ def test_a_turn_stopped_with_the_hand_sunk_is_a_drop(script):
     out = script.run(arm.ctx(), **FAST)
     assert out["route"] == "dropped_in", out["detail"]
     assert "dropped in on the way" in out["detail"]
+
+
+def test_a_drop_is_confirmed_by_a_wall_sideways(script):
+    arm = Arm(key=20.0)
+    out = script.run(arm.ctx(), **FAST)
+    assert out["route"] == "dropped_in"
+    assert out["confirmed"]
+    assert out["confirm_travel"] == pytest.approx(0.0015, abs=0.0006)
+    # The hand went back over the drop after the probe.
+    assert arm.poses[-1][0][0] == pytest.approx(START[0], abs=1e-9)
+
+
+def test_unloading_a_sagging_arm_keeps_the_part_down(script):
+    arm = Arm(key=-6.0, sag=0.0054, start_z=START[2])
+    out = script.run(arm.ctx(), **FAST)
+    assert out["route"] == "dropped_in", out["detail"]
+    assert out["confirmed"]
+    # Still under the rim after the unload and the probe.
+    assert arm.p[2] < START[2] - 0.002
+
+
+def test_a_drop_without_walls_is_unconfirmed(script):
+    # The hand sank and followed its command, but nothing stops it sideways: the
+    # part slid in the jaws on the rim (or walked off it).
+    arm = Arm(key=20.0, walls=False)
+    out = script.run(arm.ctx(), **FAST)
+    assert out["route"] == "unconfirmed", out["detail"]
+    assert not out["confirmed"]
+    assert out["confirm_travel"] == -1.0
+    assert "without meeting a wall" in out["detail"]
+
+
+def test_confirmation_can_be_skipped(script):
+    arm = Arm(key=20.0, walls=False)
+    out = script.run(arm.ctx(), confirm=False, **FAST)
+    assert out["route"] == "dropped_in"
+    assert not out["confirmed"]
