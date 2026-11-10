@@ -68,10 +68,22 @@ class Hand:
             q = q.get("positions")
         return np.asarray(q if q is not None else [], dtype=np.float64).reshape(-1)
 
-    def move_xy(self, x: float, y: float, z: float, rotation: dict[str, float]) -> str:
+    def move_xy(
+        self,
+        x: float,
+        y: float,
+        z: float,
+        rotation: dict[str, float],
+        tool: str = "robot.go_to_pose",
+        tolerance: float | None = None,
+    ) -> str:
+        """Move the tool centre; ``tool`` robot.go_to_pose_cartesian for millimetre steps (a joint-space
+        go_to_pose may count a few millimetres off as arrived); ``tolerance`` [m] is passed only when
+        set (a servo connector reports a 1 mm step as reached without moving at its 4 mm default)."""
         pose = {"position": {"x": float(x), "y": float(y), "z": float(z)}, "rotation": rotation}
+        knobs = {"tolerance": float(tolerance)} if tolerance else {}
         try:
-            return refusal(self.ctx.tool("robot.go_to_pose", pose=pose, **self.arm))
+            return refusal(self.ctx.tool(tool, pose=pose, **self.arm, **knobs))
         except Exception as exc:  # a refused move is routed, not raised
             return str(exc) or type(exc).__name__
 
@@ -83,11 +95,17 @@ class Hand:
         if q.size == 0:
             return "no joint reading"
         _, before, _ = self.state()
-        gain = self.gain if self.gain is not None else -1.0  # a down-pointing tool turns against its joint
+        gain = (
+            self.gain if self.gain is not None else -1.0
+        )  # a down-pointing tool turns against its joint
         q = q.copy()
         q[joint] += math.radians(dyaw_deg / gain)
         try:
-            why = refusal(self.ctx.tool("robot.move_to_joints", joint_config={"positions": q.tolist()}, **self.arm))
+            why = refusal(
+                self.ctx.tool(
+                    "robot.move_to_joints", joint_config={"positions": q.tolist()}, **self.arm
+                )
+            )
         except Exception as exc:
             why = str(exc) or type(exc).__name__
         if why:

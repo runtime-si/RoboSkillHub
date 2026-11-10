@@ -1,3 +1,4 @@
+# ruff: noqa  (vendored from CNS @ 6b42138, MIT)
 # From CNS (https://github.com/hhcaz/CNS @ 6b42138), cns/benchmark/controller.py, MIT, Copyright (c) 2023 hhcaz.
 # Changed: only GraphVSController; the "new scene" print removed; the checkpoint is loaded with weights_only.
 import numpy as np
@@ -7,7 +8,7 @@ from .midend.graph_gen import GraphData
 from .models.graph_vs import GraphVS
 
 
-class GraphVSController(object):
+class GraphVSController:
     def __init__(self, ckpt_path: str, device="cuda:0"):
         self.device = torch.device(device)
         # self.net: GraphVS = torch.load(ckpt_path, map_location=self.device, weights_only=True)["net"]
@@ -26,7 +27,7 @@ class GraphVSController(object):
             if hasattr(self.net, "preprocess"):
                 data = self.net.preprocess(data)
 
-            if getattr(data, "new_scene").any():
+            if data.new_scene.any():
                 self.hidden = None
 
             raw_pred = self.net(data, self.hidden)

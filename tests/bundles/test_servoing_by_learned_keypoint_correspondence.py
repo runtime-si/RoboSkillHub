@@ -50,8 +50,12 @@ class Arm:
 
     def tools(self, cns):
         return {
-            "robot.get_ee_pose": lambda **kw: {"position": dict(zip("xyz", map(float, self.p), strict=True)), "rotation": quat(self.R())},
+            "robot.get_ee_pose": lambda **kw: {
+                "position": dict(zip("xyz", map(float, self.p), strict=True)),
+                "rotation": quat(self.R()),
+            },
             "robot.go_to_pose": self.go,
+            "robot.go_to_pose_cartesian": self.go,
             "robot.move_to_joints": self.joints,
             "robot.get_observation": self.obs,
             **cns,
@@ -75,9 +79,18 @@ class Arm:
         T = np.eye(4)
         T[:3, :3], T[:3, 3] = self.R(), self.p
         depth = np.full((40, 60), 0.15)
-        return {"cameras": [{"name": "wrist", "rgb": np.zeros((40, 60, 3), np.uint8), "depth": depth,
-                             "intrinsics": [[50, 0, 30], [0, 50, 20], [0, 0, 1]], "pose": T.tolist()}],
-                "arms": [{"joint_state": self.q.tolist()}]}
+        return {
+            "cameras": [
+                {
+                    "name": "wrist",
+                    "rgb": np.zeros((40, 60, 3), np.uint8),
+                    "depth": depth,
+                    "intrinsics": [[50, 0, 30], [0, 50, 20], [0, 0, 1]],
+                    "pose": T.tolist(),
+                }
+            ],
+            "arms": [{"joint_state": self.q.tolist()}],
+        }
 
 
 class FakeCNS:
@@ -88,7 +101,11 @@ class FakeCNS:
         self.started, self.stopped = [], []
 
     def tools(self):
-        return {"cns.start": self.start, "cns.step": self.step, "cns.stop": lambda session_id: self.stopped.append(session_id)}
+        return {
+            "cns.start": self.start,
+            "cns.step": self.step,
+            "cns.stop": lambda session_id: self.stopped.append(session_id),
+        }
 
     def start(self, **kw):
         self.started.append(kw)
@@ -138,7 +155,9 @@ def test_lost_correspondence(servo):
 def test_timeout_and_refused_step(servo):
     arm = Arm(x=0.33)
     cns = FakeCNS(arm, (0.30, 0.10, 10.0), gain=0.01)
-    out = servo.run(FakeContext(arm.tools(cns.tools())), goal=Arm().obs(), camera="wrist", max_frames=4)
+    out = servo.run(
+        FakeContext(arm.tools(cns.tools())), goal=Arm().obs(), camera="wrist", max_frames=4
+    )
     assert out["route"] == "timeout" and out["frames"] == 4
     t = arm.tools(FakeCNS(arm, (0.30, 0.10, 10.0)).tools())
     t["robot.go_to_pose"] = lambda **kw: {"outcome": "unreachable", "reached": False}
@@ -162,7 +181,9 @@ def test_goal_without_frame_or_distance(servo):
 def test_full_mode_uses_go_to_pose_rotation(servo):
     arm = Arm(x=0.302, yaw=14.0)
     cns = FakeCNS(arm, (0.30, 0.10, 10.0))
-    out = servo.run(FakeContext(arm.tools(cns.tools())), goal=Arm().obs(), camera="wrist", mode="full")
+    out = servo.run(
+        FakeContext(arm.tools(cns.tools())), goal=Arm().obs(), camera="wrist", mode="full"
+    )
     assert out["route"] == "converged" and abs(arm.yaw - 10.0) < 0.3
     assert not arm.q.any()  # no joint turns in full mode
     with pytest.raises(ValueError, match="mode"):
@@ -172,7 +193,9 @@ def test_full_mode_uses_go_to_pose_rotation(servo):
 def test_cns_bundle(skills_registry, tool_registry):
     mod = skills_registry.get("cns").tools_module
     assert len(mod.WEIGHTS_SHA256) == 64 and "6b42138ea8f1" in mod.WEIGHTS_URL
-    assert {"goal_image", "intrinsics", "distance_m", "detector"} == set(tool_registry.get("cns.start").schema.inputs)
+    assert {"goal_image", "intrinsics", "distance_m", "detector"} == set(
+        tool_registry.get("cns.start").schema.inputs
+    )
     assert {"session_id", "image"} == set(tool_registry.get("cns.step").schema.inputs)
     assert "torch" not in vars(mod)
     with pytest.raises(Exception, match="no session"):
@@ -181,4 +204,8 @@ def test_cns_bundle(skills_registry, tool_registry):
 
 def test_example_declares_every_route(bundle):
     ex = json.loads((Path(bundle.bundle_dir) / "examples" / "canonical_subgraph.json").read_text())
-    assert set(ex["exit"]["success_values"]) | {ex["on_error"]} == {"converged", "lost_correspondence", "timeout"}
+    assert set(ex["exit"]["success_values"]) | {ex["on_error"]} == {
+        "converged",
+        "lost_correspondence",
+        "timeout",
+    }

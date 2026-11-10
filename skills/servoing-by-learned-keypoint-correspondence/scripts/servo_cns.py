@@ -94,6 +94,8 @@ def run(
     min_matches: int = MIN_MATCHES,
     detector: str = "SIFT",
     arm_id: int = 0,
+    step_tool: str = "robot.go_to_pose",
+    tolerance: float | None = None,
 ) -> Output:
     """``goal``: an observation taken at the pose to come back to (its ``camera`` frame is the goal view).
     ``distance_m``: camera to the scene there (default the goal frame's median centre depth)."""
@@ -103,12 +105,33 @@ def run(
     hand = Hand(ctx, arm_id)
     start, start_yaw, _ = hand.state()
     if gcam is None or gcam.get("intrinsics") is None:
-        return _out("lost_correspondence", 0, float("inf"), hand, start, start_yaw, f"goal has no frame with intrinsics from {camera!r}")
+        return _out(
+            "lost_correspondence",
+            0,
+            float("inf"),
+            hand,
+            start,
+            start_yaw,
+            f"goal has no frame with intrinsics from {camera!r}",
+        )
     dist = float(distance_m) if distance_m else _distance(gcam)
     if not dist:
-        return _out("lost_correspondence", 0, float("inf"), hand, start, start_yaw, "no distance_m and no goal depth")
-    s = ctx.tool("cns.start", goal_image=_rgb(gcam), intrinsics=np.asarray(gcam["intrinsics"]).tolist(),
-                 distance_m=dist, detector=detector)
+        return _out(
+            "lost_correspondence",
+            0,
+            float("inf"),
+            hand,
+            start,
+            start_yaw,
+            "no distance_m and no goal depth",
+        )
+    s = ctx.tool(
+        "cns.start",
+        goal_image=_rgb(gcam),
+        intrinsics=np.asarray(gcam["intrinsics"]).tolist(),
+        distance_m=dist,
+        detector=detector,
+    )
     sid = s["session_id"]
     lost = 0
     err = float("inf")
@@ -116,20 +139,52 @@ def run(
         for k in range(1, int(max_frames) + 1):
             cam = _camera(ctx.tool("robot.get_observation"), camera)
             if cam is None:
-                return _out("lost_correspondence", k - 1, err, hand, start, start_yaw, f"no frame from {camera!r}")
+                return _out(
+                    "lost_correspondence",
+                    k - 1,
+                    err,
+                    hand,
+                    start,
+                    start_yaw,
+                    f"no frame from {camera!r}",
+                )
             r = ctx.tool("cns.step", session_id=sid, image=_rgb(cam))
             err = float(r.get("error", float("inf")))
             if int(r.get("matches", 0)) < min_matches:
                 lost += 1
                 if lost >= lost_limit:
-                    return _out("lost_correspondence", k, err, hand, start, start_yaw, f"{lost} frames under {min_matches} matches")
+                    return _out(
+                        "lost_correspondence",
+                        k,
+                        err,
+                        hand,
+                        start,
+                        start_yaw,
+                        f"{lost} frames under {min_matches} matches",
+                    )
                 continue
             lost = 0
             if r.get("converged"):
-                return _out("converged", k, err, hand, start, start_yaw, f"CNS stop policy (error {err:.4f})")
+                return _out(
+                    "converged",
+                    k,
+                    err,
+                    hand,
+                    start,
+                    start_yaw,
+                    f"CNS stop policy (error {err:.4f})",
+                )
             R_wc = _cam_rotation(cam)
             if R_wc is None:
-                return _out("lost_correspondence", k, err, hand, start, start_yaw, "the camera has no pose in the observation")
+                return _out(
+                    "lost_correspondence",
+                    k,
+                    err,
+                    hand,
+                    start,
+                    start_yaw,
+                    "the camera has no pose in the observation",
+                )
             v = np.asarray(r["velocity"], dtype=np.float64)
             dp = R_wc @ v[:3] * dt_s
             w = R_wc @ v[3:] * dt_s
@@ -139,7 +194,9 @@ def run(
             pos, yaw, rq = hand.state()
             if mode == "plane":
                 dyaw = float(np.clip(math.degrees(w[2]), -max_step_deg, max_step_deg))
-                why = hand.move_xy(pos[0] + dp[0], pos[1] + dp[1], pos[2] + dp[2], rq)
+                why = hand.move_xy(
+                    pos[0] + dp[0], pos[1] + dp[1], pos[2] + dp[2], rq, step_tool, tolerance
+                )
                 if not why and abs(dyaw) > 0.05:
                     why = hand.turn(dyaw)
             else:
@@ -150,17 +207,28 @@ def run(
                     w *= math.radians(max_step_deg) / ang
                 new_r = Rotation.from_rotvec(w) * Rotation.from_quat([rq[c] for c in "xyzw"])
                 q = new_r.as_quat()
-                pose = {"position": {"x": pos[0] + dp[0], "y": pos[1] + dp[1], "z": pos[2] + dp[2]},
-                        "rotation": dict(zip("xyzw", map(float, q), strict=True))}
+                pose = {
+                    "position": {"x": pos[0] + dp[0], "y": pos[1] + dp[1], "z": pos[2] + dp[2]},
+                    "rotation": dict(zip("xyzw", map(float, q), strict=True)),
+                }
                 from moves import refusal
 
                 try:
-                    why = refusal(ctx.tool("robot.go_to_pose", pose=pose, **hand.arm))
+                    knobs = {"tolerance": float(tolerance)} if tolerance else {}
+                    why = refusal(ctx.tool(step_tool, pose=pose, **hand.arm, **knobs))
                 except Exception as exc:
                     why = str(exc)
             if why:
                 return _out("timeout", k, err, hand, start, start_yaw, f"step refused: {why}")
-        return _out("timeout", int(max_frames), err, hand, start, start_yaw, f"not converged in {max_frames} frames")
+        return _out(
+            "timeout",
+            int(max_frames),
+            err,
+            hand,
+            start,
+            start_yaw,
+            f"not converged in {max_frames} frames",
+        )
     finally:
         try:
             ctx.tool("cns.stop", session_id=sid)
@@ -171,6 +239,11 @@ def run(
 def _out(route, n, err, hand, start, start_yaw, reason) -> Output:
     pos, yaw, _ = hand.state()
     logger.info("servo_cns: %s after %d frames (%s)", route, n, reason)
-    return {"route": route, "frames": n, "final_error": round(float(err), 5) if np.isfinite(err) else -1.0,
-            "moved_m": [round(float(v), 5) for v in (pos - start)], "turned_deg": round(float(wrap(yaw - start_yaw)), 3),
-            "reason": reason}
+    return {
+        "route": route,
+        "frames": n,
+        "final_error": round(float(err), 5) if np.isfinite(err) else -1.0,
+        "moved_m": [round(float(v), 5) for v in (pos - start)],
+        "turned_deg": round(float(wrap(yaw - start_yaw)), 3),
+        "reason": reason,
+    }

@@ -28,6 +28,7 @@ gap:
     - robot.get_observation
     - robot.get_ee_pose
     - robot.go_to_pose
+    - robot.go_to_pose_cartesian
     - robot.move_to_joints
     - cns.start
     - cns.step
@@ -53,4 +54,48 @@ gap:
 
 # servoing-by-learned-keypoint-correspondence
 
-Draft.
+**Status: the port runs, but it diverged in the YAM twin; do not use it yet**
+(see Measured).
+
+CNS (arXiv 2309.09047, MIT, weights in the repo) servos a camera back to a
+recorded goal view:
+- keypoints (SIFT by default) are matched between the goal and the live frame;
+- the matches become a graph;
+- a recurrent graph network outputs the camera velocity.
+
+`tools/cns` wraps CNS's own pipeline. This skill turns each velocity into one
+capped hand step: the velocity goes through the observation's camera pose
+into the world, times `dt_s`, capped at 4 mm / 1.5 deg. In `plane` mode
+(the default) only x, y, z and the turn about world +z are applied, the turn
+through the last joint; `full` sends the whole rotation to `step_tool`.
+
+## Measured (YAM station twin, wrist D405 render, box target)
+
+- **Goal and trials:** the goal is the wrist view with the hand 10 cm over
+  the box. Trials start from the same random offsets as the discrete-move
+  classifier's check (2.9-13 mm, up to 4 deg).
+- **The tool works offline.** The goal view gave 71 SIFT keypoints, and
+  64-65 matched after a 20 px shift.
+- **The loop diverged on every trial:**
+  - Before the arrival `tolerance` was passed: 8 trials ran into the 120-frame
+    cap. CNS's error grew from 0.004-0.07 to 0.05-0.28, and matches fell from
+    about 40 to 8-28.
+  - With `tolerance` 0.3 mm: one trial went from 6.6 mm to 18 mm off, and
+    another from 13 mm to 115 mm and -65 deg, with no `converged` exit.
+- **Likely causes, not yet separated:**
+  - `plane` mode drops CNS's tilt rates, while the network's recurrent state
+    assumes its full 6-DoF velocity was executed. The wrist camera is
+    tilted 45 deg.
+  - Integrating at `dt_s` 0.5 s with a step cap, instead of streaming
+    velocity.
+  - The path tracer's noisy frames.
+- **Next:** `mode="full"` on an arm whose IK honours the full rotation,
+  smaller `dt_s`, and a check of the velocity frame on a single-axis offset.
+
+Compare `correcting-in-plane-offset-by-discrete-moves`, which brought the
+same starts to a median 0.52 mm.
+
+## Licence
+
+Adapted from CNS (MIT, Copyright (c) 2023 hhcaz). See the script header,
+tools/cns and NOTICE.

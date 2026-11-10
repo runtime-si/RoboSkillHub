@@ -54,7 +54,9 @@ class StartResult(TypedDict):
 
 
 class StepResult(TypedDict):
-    velocity: list[float]  # [vx, vy, vz, wx, wy, wz] m/s, rad/s, camera frame (x right, y down, z forward)
+    velocity: list[
+        float
+    ]  # [vx, vy, vz, wx, wy, wz] m/s, rad/s, camera frame (x right, y down, z forward)
     matches: int  # goal-current correspondences used (0: none, velocity zero)
     error: float  # CNS's pixel error (normalized image coordinates)
     converged: bool  # CNS's PixelStopPolicy
@@ -62,7 +64,9 @@ class StepResult(TypedDict):
 
 
 def _weights() -> str:
-    path = Path(os.environ.get("GAP_CNS_WEIGHTS") or Path.home() / ".cache" / "gap" / "cns_state_dict.pth")
+    path = Path(
+        os.environ.get("GAP_CNS_WEIGHTS") or Path.home() / ".cache" / "gap" / "cns_state_dict.pth"
+    )
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp = path.with_suffix(".part")
@@ -88,7 +92,9 @@ def _core():
 
 
 def weights_cached() -> bool | None:
-    path = Path(os.environ.get("GAP_CNS_WEIGHTS") or Path.home() / ".cache" / "gap" / "cns_state_dict.pth")
+    path = Path(
+        os.environ.get("GAP_CNS_WEIGHTS") or Path.home() / ".cache" / "gap" / "cns_state_dict.pth"
+    )
     return path.exists()
 
 
@@ -113,7 +119,9 @@ def start(
     K = np.asarray(intrinsics, dtype=np.float64).reshape(3, 3)
     try:
         GraphVSController, Classic, Midend, PixelStopPolicy, CameraIntrinsic = _core()
-        device = os.environ.get("GAP_CNS_DEVICE") or ("cuda:0" if torch.cuda.is_available() else "cpu")
+        device = os.environ.get("GAP_CNS_DEVICE") or (
+            "cuda:0" if torch.cuda.is_available() else "cpu"
+        )
         with _lock:
             if "ckpt" not in _net:
                 _net["ckpt"] = _weights()
@@ -138,7 +146,11 @@ def start(
     return {"session_id": sid, "keypoints": int(n), "ok": ok}
 
 
-@tool(name="cns.step", summary="CNS camera velocity toward the session's goal view from the current frame.", tags=("perception", "control"))
+@tool(
+    name="cns.step",
+    summary="CNS camera velocity toward the session's goal view from the current frame.",
+    tags=("perception", "control"),
+)
 def step(session_id: str, image: np.ndarray) -> StepResult:
     t0 = time.perf_counter()
     s = _sessions.get(str(session_id))
@@ -148,22 +160,32 @@ def step(session_id: str, image: np.ndarray) -> StepResult:
     try:
         corr = s["frontend"].process_current_frame(img)
         if corr is None:
-            return {"velocity": [0.0] * 6, "matches": 0, "error": float("inf"), "converged": False,
-                    "seconds": round(time.perf_counter() - t0, 3)}
+            return {
+                "velocity": [0.0] * 6,
+                "matches": 0,
+                "error": float("inf"),
+                "converged": False,
+                "seconds": round(time.perf_counter() - t0, 3),
+            }
         data = s["midend"].get_graph_data(corr)
         if s["new"]:
             data.start_new_scene()
             s["new"] = False
         data.set_distance_scale(s["distance"])
-        setattr(data, "intrinsic", s["frontend"].intrinsic)
+        data.intrinsic = s["frontend"].intrinsic
         vel = s["control"](data)
         s["t"] += 1
         conv = bool(s["stop"](data, float(s["t"])))
         n = 0 if corr.match is None else int(len(corr.match))
     except Exception as exc:
         raise ToolError("cns.step", f"CNS failed: {exc}") from exc
-    return {"velocity": [float(v) for v in vel], "matches": n, "error": float(s["stop"].cur_err),
-            "converged": conv, "seconds": round(time.perf_counter() - t0, 3)}
+    return {
+        "velocity": [float(v) for v in vel],
+        "matches": n,
+        "error": float(s["stop"].cur_err),
+        "converged": conv,
+        "seconds": round(time.perf_counter() - t0, 3),
+    }
 
 
 @tool(name="cns.stop", summary="Close a CNS session.", tags=("control",))

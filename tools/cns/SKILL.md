@@ -38,4 +38,31 @@ gap:
 
 # cns
 
-Draft.
+The pipeline of CNS @ 6b42138 (MIT; arXiv 2309.09047). The vendored, trimmed
+modules are in `cns_core/`:
+- the classic frontend (SIFT / ORB / AKAZE);
+- the correspondence-graph midend;
+- GraphVS and its controller;
+- the pixel stop policy.
+
+The weights (1.9 MB, MIT) download on first use from the pinned commit and
+are checked against the sha256.
+
+| tool | returns |
+| --- | --- |
+| `cns.start(goal_image, intrinsics, distance_m, detector="SIFT")` | `{session_id, keypoints, ok}` |
+| `cns.step(session_id, image)` | `{velocity [vx, vy, vz, wx, wy, wz] camera frame, matches, error, converged, seconds}` |
+| `cns.stop(session_id)` | `{closed}` |
+
+Measured on an RTX PRO 6000: 0.03-0.05 s per step (0.28 s for the first),
+71 keypoints on the twin's wrist view. For the closed-loop result (it
+diverged in the twin), see `skills/servoing-by-learned-keypoint-correspondence`.
+
+Changes:
+- sessions are keyed by id;
+- images are RGB in (converted to CNS's BGR);
+- the stop policy counts calls instead of seconds;
+- `perception.py` keeps only `CameraIntrinsic` (the rest needs open3d /
+  pybullet);
+- the controller keeps only GraphVS;
+- progress prints are removed.

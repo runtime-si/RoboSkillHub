@@ -1,9 +1,10 @@
+# ruff: noqa  (vendored from CNS @ 6b42138, MIT)
 # From CNS (https://github.com/hhcaz/CNS @ 6b42138), cns/utils/perception.py, MIT, Copyright (c) 2023 hhcaz.
 # Changed: only CameraIntrinsic is kept (the rest needs open3d / pybullet).
 import numpy as np
 
 
-class CameraIntrinsic(object):
+class CameraIntrinsic:
     """Intrinsic parameters of a pinhole camera model.
 
     Attributes:
@@ -15,11 +16,7 @@ class CameraIntrinsic(object):
     def __init__(self, width, height, fx, fy, cx, cy):
         self.width = width
         self.height = height
-        self.K = np.array(
-            [[fx, 0.0, cx],
-             [0.0, fy, cy],
-             [0.0, 0.0, 1.0]]
-        )
+        self.K = np.array([[fx, 0.0, cx], [0.0, fy, cy], [0.0, 0.0, 1.0]])
 
     @property
     def fx(self):
@@ -58,7 +55,7 @@ class CameraIntrinsic(object):
             cy=data["K"][5],
         )
         return intrinsic
-    
+
     @classmethod
     def default(cls):
         return cls(width=640, height=480, fx=540, fy=540, cx=320, cy=240)
@@ -66,9 +63,11 @@ class CameraIntrinsic(object):
     def pixel_to_norm_camera_plane(self, uv: np.ndarray) -> np.ndarray:
         xy = (uv - np.array([self.cx, self.cy])) / np.array([self.fx, self.fy])
         return xy
-    
+
     def norm_camera_plane_to_pixel(self, xy: np.ndarray, clip=True, round=False) -> np.ndarray:
         uv = xy * np.array([self.fx, self.fy]) + np.array([self.cx, self.cy])
-        if clip: uv = np.clip(uv, 0, [self.width-1, self.height-1])
-        if round: uv = np.round(uv).astype(np.int32)
+        if clip:
+            uv = np.clip(uv, 0, [self.width - 1, self.height - 1])
+        if round:
+            uv = np.round(uv).astype(np.int32)
         return uv

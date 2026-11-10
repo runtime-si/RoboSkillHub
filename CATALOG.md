@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-29 tools, 153 skills, 2 policies, 1 recipe and 1 paper.
+30 tools, 154 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -39,6 +39,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grconvnet`](#grconvnet) | propose | Proposes ranked top-down parallel-jaw grasps from one RGB-D frame with GR-ConvNet (skumra/robotic-grasping), on CPU… | any |
 | [`molmo-motion`](#molmo-motion) | propose | AllenAI MolmoMotion-4B run locally on a GPU. | any |
 | [`robobrain`](#robobrain) | propose | BAAI RoboBrain 2.5-4B run locally on a GPU. | any |
+| [`cns`](#cns) | execute | CNS learned visual servoing (MIT; arXiv 2309.09047) as tools. | any |
 | [`workcell`](#workcell) | execute | Typed JSON boundary for RoboSkillHub workcell capabilities and station descriptions. | yam_i2rt |
 | [`musc`](#musc) | verify | MuSc zero-shot mutual anomaly scoring (MuSc / MuSc-V2, MIT) on DINOv2 (facebook/dinov2-base, Apache-2.0). | any |
 | [`densereward`](#densereward) | judge | DenseReward reward models (Qwen3-VL-4B fine-tunes, Apache-2.0) run locally on a GPU. | any |
@@ -158,6 +159,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`searching-insertion-spiral`](#searching-insertion-spiral) | execute | Finds an opening the held part or the closed fingertips can enter by probing straight down over a hexagonal grid… | any |
 | [`seating-a-cable-crossing`](#seating-a-cable-crossing) | execute | Streams one planned crossing leg of a cable onto a routing station, lets the rod settle, then LOOKS. | any |
 | [`seating-a-piece-by-wiggle-search`](#seating-a-piece-by-wiggle-search) | execute | Seats a held jigsaw piece in its slot among already-placed neighbours when the arm is less accurate than the slot's… | any |
+| [`servoing-by-learned-keypoint-correspondence`](#servoing-by-learned-keypoint-correspondence) | execute | Brings the wrist camera back to a recorded goal view with CNS, a learned visual servo (MIT, weights public). | any |
 | [`setting-gripper-with-feedback`](#setting-gripper-with-feedback) | execute | Opens, closes or releases the gripper through the configured YAM or Isaac workcell adapter and checks measured holding… | yam_i2rt |
 | [`singulating-by-pushing`](#singulating-by-pushing) | execute | Pushes a target clear of the objects crowding it until a top-down grasp's open fingers fit around it. | any |
 | [`sliding-along-a-cable`](#sliding-along-a-cable) | execute | Slides the hand along a cable it holds toward one of the cable's ends. | any |
@@ -518,6 +520,19 @@ BAAI RoboBrain 2.5-4B run locally on a GPU -- an ordered keypoint trajectory for
   - `robobrain.trace`: Ordered keypoint trajectory for an instruction from one frame (visual-plan schema; pixels, camera/world points with intrinsics).
   - `robobrain.point`: Pixel points for what a phrase names; drop-in for gemini-er.point.
   - `robobrain.progress`: Task progress 0..1 of the current frame against the task's start frame.
+
+### cns
+
+execute · robots: any · MIT · v0.1.0 · [`SKILL.md`](tools/cns/SKILL.md) · [upstream](https://github.com/hhcaz/CNS/blob/6b42138ea8f15d872eeca916b9e1fb1f429bcac4/cns/benchmark/pipeline.py)
+
+CNS learned visual servoing (MIT; arXiv 2309.09047) as tools - record a goal view, then for each live frame of the same camera get the camera velocity toward it from keypoint correspondences (SIFT / ORB / AKAZE) turned into a graph and a recurrent graph network, plus the pixel error and CNS's stop decision. Use when a skill servos a camera back to a recorded view without a hand-tuned IBVS gain.
+
+- **Weights**: `https://raw.githubusercontent.com/hhcaz/CNS/6b42138ea8f15d872eeca916b9e1fb1f429bcac4/checkpoints/cns_state_dict.pth`
+- **Runs**: in its own environment over `stdio-msgpack`
+- **Functions**:
+  - `cns.start`: Start a session on a goal view (RGB, intrinsics, camera-to-scene distance).
+  - `cns.step`: Camera velocity (camera frame) toward the goal view from the current frame, with error and stop decision.
+  - `cns.stop`: Close a session.
 
 ### workcell
 
@@ -2285,6 +2300,21 @@ Seats a held jigsaw piece in its slot among already-placed neighbours when the a
   - `piece_lost`: The jaws read at their stop before anything moved, a descent went a whole thickness under the mat without meeting anything, or after the release the wrist depth finds no piece top at the slot.
   - `unverified`: Released after a drop, but the flush check could not run (verify false, no wrist camera, no view reached).
   - `unreachable`: The seated hand pose fails the IK preview, the hover or a turn was not reached, or a move was refused.
+
+### servoing-by-learned-keypoint-correspondence
+
+execute · robots: any · tasks: insertion, lego, jigsaw · MIT · v0.1.0 · [`SKILL.md`](skills/servoing-by-learned-keypoint-correspondence/SKILL.md) · [upstream](https://github.com/hhcaz/CNS/blob/6b42138ea8f15d872eeca916b9e1fb1f429bcac4/demo_real_ur5.py)
+
+Brings the wrist camera back to a recorded goal view with CNS, a learned visual servo (MIT, weights public) - SIFT/ORB/AKAZE keypoints matched between the goal and the live frame become a graph, and a recurrent graph network outputs the camera velocity; each velocity is applied as one small capped hand step (x, y, z and yaw on a table by default), until CNS's pixel stop policy says converged. Use when a part or the hand must return to a taught relation with a textured target (a printed board, a stud grid, a jigsaw picture) and a goal frame can be recorded at the right pose.
+
+- **In**: `goal` Observation, `camera` string
+- **Out**: `frames` int, `final_error` float, `turned_deg` float, `reason` string
+- **Calls**: [`cns`](#cns); connector `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.move_to_joints`
+- **Scripts**: [`servo_cns`](skills/servoing-by-learned-keypoint-correspondence/scripts/servo_cns.py)
+- **Exits**:
+  - `converged`: CNS's pixel stop policy held its error near its minimum (under 0.005 normalized) for 6 frames.
+  - `lost_correspondence`: Fewer than min_matches (8) goal-live matches for lost_limit (3) frames in a row, no frame / intrinsics / camera pose, or no distance to the scene.
+  - `timeout`: max_frames (120) frames without converging, or a step was refused.
 
 ### setting-gripper-with-feedback
 
