@@ -329,9 +329,36 @@ def run(ctx: NodeContext, index: int, start_dx: float, start_dy: float, start_ya
 
     # 6. Turn to the slot's yaw (0), drop spot chosen by the skill.
     turn = _wrap(-(yaw_est + slip1))
+    mode = os.environ.get("TURN_MODE", "mat")
+    if mode == "mat":
+        # Turn the pinched piece while the mat still carries it (0.5 mm lift), in 10 degree steps.
+        here = _pose(ctx.tool("robot.get_ee_pose"))
+        ctx.tool(
+            "robot.go_to_pose_cartesian",
+            pose={
+                "position": {**here["position"], "z": grasp_z + 0.0005},
+                "rotation": here["rotation"],
+            },
+        )
+        _wait(ctx)
+        kw = {"carry_lift_m": 0.0005, "max_step_deg": 10.0}
+    elif mode == "fast":
+        kw = {}
+    else:
+        kw = {"max_step_deg": 5.0}
     rot_out = _skill("rotating-a-held-piece-within-wrist-limits", "rotate_piece.py").run(
-        ctx, turn_deg=turn, grasp_z=grasp_z, grip_width_m=gw
+        ctx, turn_deg=turn, grasp_z=grasp_z, grip_width_m=gw, **kw
     )
+    if mode == "mat":
+        here = _pose(ctx.tool("robot.get_ee_pose"))
+        ctx.tool(
+            "robot.go_to_pose_cartesian",
+            pose={
+                "position": {**here["position"], "z": grasp_z + 0.03},
+                "rotation": here["rotation"],
+            },
+        )
+        _wait(ctx)
     held = ctx.tool("check.piece_pose")
     _log(
         "rotate",
