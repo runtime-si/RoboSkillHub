@@ -131,7 +131,31 @@ the fixed grip (`SIM_GRIP`, `mujoco_500hz_grip@v1`).**
 - **The one failure, the first refill (slot 1) in both racks:** the tile ended flat
   forward across slot 2, 20 mm along. It is reported `fell`, and slots 1 and 2 then
   read jammed, so the rack reads full: the routes are right, but two slots are lost.
-- **Not explained.** On the stock grip (before SIM_GRIP) the same scene seated 3/4
+- **Root cause of the slot-1 failure (measured, round 3).** The harness probes the held
+  tile's true pose with `sim.get_object_obb` at each phase.
+  - **Before and after the close** the tile sat centred in the jaws: 0.25 / 0.11 mm
+    from the tool centre.
+  - **Lift:** by the end of the vertical lift its bottom had moved **4.6 mm** from the
+    hand, along the pad faces (perpendicular to the jaw axis). Over the slot that
+    offset was back to 2.2 mm.
+  - **Not a twist.** The tile tilted at most 2.4 deg in all (about 1.7 deg about the
+    jaw axis, worth 0.6 mm at its bottom); it is translational slip under the moves'
+    acceleration. SIM_GRIP stops steady creep, not this.
+  - **Consequence:** the skill aims with the offset read back at the grasp, which is
+    stale by then. The tile's bottom came down 2.1-2.8 mm off along the row, more than
+    an 11.5 mm slot's 2 mm a side. It landed on the wall's top, slid 16 mm up between
+    the pads while the hand still reached its target, and dropped flat across the next
+    slot on release.
+  - In the refills that seated, the drift was smaller (bottom 0.3-0.5 mm off at the
+    descent).
+  - Centring the open jaws on the tile before the close (read-back, to within 0.5 mm)
+    did not help: the slip happens after the close (still 4.3-4.6 mm after the lift,
+    slot 1 failed in both racks).
+  - What would fix it is not tested: slower lift and transit moves; re-measuring the
+    tile in the hand before the descent (a wrist view of its bottom); chamfered slot
+    tops. A real linear_4310 squeezes far harder (SIM_GRIP.md: about 137 N against the
+    twin's 19 N), so the drift may be a twin artefact.
+- **Older note.** On the stock grip (before SIM_GRIP) the same scene seated 3/4
   (11.5 mm) and 2/4 (9.5 mm). There every failure was a tile on a wall's top leaning
   back, and it followed the staging spot (the same slot seated from one spot and fell
   from another), not the hand's tilt (0.1 deg), the tile's tilt in the hand (0.13 deg)
