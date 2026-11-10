@@ -22,10 +22,17 @@ image_size: null                                 # trained on 640x360; the model
 state: [left.j1, left.j2, left.j3, left.j4, left.j5, left.j6, left.gripper,
         right.j1, right.j2, right.j3, right.j4, right.j5, right.j6, right.gripper]
 # Applied only with `server.py --wire-frame station`; the default wire is #173's policy frame
-# (gr00t.act adds GAP_GR00T_JOINT_OFFSET on the client). station = model + offset.
-joint_offset_rad:                                # real station; the twin is already in the data's frame
-  left: [1.5707963, 0, 0, 0, 0, 0]
-  right: [1.5707963, 0, 0, 0, 0, 0]
+# (gr00t.act adds GAP_GR00T_JOINT_OFFSET on the client). station = model + offset. The top level is
+# the station twin (already in the data's frame); `--station real` merges stations.real over it,
+# as policies/molmoact2-yam's profile does (roboskillhub.vla.load_profile(path, station="real")).
+joint_offset_rad:
+  left: [0, 0, 0, 0, 0, 0]
+  right: [0, 0, 0, 0, 0, 0]
 gripper: {station_open: 1.0, station_closed: 0.0, model_open: 1.0, model_closed: 0.0}   # card: [0, 1]; A2 measures
 action: {type: abs_joint, dim: 14, horizon: 30, execute_steps: 25, hz: 30}
 extra: {num_steps: 10, dtype: bfloat16}
+stations:
+  real:
+    joint_offset_rad:
+      left: [1.5707963, 0, 0, 0, 0, 0]
+      right: [1.5707963, 0, 0, 0, 0, 0]

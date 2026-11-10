@@ -4,6 +4,7 @@ closed loop that any action-model backend (gr00t, molmoact2, pi05) runs in.
 Pure numpy + PyYAML (no gap, no torch), so a twin harness can import it beside a connector.
 """
 
+from .client import PolicyServerError, VlaYamClient, default_url
 from .executor import (
     Plan,
     Refusal,
@@ -34,6 +35,7 @@ from .profile import (
     Slot,
     load_profile,
     profile_from_dict,
+    with_station,
 )
 
 __all__ = [
@@ -42,14 +44,17 @@ __all__ = [
     "ObservationError",
     "Plan",
     "PolicyClient",
+    "PolicyServerError",
     "Profile",
     "ProfileError",
     "Refusal",
     "SafetyLimits",
     "Segment",
     "Slot",
+    "VlaYamClient",
     "camera_roles",
     "check",
+    "default_url",
     "execute_chunk",
     "fk_from_ctx",
     "from_connector",
@@ -63,4 +68,5 @@ __all__ = [
     "send_plan",
     "staleness",
     "station_state",
+    "with_station",
 ]

@@ -44,13 +44,20 @@ def profile_names() -> list[str]:
     return sorted(p.stem for p in PROFILES_DIR.glob("*.yaml"))
 
 
-def load_profile(name: str) -> dict[str, Any]:
+def load_profile(name: str, station: str | None = None) -> dict[str, Any]:
+    """``profiles/<name>.yaml`` with ``stations[station]`` merged over the top level (the twin)."""
     import yaml
 
     path = PROFILES_DIR / f"{name}.yaml"
     if not path.is_file():
         raise ValueError(f"no pi05 profile {name!r} (have {profile_names()})")
     prof = yaml.safe_load(path.read_text())
+    if station and station != "twin":
+        over = (prof.get("stations") or {}).get(station)
+        if over is None:
+            raise ValueError(f"profile {name!r} has no station {station!r}")
+        prof = {**prof, **over}
+    prof["station"] = station or "twin"
     if prof.get("backend") != "pi05":
         raise ValueError(f"profile {name!r} is for backend {prof.get('backend')!r}, not pi05")
     unknown = sorted(set(prof["image_keys"]) - set(ROLES))
@@ -74,8 +81,14 @@ class FrameMap:
         self.offset[0:6] = np.asarray(off.get("left", [0.0] * 6), dtype=np.float64)
         self.offset[7:13] = np.asarray(off.get("right", [0.0] * 6), dtype=np.float64)
         g = profile.get("gripper") or {}
-        self.s_open, self.s_closed = float(g.get("station_open", 1.0)), float(g.get("station_closed", 0.0))
-        self.m_open, self.m_closed = float(g.get("model_open", 1.0)), float(g.get("model_closed", 0.0))
+        self.s_open, self.s_closed = (
+            float(g.get("station_open", 1.0)),
+            float(g.get("station_closed", 0.0)),
+        )
+        self.m_open, self.m_closed = (
+            float(g.get("model_open", 1.0)),
+            float(g.get("model_closed", 0.0)),
+        )
 
     @staticmethod
     def _lin(x: np.ndarray, a0: float, a1: float, b0: float, b1: float) -> np.ndarray:
@@ -93,7 +106,9 @@ class FrameMap:
         if not self.active:
             return actions
         a = actions.astype(np.float64) + self.offset
-        a[:, [6, 13]] = self._lin(actions[:, [6, 13]], self.m_closed, self.m_open, self.s_closed, self.s_open)
+        a[:, [6, 13]] = self._lin(
+            actions[:, [6, 13]], self.m_closed, self.m_open, self.s_closed, self.s_open
+        )
         return a.astype(np.float32)
 
 
@@ -125,7 +140,9 @@ class Pi05Backend:
         self.draw_marks, self.mark_sentence = draw_marks, mark_sentence
         ck = profile["checkpoint"]
         self.checkpoint = checkpoint or ck["repo"]
-        self.revision = revision if revision is not None else (None if checkpoint else ck.get("revision"))
+        self.revision = (
+            revision if revision is not None else (None if checkpoint else ck.get("revision"))
+        )
         t0 = time.time()
         path = self._local(self.checkpoint, self.revision)
         tok = tokenizer or os.environ.get("GAP_PI05_TOKENIZER") or ""
@@ -163,14 +180,18 @@ class Pi05Backend:
             return Path(repo)
         from huggingface_hub import snapshot_download
 
-        return Path(snapshot_download(repo_id=repo, revision=revision, allow_patterns=allow_patterns))
+        return Path(
+            snapshot_download(repo_id=repo, revision=revision, allow_patterns=allow_patterns)
+        )
 
     def _check(self) -> None:
         cfg = self.policy.config
         have = set(cfg.image_features)
         missing = sorted(set(self.profile["image_keys"].values()) - have)
         if missing:
-            raise ValueError(f"profile {self.profile['profile']}: image keys {missing} not in the checkpoint ({sorted(have)})")
+            raise ValueError(
+                f"profile {self.profile['profile']}: image keys {missing} not in the checkpoint ({sorted(have)})"
+            )
         sdim = cfg.robot_state_feature.shape[0] if cfg.robot_state_feature else 0
         adim = cfg.output_features["action"].shape[0]
         if sdim != DOF or adim != DOF:
@@ -186,7 +207,10 @@ class Pi05Backend:
             "horizon": self.horizon,
             "num_inference_steps": int(self.policy.config.num_inference_steps),
             "wire_frame": "station" if self.frame.active else "policy",
-            "tokenizer": self.profile["tokenizer"]["repo"] if not os.path.isdir(self.tokenizer) else self.tokenizer,
+            "station": self.profile.get("station", "twin"),
+            "tokenizer": self.profile["tokenizer"]["repo"]
+            if not os.path.isdir(self.tokenizer)
+            else self.tokenizer,
             "load_s": round(self.load_s, 1),
             "gpu": torch.cuda.get_device_name() if torch.cuda.is_available() else "cpu",
         }

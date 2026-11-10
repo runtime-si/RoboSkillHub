@@ -36,6 +36,8 @@ implementations:
   - id: hub-grasp
     kind: skill
     bundle: hub-grasp
+  # The policy:* implementations run through skills/picking-an-object-with-a-learned-policy
+  # (roboskillhub.vla.run_policy + verify_pick) against that policy's server and profile.
   - id: policy:molmoact2-yam
     kind: policy
     bundle: molmoact2-yam

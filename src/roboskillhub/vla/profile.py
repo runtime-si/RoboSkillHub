@@ -11,10 +11,15 @@ A profile is one YAML per checkpoint, shipped in the policy bundle::
     action: {type: abs_joint, dim: 14, horizon: 30, execute_steps: 25, hz: 30}
     extra: {norm_tag: yam_dual_molmoact2}
     safety: {table_z: 0.0}                           # optional, see executor.SafetyLimits
+    backend: molmoact2                               # optional: which server backend runs it
+    stations:                                        # optional per-station overrides
+      real: {joint_offset_rad: {left: [1.5707963, 0, 0, 0, 0, 0], right: [...]}}
 
 Joint offsets follow #173 (``GAP_GR00T_JOINT_OFFSET``): ``station joint = model joint + offset``, so the
 real YAM station's ``{left: [pi/2, 0, ...]}`` maps a hardware base at 90 deg to the MolmoAct2 data's 0.
-The gripper maps linearly between the two (open, closed) pairs. Actions use the state layout unless
+The top level describes the station twin (already in the data's frame for the YAM checkpoints);
+``stations.<name>`` replaces top-level keys for another station (``load_profile(path, station="real")``),
+the same merge as policies/molmoact2-yam's server. The gripper maps linearly between the two (open, closed) pairs. Actions use the state layout unless
 ``action.layout`` lists another; ``delta_joint`` actions are joint deltas against the state the chunk was
 computed from (``action.delta_ref: obs``) or against the previous row (``step``); grippers stay absolute.
 """
@@ -117,6 +122,9 @@ class Profile:
     extra: dict[str, Any] = field(default_factory=dict)
     safety: dict[str, Any] = field(default_factory=dict)
     max_obs_age_s: float = DEFAULT_MAX_OBS_AGE_S
+    backend: str = ""
+    station: str = "twin"
+    stations: tuple[str, ...] = ()
 
     # -- station <-> model, one vector or [T, n] rows in a given layout --------------------------
 
@@ -193,11 +201,40 @@ def _number(raw: Any, key: str, problems: list[str]) -> float:
     return v
 
 
-def profile_from_dict(raw: dict[str, Any]) -> Profile:
-    """Validate a parsed profile; raises :class:`ProfileError` listing every problem at once."""
+def with_station(raw: dict[str, Any], station: str | None) -> dict[str, Any]:
+    """``raw`` with ``stations[station]`` merged over its top level (one level deep: a key the station
+    names replaces the top-level value whole)."""
+    if not isinstance(raw, dict):
+        raise ProfileError(["a profile is a mapping"])
+    stations = raw.get("stations") or {}
+    if not isinstance(stations, dict):
+        raise ProfileError(
+            ["stations must map a station name to overrides"], str(raw.get("profile") or "")
+        )
+    if not station or station == "twin" and "twin" not in stations:
+        return {**raw, "station": "twin"}
+    over = stations.get(station)
+    if not isinstance(over, dict):
+        raise ProfileError(
+            [f"has no station {station!r} (stations: {sorted(stations) or 'none'})"],
+            str(raw.get("profile") or ""),
+        )
+    bad = sorted(set(over) & {"profile", "stations", "station"})
+    if bad:
+        raise ProfileError(
+            [f"stations.{station} may not override {bad}"], str(raw.get("profile") or "")
+        )
+    return {**raw, **over, "station": station}
+
+
+def profile_from_dict(raw: dict[str, Any], station: str | None = None) -> Profile:
+    """Validate a parsed profile (merged for ``station``); raises :class:`ProfileError` listing every
+    problem at once."""
     problems: list[str] = []
     if not isinstance(raw, dict):
         raise ProfileError(["a profile is a mapping"])
+    if station is not None or "station" not in raw:
+        raw = with_station(raw, station)
     name = str(raw.get("profile") or "")
     if not name:
         problems.append("profile (the name) is missing")
@@ -304,17 +341,23 @@ def profile_from_dict(raw: dict[str, Any]) -> Profile:
         extra=dict(raw.get("extra") or {}),
         safety=dict(safety),
         max_obs_age_s=age,
+        backend=str(raw.get("backend") or ""),
+        station=str(raw.get("station") or "twin"),
+        stations=tuple(sorted(raw.get("stations") or {})),
     )
 
 
-def load_profile(source: str | Path | dict[str, Any]) -> Profile:
-    """A profile from a YAML path, YAML text or an already parsed mapping."""
+def load_profile(source: str | Path | dict[str, Any], station: str | None = None) -> Profile:
+    """A profile from a YAML path, YAML text or an already parsed mapping, for ``station`` (default the
+    top level, the twin)."""
     if isinstance(source, dict):
-        return profile_from_dict(source)
+        return profile_from_dict(source, station)
     path = Path(source) if not isinstance(source, str) or "\n" not in source else None
     text = path.read_text() if path is not None else str(source)
     try:
         raw = yaml.safe_load(text)
     except yaml.YAMLError as e:
         raise ProfileError([f"not YAML: {e}"], str(path or "")) from e
-    return profile_from_dict(raw)
+    if not isinstance(raw, dict):
+        raise ProfileError(["a profile is a mapping"], str(path or ""))
+    return profile_from_dict(raw, station)

@@ -80,7 +80,9 @@ def load_profile(path: str | Path = DEFAULT_PROFILE, station: str | None = None)
         prof = {**prof, **over}
     prof["station"] = station or "twin"
     if list(prof.get("cameras") or []) != list(ROLES):
-        raise ValueError(f"profile cameras must be {list(ROLES)} (model order), got {prof.get('cameras')}")
+        raise ValueError(
+            f"profile cameras must be {list(ROLES)} (model order), got {prof.get('cameras')}"
+        )
     if len(prof.get("state") or []) != DOF:
         raise ValueError(f"profile state must name {DOF} entries")
     for side in ("left", "right"):
@@ -152,7 +154,9 @@ def verify_checkpoint(path: Path, sha256: dict[str, str], mode: str = "cache") -
     if mode == "off":
         return {}
     if not sha256:
-        raise ValueError("profile checkpoint.sha256 is empty; pass --verify-sha256 off to load anyway")
+        raise ValueError(
+            "profile checkpoint.sha256 is empty; pass --verify-sha256 off to load anyway"
+        )
     out = {}
     for name, want in sha256.items():
         f = path / name
@@ -238,11 +242,15 @@ class MolmoAct2Backend:
         self.torch = torch
         path = _local_checkpoint(self.checkpoint, self.revision or None)
         if not os.path.isdir(self.checkpoint):
-            self.verified = verify_checkpoint(path, self.profile["checkpoint"].get("sha256") or {}, verify)
+            self.verified = verify_checkpoint(
+                path, self.profile["checkpoint"].get("sha256") or {}, verify
+            )
         dtype = getattr(torch, self.dtype_name)
         # tokenizer_config.json lists extra_special_tokens, which transformers >= 4.46 rejects; the model
         # code only reads them through convert_tokens_to_ids (host_server_yam.py does the same).
-        processor = AutoProcessor.from_pretrained(path, trust_remote_code=True, extra_special_tokens={})
+        processor = AutoProcessor.from_pretrained(
+            path, trust_remote_code=True, extra_special_tokens={}
+        )
         model = (
             AutoModelForImageTextToText.from_pretrained(path, trust_remote_code=True, dtype=dtype)
             .to(device)
@@ -280,13 +288,17 @@ class MolmoAct2Backend:
             "cuda_graph": self.cuda_graph,
             "sha256_verified": sorted(self.verified),
             "load_s": round(self.load_s, 1),
-            "gpu": torch.cuda.get_device_name() if torch is not None and torch.cuda.is_available() else "cpu",
+            "gpu": torch.cuda.get_device_name()
+            if torch is not None and torch.cuda.is_available()
+            else "cpu",
         }
 
     def reset(self) -> None:
         pass
 
-    def predict(self, images: list[np.ndarray], task: str, state: np.ndarray, num_steps: int) -> np.ndarray:
+    def predict(
+        self, images: list[np.ndarray], task: str, state: np.ndarray, num_steps: int
+    ) -> np.ndarray:
         """Raw ``predict_action``: model-frame state in, model-frame ``[T, 14]`` out."""
         extra = self.profile["extra"]
         kw = dict(
@@ -305,8 +317,15 @@ class MolmoAct2Backend:
         if torch is None:
             out = self.model.predict_action(**kw)
         else:
-            amp = self.autocast and self.dtype_name != "float32" and str(self.device).startswith("cuda")
-            with torch.inference_mode(), torch.autocast("cuda", dtype=getattr(torch, self.dtype_name), enabled=amp):
+            amp = (
+                self.autocast
+                and self.dtype_name != "float32"
+                and str(self.device).startswith("cuda")
+            )
+            with (
+                torch.inference_mode(),
+                torch.autocast("cuda", dtype=getattr(torch, self.dtype_name), enabled=amp),
+            ):
                 out = self.model.predict_action(**kw)
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
@@ -351,8 +370,12 @@ class MolmoAct2Backend:
 
 class VlaService(g.Service):
     def info(self) -> dict[str, Any]:
-        return {**super().info(), "protocol": PROTOCOL, "compatible": [g.PROTOCOL],
-                "layout": "left j1..j6, left gripper, right j1..j6, right gripper (station frame and units)"}
+        return {
+            **super().info(),
+            "protocol": PROTOCOL,
+            "compatible": [g.PROTOCOL],
+            "layout": "left j1..j6, left gripper, right j1..j6, right gripper (station frame and units)",
+        }
 
     def handle(self, endpoint: str, data: dict[str, Any] | None) -> dict[str, Any]:
         if endpoint != "act":
@@ -391,7 +414,9 @@ class VlaService(g.Service):
 def make_backend(args: argparse.Namespace) -> MolmoAct2Backend:
     profile = load_profile(args.profile, args.station)
     if args.backend == "fake":
-        return MolmoAct2Backend(profile, model=FakeMolmoAct2Model(int(profile["action"]["horizon"])))
+        return MolmoAct2Backend(
+            profile, model=FakeMolmoAct2Model(int(profile["action"]["horizon"]))
+        )
     return MolmoAct2Backend(
         profile,
         device=args.device,
@@ -423,14 +448,26 @@ def warmup(service: VlaService, n: int, seed: int = 0) -> list[float]:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     p.add_argument("--backend", default="molmoact2", choices=["molmoact2", "fake"])
     p.add_argument("--profile", default=str(DEFAULT_PROFILE))
-    p.add_argument("--station", default=None, help="a key of the profile's stations: (e.g. real); default twin")
-    p.add_argument("--checkpoint", default="", help="local checkpoint dir instead of the profile's pinned repo")
-    p.add_argument("--dtype", default=None, choices=["bfloat16", "float16", "float32"],
-                   help="default: the profile's (bfloat16, < 16 GB; float32 ~24 GB)")
-    p.add_argument("--cuda-graph", action="store_true", help="capture the action expert (~2 GB more)")
+    p.add_argument(
+        "--station", default=None, help="a key of the profile's stations: (e.g. real); default twin"
+    )
+    p.add_argument(
+        "--checkpoint", default="", help="local checkpoint dir instead of the profile's pinned repo"
+    )
+    p.add_argument(
+        "--dtype",
+        default=None,
+        choices=["bfloat16", "float16", "float32"],
+        help="default: the profile's (bfloat16, < 16 GB; float32 ~24 GB)",
+    )
+    p.add_argument(
+        "--cuda-graph", action="store_true", help="capture the action expert (~2 GB more)"
+    )
     p.add_argument("--verify-sha256", default="cache", choices=["cache", "full", "off"])
     p.add_argument("--device", default="cuda")
     p.add_argument("--transport", default="http", choices=["http", "zmq"])
