@@ -846,3 +846,7 @@ commit 639fe4a4bcf8: src/controlled_slippage.py, HoldMode.get_fn and the
 friction parameters of get_friction_param_func), MIT License, Copyright (c)
 2024 Gabriel Arslan Waltersson; the file's header lists the changes, and the
 license is skills/limiting-in-hand-twist-by-grip-placement-and-force/LICENSE.slip-aware.
+skills/picking-flat-pieces-by-suction-cup/scripts/suction_points.py reimplements the suction affordance
+baseline of arc-robot-vision (https://github.com/andyzeng/arc-robot-vision, commit 728139e9ad0e,
+suction-based-grasping/baseline/predict.m) in numpy, Apache License 2.0, Copyright (c) 2017 Andy Zeng et al.;
+the licence is skills/picking-flat-pieces-by-suction-cup/LICENSE.arc-robot-vision. The file's header lists the changes.

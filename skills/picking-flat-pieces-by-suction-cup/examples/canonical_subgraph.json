@@ -1,0 +1,19 @@
+{
+  "skill": "picking-flat-pieces-by-suction-cup",
+  "inputs": {"target_mask": "Mask"},
+  "outputs": {
+    "affordance": {"$ref": "pick.affordance"},
+    "rim_rise_m": {"$ref": "pick.rim_rise_m"},
+    "reason": {"$ref": "pick.reason"}
+  },
+  "nodes": {
+    "pick": {
+      "type": "script",
+      "script": "scripts/pick_suction.py",
+      "inputs": {"target_mask": {"$ref": "in.target_mask"}, "camera": "top", "cup_diameter_m": 0.008}
+    }
+  },
+  "edges": [["START", "pick"], ["pick", "END"]],
+  "exit": {"router_field": "route", "success_values": ["picked", "no_seal", "dropped_in_transport", "no_valid_cup_point"]},
+  "on_error": "unreachable"
+}
