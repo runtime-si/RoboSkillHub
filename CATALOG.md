@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-26 tools, 145 skills, 2 policies, 1 recipe and 1 paper.
+26 tools, 146 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -75,6 +75,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`tracking-identical-parts-by-id`](#tracking-identical-parts-by-id) | perceive | Keeps a stable id for each of many look-alike parts (dominoes, same-colour bricks, jigsaw pieces, cubes) across… | any |
 | [`tracking-objects`](#tracking-objects) | perceive | Long-running skill that drives the SAM3 tracker from the graph-scoped observation stream. | any |
 | [`tracking-points`](#tracking-points) | perceive | Tracks selected image points through the configured workcell tracking backend and reports visibility evidence. | yam_i2rt |
+| [`aligning-parts-by-connector-constraints`](#aligning-parts-by-connector-constraints) | plan | Turns connector statements about a LEGO or DUPLO build. | any |
 | [`assigning-bricks-to-two-arms`](#assigning-bricks-to-two-arms) | plan | Assigns every brick of a LEGO or DUPLO build sequence to an arm. | any |
 | [`checking-design-connectivity-and-collisions`](#checking-design-connectivity-and-collisions) | plan | Checks a brick design on a stud grid before the arms build it. | any |
 | [`choosing-a-domino-move-by-end-matching`](#choosing-a-domino-move-by-end-matching) | plan | Chooses the robot's move in a game of dominoes and where the tile goes on the table. | any |
@@ -964,6 +965,19 @@ Tracks selected image points through the configured workcell tracking backend an
   - `failed`: The attempted operation or tracking update did not meet its required condition.
   - `unverified`: Available evidence is insufficient to establish the requested physical postcondition.
   - `rejected`: The request, station configuration or required backend capability is not accepted.
+
+### aligning-parts-by-connector-constraints
+
+plan · robots: any · tasks: assembly, lego · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/aligning-parts-by-connector-constraints/SKILL.md)
+
+Turns connector statements about a LEGO or DUPLO build - "part P's tubes on base B's studs, P's stud (a, b) over B's stud (i, j), turned r" - into exact plate cells, layers and world poses, solving them in dependency order on the stud lattice (Manual2Skill++'s connector-aware pose alignment, which for studs and tubes reduces to integer lattice arithmetic). A part named by two statements (a bridge over two bases) must come out the same from both. Unsupported parts (on none of the base's studs), overlaps, cycles, unknown bases and parts off the plate are reported. Outputs the steps planning-brick-assembly-order reads and per-part cells for computing-brick-pose-from-stud-grid. Use when a build is described at the connector level (by a VLM reading a manual page, or a person saying "put the 1x2 on the left two studs of the red 2x4") rather than as an LDraw file, and needs exact stud-grid poses.
+
+- **In**: `statements_json` string
+- **Out**: `parts_json` string, `steps_json` string, `order_json` string, `problems_json` string, `n_parts` int
+- **Scripts**: [`align_connectors`](skills/aligning-parts-by-connector-constraints/scripts/align_connectors.py)
+- **Exits**:
+  - `poses_solved`: Every part got cells, a layer and a rotation (and a world pose when the plate's origin is given); steps_json lists them in dependency order.
+  - `constraints_inconsistent`: A statement is malformed, names an unknown base, forms a cycle, puts a part on fewer than min_support of its base's studs, overlaps another part, hangs off the plate, or two statements for one part disagree; problems_json names the first one and the statement index.
 
 ### assigning-bricks-to-two-arms
 

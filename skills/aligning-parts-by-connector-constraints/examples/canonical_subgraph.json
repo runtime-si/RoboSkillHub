@@ -1,0 +1,26 @@
+{
+  "skill": "aligning-parts-by-connector-constraints",
+  "inputs": {"statements_json": "string"},
+  "outputs": {
+    "steps_json": {"$ref": "align.steps_json"},
+    "parts_json": {"$ref": "align.parts_json"},
+    "n_parts": {"$ref": "align.n_parts"}
+  },
+  "nodes": {
+    "align": {
+      "type": "script",
+      "script": "scripts/align_connectors.py",
+      "inputs": {
+        "statements_json": {"$ref": "in.statements_json"},
+        "system": "lego",
+        "plate": {"id": "plate", "studs": [32, 32]}
+      }
+    }
+  },
+  "edges": [["START", "align"], ["align", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["poses_solved", "constraints_inconsistent"]
+  },
+  "on_error": "constraints_inconsistent"
+}
