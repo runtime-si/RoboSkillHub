@@ -313,3 +313,33 @@ def test_observation_uses_rendered_frames_when_the_physics_renders(monkeypatch):
     assert "plate" in tools.observations  # the verdict still carries independent observations
     fake.render = False
     assert bridge._rendering_physics() is None
+
+
+def test_lip_choice_prefers_a_fence_and_picks_the_inverted_push_side():
+    from roboskillhub.tasks.lego_hub.skills import _support_z, choose_lip
+
+    fence = {"x": [0.1, 0.4], "y": [-0.1795, -0.1765], "kind": "fence"}
+    plate = {"x": [0.172, 0.428], "y": [-0.128, 0.128], "kind": "baseplate"}
+    side = {
+        "up_vector": {"x": 0.0, "y": -1.0, "z": 0.0},
+        "centre": {"x": 0.2, "y": -0.2},
+        "yaw_deg": 0.0,
+    }
+    lip, yaw = choose_lip(side, [plate, fence])
+    assert lip == pytest.approx(0.0205)  # the fence, not the plate further on
+    inverted = {
+        "up_vector": {"x": 0, "y": 0, "z": -1},
+        "centre": {"x": 0.2, "y": -0.2},
+        "yaw_deg": -90.0,
+    }
+    lip, yaw = choose_lip(inverted, [fence])
+    assert yaw == pytest.approx(90.0) and lip == pytest.approx(0.0205)  # turned toward the fence
+    away = {
+        "up_vector": {"x": 0.0, "y": 1.0, "z": 0.0},
+        "centre": {"x": 0.2, "y": -0.2},
+        "yaw_deg": 0.0,
+    }
+    assert choose_lip(away, [fence]) is None  # studs toward the fence: the push goes away from it
+    lat = {"T_W_baseplate": {"position_m": [0.3, 0.0, 0.0032]}, "plate_studs": [32, 32]}
+    assert _support_z([0.3, 0.1, 0.0], {"table_z": 0.0, "lattice": lat}) == pytest.approx(0.0032)
+    assert _support_z([0.2, -0.2, 0.0], {"table_z": 0.0, "lattice": lat}) == 0.0

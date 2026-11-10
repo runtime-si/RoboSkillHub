@@ -70,6 +70,7 @@ def lego_press_hub(
     *,
     mode: str = "report",
     face: bool = True,
+    flip: bool = False,
     pull_up: bool = True,
     depth: bool = True,
     track: bool = True,
@@ -91,12 +92,35 @@ def lego_press_hub(
                 "object_id": "$last.select.outputs.piece",
                 "pieces": pieces,
                 "table_z": "$input.table_z",
+                "lattice": "$input.lattice",
             },
             "timeout_s": 60,
             "max_visits": nodes["bind"].get("max_visits", 10),
             "on": _pass(after_bind, mode),
         }
         g["skills"]["hub.classify_resting_face"] = HUB_VERSION
+        if flip:
+            # A brick lying on a side or on its studs is tipped (one quarter turn per visit) and read again.
+            nodes["face"]["max_visits"] = 4 * nodes["face"]["max_visits"]
+            nodes["face"]["on"] = {**nodes["face"]["on"], "failed:lego.wrong_face_up": "flip"}
+            nodes["flip"] = {
+                "skill": "hub.flip_studs_up",
+                "params": {
+                    "object_id": "$last.select.outputs.piece",
+                    "classified": "$last.face.outputs",
+                    "lips": "$input.lips",
+                    "table_z": "$input.table_z",
+                },
+                "timeout_s": 60,
+                "max_visits": 3 * nodes["bind"].get("max_visits", 10),
+                "on": {
+                    "succeeded": "face",
+                    "failed": "abort",
+                    "unverified": "unsure",
+                    "rejected": "abort",
+                },
+            }
+            g["skills"]["hub.flip_studs_up"] = HUB_VERSION
 
     if through_seat:
         # Diagnostic: release the brick wherever a failed seat left it, so the verifiers and the evaluator
@@ -181,7 +205,7 @@ def lego_press_hub(
         # verify's assignment of done / placed only runs when verify succeeded, as before.
 
     g["graph_id"] += f"+hub-{mode}"
-    g["params"] = {**g.get("params", {}), "hub": {"mode": mode, "face": face, "pull_up": pull_up,
+    g["params"] = {**g.get("params", {}), "hub": {"mode": mode, "face": face, "flip": flip, "pull_up": pull_up,
                                                    "depth": depth, "track": track, "through_seat": through_seat}}  # fmt: skip
     b = g["budgets"]
     g["budgets"] = {

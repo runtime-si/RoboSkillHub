@@ -43,6 +43,7 @@ def _hub_brief(step: dict) -> dict:
         "route": ev.get("hub_route") or (r.get("outputs") or {}).get("verdict"),
         "reason": (ev.get("reason") or "")[:240],
         "brick_rise_m": ev.get("brick_rise_m"),
+        "truth_face": ev.get("truth_face"),
         "hand_rise_m": ev.get("hand_rise_m"),
     }
 
@@ -83,6 +84,9 @@ def main() -> None:
     ap.add_argument("--no-face", action="store_true")
     ap.add_argument("--no-pullup", action="store_true")
     ap.add_argument(
+        "--flip", action="store_true", help="tip wrong-face bricks studs-up before the pick"
+    )
+    ap.add_argument(
         "--through-seat", action="store_true", help="release after a failed seat too (diagnostic)"
     )
     ap.add_argument("--breakage", action="store_true")
@@ -112,6 +116,7 @@ def main() -> None:
         mode=args.mode,
         face=not args.no_face,
         pull_up=not args.no_pullup,
+        flip=args.flip,
         through_seat=args.through_seat,
         recovery=False,
         attempts=1,
@@ -143,6 +148,14 @@ def main() -> None:
                     for s in ep.get("steps", [])
                 ],
                 "wall_s": round(ep["wall_s"], 1),
+                "face_trace": [
+                    (
+                        s["node"],
+                        *(lambda b: (b["status"], b["route"], b["truth_face"]))(_hub_brief(s)),
+                    )
+                    for s in ep.get("steps", [])
+                    if s.get("node") in ("face", "flip")
+                ],
             }
             with (args.out / "summary.jsonl").open("a") as f:
                 f.write(json.dumps(summ, default=str) + "\n")

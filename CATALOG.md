@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-29 tools, 155 skills, 2 policies, 1 recipe and 1 paper.
+29 tools, 156 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -155,6 +155,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`pushing-on-plane`](#pushing-on-plane) | execute | Executes a bounded planar pushing segment and checks measured target displacement. | yam_i2rt |
 | [`reaching-with-lag-correction`](#reaching-with-lag-correction) | execute | Moves the tool to a target pose, waits for the arm to settle, reads the tool pose back and, if the arm stopped short… | any |
 | [`refilling-a-domino-loading-rack`](#refilling-a-domino-loading-rack) | execute | Puts a standing domino back into an empty slot of a slotted loading rack, so… | any |
+| [`regrasping-a-brick-to-turn-studs-up`](#regrasping-a-brick-to-turn-studs-up) | execute | Tips a loose LEGO or DUPLO brick a quarter turn toward studs-up with a hand that only serves top-down poses. | any |
 | [`rotating-a-held-piece-within-wrist-limits`](#rotating-a-held-piece-within-wrist-limits) | execute | Turns a held flat part (a jigsaw piece) about the vertical by the angle its slot needs while the wrist's last joint… | any |
 | [`searching-insertion-spiral`](#searching-insertion-spiral) | execute | Finds an opening the held part or the closed fingertips can enter by probing straight down over a hexagonal grid… | any |
 | [`searching-insertion-with-yaw-oscillation`](#searching-insertion-with-yaw-oscillation) | execute | Finds the rotation at which a held keyed or polygonal part drops into its socket. | any |
@@ -2239,6 +2240,21 @@ Puts a standing domino back into an empty slot of a slotted loading rack, so pic
   - `not_seen`: No camera saw the rack, or no empty slot among those seen while some were not.
   - `unreachable`: Nothing was put in - every empty slot has a standing neighbour where an open finger goes, no grasp height clears the walls, an IK preview or a move failed, or the jaws stayed turned; `detail` says whether the tile is still held.
   - `invalid_input`: A rack without slots, a wall as high as the tile, an unknown order, a slot_index past the rack, or no tile and no grasp_height (also the route of a raised error).
+
+### regrasping-a-brick-to-turn-studs-up
+
+execute · robots: any · tasks: assembly, lego, reorientation · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/regrasping-a-brick-to-turn-studs-up/SKILL.md)
+
+Tips a loose LEGO or DUPLO brick a quarter turn toward studs-up with a hand that only serves top-down poses - closed fingertips push its upper part horizontally so it pivots about a bottom edge, over a fixed lip (a baseplate's edge) when the table is too slippery for a free push to tip it - one tip per call. A brick on its side needs one tip (pushed from its stud face), an upside-down one two (across its short side onto a long side first). Driven by classifying-brick-resting-face-from-depth's up_vector and centre, and judged by its next reading. Use when a brick in the bin lies on a side or on its studs and must be studs-up before a top-down pick.
+
+- **In**: `brick_position` Vec3, `up_vector` Vec3
+- **Out**: `push_direction` Vec3, `push_height` float, `travel` float, `tips_left` int
+- **Calls**: connector `robot.close_gripper`, `robot.go_to_pose`
+- **Scripts**: [`tip_brick`](skills/regrasping-a-brick-to-turn-studs-up/scripts/tip_brick.py)
+- **Exits**:
+  - `tipped`: The four moves ran (above the start, down to the push height, the push, up and clear); whether the brick turned is the next face reading's to say. tips_left 1 means an upside-down brick that should now lie on a side.
+  - `already_studs_up`: up_vector points up; nothing moved.
+  - `blocked`: The fingers could not close or a move was refused; detail says which.
 
 ### rotating-a-held-piece-within-wrist-limits
 

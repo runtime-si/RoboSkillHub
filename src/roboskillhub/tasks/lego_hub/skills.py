@@ -60,6 +60,20 @@ def _ids(request: dict) -> list[str]:
     return ids
 
 
+def _support_z(p, request: dict) -> float:
+    """The surface the brick lies on: the baseplate's top when the brick stands over the plate (a brick
+    tipped over its edge), else the table."""
+    table = float(request.get("table_z", 0.0))
+    lat = request.get("lattice")
+    if not lat:
+        return table
+    pl = lat["T_W_baseplate"]["position_m"]
+    half = 0.008 * lat.get("plate_studs", [32, 32])[0] / 2.0
+    if abs(p[0] - pl[0]) <= half and abs(p[1] - pl[1]) <= half:
+        return float(pl[2])
+    return table
+
+
 class _HubSkill:
     kind = "skill"
     version = VERSION
@@ -209,6 +223,7 @@ class ClassifyRestingFace(_HubSkill):
         studs=_ARR,
         system=_STR,
         table_z={"type": "number"},
+        lattice=_OBJ,
         seed={"type": "integer"},
     )
     measured = ("vertical_axis", "height", "deep_share", "yaw_deg", "samples")
@@ -231,23 +246,132 @@ class ClassifyRestingFace(_HubSkill):
                 evidence={"reason": f"{oid} not observed"},
             )  # fmt: skip
         pieces = list(request.get("pieces") or [oid])
+        support = _support_z(p, request)
         out, tools = self._run_hub(
             ctx,
             {**request, "pieces": pieces},
-            brick_position={
-                "x": float(p[0]),
-                "y": float(p[1]),
-                "z": float(request.get("table_z", 0.0)),
-            },
+            brick_position={"x": float(p[0]), "y": float(p[1]), "z": support},
             brick_studs=list(request.get("studs", [2, 4])),
             system=request.get("system", "lego"),
-            table_height=float(request.get("table_z", 0.0)),
+            table_height=support,
         )
-        return self._finish(
+        result = self._finish(
             ctx,
             out,
             tools,
-            {"face": out["route"], "vertical_axis": out.get("vertical_axis", "")},
+            {
+                "face": out["route"],
+                "vertical_axis": out.get("vertical_axis", ""),
+                "up_vector": out.get("up_vector"),
+                "centre": out.get("centre"),
+                "yaw_deg": float(out.get("yaw_deg", 0.0)),
+            },
+        )
+        # For scoring only (not used by any decision): the face the privileged pose says.
+        q = seen[0].get("quaternion_xyzw")
+        if q is not None:
+            x, y, z, w = q
+            up_z = 1 - 2 * (x * x + y * y)
+            result["evidence"]["truth_face"] = (
+                "studs_up" if up_z > 0.9 else "upside_down" if up_z < -0.9 else "on_side"
+            )
+        return result
+
+
+def _ray_entry(p: tuple, d: tuple, rect: dict) -> float | None:
+    """Distance along the ray p + t d (t > 0) at which it enters an axis-aligned rect from outside."""
+    lo, hi = (rect["x"][0], rect["y"][0]), (rect["x"][1], rect["y"][1])
+    if all(lo[i] <= p[i] <= hi[i] for i in (0, 1)):
+        return None
+    t0, t1 = 0.0, math.inf
+    for i in (0, 1):
+        if abs(d[i]) < 1e-9:
+            if not lo[i] <= p[i] <= hi[i]:
+                return None
+            continue
+        a, b = (lo[i] - p[i]) / d[i], (hi[i] - p[i]) / d[i]
+        t0, t1 = max(t0, min(a, b)), min(t1, max(a, b))
+    return t0 if t0 <= t1 and t0 > 0 else None
+
+
+def choose_lip(c: dict, lips: list[dict] | None, reach: float = 0.12) -> tuple[float, float] | None:
+    """(lip distance, yaw_deg to pass) for the tip: along -u for a brick on a side, along +-x of the brick
+    for an upside-down one; the nearest fence, else the baseplate (a brick tipped onto the plate's studs is
+    snapped on by the clutch and can no longer be picked: fences first)."""
+    if not lips:
+        return None
+    u, yaw = c["up_vector"], float(c.get("yaw_deg", 0.0))
+    if u["z"] <= -0.9:
+        options = [(yaw, (math.cos(math.radians(yaw)), math.sin(math.radians(yaw))))]
+        options.append((yaw + 180.0, (-options[0][1][0], -options[0][1][1])))
+    else:
+        n = math.hypot(u["x"], u["y"]) or 1.0
+        options = [(yaw, (-u["x"] / n, -u["y"] / n))]
+    p = (c["centre"]["x"], c["centre"]["y"])
+    best = None
+    for rank, kind in enumerate(("fence", "baseplate")):
+        for y_deg, d in options:
+            for r in lips:
+                if r.get("kind", "fence") != kind:
+                    continue
+                t = _ray_entry(p, d, r)
+                if t is not None and t <= reach and (best is None or (rank, t) < best[0]):
+                    best = ((rank, t), (t, y_deg))
+        if best is not None:
+            break
+    return None if best is None else best[1]
+
+
+class FlipStudsUp(_HubSkill):
+    """skills/regrasping-a-brick-to-turn-studs-up: one quarter-turn tip from the face classifier's reading."""
+
+    skill_id = "hub.flip_studs_up"
+    bundle, script = "regrasping-a-brick-to-turn-studs-up", "tip_brick.py"
+    requires = frozenset({"pose_feedback", "cartesian_motion", "gripper", "stop"})
+    input_schema = _schema(
+        ["object_id", "classified"],
+        object_id=_STR,
+        classified=_OBJ,
+        lips=_ARR,
+        table_z={"type": "number"},
+        studs=_ARR,
+        system=_STR,
+    )
+    routes = {
+        "tipped": ("succeeded", None),
+        "already_studs_up": ("succeeded", None),
+        "blocked": ("failed", "unreachable"),
+    }
+    measured = ("push_height", "travel", "tips_left")
+
+    def run(self, request: dict, ctx: SkillContext) -> dict:
+        c = request["classified"]
+        if not c.get("up_vector") or not c.get("centre"):
+            return ctx.result(
+                self, "rejected", phase="validate", failure_type="precondition_unmet",
+                evidence={"reason": "no up_vector / centre from the face classifier"},
+            )  # fmt: skip
+        tools = GapTools(ctx, [], seed=0)
+        chosen = choose_lip(c, request.get("lips"))
+        if request.get("lips") is not None and chosen is None:
+            return ctx.result(
+                self, "failed", phase="validate", failure_type="unreachable",
+                evidence={"reason": "no fence or plate edge along the push direction to tip the brick over"},
+            )  # fmt: skip
+        lip, yaw_used = chosen if chosen else (None, float(c.get("yaw_deg", 0.0)))
+        out = load_script(self.bundle, self.script).run(
+            tools,
+            brick_position=c["centre"],
+            up_vector=c["up_vector"],
+            yaw_deg=yaw_used,
+            table_height=float(request.get("table_z", 0.0)),
+            brick_studs=list(request.get("studs", [2, 4])),
+            system=request.get("system", "lego"),
+            lip_distance=lip,
+        )
+        # The tip is judged by the next face reading, not here: observe the brick for the record.
+        return self._finish(
+            ctx, out, tools, {"route": out["route"]}, observe=[request["object_id"]]
         )
 
 
@@ -357,4 +481,4 @@ class TrackBuild(_HubSkill):
         return ctx.result(self, "succeeded", phase="verify", evidence=evidence, outputs=outputs)
 
 
-SKILLS = (PullUpCheck(), VerifySeatDepth(), ClassifyRestingFace(), TrackBuild())
+SKILLS = (PullUpCheck(), VerifySeatDepth(), ClassifyRestingFace(), FlipStudsUp(), TrackBuild())

@@ -180,6 +180,53 @@ def grasp_close_axes(prebuilt: list[dict], targets: list[dict], plate_pose: dict
     return axes
 
 
+FENCE = {"y_offset": 0.022, "width": 0.003, "height": 0.004}
+"""A low bar along the feeder line, 22 mm on its +y side (clear of the pads on an upright brick's +y face):
+a brick pushed against it tips over it (regrasping-a-brick-to-turn-studs-up). On with LEGO_FENCE=1."""
+
+
+def _fences() -> list[dict]:
+    import os
+
+    if os.environ.get("LEGO_FENCE") != "1":
+        return []
+    y = FEEDER["y"] + FENCE["y_offset"]
+    x0, x1 = FEEDER["x0"] - 0.04, FEEDER["x0"] + FEEDER["dx"] * 4 + 0.04
+    return [
+        {
+            "size": (x1 - x0, FENCE["width"], FENCE["height"]),
+            "pos": ((x0 + x1) / 2, y, FENCE["height"] / 2),
+        }
+    ]
+
+
+def lips(plate_pose: dict, plate_studs=(32, 32)) -> list[dict]:
+    """Axis-aligned rectangles a pushed brick can tip over: the fences, then the baseplate (world xy)."""
+    out = []
+    for f in _fences():
+        (cx, cy, _), (sx, sy, _) = f["pos"], f["size"]
+        out.append(
+            {"x": [cx - sx / 2, cx + sx / 2], "y": [cy - sy / 2, cy + sy / 2], "kind": "fence"}
+        )
+    px, py = plate_pose["position_m"][:2]
+    h = STUD_PITCH_M * plate_studs[0] / 2
+    out.append({"x": [px - h, px + h], "y": [py - h, py + h], "kind": "baseplate"})
+    return out
+
+
+def _env_faces() -> list[str]:
+    """Start faces of the feeder pieces in order (``LEGO_FEEDER_FACES=upside_down,side``): studs_up,
+    upside_down or side."""
+    import os
+
+    raw = os.environ.get("LEGO_FEEDER_FACES", "")
+    faces = [f.strip() for f in raw.split(",") if f.strip()]
+    bad = [f for f in faces if f not in ("studs_up", "upside_down", "side")]
+    if bad:
+        raise ValueError(f"LEGO_FEEDER_FACES: unknown faces {bad}")
+    return faces
+
+
 def physics_lego_world(
     seed: int,
     *,
@@ -190,6 +237,7 @@ def physics_lego_world(
     fix_baseplate: bool = True,
     fault: str | None = None,
     fault_index: int | None = None,
+    feeder_faces: list[str] | None = None,
 ) -> dict:
     physics = make_physics()
     goal_topo, prebuilt, ids, order = _topologies(scene)
@@ -198,8 +246,27 @@ def physics_lego_world(
     # Pieces are named after the targets they are meant for: the graph's verify step observes the target id
     # as the brick's object id (see integration-note).
     names = [f"b{pid}" for pid in order] + [f"spare_{k}" for k in range(SPARES)]
+    faces = feeder_faces if feeder_faces is not None else _env_faces()
     for k, name in enumerate(names):
         yaw = math.radians(rng.uniform(-2.0, 2.0))
+        face = faces[k] if k < len(faces) else "studs_up"
+        # Turned about the brick's long (BrickSim x) axis: 180 deg lies on its studs, 90 deg on a long side;
+        # dropped from a few millimetres and left to settle.
+        roll, z = {
+            "studs_up": (0.0, 0.0005),
+            "upside_down": (math.pi, 0.013),
+            "side": (math.pi / 2, 0.011),
+        }[face]
+        q_yaw = (math.cos(yaw / 2), 0.0, 0.0, math.sin(yaw / 2))
+        q_roll = (math.cos(roll / 2), math.sin(roll / 2), 0.0, 0.0)
+        w1, x1, y1, z1 = q_yaw
+        w2, x2, y2, z2 = q_roll
+        rot = (
+            w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+            w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+            w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+        )
         feeder.append(
             {
                 "id": name,
@@ -207,9 +274,10 @@ def physics_lego_world(
                 "pos": (
                     FEEDER["x0"] + FEEDER["dx"] * k + rng.uniform(-0.001, 0.001),
                     FEEDER["y"] + rng.uniform(-0.001, 0.001),
-                    0.0005,
+                    z,
                 ),
-                "rot": (math.cos(yaw / 2), 0.0, 0.0, math.sin(yaw / 2)),
+                "rot": rot,
+                "face": face,
             }
         )
     cfg = load_config()
@@ -220,6 +288,7 @@ def physics_lego_world(
         "prebuilt_ids": ids,
         "prebuilt_bricks": [v for k, v in ids.items() if k != 0],
         "feeder": feeder,
+        "fences": _fences(),
         "hand_start": HAND_START,
         "grip_force_N": grip_force_n,
         "fix_baseplate": fix_baseplate,
@@ -319,6 +388,7 @@ def physics_lego_world(
         # Integration (Agent 5): the plate lattice for perception.classify_object_state and the
         # pre-built bricks for core.bind_target (graph builds align/verify ``build`` from them).
         "lattice": {"T_W_baseplate": plate_pose, "plate_studs": [32, 32]},
+        "lips": lips(plate_pose),
         "prebuilt": prebuilt_matings,
         "gripper_id": "floating_parallel_gripper",
         "table_z": 0.0,
