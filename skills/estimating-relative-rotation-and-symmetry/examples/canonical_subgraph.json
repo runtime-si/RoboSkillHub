@@ -1,0 +1,35 @@
+{
+  "skill": "estimating-relative-rotation-and-symmetry",
+  "inputs": {
+    "reference_frame": "CameraFrame",
+    "reference_mask": "Mask",
+    "frame": "CameraFrame",
+    "mask": "Mask",
+    "symmetry_order": "int"
+  },
+  "outputs": {
+    "rotation_deg": {"$ref": "rotate.rotation_deg"},
+    "period_deg": {"$ref": "rotate.period_deg"},
+    "symmetry_order": {"$ref": "rotate.symmetry_order"},
+    "scores": {"$ref": "rotate.scores"}
+  },
+  "nodes": {
+    "rotate": {
+      "type": "script",
+      "script": "scripts/relative_rotation.py",
+      "inputs": {
+        "reference_frame": {"$ref": "in.reference_frame"},
+        "reference_mask": {"$ref": "in.reference_mask"},
+        "frame": {"$ref": "in.frame"},
+        "mask": {"$ref": "in.mask"},
+        "symmetry_order": {"$ref": "in.symmetry_order"}
+      }
+    }
+  },
+  "edges": [["START", "rotate"], ["rotate", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["rotation_found", "symmetric_ambiguous"]
+  },
+  "on_error": "low_confidence"
+}

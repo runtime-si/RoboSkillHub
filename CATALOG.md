@@ -54,6 +54,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`classifying-piece-sides-for-border-first`](#classifying-piece-sides-for-border-first) | perceive | Types a jigsaw piece's four sides flat / tab / blank from a top-down mask and calls it a corner, edge or interior piece. | any |
 | [`detecting-contact-from-joint-effort`](#detecting-contact-from-joint-effort) | perceive | Feels for contact without a force sensor. | any |
 | [`estimating-cut-grid-from-pieces`](#estimating-cut-grid-from-pieces) | perceive | Estimates a jigsaw's real cut grid (cols x rows) and cell size from the piece count printed on the box, the board's… | any |
+| [`estimating-relative-rotation-and-symmetry`](#estimating-relative-rotation-and-symmetry) | perceive | How far a part is turned in the image plane between a reference view and the current view (both from the wrist camera… | any, *tuned on* yam-left-wrist-d405-renders |
 | [`framing-a-target-by-mask-edge-steering`](#framing-a-target-by-mask-edge-steering) | perceive | Moves the wrist camera until a named target lies wholly inside its image with a margin. | any |
 | [`localizing-a-piece-in-a-reference-image`](#localizing-a-piece-in-a-reference-image) | perceive | Finds which grid cell of a jigsaw's box picture one piece belongs to, and how far the piece is turned, from a close-up… | any |
 | [`observing-object-poses`](#observing-object-poses) | perceive | Reads independently observed object positions, and orientations where the backend provides them, from the configured… | yam_i2rt |
@@ -651,6 +652,20 @@ Estimates a jigsaw's real cut grid (cols x rows) and cell size from the piece co
   - `estimated`: At least min_pieces (6) pieces were measured, the best grid's posterior probability is at least min_confidence (0.9) and a given edge-piece count agrees with it (within 3 sigma). grid_cols, grid_rows and the cell size are the answer.
   - `ambiguous`: Pieces were measured but the best grid is under min_confidence, or a given edge-piece count disagrees with it; grid_cols / grid_rows are the best guess and `candidates` ranks the alternatives. Give each piece's turn (angle_deg), measure more pieces, or count the edge pieces.
   - `insufficient_pieces`: Fewer than min_pieces usable pieces (the prior-only best guess is still returned), no board size / aspect / reference, a piece count under 4, no camera for measure_view, or the corner skill is not installed; `detail` says which.
+
+### estimating-relative-rotation-and-symmetry
+
+perceive · robots: any, *tuned on* yam-left-wrist-d405-renders · tasks: pick-place, reorientation, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/estimating-relative-rotation-and-symmetry/SKILL.md) · [upstream](own code (OpenCV, numpy))
+
+How far a part is turned in the image plane between a reference view and the current view (both from the wrist camera at a similar height), and modulo what -- from the two masks and the pixels inside them. The outline gives the turn (principal axis for elongated parts, minimum-area rectangle for square ones), known modulo the part's symmetry (180 deg for a 2 x 4 brick, 90 for a 2 x 2). For a part whose look breaks its outline's symmetry (a face-up domino's pips, a printed piece), the rotated reference pixels pick the full turn, or the skill says the turns look alike. Routes rotation_found, symmetric_ambiguous or low_confidence. Use before a wrist turn to match a reference, to choose the shorter of equivalent wrist turns, or to check a placed part's yaw; camera-only.
+
+- **In**: `reference_frame` CameraFrame, `reference_mask` Mask, `frame` CameraFrame, `mask` Mask
+- **Out**: `rotation_deg` float, `period_deg` float, `symmetry_order` int
+- **Scripts**: [`relative_rotation`](skills/estimating-relative-rotation-and-symmetry/scripts/relative_rotation.py)
+- **Exits**:
+  - `rotation_found`: The turn from the reference to the current view, in (-period/2, period/2], known modulo period_deg (360 when the part's look resolved every turn; 180 / 90 for a part that looks the same after a half / quarter turn).
+  - `symmetric_ambiguous`: The caller said the part is less symmetric than its outline, but its outline turns look alike in these pixels (within 0.05 correlation); the turn is reported modulo the outline's period only.
+  - `low_confidence`: A mask has under 60 px, or the best appearance match is under 0.3 correlation (another part, occluded, relit); rotation_deg is the outline's turn, unconfirmed.
 
 ### framing-a-target-by-mask-edge-steering
 
