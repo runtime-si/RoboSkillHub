@@ -23,6 +23,6 @@
     }
   },
   "edges": [["START", "plan"], ["plan", "END"]],
-  "exit": {"router_field": "route", "success_values": ["rebuild_next", "nothing_fallen", "not_flat"]},
+  "exit": {"router_field": "route", "success_values": ["rebuild_next", "nothing_fallen", "not_flat", "pinned"]},
   "on_error": "invalid_input"
 }
