@@ -234,3 +234,37 @@ was tried on bare pieces (seat variant A, 4 hosts). Only 3 trials reached the tu
 - or a different hold: a pad on the piece's top (suction, or a pinch across the piece's top and bottom),
   rather than its edges;
 - or turning the piece on the mat by pushing it (no grip) before the pick.
+
+
+## Update, round 9 (2026-11-10)
+
+**Torsion fix.** The jigsaw harness carried its own copy of the grip fix (impratio and solimp only). It now
+calls the template's `sim_grip._pad_friction`, which gives the finger pads condim 4 with 0.004 m torsional
+friction. The log confirms it: `pads condim 4, torsion 0.004 m ... on 200-218 geoms`.
+
+**Held turn of a bare, edge-gripped piece, with the torsion fix:** bare 2 mm pieces picked at the
+grip-selection skill's grip, lifted 3 cm and turned by `rotating-a-held-piece-within-wrist-limits`, on 3 hosts.
+
+| turn mode | turns | kept | flung (piece upside down, tilt 180 degrees) |
+|---|---|---|---|
+| 5 degree steps (`max_step_deg`) | 2 | 0 | 2 |
+| one joint move per turn | 3 | 0 | 3 |
+| **all** | **5** | **0** | **5** |
+
+The piece flips end over end about the line through the two contacts, which condim 4 should resist (that
+line is the contacts' normal). The flip may come from something else:
+
+- the joint-6 move itself (an acceleration jerk);
+- the piece touching the blades as it hangs.
+
+Not diagnosed in this round.
+
+**Pushing to the yaw on the mat before the pick** (no held turn) was not built in the round.
+
+**Completion: 0 / 5 this round, 0 / 20 since the fixes** (baseline 0 / 8).
+
+**Next, in order:**
+
+1. Trace one held turn (piece pose and contact forces each step) to see what starts the flip.
+2. Turn by pushing the piece on the mat before the pick.
+3. A hold on the piece's top instead of its edges.
