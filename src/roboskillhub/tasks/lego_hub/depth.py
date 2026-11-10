@@ -216,3 +216,63 @@ def add_fitted_noise(depth, k, rng, params=None, scale=1.0):
     noisy[edge & (rng.random(base.shape) < p["edge_dropout"])] = 0.0
     q = p["quant_step_m"]
     return np.where(valid & (noisy > 0), np.round(noisy / q) * q, 0.0).astype(np.float32)
+
+
+#: D405 stereo: 18 mm baseline, 7-50 cm range (datasheet); matcher settings as tools/d405-stereo.
+D405_BASELINE_M = 0.018
+
+
+def stereo_depth(
+    left,
+    right,
+    k=D405_K,
+    baseline=D405_BASELINE_M,
+    rng=None,
+    min_depth=0.07,
+    max_depth=0.5,
+    quant=0.001,
+):
+    """D405-like passive stereo depth (metres, 0 = hole) from a rectified left/right render (``right`` is
+    the left camera moved +x by ``baseline`` in its own frame): OpenCV SGBM with the parameters of
+    tools/d405-stereo (uniqueness 10, left-right check 1 px, speckle filter, sub-pixel), read + shot
+    noise on the images first, 1 mm quantisation after."""
+    import cv2
+
+    rng = rng if rng is not None else np.random.default_rng(0)
+
+    def grey(img):
+        a = np.asarray(img)
+        a = (
+            cv2.cvtColor(a[..., :3].astype(np.uint8), cv2.COLOR_RGB2GRAY)
+            if a.ndim == 3
+            else a.astype(np.uint8)
+        )
+        f = a.astype(np.float64)
+        f = f + rng.normal(0.0, 1.0, f.shape) * np.sqrt(2.0**2 + (0.02 * f) ** 2)
+        return np.clip(f, 0, 255).astype(np.uint8)
+
+    fx = float(np.asarray(k)[0, 0])
+    dmin = int(np.floor(fx * baseline / max_depth))
+    n = int(np.ceil((int(np.ceil(fx * baseline / min_depth)) - dmin + 1) / 16.0) * 16)
+    block = 7
+    sgbm = cv2.StereoSGBM_create(
+        minDisparity=dmin,
+        numDisparities=n,
+        blockSize=block,
+        P1=8 * block * block,
+        P2=32 * block * block,
+        disp12MaxDiff=1,
+        preFilterCap=31,
+        uniquenessRatio=10,
+        speckleWindowSize=100,
+        speckleRange=2,
+        mode=cv2.STEREO_SGBM_MODE_HH,
+    )
+    disp = sgbm.compute(grey(left), grey(right)).astype(np.float64) / 16.0
+    depth = np.zeros_like(disp)
+    ok = disp > 0
+    depth[ok] = fx * baseline / disp[ok]
+    depth[(depth < min_depth) | (depth > max_depth)] = 0.0
+    if quant:
+        depth = np.round(depth / quant) * quant
+    return depth.astype(np.float32)
