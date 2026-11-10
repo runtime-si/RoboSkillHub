@@ -38,6 +38,13 @@ Pipeline, every time the objects are read and the simulation has advanced since 
    the reported TCP pose times that offset (``source: grasp_kinematics``). The robot's own TCP and
    jaw state, no object truth - and no slip detection while held.
 
+Measured 2026-11-09 (rshgpu5/6, MuJoCo EGL, depth segmentation, both cameras), Agent 5's graph and
+baselines on test seeds 0-9: fixed_script and online_replan each 8/10 graph success vs truth's 10/10.
+The evaluator found all 10 layouts built in both, so the 2 failures are vision false alarms
+(``place: domino.neighbour_disturbed``, seeds 4 and 5). Pose error against truth over 167 images
+an episode: 1.7 mm median, 5.5 mm max position, 0.2-0.3 deg p90 tilt; held tiles 8 mm median
+(20 mm max) from the grasp prediction while carried; 4 % of tile-reads unseen; 0.9 s an image.
+
 ``log`` keeps, per image, each estimate's error against the simulator truth (position, tilt of the
 up axis, yaw modulo 180 deg) for reporting; the truth never feeds the estimates.
 """
