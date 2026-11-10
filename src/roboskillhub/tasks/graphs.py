@@ -322,6 +322,7 @@ def lego_press(
                 "descend": False,
                 "speed_m_s": speed_m_s,
                 "clear_above_z_m": "$input.travel_clear_z_m",
+                "speed_limit_m_s": "$last.select.outputs.target.grasp.carry_speed_m_s",
             },
             "timeout_s": 30,
             "on": _edges(

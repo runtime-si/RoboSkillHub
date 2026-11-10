@@ -284,6 +284,11 @@ class Pick:
         }
         if "speed_m_s" in request:
             primitive["speed_m_s"] = request["speed_m_s"]
+        if "speed_limit_m_s" in request:
+            # A grasp-dependent cap (e.g. a brick pinched by its small end faces swings in a fast carry).
+            primitive["speed_m_s"] = min(
+                primitive.get("speed_m_s", request["speed_limit_m_s"]), request["speed_limit_m_s"]
+            )
         child = ctx.invoke("grasp", primitive)
         if child["status"] != "succeeded":
             return _relay(self, ctx, child, "grasp")
@@ -333,6 +338,7 @@ class TransportHeld:
         approach_height_m=_NUM,
         descend={"type": "boolean"},
         speed_m_s=_NUM,
+        speed_limit_m_s=_NUM,
         clear_above_z_m=_NUM,
     )
 

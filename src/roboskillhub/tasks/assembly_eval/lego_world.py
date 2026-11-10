@@ -31,6 +31,7 @@ FEEDER = {"x0": 0.20, "dx": 0.05, "y": -0.20}
 SPARES = 1
 TRAVEL_MARGIN_M = 0.01
 PREASSEMBLY_HEIGHT_M = 0.014
+HOVER_BIAS_AWAY_M = 0.0005
 HAND_START = (0.30, -0.10, 0.10, 0.0)
 
 
@@ -127,7 +128,12 @@ def placement_cell(goal_contract: dict, plate: dict, studs=(2, 4), plate_studs=(
 
 GRASP_ACROSS = {
     # close_axis 0: jaws close along the brick's 2-stud side (16 mm), TCP y along brick x.
-    0: {"quaternion_xyzw": None, "open_width_m": 0.026, "release_open_width_m": 0.03},
+    0: {
+        "quaternion_xyzw": None,
+        "open_width_m": 0.026,
+        "release_open_width_m": 0.03,
+        "carry_speed_m_s": 0.05,
+    },
     # close_axis 1: jaws close along the 4-stud side (32 mm), TCP y along brick y; the pads stand on the
     # 2-stud end faces. The hand opens 50 mm (lego_station_isaac.HandSpec.max_opening).
     1: {
@@ -302,6 +308,7 @@ def physics_lego_world(
             "open_width_m": GRASP_ACROSS[axis]["open_width_m"],
             # The release must open wider than the brick across the closing axis (32 mm for close_axis 1).
             "release_open_width_m": GRASP_ACROSS[axis]["release_open_width_m"],
+            "carry_speed_m_s": GRASP_ACROSS[axis]["carry_speed_m_s"],
         }
     inputs = {
         "targets": targets,
@@ -349,6 +356,10 @@ def physics_lego_world(
             # plus 2.7 mm: at 10 mm a brick placed flush beside another hung 0.4 mm over its top face and
             # rubbed on it while align corrected (seq3_stack brick 2).
             "preassembly_height_m": PREASSEMBLY_HEIGHT_M,
+            # Hover (and press) 0.5 mm off the seat away from a same-layer brick flush beside it: a brick
+            # held by its end faces swings toward that neighbour as its walls meet the studs and landed on
+            # the neighbour's studs in 8/10 seq3_stack runs (2 N) without it, 1/10 with it.
+            "hover_bias_away_m": HOVER_BIAS_AWAY_M,
             "workspace_min_m": [0.0, -0.35, 0.0],
             "workspace_max_m": [0.6, 0.35, 0.3],
             "limits_source": "assembly_eval lego_world v1 (simulated station; not calibrated hardware)",

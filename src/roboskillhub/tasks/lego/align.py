@@ -59,6 +59,7 @@ DEFAULTS = {
     "max_obs_age_s": 0.5,
     "yaw_ambiguity_deg": 10.0,
     "support_required_fraction": 0.25,
+    "hover_bias_away_m": 0.0,
 }
 
 
@@ -99,6 +100,7 @@ def _limits(req: dict, system: str) -> dict[str, Any]:
         out["max_total_correction_m"], "max_total_correction_m", 0, 0.05
     )
     out["speed_m_s"] = number(out["speed_m_s"], "speed_m_s", 1e-4, 0.25)
+    out["hover_bias_away_m"] = number(out["hover_bias_away_m"], "hover_bias_away_m", 0, 0.004)
     out["deadline_s"] = number(out["deadline_s"], "deadline_s", 0.1, 300)
     out["max_obs_age_s"] = number(out["max_obs_age_s"], "max_obs_age_s", 0.001, 10)
     out["limits_source"] = str(lim["limits_source"])
@@ -213,6 +215,26 @@ def plan_alignment(request: dict, *, tcp_pose: dict | None = None) -> dict[str, 
     return _plan(parsed, lim, request, tcp_pose)
 
 
+def _away_from_neighbours(bt, cell, build) -> tuple[float, float] | None:
+    """Unit plate-xy direction from the same-layer build cells flush beside the target's footprint to the
+    footprint, or None when nothing stands beside it."""
+    mine = g.cells(bt, cell)
+    occ = g.occupied_cells(build)
+    own = {(c[0], c[1]) for c in mine}
+    beside = {
+        (x + dx, y + dy)
+        for x, y, z in mine
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))
+        if (x + dx, y + dy) not in own and (x + dx, y + dy, z) in occ
+    }
+    if not beside:
+        return None
+    mx = sum(c[0] for c in own) / len(own) - sum(c[0] for c in beside) / len(beside)
+    my = sum(c[1] for c in own) / len(own) - sum(c[1] for c in beside) / len(beside)
+    n = math.hypot(mx, my)
+    return (mx / n, my / n) if n > 1e-9 else None
+
+
 def _plan(parsed: dict, lim: dict, request: dict, tcp_pose: dict | None) -> dict[str, Any]:
     bt, plate, cell, build = parsed["bt"], parsed["plate"], parsed["cell"], parsed["build"]
     checks = g.connection_checks(
@@ -249,7 +271,16 @@ def _plan(parsed: dict, lim: dict, request: dict, tcp_pose: dict | None) -> dict
     t_seat = g.mul(t_seat, g.rz(extra))
     up = g.column(g.matrix(plate.pose), 2)
     h = lim["preassembly_height_m"]
-    t_hover = g.mul(g.tr(up[0] * h, up[1] * h, up[2] * h), t_seat)
+    bias = [0.0, 0.0, 0.0]
+    away = _away_from_neighbours(bt, cell, build) if lim["hover_bias_away_m"] > 0 else None
+    if away is not None:
+        # Hover (and so press) off the seat, away from same-layer bricks flush beside it: a brick held by
+        # its end faces swings toward such a neighbour as its walls meet the studs (seq3_stack brick 2).
+        px, py = g.column(g.matrix(plate.pose), 0), g.column(g.matrix(plate.pose), 1)
+        b = lim["hover_bias_away_m"]
+        bias = [b * (away[0] * px[i] + away[1] * py[i]) for i in range(3)]
+        out["hover_bias_m"] = bias
+    t_hover = g.mul(g.tr(up[0] * h + bias[0], up[1] * h + bias[1], up[2] * h + bias[2]), t_seat)
     t_tcp_hover = g.tcp_target(t_hover, t_tcp_obj)
     p = [t_tcp_hover[i][3] for i in range(3)]
     if not all(
