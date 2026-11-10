@@ -73,3 +73,12 @@ def test_seq3_stack_grasps_the_second_brick_by_its_ends():
     assert grasp_close_axes([], targets, plate) == [0, 1, 0]
     spaced = [_target("b1", 14, 14), _target("b2", 14, 17), _target("b3", 14, 14, layer=1)]
     assert grasp_close_axes([], spaced, plate) == [0, 0, 0]
+
+
+def test_every_grasp_entry_carries_the_same_fields():
+    from roboskillhub.tasks.assembly_eval.lego_world import GRASP_ACROSS
+
+    keys = {frozenset(v) for v in GRASP_ACROSS.values()}
+    assert len(keys) == 1
+    assert GRASP_ACROSS[1]["release_open_width_m"] > 0.032  # wider than the brick it releases
+    assert GRASP_ACROSS[1]["carry_speed_m_s"] < GRASP_ACROSS[0]["carry_speed_m_s"]
