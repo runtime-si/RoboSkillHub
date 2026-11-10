@@ -41,7 +41,8 @@ Pipeline, every time the objects are read and the simulation has advanced since 
    jaw state, no object truth - and no slip detection while held.
 
 Measured 2026-11-09 (rshgpu5/6, MuJoCo EGL, depth segmentation, both cameras), Agent 5's graph and
-baselines on test seeds 0-9: fixed_script and online_replan each 8/10 graph success vs truth's 10/10.
+baselines on test seeds 0-9: fixed_script and online_replan each 8/10 graph success vs truth's 10/10
+(before the partial-fit rule below; with it, fixed_script 10/10 graph and evaluator, 2026-11-10).
 The evaluator found all 10 layouts built in both, so the 2 failures are vision false alarms
 (``place: domino.neighbour_disturbed``, seeds 4 and 5). Pose error against truth over 167 images
 an episode: 1.7 mm median, 5.5 mm max position, 0.2-0.3 deg p90 tilt; held tiles 8 mm median
