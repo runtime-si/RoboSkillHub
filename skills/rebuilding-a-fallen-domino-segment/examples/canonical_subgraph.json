@@ -1,0 +1,28 @@
+{
+  "skill": "rebuilding-a-fallen-domino-segment",
+  "inputs": {"slots": "Any", "states": "Any", "lean_deg": "Any", "shift_mm": "Any", "table_z": "float"},
+  "outputs": {
+    "tile_index": {"$ref": "plan.tile_index"},
+    "tile_center": {"$ref": "plan.tile_center"},
+    "long_axis": {"$ref": "plan.long_axis"},
+    "slot": {"$ref": "plan.slot"},
+    "segment": {"$ref": "plan.segment"},
+    "remaining": {"$ref": "plan.remaining"}
+  },
+  "nodes": {
+    "plan": {
+      "type": "script",
+      "script": "scripts/plan_rebuild.py",
+      "inputs": {
+        "slots": {"$ref": "in.slots"},
+        "states": {"$ref": "in.states"},
+        "lean_deg": {"$ref": "in.lean_deg"},
+        "shift_mm": {"$ref": "in.shift_mm"},
+        "table_z": {"$ref": "in.table_z"}
+      }
+    }
+  },
+  "edges": [["START", "plan"], ["plan", "END"]],
+  "exit": {"router_field": "route", "success_values": ["rebuild_next", "nothing_fallen", "not_flat"]},
+  "on_error": "invalid_input"
+}
