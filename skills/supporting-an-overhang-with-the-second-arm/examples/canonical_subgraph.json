@@ -1,0 +1,27 @@
+{
+  "skill": "supporting-an-overhang-with-the-second-arm",
+  "inputs": {"seat_position": "Vec3", "support_point": "Vec3"},
+  "outputs": {
+    "press_route": {"$ref": "sp.press_route"},
+    "support_drift_mm": {"$ref": "sp.support_drift_mm"}
+  },
+  "nodes": {
+    "sp": {
+      "type": "script",
+      "script": "scripts/support_and_press.py",
+      "inputs": {
+        "seat_position": {"$ref": "in.seat_position"},
+        "support_point": {"$ref": "in.support_point"},
+        "system": "duplo",
+        "press_arm": 0,
+        "support_arm": 1
+      }
+    }
+  },
+  "edges": [["START", "sp"], ["sp", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["seated", "not_seated", "misaligned", "not_holding", "unverified", "structure_moved", "support_unreachable"]
+  },
+  "on_error": "unreachable"
+}
