@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-25 tools, 141 skills, 2 policies, 1 recipe and 1 paper.
+26 tools, 142 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -41,6 +41,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`musc`](#musc) | verify | MuSc zero-shot mutual anomaly scoring (MuSc / MuSc-V2, MIT) on DINOv2 (facebook/dinov2-base, Apache-2.0). | any |
 | [`densereward`](#densereward) | judge | DenseReward reward models (Qwen3-VL-4B fine-tunes, Apache-2.0) run locally on a GPU. | any |
 | [`predicates`](#predicates) | judge | Geometric yes/no judgments over poses and boxes the graph already holds. | any |
+| [`robojev`](#robojev) | judge | RoboJev-27B success judge (josefchen/RoboJev-27B, Apache-2.0). | any |
 
 ## Skills
 
@@ -185,6 +186,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`returning-to-a-recorded-pose`](#returning-to-a-recorded-pose) | recover | Opens the gripper and drives the arm back to a joint configuration recorded earlier in the episode, then checks from a… | any |
 | [`classifying-failure-type-vlm`](#classifying-failure-type-vlm) | judge | Classifies why a manipulation step failed from camera frames taken before, during (optional, a short video as frames)… | any |
 | [`detecting-subtask-success`](#detecting-subtask-success) | judge | Checks whether a subtask is done from the latest frame of every camera at one moment. | any |
+| [`judging-attempt-success-from-frames-robojev`](#judging-attempt-success-from-frames-robojev) | judge | Decides whether a step succeeded from cameras alone with one calibrated number. | any |
 | [`judging-step-with-before-now-vlm`](#judging-step-with-before-now-vlm) | judge | Judges the current subgoal of a task from camera frames taken before the step and now. | any |
 | [`scoring-step-progress-from-one-frame`](#scoring-step-progress-from-one-frame) | judge | Judges whether a step is done from the current camera frame alone. | any |
 
@@ -525,6 +527,17 @@ Geometric yes/no judgments over poses and boxes the graph already holds -- is a 
   - `predicates.resting_on`: Whether one box sits on top of another, from footprint overlap and the vertical gap.
   - `predicates.within_distance`: Whether two points are within a threshold, in 3D or in the table plane.
   - `predicates.upright`: Whether a body's local axis points up, within a tilt bound.
+
+### robojev
+
+judge · robots: any · tasks: pick-place, assembly, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/robojev/SKILL.md) · [upstream](https://github.com/josefchen/robojev/blob/79a5e2f/robojev/robojev.py)
+
+RoboJev-27B success judge (josefchen/RoboJev-27B, Apache-2.0) - given the task sentence, frames of one attempt from a main camera (start to end) and the final frame of other cameras, one forward pass reads the false / true answer and the released calibration returns P(task done). Use when a workflow must decide after a step whether it succeeded from cameras alone, or grade recorded attempts; needs a GPU with ~56 GB.
+
+- **Weights**: `hf://josefchen/RoboJev-27B@e089a9b69a365744b80765057d86583647af95a9`
+- **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
+- **Functions**:
+  - `robojev.judge`: Calibrated P(task completed) for one attempt from its main-camera frames (start to end) and final frames of other cameras.
 
 ## Skill details
 
@@ -2735,6 +2748,22 @@ Checks whether a subtask is done from the latest frame of every camera at one mo
   - `not_yet`: Asked once (timeout_s 0) and the reply was FINAL ANSWER no, or had no FINAL ANSWER even after the follow-up (read as no, as upstream did).
   - `timed_out`: timeout_s &gt; 0 passed without a yes; `checks` replies were all no or unparsed.
   - `no_view`: Nothing was judged - no camera had RGB in any observation, or every vlm.query call raised; `reason` says which.
+
+### judging-attempt-success-from-frames-robojev
+
+judge · robots: any · tasks: pick-place, assembly, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/judging-attempt-success-from-frames-robojev/SKILL.md) · [upstream](https://github.com/josefchen/robojev/blob/79a5e2f/robojev/robojev.py)
+
+Decides whether a step succeeded from cameras alone with one calibrated number - the task sentence, the attempt's frames from a main camera (a recorded clip, or the observation captured before the step and the one now) and the final frame of the other cameras go to RoboJev-27B (tools/robojev), which returns P(done); at 0.7 or more the route is success, at 0.3 or less failure, between uncertain. Use when a graph must verify a whole step (a cube in a box, a brick placed, a piece seated) before moving on, without a task-specific check, or to grade recorded attempts.
+
+- **In**: `task` string
+- **Out**: `p_done` float, `main_camera` string, `n_frames` int
+- **Calls**: [`robojev`](#robojev); connector `robot.get_observation`
+- **Scripts**: [`judge_attempt`](skills/judging-attempt-success-from-frames-robojev/scripts/judge_attempt.py)
+- **Exits**:
+  - `success`: P(done) &gt;= success_at (0.7).
+  - `failure`: P(done) &lt;= failure_at (0.3).
+  - `uncertain`: P(done) between failure_at and success_at - RoboJev's calibration was fitted on SO-101 runs; treat as unknown (look again, ask a second judge, or a human).
+  - `no_frames`: Fewer than two frames of the main camera (no `frames`, and no `before` with that camera), or no camera with RGB.
 
 ### judging-step-with-before-now-vlm
 
