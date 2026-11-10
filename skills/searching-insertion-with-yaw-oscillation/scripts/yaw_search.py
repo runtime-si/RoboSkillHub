@@ -42,11 +42,14 @@ YAW_RANGE_DEG = 45.0
 2x2 brick) matches within +-45 deg; raise it to 90 for a two-fold part, 180 for
 one-fold (the YAM's last joint turns +-120 deg; ROLL_LIMITS)."""
 
-PRESS_DEPTH = 0.003
+PRESS_DEPTH = 0.001
 """How far past the command at which the socket was felt the press is commanded
 [m]. On the socket the push is about the servo stiffness times this plus the
-contact lag; in the socket the hand follows its command, so this also bounds how
-far a drop can be seen. The real YAM station's 3 mm contact lag."""
+contact lag; in the socket the hand follows its command, so press plus contact lag
+bounds how far a drop can be seen (2-3 mm here). Kept low because the push must stay
+under what the grip holds: in a YAM station twin (about 2.2 N per mm of lag) a 3 mm
+press with 1 mm descent steps pushed about 10 N and the held cube slid through the
+jaws on the socket's rim, which read as a drop."""
 
 DROP_DEPTH = 0.002
 """How far under the resting height the hand must sink, following its command, for
@@ -67,10 +70,11 @@ command at which the socket holds the hand, whether the part already rests on it
 a few millimetres over it. 10 mm covers a real YAM standing 5.4 mm over its aim in
 free air (the lifted hand rises that much off the socket) plus the contact lag."""
 
-DESCENT_STEP = 0.001
+DESCENT_STEP = 0.0005
 CONTACT_LAG = 0.0015
 """Descent step [m], and the lag over the free-motion baseline that marks the
-socket [m] (half a real YAM station's 3 mm contact lag)."""
+socket [m] (half a real YAM station's 3 mm contact lag). The half-millimetre step
+keeps the push at contact, and so on the rim, within a step of CONTACT_LAG."""
 
 TURN_TRIES = 3
 YAW_TOLERANCE_DEG = 0.3
@@ -89,6 +93,10 @@ SETTLE_PERIOD = 0.3
 SETTLE_TIMEOUT = 3.0
 """The hand has settled when two reads SETTLE_PERIOD apart [s] differ by less than
 SETTLE_QUIET [m], or after SETTLE_TIMEOUT [s] (a real YAM station's still())."""
+
+STOP_MARGIN = 0.002
+"""Jaw gap within this of the closed stop reads as nothing held [m]
+(pressing-a-brick-onto-studs' test)."""
 
 REFUSALS = ("unreachable", "bad_speed_scale")
 
@@ -182,6 +190,24 @@ def _joint_state(obs: Any, arm_id: int) -> dict[str, Any] | None:
     return js if isinstance(js, dict) else None
 
 
+def _jaws_empty(ctx: NodeContext, on_arm: dict[str, Any]) -> float | None:
+    """The jaw gap [m] when it reads at the closed stop (the part is gone), else None
+    (holding, or no gripper reading)."""
+    try:
+        fraction = float(ctx.tool("robot.get_gripper", **on_arm)["position"])
+        grip = ctx.tool("robot.describe_gripper", **on_arm)
+    except Exception as exc:
+        logger.info("yaw-search: gripper not read (%s)", exc)
+        return None
+    fit = grip.get("width_fit") or {}
+    at_open = float(fit.get("at_open_m") or grip.get("span_m") or 0.0)
+    at_closed = float(fit.get("at_closed_m") or 0.0)
+    if at_open <= at_closed:
+        return None
+    width = at_closed + (at_open - at_closed) * fraction
+    return width if width <= at_closed + STOP_MARGIN else None
+
+
 def yaw_order(yaw_range: float, yaw_step: float) -> list[float]:
     """0, +step, -step, +2 step, ... within +-yaw_range [deg]: the nearest yaws first."""
     order = [0.0]
@@ -262,6 +288,7 @@ def run(
     descent_step: float = DESCENT_STEP,
     contact_lag: float = CONTACT_LAG,
     return_on_fail: bool = True,
+    check_holding: bool = True,
     roll_limits: list[float] | None = None,
     step_tolerance: float = STEP_TOLERANCE,
     step_max_steps: int = 0,
@@ -358,10 +385,14 @@ def run(
             return finish("blocked", f"descent step {i} refused: {why}")
         p, _ = settle()
         lag = float(p[2] - cmd[2])
-        if lag - float(np.median(lags[-3:])) > float(contact_lag):
+        over = lag - float(np.median(lags[-3:]))
+        if over > float(contact_lag):
             rest, contact_cmd = p, cmd
             break
-        lags.append(lag)
+        # Only clearly free steps join the baseline: a lag building up step by step
+        # on the socket must not drag the baseline up with it.
+        if over < float(contact_lag) / 3:
+            lags.append(lag)
     if rest is None or contact_cmd is None:
         under = float(p0[2] - p[2])
         return finish(
@@ -388,6 +419,7 @@ def run(
             notes.append(f"unloading the press was refused ({why}); the arm may still be pushing")
 
     order = yaw_order(float(yaw_range_deg), float(yaw_step_deg))
+    last_z = float(rest[2])
     for k, yaw in enumerate(order):
         out["tries"] = k + 1
         if k:
@@ -400,6 +432,18 @@ def run(
             if abs(short) > float(jam_deg):
                 p, r = arm.read()
                 unload(p, r)
+                sunk = float(rest[2] - p[2])
+                if sunk >= float(drop_depth):
+                    # The turn swept through the matching yaw, the part dropped in on
+                    # the way, and the socket's walls stopped the rest of the turn.
+                    out["yaw_found_deg"] = state["yaw"]
+                    out["sink"] = sunk
+                    return finish(
+                        "dropped_in",
+                        f"the turn to {yaw:+.0f} deg stopped at {state['yaw']:+.1f} deg with the hand "
+                        f"{sunk * 1e3:.1f} mm under the resting height: the part dropped in on the way "
+                        f"(try {k + 1} of {len(order)}); still holding",
+                    )
                 return finish(
                     "jammed",
                     f"the turn to {yaw:+.0f} deg stopped at {state['yaw']:+.1f} deg "
@@ -411,7 +455,18 @@ def run(
             return finish("blocked", f"the press at {yaw:+.0f} deg was refused: {why}")
         sink = float(rest[2] - p[2])
         out["sink"] = sink
-        if held <= float(contact_lag) / 2 and sink >= float(drop_depth):
+        if check_holding and (gone := _jaws_empty(ctx, arm.on_arm)) is not None:
+            unload(p, r)
+            return finish(
+                "blocked",
+                f"the jaws closed to their stop ({gone * 1e3:.1f} mm) at {state['yaw']:+.1f} deg "
+                f"(try {k + 1}): the part is no longer in the hand",
+            )
+        # A drop is sudden: most of the sink comes in this press. A part creeping
+        # through the jaws on the rim press after press sinks the hand too.
+        sudden = last_z - float(p[2]) >= float(drop_depth) / 2
+        last_z = float(p[2])
+        if held <= float(contact_lag) / 2 and sink >= float(drop_depth) and sudden:
             out["yaw_found_deg"] = state["yaw"]
             unload(p, r)
             return finish(
@@ -419,6 +474,11 @@ def run(
                 f"the hand sank {sink * 1e3:.1f} mm under the resting height at "
                 f"{state['yaw']:+.1f} deg (try {k + 1} of {len(order)}); still holding",
             )
+    if out["sink"] >= float(drop_depth) / 2:
+        notes.append(
+            f"the pressed hand crept {out['sink'] * 1e3:.1f} mm down over the tries without a drop: "
+            "the part may be sliding in the jaws"
+        )
     p, r = arm.read()
     unload(p, r)
     if return_on_fail:

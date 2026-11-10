@@ -107,9 +107,19 @@ class Arm:
         js = {"positions": self.q.tolist()} if self.has_joints else {}
         return {"cameras": [], "arms": [{"joint_state": js}]}
 
-    def ctx(self):
+    def ctx(self, gripper=None):
+        extra = {}
+        if gripper is not None:
+            extra = {
+                "robot.get_gripper": gripper,
+                "robot.describe_gripper": {
+                    "span_m": 0.094,
+                    "width_fit": {"at_open_m": 0.094, "at_closed_m": 0.0},
+                },
+            }
         return FakeContext(
             {
+                **extra,
                 "robot.get_ee_pose": self.pose,
                 "robot.go_to_pose": self.go,
                 "robot.move_to_joints": self.joints_to,
@@ -129,7 +139,7 @@ def test_drops_in_at_the_matching_yaw(script):
     assert out["route"] == "dropped_in"
     assert out["yaw_found_deg"] == pytest.approx(18.0, abs=0.3)
     assert out["tries"] == 6  # 0, +6, -6, +12, -12, +18
-    assert out["sink"] >= 0.003
+    assert out["sink"] >= 0.002
     # Unloaded where it sank.
     assert arm.poses[-1][0][2] == pytest.approx(arm.p[2])
 
@@ -151,15 +161,16 @@ def test_already_aligned_slides_in_while_feeling_and_says_so(script):
 
 def test_aligned_after_the_first_press_drops_without_turning(script):
     arm = Arm(key=2.0, fit=5.5)
-    seen = {"n": 0}
+    seen = {"pressed": False}
     orig = arm._barrier
 
     def barrier():
         # The rim holds while feeling (the part is 1 deg out until pressed).
-        return arm.surface if seen["n"] < 7 else orig()
+        return orig() if seen["pressed"] else arm.surface
 
     def go(pose, **kw):
-        seen["n"] += 1
+        if pose["position"]["z"] < START[2] - 0.0022:
+            seen["pressed"] = True
         return Arm.go(arm, pose, **kw)
 
     arm._barrier = barrier
@@ -219,7 +230,8 @@ def test_descent_finds_the_socket_first(script):
     out = script.run(arm.ctx(), max_descent=0.01, **FAST)
     assert out["route"] == "dropped_in"
     assert out["rest_z"] == pytest.approx(START[2], abs=1e-9)
-    assert out["sink"] == pytest.approx(0.005, abs=1e-9)
+    # Felt at the command 1.5 mm under the surface, pressed 1 mm past it.
+    assert out["sink"] == pytest.approx(0.0025, abs=1e-9)
 
 
 def test_descent_without_a_socket_is_blocked(script):
@@ -251,7 +263,7 @@ def test_refused_wrist_turn_is_blocked(script):
 
 
 def test_refused_press_is_blocked(script):
-    arm = Arm(refuse_pose=lambda p: "no" if p[2] < START[2] - 0.004 else None)
+    arm = Arm(refuse_pose=lambda p: "no" if p[2] < START[2] - 0.0022 else None)
     out = script.run(arm.ctx(), **FAST)
     assert out["route"] == "blocked"
     assert "press" in out["detail"]
@@ -279,3 +291,66 @@ def test_bad_arguments_raise(script):
         script.run(Arm().ctx(), press_depth=0.0)
     with pytest.raises(ValueError):
         script.run(Arm().ctx(), yaw_step_deg=0.0)
+
+
+def test_a_part_creeping_through_the_jaws_is_not_a_drop(script):
+    # The rim holds, but every press lets the part slide 0.6 mm up the jaws: the
+    # pressed hand creeps down and follows its command, never suddenly.
+    arm = Arm(key=45.0, fit=1.0)
+    state = {"creep": 0.0}
+    orig_land = arm._land
+
+    def land():
+        orig_land()
+        if arm.cmd[2] < START[2] - 0.0022:
+            state["creep"] += 0.0006
+            arm.p[2] = max(arm.cmd[2], arm.p[2] - state["creep"])
+
+    arm._land = land
+    out = script.run(arm.ctx(), yaw_range_deg=24.0, **FAST)
+    assert out["route"] == "no_drop", out["detail"]
+    assert "sliding in the jaws" in out["detail"]
+
+
+def test_a_part_lost_from_the_jaws_is_blocked_not_a_drop(script):
+    arm = Arm(key=40.0, fit=1.0)
+    presses = {"n": 0}
+
+    def gripper(**kw):
+        presses["n"] += 1
+        return {"position": 0.32 if presses["n"] < 3 else 0.0}
+
+    out = script.run(arm.ctx(gripper=gripper), **FAST)
+    assert out["route"] == "blocked"
+    assert "no longer in the hand" in out["detail"]
+    assert out["tries"] == 3
+
+
+def test_holding_part_reads_as_held(script):
+    arm = Arm(key=20.0)
+    out = script.run(arm.ctx(gripper=lambda **kw: {"position": 0.32}), **FAST)
+    assert out["route"] == "dropped_in"
+
+
+def test_a_turn_stopped_with_the_hand_sunk_is_a_drop(script):
+    class SweepArm(Arm):
+        """The part drops in as the wrist sweeps through +20 deg on the way to a
+        wider yaw; the socket's walls then hold the turn at +20.5 deg."""
+
+        def joints_to(self, joint_config, **kwargs):
+            before = self.yaw
+            reply = Arm.joints_to(self, joint_config, **kwargs)
+            lo, hi = sorted((before, self.yaw))
+            if lo <= self.key <= hi and self.yaw != before:
+                self.surface -= 0.010
+                self._land()
+                self.p[2] = self.surface + 0.0005
+                self.jam_at = self.key + 0.5
+                if abs(self.yaw) > abs(self.jam_at):
+                    self.q[-1] = 0.3 - math.radians(self.jam_at) / self.gain
+            return reply
+
+    arm = SweepArm(key=20.0, fit=0.5)
+    out = script.run(arm.ctx(), **FAST)
+    assert out["route"] == "dropped_in", out["detail"]
+    assert "dropped in on the way" in out["detail"]

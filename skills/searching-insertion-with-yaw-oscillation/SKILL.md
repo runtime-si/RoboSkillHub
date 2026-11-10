@@ -25,11 +25,14 @@ metadata:
       code: https://github.com/nolann030628/ShapeForce/blob/1bc2aa8c4ee66622f0a597b2112a61cfbea2a345/third_party/utils_repo/peg_insertion/force_insert.py
       upstream_license: MIT
 gap:
+  requires: {connector: [robot.describe_gripper]}
   allowed_tools:
     - robot.get_ee_pose
     - robot.get_observation
     - robot.go_to_pose
     - robot.move_to_joints
+    - robot.get_gripper
+    - robot.describe_gripper
   produces_outputs:
     yaw_found_deg: float
     yaw_read_deg: float
@@ -37,10 +40,10 @@ gap:
     rest_z: float
     tries: int
   exit_conditions:
-    dropped_in: Pressed at some yaw, the hand followed its command (lag over the free baseline under half contact_lag) and sank at least drop_depth (2 mm) under the resting height - the part entered its socket; yaw_found_deg is the hand's yaw from the start (read back). The press is unloaded; the hand still holds the part there.
+    dropped_in: A turn was stopped short with the hand already drop_depth under the resting height (the part dropped in while the wrist swept through the matching yaw); or, pressed at some yaw, the hand followed its command (lag over the free baseline under half contact_lag) and sank at least drop_depth (2 mm) under the resting height - the part entered its socket; yaw_found_deg is the hand's yaw from the start (read back). The press is unloaded; the hand still holds the part there.
     no_drop: Every yaw in +-yaw_range_deg was pressed without a drop; the press is unloaded and (return_on_fail) the wrist turned back to the start.
     jammed: A turn stopped more than jam_deg (3 deg) short of its command - the part is held against turning (a key wall, friction); the press is unloaded where it stands.
-    blocked: No socket felt from start_lift over the start to max_descent under it, a lift or descent step, press or wrist turn was refused, or the last joint had no room for the next turn; `detail` says which.
+    blocked: The jaws read at their closed stop after a press (the part left the hand; check_holding), no socket felt from start_lift over the start to max_descent under it, a lift or descent step, press or wrist turn was refused, or the last joint had no room for the next turn; `detail` says which.
   canonical_scripts:
     - yaw_search: scripts/yaw_search.py
   examples:
@@ -60,14 +63,14 @@ until its soft wrist feels a torque; here the turn is a search for the drop.
 ## The motion
 
 1. **Feel for the socket.** Lift `start_lift` (3 mm), then step down
-   `descent_step` (1 mm) at a time, at most `max_descent` (6 mm) under the
+   `descent_step` (0.5 mm) at a time, at most `max_descent` (10 mm) under the
    start, until the hand lags its command by `contact_lag` (1.5 mm) over the
    free-motion lag of the steps before. The stop is the resting height, and
    that step's command is where the socket met the hand. This works whether
    the part already rests on the socket (after placing-with-contact-descent or
    pressing-in-with-guarded-push) or hovers over it, and on an arm that stands
    millimetres off its aim in free air (the baseline takes that out).
-2. **Press.** Command the hand `press_depth` (3 mm) past that command,
+2. **Press.** Command the hand `press_depth` (1 mm) past that command,
    rotation kept, and settle. On the rim the hand stays held (its lag over the
    baseline is the contact lag plus the press). In the socket it follows its
    command: the lag falls under half `contact_lag` and the hand sinks at least
@@ -88,10 +91,10 @@ PORTING lesson 10).
 ## Inputs
 
 - `yaw_range_deg` (45; 90 for a two-fold part, up to the last joint's range
-  for one-fold), `yaw_step_deg` (6), `press_depth` (0.003 m), `drop_depth`
+  for one-fold), `yaw_step_deg` (6), `press_depth` (0.001 m), `drop_depth`
   (0.002 m), `jam_deg` (3).
-- `start_lift` (0.003 m), `max_descent` (0.006 m), `descent_step`
-  (0.001 m), `contact_lag` (0.0015 m).
+- `start_lift` (0.003 m), `max_descent` (0.010 m), `descent_step`
+  (0.0005 m), `contact_lag` (0.0015 m).
 - `return_on_fail` (true), `roll_limits` (the last joint's range, rad;
   default +-2.0944), `step_tolerance` (0.0002 m, passed as the servo's
   `tolerance`), `step_max_steps` (0), the settle constants, `arm_id` (passed
@@ -130,35 +133,49 @@ check after the release.
 
 ## Simulation check
 
-Ran, but the search itself could not be exercised. Setup: a YAM station twin
-(left arm, MuJoCo at 500 Hz) with a square socket added as fixtures, a 33 mm
-hole in 4 mm walls 15 mm high, 9 cm from the 30 mm cube. A scripted top-down
-grasp (tool centre 5 mm over the cube's centre) carried the cube to hover
-3 mm over the wall tops, and the skill ran from there.
+Setup:
 
-| run | cube friction | contact_lag / descent_step / press_depth / drop_depth | route | what happened |
+- A YAM station twin (left arm, MuJoCo at 500 Hz) with the sim harness's grip
+  fix: impratio 100, solimp 0.99 (~/yam_gap/skill_sources/SIM_GRIP.md).
+  Without it, the stock twin let held parts creep through the jaws at under
+  1 N, and the search could not be exercised.
+- A square socket added as fixtures: a 33 mm hole in 4 mm walls 15 mm high,
+  9 cm from the 30 mm, 15 g cube. A 30 mm part fits within about +-5.5 deg.
+- A scripted top-down grasp carried the cube to hover 3 mm over the wall
+  tops. The grasp turns the cube about -18 deg in the jaws (the twin's wrist
+  roll is free; lesson 10), so the turn needed is the socket's angle plus
+  about 18 deg.
+- Skill defaults. One rollout per socket angle. "In" means the cube's bottom
+  ended under the wall tops (sim ground truth).
+
+| socket vs cube start | turn needed | route | yaw reported (try) | ground truth |
 |---|---|---|---|---|
-| 1 | 0.8 (twin) | defaults (1.5 / 1 / 3 / 2 mm) | blocked | "no socket felt": the hand went 9.8 mm under the start |
-| 2 | 0.8 | 0.4 / 0.5 / 0.5 / 0.6 mm | blocked | the same, 9.9 mm |
-| 3 | 2.0 | 0.8 / 0.5 / 1.0 / 1.0 mm | blocked | the same, 9.9 mm |
+| -14 deg | +4.3 deg | dropped_in | +6.0 (2) | in: 0.3 deg off, bottom 3.7 mm under the wall tops |
+| 0 deg | +19.0 deg | dropped_in | +18.0 (6) | in: bottom 3.4 mm under the wall tops |
+| +20 deg | +39.7 deg | dropped_in | -24.2 (9) | **false**: still on the wall tops, 16 deg off; the cube slid in the jaws all at once |
+| +33 deg | -38.8 deg | no_drop, "sliding in the jaws" note (3.2 mm crept) | - | correct refusal: the cube had walked 7.2 mm off the socket's centre on the rim |
 
-- In every run the cube ended resting on the socket's wall tops (its bottom
-  at the wall-top height, 15 mm over the table), while the hand kept
-  following its command for another ~5 mm. **The held cube slid up in the
-  jaws** under a push too small to show as 0.4 mm of lag, so the wall tops
-  were never felt and nothing was turned. Raising the cube's friction from
-  0.8 to 2.0 changed nothing measurable. On the fixed box wall,
-  verifying-a-brick-connection-by-pull-up saw the twin's jaws slide at
-  about 0.5-0.76 mm of lag.
-- The grasp and carry turned the cube by -19.8 deg in the jaws: the twin's
-  wrist roll is free (PORTING lesson 10). The socket, set 20 deg from the
-  cube's start, therefore needed a +39.8 deg turn.
-- So `dropped_in`, `no_drop` and `jammed` ran only in the unit tests. The
-  "part already in" hint in `blocked` was wrong here: the part had slid in
-  the jaws. Nothing ran on a real YAM.
+- Two of four found the yaw and entered. One false drop, one honest
+  no_drop.
+- In an earlier run with the same grip, the part dropped in while a turn
+  swept through the matching yaw, and the walls then stopped the turn. That
+  read `jammed`. Such a stop is now `dropped_in` when the hand has sunk.
+  `jammed` itself ran only in the unit tests.
+- Two earlier runs (3 mm press, 1 mm descent steps) also lost the cube out of
+  the jaws entirely and called it a drop. Hence the lower press, the "sudden"
+  test and the closed-jaws check (`blocked`).
+- Before the grip fix, no run felt the socket at all (three parameter sets):
+  the held cube crept up the jaws under any push.
+- Nothing ran on a real YAM.
 
 ## Limits
 
+- **A part that slides in the jaws, or walks on the rim, is not told from a
+  drop by proprioception alone.** The hand cannot see the part. A sudden slide
+  in the jaws reads as a drop (one of four twin runs). Turning the wrist with
+  the part pressed on the rim can walk it off the socket's centre (7 mm in one
+  run). Verify a `dropped_in` with the wrist camera or a pull-up before
+  letting go.
 - **A part that slides in the jaws is not felt.** The push the press can
   apply is bounded by the grip's friction. If the part slides first, the
   socket reads as free travel (`blocked`, "no socket felt"), and a slide
