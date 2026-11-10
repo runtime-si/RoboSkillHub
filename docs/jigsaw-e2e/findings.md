@@ -86,3 +86,49 @@ the block, and direct turns that keep the piece. The flush check correctly refus
 - **Multi-piece run:** a 3 x 3 puzzle of free, textured pieces, with localization against a reference
   picture and registration of the finished board. The twin's pieces are plain-coloured meshes.
 - **A recipe:** waits for the chain to complete.
+
+
+## Update, rounds 4-5 (2026-11-09 / 11-10)
+
+Three of the blockers above have fixes on main:
+
+- **#172, measuring-a-held-piece-from-the-wrist-camera.** The piece's mosaic mask is fitted to the wrist
+  depth past the blades. The chain now measures the piece after the pick and after the turn, and gives the
+  seat that offset (z included, no longer TRUTH) and the measured remaining yaw error.
+- **#169, `dropped` route in rotating-a-held-piece-within-wrist-limits.** A gripper reading under 0.78 of the
+  held reading after a turn routes `dropped` instead of `turned`.
+- **#169, `expected_sides` / `mismatch` in classifying-piece-sides-for-border-first.** The yaw is given only
+  when all four sides agree; on `mismatch` the chain re-scans once at 3 px per mm.
+
+The orchestrator (`e2e_orchestrator.py`) wires all three in, and bounds the seat to 300 s (`max_time_s`). In
+round 4 the seat ran over 20 minutes on a busy host.
+
+**Round 4 rerun: 2 of 8 trials before the time box.**
+
+| trial | classify | measured after the pick (x / y / z, yaw) | turn | measured after the turn | seat |
+|---|---|---|---|---|---|
+| 0 (30 deg) | 4 / 4, yaw err 0.0 | -0.17 / -0.48 / -0.09 mm, -0.18 deg | `dropped`, true: the piece fell (round 3 called it `turned`) | - | - |
+| 1 (135 deg) | 4 / 4, yaw err 2.0 | +1.59 / +0.93 / -0.11 mm, -1.1 deg | `turned` | -0.45 / -2.13 / +0.33 mm, -1.1 deg | still running after 20 min (no time bound then) |
+
+- The drop is now caught.
+- The held piece is measured to within about 2 mm and 1.5 degrees; before, the error was 0.4-2.1 mm, and
+  2-3 degrees of yaw slip went unknown.
+- **Completion against the 0 / 8 baseline is not yet measured.**
+
+**Round 5:** no GPU host could be started (the GCP pool's gcloud credentials had expired, and the AutoDL
+fallbacks timed out), so the 8-trial rerun is still to do.
+
+Run it from `~/sim-wt/jigsaw-e2e` once a host is up (`gcloud auth login`, then `~/yam_gap/rsh_pool.sh up 3`):
+
+    GPU_SKIP_RSS=1 ~/yam_gap/gpu_run.sh --src ~/sim-wt/jigsaw-e2e --detach -- \
+      bash -c "MAX_STEPS=12000000 python run_check.py --graph=graph_e2e --privileged"
+
+**Expected next breakpoint: the seat.** The measurement after the turn is 2 mm off in one axis, and the seat
+search was checked for 0-3 mm (#115). A 2 mm offset with a 1 degree yaw error is within its range but at
+its edge.
+
+**Still open:**
+
+- The bare 2 mm grip is not modelled in the twin (blocker 2).
+- The grip block twists in the jaws after a regrasp (#160): pivoting about the jaw axis, which the twin's
+  grip fix does not cure (`SIM_GRIP.md`, condim 4/6 pending).
