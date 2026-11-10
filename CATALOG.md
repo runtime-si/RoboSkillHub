@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-29 tools, 156 skills, 2 policies, 1 recipe and 1 paper.
+29 tools, 157 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -180,6 +180,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`checking-spatial-relations`](#checking-spatial-relations) | verify | Decides from one RGB-D view whether a spatial relation holds between two seen objects. | any |
 | [`classifying-failure-from-proprioception`](#classifying-failure-from-proprioception) | verify | Classifies the last moments of a manipulation step from proprioception alone. | any |
 | [`detecting-disturbed-pieces-by-snapshot-diff`](#detecting-disturbed-pieces-by-snapshot-diff) | verify | Checks whether anything already placed was knocked since the last verified step. | any |
+| [`detecting-in-hand-slip-and-twist-from-the-wrist-camera`](#detecting-in-hand-slip-and-twist-from-the-wrist-camera) | verify | Watches the held part in the wrist camera, which rides rigid with the fingers, and says whether it slips, twists or… | any |
 | [`flagging-odd-one-out-parts-by-mutual-scoring`](#flagging-odd-one-out-parts-by-mutual-scoring) | verify | Finds the part that differs from its siblings in one frame. | any |
 | [`previewing-target-overlay`](#previewing-target-overlay) | verify | Checks a target gripper pose before the arm moves. | any |
 | [`registering-assembled-board-to-reference`](#registering-assembled-board-to-reference) | verify | Aligns a top-down view of the part-built jigsaw (overhead frame, rectified view or wrist mosaic) to the box picture… | any |
@@ -2644,6 +2645,23 @@ Checks whether anything already placed was knocked since the last verified step 
   - `occluded`: Nothing moved and nothing unexpected, but at least one item is less than 60 % visible (under the arm, a hand, an ignore mask, or outside the registered view); it could not be checked.
   - `unchanged`: Every judged item is where it was and nothing unexplained changed in the region.
   - `unregistrable`: The background does not correlate (median tile correlation under 0.8 after registration) or the camera moved more than 8 % of the frame diagonal; the views cannot be compared pixel by pixel - re-take the reference.
+
+### detecting-in-hand-slip-and-twist-from-the-wrist-camera
+
+verify · robots: any · tasks: pick-place, insertion · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/detecting-in-hand-slip-and-twist-from-the-wrist-camera/SKILL.md)
+
+Watches the held part in the wrist camera, which rides rigid with the fingers, and says whether it slips, twists or drops in the jaws - the part's region is what lies in a near depth band in front of the camera; dense Farneback optical flow against the frame taken at the start, fitted with a RANSAC similarity (so the still fingers do not drag it), gives the slip in millimetres and the spin about the camera axis; the region's depth-plane normal gives the twist about the jaws' closing axis, which an image alone cannot show; a shrinking region is a drop. Use when a part is carried or pushed with in the jaws and the graph must know, with no tactile or force sensing, that it moved in the hand (a domino sliding down the pads, a bar or peg pivoting about the grip, a piece leaving the hand) before relying on its pose.
+
+- **In**: -
+- **Out**: `slip_mm` float, `twist_deg` float, `spin_deg` float, `area_fraction` float, `frames` int
+- **Calls**: connector `robot.get_ee_pose`, `robot.get_observation`
+- **Scripts**: [`detect_slip`](skills/detecting-in-hand-slip-and-twist-from-the-wrist-camera/scripts/detect_slip.py)
+- **Exits**:
+  - `stable`: Over duration_s, the part's region moved under slip_mm (2 mm) and turned under twist_deg (3 deg) about the closing axis and the camera axis, and kept at least drop_fraction of its area.
+  - `slipping`: The region's dominant motion moved more than slip_mm (worst frame), with no twist over twist_deg.
+  - `twisted`: The region's depth-plane normal turned more than twist_deg about the jaws' closing axis, or the flow fit turned more than twist_deg about the camera axis.
+  - `dropped`: The region shrank under drop_fraction (40 %) of its first frame, or nothing lay in the near band at the start.
+  - `no_camera`: The observation has no wrist camera with rgb, depth and intrinsics.
 
 ### flagging-odd-one-out-parts-by-mutual-scoring
 

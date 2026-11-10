@@ -1,0 +1,14 @@
+{
+  "skill": "detecting-in-hand-slip-and-twist-from-the-wrist-camera",
+  "inputs": {},
+  "outputs": {
+    "slip_mm": {"$ref": "watch.slip_mm"},
+    "twist_deg": {"$ref": "watch.twist_deg"}
+  },
+  "nodes": {
+    "watch": {"type": "script", "script": "scripts/detect_slip.py", "inputs": {"duration_s": 2.0}}
+  },
+  "edges": [["START", "watch"], ["watch", "END"]],
+  "exit": {"router_field": "route", "success_values": ["stable", "slipping", "twisted", "dropped"]},
+  "on_error": "no_camera"
+}
