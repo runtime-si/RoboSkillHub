@@ -1602,7 +1602,7 @@ Grasps a thin-walled open container (box, bin, tray, cup, bowl) by its rim - pic
 - **Calls**: connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`, `robot.solve_ik`
 - **Scripts**: [`grasp_rim`](skills/grasping-container-rims/scripts/grasp_rim.py)
 - **Exits**:
-  - `grasped`: The jaws closed across a wall with the gap above empty_margin and at most wall_thickness + full_margin (max_wall when the thickness is unknown), and still did after the lift; the hand holds the rim. `lifted` says how far the hand rose (short when the container is heavy or fixed; `detail` says so).
+  - `grasped`: The jaws closed across a wall with the gap above empty_margin (and above half the wall thickness when it is given) and at most wall_thickness + full_margin (max_wall when the thickness is unknown), and still did after the lift; the hand holds the rim. `lifted` says how far the hand rose (short when the container is heavy or fixed; `detail` says so).
   - `missed`: At least one wall was tried down to the grasp height but every close read empty or too wide, the wall slipped out during the lift, or the descent stopped on the rim; the hand is open.
   - `unreachable`: No wall could be tried - the container is too shallow or too narrow for the open hand, every grasp pose failed the IK preview, the hover was refused, or the jaws could not be turned across the wall; nothing was closed.
 

@@ -46,10 +46,18 @@ ASSUMED_WALL = 0.003
 It only shifts the tool centre by half of itself; the open jaws (94 mm on a YAM)
 straddle any thin wall around it."""
 
-EMPTY_MARGIN = 0.0008
+EMPTY_MARGIN = 0.0015
 """A jaw gap within this of the closed stop is a close on nothing [m]. Under the
 hub's usual 3 mm because a container wall is often thinner than that: in a YAM
-station twin an empty close read 0.0 mm and a 2.3 mm wall 4.0-4.6 mm."""
+station twin a 2.3 mm wall read 4.0-4.6 mm and a 3 mm wall 6.0 mm, while a hand
+closed on nothing read 0.4 mm, and 0.9 mm after a 3 mm wall slid out of the jaws
+during the lift (0.8 mm, the earlier margin, called that grasped)."""
+
+EMPTY_WALL_FRACTION = 0.5
+"""With the wall thickness given, a gap must also be at least this fraction of it
+over the closed stop [m/m]: the twin's walls read 1.7-2 times their thickness and
+an empty close at most 0.9 mm, so half the wall separates them for walls of
+1.8 mm and up; thinner walls fall back to EMPTY_MARGIN."""
 
 FULL_MARGIN = 0.006
 """A jaw gap more than this over the wall thickness closed on something else [m]
@@ -297,13 +305,14 @@ def run(
             return -1.0
 
     upper = (wall + float(full_margin)) if wall > 0.0 else float(max_wall)
+    lower = max(float(empty_margin), EMPTY_WALL_FRACTION * wall if wall > 0.0 else 0.0)
 
     def verdict(w: float) -> str:
         """ "" when the gap reads a wall between the pads (or cannot be read), else why not."""
         if w < 0.0:
             return ""
-        if w <= at_closed + float(empty_margin):
-            return f"closed on nothing ({w * 1e3:.1f} mm)"
+        if w <= at_closed + lower:
+            return f"closed on nothing ({w * 1e3:.1f} mm, needs over {(at_closed + lower) * 1e3:.1f} mm)"
         if w > upper:
             return f"closed on something {w * 1e3:.1f} mm wide, over the {upper * 1e3:.1f} mm a wall may read"
         return ""

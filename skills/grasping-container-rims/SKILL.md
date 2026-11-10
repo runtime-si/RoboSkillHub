@@ -51,7 +51,7 @@ gap:
     lifted: float
     attempts: int
   exit_conditions:
-    grasped: The jaws closed across a wall with the gap above empty_margin and at most wall_thickness + full_margin (max_wall when the thickness is unknown), and still did after the lift; the hand holds the rim. `lifted` says how far the hand rose (short when the container is heavy or fixed; `detail` says so).
+    grasped: The jaws closed across a wall with the gap above empty_margin (and above half the wall thickness when it is given) and at most wall_thickness + full_margin (max_wall when the thickness is unknown), and still did after the lift; the hand holds the rim. `lifted` says how far the hand rose (short when the container is heavy or fixed; `detail` says so).
     missed: At least one wall was tried down to the grasp height but every close read empty or too wide, the wall slipped out during the lift, or the descent stopped on the rim; the hand is open.
     unreachable: No wall could be tried - the container is too shallow or too narrow for the open hand, every grasp pose failed the IK preview, the hover was refused, or the jaws could not be turned across the wall; nothing was closed.
   canonical_scripts:
@@ -107,7 +107,7 @@ Pick an open container by one of its walls instead of its hollow body.
   the outer face and the gap must read at most it + `full_margin`.
 - `side` (`auto`), `try_other_sides` (true).
 - `grip_depth` (0.012 m), `hover_height` (0.06 m), `lift_height` (0.03 m,
-  0 skips the lift), `empty_margin` (0.0008 m), `full_margin` (0.006 m),
+  0 skips the lift), `empty_margin` (0.0015 m), `full_margin` (0.006 m),
   `max_wall` (0.012 m), `yaw_tolerance_deg` (5), `roll_limits`
   (the last joint's range, default the YAM's +-120 deg), `reach_tolerance`
   (0.015 m), `descent_tolerance` (0.008 m), `check_reach` (true), `arm_id`.
@@ -134,9 +134,12 @@ having moved it.
 - **`GRIP_DEPTH = 0.012` m** is RoboRSI's `_BELOW_RIM_M`. **`HOVER_HEIGHT`**
   0.06 m (RoboRSI 0.10) and **`LIFT_HEIGHT`** 0.03 m (RoboRSI 0.07) are
   shorter so the hover and lift stay inside a YAM's reach over a table box.
-- **`EMPTY_MARGIN = 0.0008` m**: a wall can be thinner than the hub's usual
-  3 mm empty margin. In the YAM station twin an empty close read 0.0 mm; see
-  the measurements below for the wall. A real YAM station's empty close has
+- **`EMPTY_MARGIN = 0.0015` m, plus half the wall when `wall_thickness` is
+  given**: a wall can be thinner than the hub's usual 3 mm empty margin. In
+  the YAM station twin an empty close read 0.4 mm, and a 3 mm wall that slid
+  out of the jaws during the lift left 0.9 mm, which the earlier 0.8 mm
+  margin called `grasped`. Walls read 1.7-2 times their thickness there
+  (2.3 mm: 4.0-4.6 mm, 3 mm: 6.0 mm). A real YAM station's empty close has
   read 1.8 mm (verifying-grasps), so on hardware raise `empty_margin` to about
   2 mm and expect walls under ~3 mm to be indistinguishable from empty by the
   gap alone.

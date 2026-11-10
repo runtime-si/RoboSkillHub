@@ -93,8 +93,8 @@ class Arm:
                 return {"reached": False, "outcome": "contact"}
             if self.stall_lift and self.gap < SPAN and target[2] > self.p[2] + 1e-4:
                 return {"reached": False, "outcome": "timeout", "reason": "stalled"}
-            if self.slip and self.gap < SPAN and target[2] > self.p[2] + 1e-4:
-                self.gap = 0.0
+            if self.slip is not False and self.gap < SPAN and target[2] > self.p[2] + 1e-4:
+                self.gap = 0.0 if self.slip is True else float(self.slip)
             self.p = target
             if not self.free_roll:
                 r = pose["rotation"]
@@ -432,3 +432,31 @@ def test_yaw_between_folds_the_half_turn(script):
     assert script._wrap_half(script.yaw_between(top_down(190.0), top_down(10.0))) == pytest.approx(
         0.0, abs=1e-9
     )
+
+
+@pytest.mark.parametrize("wall", [WALL, -1.0])
+def test_a_wall_slipping_out_to_a_near_closed_gap_is_missed(script, wall):
+    # The twin: a 3 mm wall slid out of the jaws during the lift and left 0.9 mm.
+    arm = Arm(slip=0.0009)
+    out = script.run(
+        arm.ctx(), container_obb=BOX, wall_thickness=wall, side="-x", try_other_sides=False
+    )
+    assert out["route"] == "missed", out["detail"]
+    assert "closed on nothing (0.9 mm" in out["detail"]
+
+
+def test_a_gap_under_half_the_given_wall_is_empty(script):
+    arm = Arm(between=lambda p: 0.0014)
+    out = script.run(
+        arm.ctx(), container_obb=BOX, wall_thickness=0.004, side="-x", try_other_sides=False
+    )
+    assert out["route"] == "missed"
+    assert "needs over 2.0 mm" in out["detail"]
+
+
+def test_a_thin_wall_falls_back_to_the_empty_margin(script):
+    arm = Arm(between=lambda p: 0.0019)
+    out = script.run(
+        arm.ctx(), container_obb=BOX, wall_thickness=0.001, side="-x", try_other_sides=False
+    )
+    assert out["route"] == "grasped", out["detail"]
