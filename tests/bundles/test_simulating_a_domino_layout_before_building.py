@@ -133,6 +133,7 @@ def test_example_declares_every_route(script):
         "cascades",
         "fragile",
         "stalls",
+        "knife_edge",
         "push_failed",
         "sim_unavailable",
         "invalid_input",
@@ -208,3 +209,42 @@ def test_wide_line_with_a_big_placing_error_is_fragile(script, mujoco):
 def test_weak_kick_fails_to_trigger(script, mujoco):
     res = _run(script, _line(5, 0.037), trigger="kick", kick_factor=0.5)
     assert res["route"] == "push_failed" and not res["first_fell"]
+
+
+def _arc(radius, pitch, n):
+    cx, cy = 0.10 - radius, 0.14
+    return [
+        [
+            cx + radius * math.cos(k * pitch / radius),
+            cy + radius * math.sin(k * pitch / radius),
+            90.0 + math.degrees(k * pitch / radius),
+        ]
+        for k in range(n)
+    ]
+
+
+def test_a_stop_on_a_graze_is_a_knife_edge(script, mujoco):
+    # r 50 mm at 48 mm: tile 0's top passes tile 1's corner within a fraction of a mm
+    res = _run(script, _arc(0.05, 0.048, 4))
+    assert res["route"] == "knife_edge" and res["stall_at"] == 1
+    lo, hi = script.GRAZE
+    assert lo <= res["pair_clearance"][0] <= hi
+
+
+def test_a_clear_miss_still_stalls(script, mujoco):
+    res = _run(script, _line(6, 0.072))
+    assert res["route"] == "stalls" and res["pair_clearance"][0] > script.GRAZE[1]
+
+
+def test_contact_margin_carries_the_graze(script, mujoco):
+    # the station twin's 2 mm rigid_gap: the same arc cascades
+    res = _run(script, _arc(0.05, 0.048, 4), contact_margin=0.002)
+    assert res["route"] == "cascades"
+
+
+def test_scene_margin_attribute(script):
+    size = dict(script.TILE_SIZE)
+    assert 'margin="0.002000"' in script.build_xml(
+        [(0, 0, 0)], 0.0, size, 0.01, 0.5, 0.25, 0.0005, 0.002
+    )
+    assert "margin=" not in script.build_xml([(0, 0, 0)], 0.0, size, 0.01, 0.5, 0.25, 0.0005)

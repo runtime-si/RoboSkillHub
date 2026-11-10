@@ -106,6 +106,17 @@ within 2 mm. A calibrated station camera's 5.4 mm RMS is the pessimistic case.""
 YAW_SIGMA_DEG = 3.0
 """Placing error in facing [deg], one standard deviation."""
 
+CONTACT_MARGIN = 0.0
+"""Distance at which tile contacts start pushing [m] (MuJoCo's geom margin). 0 is rigid
+contact. The YAM station twin's arrangement (mujoco_500hz@v1) has rigid_gap 2 mm, and
+0.002 here reproduces its verdicts (SKILL.md, twin cross-check)."""
+
+GRAZE = (-0.001, 0.002)
+"""A wave that stops where the falling tile's closest approach to the next one was in
+this band [m] (from 1 mm into it to 2 mm short of it) hangs on a graze: `knife_edge`.
+The r 50 mm arc at 48 mm came within -0.45 mm without toppling the next tile, and
+toppled it with a 2 mm contact margin."""
+
 TRIALS = 20
 """Jittered rollouts after the nominal one."""
 
@@ -136,6 +147,7 @@ class Output(TypedDict):
     weakest_pair: int
     sim_time: float
     wall_time: float
+    pair_clearance: list
 
 
 # ----------------------------------------------------------------------------- inputs
@@ -215,14 +227,16 @@ def build_xml(
     table_mu: float,
     tile_mu: float,
     timestep: float,
+    margin: float = CONTACT_MARGIN,
 ) -> str:
     h, w, t = size["height"], size["width"], size["thickness"]
+    margin_attr = f' margin="{margin:.6f}"' if margin > 0 else ""
     bodies = []
     for k, (x, y, yaw) in enumerate(slots):
         bodies.append(
             f'<body name="d{k}" pos="{x:.6f} {y:.6f} {table_z + h / 2 + 1e-5:.6f}" '
             f'euler="0 0 {yaw:.6f}"><freejoint/>'
-            f'<geom type="box" size="{t / 2:.6f} {w / 2:.6f} {h / 2:.6f}" mass="{mass:.6f}" '
+            f'<geom type="box"{margin_attr} size="{t / 2:.6f} {w / 2:.6f} {h / 2:.6f}" mass="{mass:.6f}" '
             f'friction="{tile_mu} 0.005 0.0001"/></body>'
         )
     bx, by, bz = BLADE_HALF
@@ -253,12 +267,13 @@ def rollout(
     max_time: float = MAX_TIME,
     trigger: str = "push",
     kick_factor: float = KICK_FACTOR,
+    contact_margin: float = CONTACT_MARGIN,
 ) -> dict[str, Any]:
     """One run: push slot 0 along its facing (or start it turning about its front edge),
-    hold, and record when each tile fell."""
+    hold, and record when each tile fell and how close each falling tile came to the next."""
     h, t = size["height"], size["thickness"]
     model = mujoco.MjModel.from_xml_string(
-        build_xml(slots, table_z, size, mass, table_mu, tile_mu, timestep)
+        build_xml(slots, table_z, size, mass, table_mu, tile_mu, timestep, contact_margin)
     )
     data = mujoco.MjData(model)
     n = len(slots)
@@ -284,6 +299,10 @@ def rollout(
     data.mocap_quat[0] = quat
 
     body_ids = [mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, f"d{k}") for k in range(n)]
+    geom_ids = [int(model.body_geomadr[b]) for b in body_ids]
+    closest = [math.inf] * max(0, n - 1)
+    fromto = np.zeros(6)
+    cos_moving = math.cos(math.radians(3.0))
     cos_fallen = math.cos(math.radians(FALLEN_DEG))
     run = [0] * n
     run_start = [-1.0] * n
@@ -312,12 +331,19 @@ def rollout(
                     last_fall = data.time
             else:
                 run[k] = 0
+        # closest approach of each tipping tile to the next one, until that one falls
+        for k in range(n - 1):
+            if onset[k + 1] >= 0 or data.xmat[body_ids[k]][8] > cos_moving:
+                continue
+            dist = mujoco.mj_geomDistance(model, data, geom_ids[k], geom_ids[k + 1], 0.02, fromto)
+            closest[k] = min(closest[k], float(dist))
         if all(o >= 0 for o in onset):
             break
         if data.time > stroke_time and data.time - max(last_fall, stroke_time) > QUIET_TIME:
             break
     return {
         "onset": onset,
+        "closest": closest,
         "sim_time": float(data.time),
         "travel": travel if trigger == "push" else 0.0,
     }
@@ -382,6 +408,7 @@ def run(
     yaw_sigma_deg: float = YAW_SIGMA_DEG,
     min_success: float = MIN_SUCCESS,
     timestep: float = TIMESTEP,
+    contact_margin: float = CONTACT_MARGIN,
     seed: int = 0,
 ) -> Output:
     out: Output = {
@@ -403,6 +430,7 @@ def run(
         "weakest_pair": -1,
         "sim_time": 0.0,
         "wall_time": 0.0,
+        "pair_clearance": [],
     }
 
     def finish(route: str, why: str) -> Output:
@@ -473,6 +501,7 @@ def run(
         timestep=float(timestep),
         trigger=trigger,
         kick_factor=float(kick_factor),
+        contact_margin=float(contact_margin),
     )
     try:
         nominal = rollout(mujoco, xyyaw, float(table_z), size, **kw)
@@ -480,6 +509,9 @@ def run(
         return finish("sim_unavailable", f"the simulation failed: {exc}")
     onset = nominal["onset"]
     stall = _stall(onset, target)
+    out["pair_clearance"] = [
+        None if not math.isfinite(c) else round(c, 5) for c in nominal["closest"]
+    ]
     fell = [o >= 0 for o in onset]
     out.update(
         reached_target=stall < 0,
@@ -538,6 +570,14 @@ def run(
         if stalls
         else ""
     )
+    graze = nominal["closest"][stall - 1] if stall >= 1 else math.inf
+    if stall >= 1 and GRAZE[0] <= graze <= GRAZE[1]:
+        return finish(
+            "knife_edge",
+            f"the wave stopped at slot {stall}, but tile {stall - 1}'s fall came within "
+            f"{graze * 1e3:+.2f} mm of it (a graze): a millimetre decides this pair, and a "
+            f"simulator with a {GRAZE[1] * 1e3:.0f} mm contact margin carries the wave on{jitter_txt}",
+        )
     if stall >= 0:
         return finish(
             "stalls",
