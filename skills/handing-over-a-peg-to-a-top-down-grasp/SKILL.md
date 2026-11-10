@@ -182,7 +182,49 @@ is given.
 
 ## Simulation check
 
-Pending (see the PR).
+RoboSimStudio YAM station twin, both arms (bases 0.61 m apart; arm 0 = left
+= giver, arm 1 = right = receiver), linear_4310 hands, with the grip fix
+(`SIM_GRIP=1`, SIM_GRIP.md). A cylinder peg stands on a 60 mm pedestal
+(a level side grasp of a peg standing on the table was out of the left arm's
+reach: 40-100 mm short); the harness takes it with a scripted level side grasp
+along the line from the left base, 40 mm of the peg above the pads, lifts it
+and carries it (rotation kept) to a handover point; `left_grip` is built from
+the peg's re-perceived box (`sim.get_object_obb`), as
+picking-a-peg-with-a-side-grasp does with `object_name`. The skill then runs
+with default parameters; the harness waits 120 steps and measures the peg
+(`sim.get_object_obb`) against `held`. The twin filters the arms' collisions
+against each other, so the arm-to-arm clearance is computed from their
+collision meshes every 20 ms during the skill. Handover points are the peg's
+centre relative to the bench top's centre, plus up to 10 mm of per-seed jitter.
+
+| peg | points x seeds | route | peg in the right hand after the wait | `held` centre error | tip offset error | min arm clearance | fingertips over the giver's pads |
+|---|---|---|---|---|---|---|---|
+| 10 x 100 mm, 15 g | (-0.10,-0.10,0.12), (-0.05,-0.05,0.11), (-0.15,-0.15,0.12), (0,-0.10,0.11) x seed 0 | 4/4 handed_over | 4/4 | 0.75-1.42 mm | -1.49 to +0.73 mm | 14.0-14.5 mm | 21.1-22.4 mm |
+| 10 x 100 mm | points 0 and 3 x seeds 1-5 | 10/10 handed_over | 10/10 | 0.24-1.39 mm | -0.40 to -1.30 mm | 14.1-14.9 mm | 20.9-22.2 mm |
+| 8 x 80 mm, 15 g | point 1 x seeds 1-5 | 5/5 handed_over | 5/5 | 0.73-1.52 mm | -0.65 to -1.12 mm | 11.1-14.2 mm | 19.6-22.1 mm |
+| 12 x 120 mm, 15 g | point 1 x seeds 1-5 | 5/5 handed_over | 5/5 | 1.19-2.07 mm | -1.06 to -1.36 mm | 14.8-15.3 mm | 21.8-22.3 mm |
+
+**24 of 24 handed over** (plus 1 of 1 inside the recipe run, after the
+side-grasp skill's own pick). The reported `sigma_mm` was 2.46-2.53 mm and
+covered every centre error. The tip offset is biased about 1 mm short (the
+peg settles about 1 mm further down the receiver's pads after the giver lets
+go). The closed jaws read 2.0-2.9 mm wider than the diameter (opening 0.108-0.113 on 8 mm, 0.126-0.132 on
+10 mm, 0.149-0.158 on 12 mm pegs), so `WIDTH_TOLERANCE` (8 mm) leaves room. Two things to know for an
+insertion afterwards:
+
+- **The peg hangs 2.3-6.5 deg from vertical in the receiver's hand** (world
+  frame, after the wait; 4.9-6.5 deg for the 12 x 120 mm peg). That is the grip fix's known side effect, a pinch
+  that locks in a small tilt from the closing transient (SIM_GRIP.md). It is also
+  the domino lesson again: a pinch is a hinge about the jaw axis.
+  `axis_tilt_deg` (relative to the receiver's approach, from the giver's
+  pose at the close) read 1.9-9.0 deg. Re-perceive the tilt before a 0.2 mm
+  clearance insertion.
+- Reach: with `pre_grasp` 0.08 m, a peg centre 0.17-0.18 m over the bench
+  put the receiver's pre-grasp out of reach (21-28 mm short, `unreachable`, the
+  giver still holding: 4 of 4 at those heights in a first sweep). 0.11-0.12 m
+  worked everywhere tried.
+
+Nothing ran on a real YAM: the station bridge drives one arm.
 
 ## Provenance
 
