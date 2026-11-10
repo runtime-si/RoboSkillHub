@@ -204,8 +204,10 @@ centre relative to the bench top's centre, plus up to 10 mm of per-seed jitter.
 | 8 x 80 mm, 15 g | point 1 x seeds 1-5 | 5/5 handed_over | 5/5 | 0.73-1.52 mm | -0.65 to -1.12 mm | 11.1-14.2 mm | 19.6-22.1 mm |
 | 12 x 120 mm, 15 g | point 1 x seeds 1-5 | 5/5 handed_over | 5/5 | 1.19-2.07 mm | -1.06 to -1.36 mm | 14.8-15.3 mm | 21.8-22.3 mm |
 
-**24 of 24 handed over** (plus 1 of 1 inside the recipe run, after the
-side-grasp skill's own pick). The reported `sigma_mm` was 2.46-2.53 mm and
+**24 of 24 handed over**, plus 16 of 16 inside the recipe
+side-grasp-regrasp-top-insert (seeds 0-5, 10 x 100 mm), after
+picking-a-peg-with-a-side-grasp's own pick: fingertips 23.7-25.6 mm over the
+left pads. The reported `sigma_mm` was 2.46-2.53 mm and
 covered every centre error. The tip offset is biased about 1 mm short (the
 peg settles about 1 mm further down the receiver's pads after the giver lets
 go). The closed jaws read 2.0-2.9 mm wider than the diameter (opening 0.108-0.113 on 8 mm, 0.126-0.132 on
