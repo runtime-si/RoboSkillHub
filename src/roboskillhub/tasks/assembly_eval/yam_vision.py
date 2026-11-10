@@ -215,8 +215,8 @@ class YamVision:
                 f"cameras must be a non-empty subset of (overhead, wrist), got {cameras!r}"
             )
         self.cameras = tuple(cameras)
-        # depth the pipeline sees: the renderer's ("rendered"), with #185's fitted D405 noise
-        # ("fitted"), or D405-like passive stereo from a second render 18 mm to the right ("stereo")
+        # the wrist D405's depth: the renderer's ("rendered"), with #185's fitted D405 noise ("fitted"),
+        # or D405-like passive stereo from a second render 18 mm to the right ("stereo")
         self.depth_mode = depth or os.environ.get("DOMINO_VISION_DEPTH", "rendered")
         if self.depth_mode not in ("rendered", "fitted", "stereo"):
             raise ValueError(f"depth must be rendered, fitted or stereo, got {self.depth_mode!r}")
@@ -298,7 +298,10 @@ class YamVision:
         for name in self.cameras:
             T, K = self._view(name)
             rgb, depth, seg = self.render.render()
-            depth = self._sensor_depth(rgb, depth, T, K)
+            if (
+                name == "wrist"
+            ):  # the D405; the overhead camera is an Orbbec at ~1 m, out of D405 range
+                depth = self._sensor_depth(rgb, depth, T, K)
             blobs = self._segment(rgb, depth, seg, T, K)
             n_blobs += len(blobs)
             frame = RgbdFrame(depth, K, T, stamp, "world", name, rgb)
