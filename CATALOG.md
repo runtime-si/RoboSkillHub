@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-30 tools, 161 skills, 2 policies, 1 recipe and 1 paper.
+30 tools, 162 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -100,6 +100,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`planning-articulation-opening`](#planning-articulation-opening) | plan | Plans the hand's path that opens a drawer or a door it already holds by the handle. | any |
 | [`planning-brick-assembly-order`](#planning-brick-assembly-order) | plan | Orders the bricks of a stud-grid design for a robot that presses each one down from above. | any |
 | [`planning-held-object-motion`](#planning-held-object-motion) | plan | Plans the carry and engagement phases for an already-held rigid object. | any |
+| [`rebuilding-a-fallen-domino-segment`](#rebuilding-a-fallen-domino-segment) | plan | Plans the rebuild of a fallen segment in a domino line, one tile at a time. | any |
 | [`routing-parts-to-sort-bins-by-id-and-colour`](#routing-parts-to-sort-bins-by-id-and-colour) | plan | Sorts parts dropped one at a time on a staging pad into bins. | any |
 | [`following-a-visual-plan`](#following-a-visual-plan) | propose | Follows a visual plan from robobrain.trace or molmo-motion.forecast (the shared visual-plan schema) the way those… | any |
 | [`grasping-concave-contour`](#grasping-concave-contour) | propose | Grasp an awkward rigid part by the waists in its own silhouette. | any |
@@ -1362,6 +1363,21 @@ Plans the carry and engagement phases for an already-held rigid object: a cleara
 - **Exits**:
   - `planned`: A carry plan or an engagement plan was produced.
   - `blocked`: No feasible symmetry-equivalent held-object orientation was found, or the direct strategy was requested without an approach pose.
+
+### rebuilding-a-fallen-domino-segment
+
+plan · robots: any · tasks: domino · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/rebuilding-a-fallen-domino-segment/SKILL.md) · [upstream](https://github.com/Zhu-Chenyu/Franka-Domino-Project)
+
+Plans the rebuild of a fallen segment in a domino line, one tile at a time. From auditing-a-domino-line-for-fallen-or-tilted-tiles' per-slot states and leans it finds the first run of fallen or leaning tiles and its fall direction, and picks its downstream end (nothing lies on it, and once it is taken the next one drops flat). It returns that tile's lying centre and long axis for standing-a-lying-domino-by-reorient-and-regrasp and its slot for placing-an-upright-domino-beside-neighbours. Run it again after each tile (audit, plan, stand, place) until it routes nothing_fallen. No motion. Use when a line fell part-way (a premature or stopped cascade, a bump) and must be rebuilt.
+
+- **In**: `table_z` float
+- **Out**: `tile_index` int, `tile_center` Vec3, `long_axis` Vec3, `slot` Se3Pose, `direction` str, `remaining` int
+- **Scripts**: [`plan_rebuild`](skills/rebuilding-a-fallen-domino-segment/scripts/plan_rebuild.py)
+- **Exits**:
+  - `rebuild_next`: The downstream end of the first fallen segment lies flat (80 deg or more); `tile_center` / `long_axis` are where it lies (for the stand-up skill), `slot` where it goes back (for the placing skill), `segment` the run, `remaining` the fallen and leaning tiles left including it.
+  - `nothing_fallen`: No tile is fallen or leaning; `detail` lists missing slots (place new tiles there).
+  - `not_flat`: The downstream tile still leans (under 80 deg) on something; take that away or lay it down first.
+  - `invalid_input`: No slots, or slots, states and leans of different lengths (also the route of a raised error).
 
 ### routing-parts-to-sort-bins-by-id-and-colour
 
