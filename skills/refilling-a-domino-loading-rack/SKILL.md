@@ -46,7 +46,7 @@ gap:
     # choose), `order` (index | reverse | nearest), `tile_size`, `wall_height`, `offsets`,
     # `grip_clearance`, `release_clearance`, `transit_clearance`, `read_slots`, `verify`,
     # `camera_name`, `look_pose`, `yaw_tolerance_deg`, `roll_limits`, `reach_tolerance`,
-    # `descent_tolerance`, `check_reach`, `arm_id`, `seat_press`.
+    # `descent_tolerance`, `check_reach`, `arm_id`, `seat_press`, `held_speed_scale`.
     table_z: float
   produces_outputs:
     slot_index: int
@@ -131,6 +131,20 @@ the fixed grip (`SIM_GRIP`, `mujoco_500hz_grip@v1`).**
 - **The one failure, the first refill (slot 1) in both racks:** the tile ended flat
   forward across slot 2, 20 mm along. It is reported `fell`, and slots 1 and 2 then
   read jammed, so the rack reads full: the routes are right, but two slots are lost.
+- **Fix: slow moves while holding** (`held_speed_scale`, default 0.25: the lift and the
+  move over the slot as straight moves at that speed). Twin with the fixed grip, the
+  same 5-round scene:
+
+  | slot opening | held speed | seated / tried | slot 1 |
+  |---|---|---|---|
+  | 11.5 mm | 1.0 (before) | 2 / 3 | fell |
+  | 11.5 mm | 0.25 (default) | **4 / 4** | seated |
+  | 11.5 mm | 0.1 | **4 / 4** | seated |
+  | 9.5 mm | 0.25 | 2 / 3 | fell |
+
+  Seated tiles sat 0.0-0.6 mm along the row. The 9.5 mm slot (1 mm a side) still loses
+  the first refill; re-measuring the tile's bottom with the wrist camera before the
+  descent is not done.
 - **Root cause of the slot-1 failure (measured, round 3).** The harness probes the held
   tile's true pose with `sim.get_object_obb` at each phase.
   - **Before and after the close** the tile sat centred in the jaws: 0.25 / 0.11 mm

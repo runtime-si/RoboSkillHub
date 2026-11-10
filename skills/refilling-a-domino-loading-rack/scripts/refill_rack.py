@@ -122,6 +122,12 @@ ENTRY_CLEARANCE = 0.003
 RELEASE_GAP = 0.0015
 """The tile's bottom over the rack's floor when the jaws open [m] (placing skill)."""
 
+HELD_SPEED_SCALE = 0.25
+"""speed_scale of the lift and the move over the slot while the hand holds a tile (a
+connector that refuses the knob gets the plain move). In a YAM station twin with the
+fixed grip, full-speed moves let the tile slip 4.6 mm along the pads during the lift and
+the first refill fell (2/3 seated); at 0.25 and 0.1, 4/4 seated (11.5 mm slots)."""
+
 SEAT_PRESS = 0.001
 """How far under the floor the held tile's bottom is commanded before the release [m]: a
 tile held a few degrees tilted about the jaw axis squares up on the floor first (a YAM
@@ -466,6 +472,7 @@ def run(
     wall_height: float | None = None,
     offsets: list[float] | None = None,
     seat_press: float = SEAT_PRESS,
+    held_speed_scale: float = HELD_SPEED_SCALE,
     grip_clearance: float = GRIP_CLEARANCE,
     release_clearance: float = RELEASE_CLEARANCE,
     transit_clearance: float = TRANSIT_CLEARANCE,
@@ -562,6 +569,27 @@ def run(
         if (why and not why.startswith("timeout")) or off > float(reach_tolerance):
             return f"{why or 'ended off'}; the hand is {off * 1e3:.0f} mm from it"
         return ""
+
+    def go_held(position: np.ndarray, rot: dict[str, float]) -> str:
+        """A move with the tile in the hand: straight, at held_speed_scale when it is under
+        1 (a connector that refuses the knob gets the plain move)."""
+        if 0.0 < float(held_speed_scale) < 1.0:
+            try:
+                reply = ctx.tool(
+                    "robot.go_to_pose_cartesian",
+                    pose={"position": _vec(position), "rotation": rot},
+                    speed_scale=float(held_speed_scale),
+                    **on_arm,
+                )
+                why = _refusal(reply)
+                if not why or "speed" not in why:
+                    off = float(np.linalg.norm(_xyz(here()) - position))
+                    if (why and not why.startswith("timeout")) or off > float(reach_tolerance):
+                        return f"{why or 'ended off'}; the hand is {off * 1e3:.0f} mm from it"
+                    return ""
+            except TypeError:
+                pass
+        return go("robot.go_to_pose_cartesian", position, rot)
 
     def width(reply: Any = None) -> float:
         try:
@@ -877,7 +905,7 @@ def run(
         in_hand = r_grasp.T @ np.array([*(t_xy - reached[:2]), 0.0])
         axis_in_hand = r_grasp.T @ np.array([0.0, 0.0, 1.0])  # the standing tile's up axis
         out["picked"] = True
-        why = go("robot.go_to_pose_cartesian", np.array([*reached[:2], transit_z]), rot)
+        why = go_held(np.array([*reached[:2], transit_z]), rot)
         if why:
             return finish("unreachable", f"lift after the grasp: {why}; still holding")
     out["grasp_height"] = gh
@@ -908,7 +936,11 @@ def run(
     above = np.array([*xy, transit_z])
     why, rot = "", rots[0]
     for rot in rots:
-        why = go("robot.go_to_pose", above, rot)
+        why = (
+            go_held(above, rot)
+            if 0.0 < float(held_speed_scale) < 1.0
+            else go("robot.go_to_pose", above, rot)
+        )
         if not why:
             break
     if why:
