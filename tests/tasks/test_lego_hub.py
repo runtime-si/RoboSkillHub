@@ -266,3 +266,50 @@ def test_graph_wires_the_hub_nodes_and_keeps_verify_in_charge(K):
     assert through["nodes"]["seat"]["on"]["failed"] == "pullup"
     with pytest.raises(ValueError):
         lego_press_hub(mode="loose")
+
+
+class _RenderingPhysics:
+    """Stands in for LegoIsaacPhysics(render=True): records the camera poses asked for."""
+
+    render = True
+
+    def __init__(self):
+        self.asked = []
+
+    def camera_frame(self, name, pose_cv=None):
+        self.asked.append((name, None if pose_cv is None else np.array(pose_cv)))
+        pose = np.eye(4) if pose_cv is None else np.array(pose_cv)
+        return {
+            "name": name,
+            "rgb": np.full((480, 640, 3), 7, np.uint8),
+            "depth": np.full((480, 640), 0.2 if name == "wrist" else 0.45, np.float32),
+            "intrinsics": np.array(D.D405_K),
+            "pose": pose,
+        }
+
+
+def test_observation_uses_rendered_frames_when_the_physics_renders(monkeypatch):
+    import sys
+    import types
+
+    from roboskillhub.tasks.lego_hub import bridge
+
+    assert bridge._rendering_physics() is None  # default: ray-cast depth
+    fake = _RenderingPhysics()
+    mod = types.SimpleNamespace(ACTIVE=fake)
+    monkeypatch.setitem(sys.modules, "roboskillhub.tasks.assembly_eval.lego_station_isaac", mod)
+    monkeypatch.setenv("LEGO_RENDER_NOISE", "0")
+    st = Station({"plate": PLATE})
+    tools = GapTools(st.ctx(), ["plate"])
+    obs = tools.tool("robot.get_observation")
+    names = [c["name"] for c in obs["cameras"]]
+    assert names == ["hand_eye_in_hand", "overhead"]
+    wrist = obs["cameras"][0]
+    assert wrist["depth"][0, 0] == pytest.approx(0.2) and wrist["rgb"].shape == (480, 640, 3)
+    assert "Isaac RTX render" in wrist["source"]
+    # The wrist camera is posed where the ray-cast one would be: TCP x CAMERA_IN_TCP.
+    name, pose = fake.asked[0]
+    assert name == "wrist" and pose[2, 3] == pytest.approx(st.tcp[2] + 0.08)
+    assert "plate" in tools.observations  # the verdict still carries independent observations
+    fake.render = False
+    assert bridge._rendering_physics() is None

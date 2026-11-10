@@ -28,6 +28,16 @@ from pathlib import Path
 
 from .domino_geometry import wxyz_to_xyzw
 
+ACTIVE = None
+"""The live ``LegoIsaacPhysics`` of this process (one per process), for camera consumers such as the
+lego_hub bridge; None until one is built."""
+
+CAMERA_K = ((394.0, 0.0, 320.0), (0.0, 394.0, 240.0), (0.0, 0.0, 1.0))
+CAMERA_SIZE = (640, 480)
+"""D405-like 640 x 480 pinhole (fx = fy = 394 px; lego_hub.depth.D405_K), used for both cameras."""
+OVERHEAD_HEIGHT_M = 0.45
+"""Overhead camera height over the plate centre, looking straight down (a D405 / Orbbec on a mast)."""
+
 GRAVITY = 9.81
 PHYSICS_DT = 1.0 / 120.0
 TOUCH_SEPARATION = 0.0005
@@ -55,7 +65,9 @@ class HandSpec:
 class LegoIsaacPhysics:
     name = "isaac-bricksim"
 
-    def __init__(self, headless: bool = True):
+    def __init__(self, headless: bool = True, render: bool | None = None):
+        """``render`` (default: env ``LEGO_RENDER=1``) starts Isaac's RTX experience and adds an overhead
+        and a wrist RGB-D camera (``camera_frame``); off, the physics-only kit runs as before."""
         import os
 
         import isaacsim
@@ -63,11 +75,18 @@ class LegoIsaacPhysics:
 
         from .domino_isaac import PHYSICS_KIT_NAME, write_physics_kit
 
+        global ACTIVE
+        self.render = os.environ.get("LEGO_RENDER") == "1" if render is None else bool(render)
         pkg = Path(isaacsim.__file__).parent
-        exp = os.environ.get("ISAAC_EXPERIENCE") or str(write_physics_kit(pkg))
+        default = (
+            pkg / "apps" / "isaacsim.exp.base.python.kit" if self.render else write_physics_kit(pkg)
+        )
+        exp = os.environ.get("ISAAC_EXPERIENCE") or str(default)
         config = {"headless": headless, "extra_args": ["--/app/settings/persistent=false"]}
         if exp.endswith(PHYSICS_KIT_NAME):
             config.update(create_new_stage=False, disable_viewport_updates=True)
+        if self.render:
+            config.update(width=CAMERA_SIZE[0], height=CAMERA_SIZE[1])
         self._app = SimulationApp(config, experience=exp)
         self.experience = exp
         import bricksim  # noqa: F401  (enables the BrickSim extension inside Kit)
@@ -79,6 +98,10 @@ class LegoIsaacPhysics:
         self.usd_sha256 = None
         self._sub = 1
         self._dt = PHYSICS_DT
+        self.cameras: dict = {}
+        self.frame_dir = os.environ.get("LEGO_FRAME_DIR") or None
+        self.frames_saved = 0
+        ACTIVE = self
 
     # ------------------------------------------------------------------
     def describe(self) -> dict:
@@ -90,7 +113,9 @@ class LegoIsaacPhysics:
             "bricksim": md.version("bricksim"),
             "physics": f"PhysX via isaacsim.core.api.World (CPU), dt {self._dt:.5f} s, BrickSim clutch",
             "experience": self.experience,
-            "renderer": "none (physics-only kit)",
+            "renderer": "RTX (overhead + wrist RGB-D, D405 intrinsics)"
+            if self.render
+            else "none (physics-only kit)",
             "hand": "fixed-base x/y/z prismatic + yaw revolute + 2 prismatic pads (no arm)",
             "usd_sha256": self.usd_sha256,
             "assembly_thresholds": {
@@ -128,7 +153,17 @@ class LegoIsaacPhysics:
         if self._world is not None:
             self._world.stop()
             World.clear_instance()
-        create_new_stage()
+        if self.render:
+            # create_new_stage() segfaults under the RTX experience (omni.graph.image, Isaac Sim 5.1):
+            # reuse the app's stage with everything but Kit's own prims removed.
+            import omni.usd
+
+            st = omni.usd.get_context().get_stage()
+            for child in list(st.GetPseudoRoot().GetChildren()):
+                if not child.GetName().startswith(("OmniverseKit", "Render")):
+                    st.RemovePrim(child.GetPath())
+        else:
+            create_new_stage()
         world = World(
             stage_units_in_meters=1.0,
             physics_dt=self._dt,
@@ -283,6 +318,8 @@ class LegoIsaacPhysics:
         for j in (jl, jrr):
             drive(j, "linear", h.pad_stiffness, h.pad_damping, h.grip_force)
 
+        if self.render:
+            self._make_cameras(stage, scene)
         world.reset()
         # ---- BrickSim parts (after the physics scene exists) ----
         th = scene.get("thresholds")
@@ -348,6 +385,93 @@ class LegoIsaacPhysics:
         self.bc.get_disassembled_connections(True)
         self.bc.get_assembly_debug_infos()
         return dict(paths)
+
+    # ------------------------------------------------------------------
+    def _make_cameras(self, stage, scene: dict) -> None:
+        """Overhead (fixed, straight down over the plate) and wrist (posed per frame) USD cameras with the
+        D405 pinhole, wrapped as Isaac camera sensors before the world resets."""
+        import numpy as np
+        from isaacsim.sensors.camera import Camera
+        from pxr import Gf, UsdGeom, UsdLux
+
+        np_ = np
+        UsdLux.DomeLight.Define(stage, "/World/rsh_lights/dome").CreateIntensityAttr(600.0)
+        sun = UsdLux.DistantLight.Define(stage, "/World/rsh_lights/sun")
+        sun.CreateIntensityAttr(2500.0)
+        sun.CreateAngleAttr(1.0)
+        UsdGeom.Xformable(sun.GetPrim()).AddRotateXYZOp().Set(Gf.Vec3f(35.0, 20.0, 0.0))
+        fx = CAMERA_K[0][0]
+        focal = 18.8  # only the focal / aperture ratio matters
+        self.cameras = {}
+        px, py, pz = (float(v) for v in scene["plate_pose"][0])
+        over = np_.eye(4)
+        over[:3, :3] = np_.diag([1.0, -1.0, -1.0])  # OpenCV: x right, y down, z (optical axis) down
+        over[:3, 3] = (px, py, pz + OVERHEAD_HEIGHT_M)
+        for name, pose in (("overhead", over), ("wrist", over)):
+            path = f"/World/rsh_cameras/{name}"
+            cam = UsdGeom.Camera.Define(stage, path)
+            cam.GetFocalLengthAttr().Set(focal)
+            cam.GetHorizontalApertureAttr().Set(CAMERA_SIZE[0] * focal / fx)
+            cam.GetVerticalApertureAttr().Set(CAMERA_SIZE[1] * focal / CAMERA_K[1][1])
+            cam.GetClippingRangeAttr().Set(Gf.Vec2f(0.01, 10.0))
+            self._set_cv_pose(stage, path, pose)
+            sensor = Camera(prim_path=path, name=f"rsh_{name}", resolution=CAMERA_SIZE)
+            sensor.initialize()
+            sensor.add_distance_to_image_plane_to_frame()
+            self.cameras[name] = {"path": path, "sensor": sensor, "pose": pose}
+
+    def _set_cv_pose(self, stage, path: str, pose_cv) -> None:
+        """Write an OpenCV camera-to-world pose (z = optical axis) as the USD camera's transform
+        (USD cameras look along -z with +y up)."""
+        import numpy as np
+        from pxr import Gf, UsdGeom
+
+        m = np.array(pose_cv, dtype=float)
+        m[:3, :3] = m[:3, :3] @ np.diag([1.0, -1.0, -1.0])
+        xf = UsdGeom.Xformable(stage.GetPrimAtPath(path))
+        xf.ClearXformOpOrder()
+        xf.AddTransformOp().Set(Gf.Matrix4d(m.T.tolist()))
+
+    def camera_frame(self, name: str, pose_cv=None, settle: int = 8) -> dict:
+        """Render one RGB-D frame of camera ``name`` (``overhead`` or ``wrist``), the wrist camera first
+        moved to ``pose_cv`` (4x4 OpenCV camera-to-world). Returns ``rgb`` (uint8 HxWx3), ``depth``
+        (float32 m along the optical axis, 0 = no return), ``intrinsics`` and ``pose`` (4x4)."""
+        import numpy as np
+
+        if not self.render or name not in self.cameras:
+            raise RuntimeError("cameras need LegoIsaacPhysics(render=True) (env LEGO_RENDER=1)")
+        cam = self.cameras[name]
+        if pose_cv is not None:
+            cam["pose"] = np.array(pose_cv, dtype=float)
+            self._set_cv_pose(self._world.stage, cam["path"], cam["pose"])
+        for _ in range(max(1, settle)):
+            self._world.render()
+        rgba = cam["sensor"].get_rgba()
+        depth = cam["sensor"].get_depth()
+        rgb = (
+            np.zeros((CAMERA_SIZE[1], CAMERA_SIZE[0], 3), np.uint8)
+            if rgba is None or not np.size(rgba)
+            else np.asarray(rgba)[..., :3].astype(np.uint8)
+        )
+        d = (
+            np.zeros((CAMERA_SIZE[1], CAMERA_SIZE[0]), np.float32)
+            if depth is None or not np.size(depth)
+            else np.asarray(depth, dtype=np.float32)
+        )
+        d = np.where(np.isfinite(d) & (d > 0) & (d < 9.0), d, 0.0).astype(np.float32)
+        out = {
+            "name": name,
+            "rgb": rgb,
+            "depth": d,
+            "intrinsics": np.array(CAMERA_K),
+            "pose": cam["pose"].copy(),
+            "t": self._t,
+        }
+        if self.frame_dir:
+            Path(self.frame_dir).mkdir(parents=True, exist_ok=True)
+            np.savez_compressed(Path(self.frame_dir) / f"{self.frames_saved:05d}_{name}.npz", **out)
+            self.frames_saved += 1
+        return out
 
     # ------------------------------------------------------------------
     def _apply(self, pose, opening):

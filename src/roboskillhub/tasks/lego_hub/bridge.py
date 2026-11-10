@@ -128,6 +128,13 @@ def _quat_xyzw(r: np.ndarray) -> list[float]:
     return [float(x), float(y), float(z), float(w)]
 
 
+def _rendering_physics():
+    """The process's LEGO Isaac physics when it renders (``LEGO_RENDER=1``), else None (ray-cast depth)."""
+    mod = sys.modules.get("roboskillhub.tasks.assembly_eval.lego_station_isaac")
+    physics = getattr(mod, "ACTIVE", None) if mod is not None else None
+    return physics if physics is not None and getattr(physics, "render", False) else None
+
+
 class GapTools:
     """``tool(name, **kw)`` for hub scripts over a ``SkillContext``."""
 
@@ -191,19 +198,58 @@ class GapTools:
         }
         if self.camera:
             cam = _matrix(tcp) @ CAMERA_IN_TCP
-            clean = D.render(self._objects(), cam)
+            physics = _rendering_physics()
             self.renders += 1
-            obs["cameras"].append(
-                {
-                    "name": "hand_eye_in_hand",
-                    "pose": _gap_pose(
-                        {"position_m": list(cam[:3, 3]), "quaternion_xyzw": _quat_xyzw(cam[:3, :3])}
-                    ),
-                    "intrinsics": D.D405_K.tolist(),
-                    "depth": D.add_noise(clean, D.D405_K, self.rng),
-                    "source": "rendered from privileged object observations (D405 noise model)",
-                }
+            pose = _gap_pose(
+                {"position_m": list(cam[:3, 3]), "quaternion_xyzw": _quat_xyzw(cam[:3, :3])}
             )
+            if physics is not None:
+                import os
+
+                self._objects()  # the observations a verdict must carry (and the ray-cast path records)
+
+                frame = physics.camera_frame("wrist", cam)
+                depth = frame["depth"]
+                if os.environ.get("LEGO_RENDER_NOISE", "1") == "1":
+                    depth = D.add_noise(depth, D.D405_K, self.rng)
+                obs["cameras"].append(
+                    {
+                        "name": "hand_eye_in_hand",
+                        "pose": pose,
+                        "intrinsics": D.D405_K.tolist(),
+                        "rgb": frame["rgb"],
+                        "depth": depth,
+                        "source": "Isaac RTX render (D405 intrinsics"
+                        + (", D405 noise model)" if depth is not frame["depth"] else ")"),
+                    }
+                )
+                top = physics.camera_frame("overhead")
+                obs["cameras"].append(
+                    {
+                        "name": "overhead",
+                        "pose": _gap_pose(
+                            {
+                                "position_m": list(top["pose"][:3, 3]),
+                                "quaternion_xyzw": _quat_xyzw(top["pose"][:3, :3]),
+                            }
+                        ),
+                        "intrinsics": D.D405_K.tolist(),
+                        "rgb": top["rgb"],
+                        "depth": top["depth"],
+                        "source": "Isaac RTX render (D405 intrinsics)",
+                    }
+                )
+            else:
+                clean = D.render(self._objects(), cam)
+                obs["cameras"].append(
+                    {
+                        "name": "hand_eye_in_hand",
+                        "pose": pose,
+                        "intrinsics": D.D405_K.tolist(),
+                        "depth": D.add_noise(clean, D.D405_K, self.rng),
+                        "source": "rendered from privileged object observations (D405 noise model)",
+                    }
+                )
         return obs
 
     def _go_to_pose(self, pose: dict, **_kw) -> dict:
