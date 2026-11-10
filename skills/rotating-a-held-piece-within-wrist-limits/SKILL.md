@@ -46,7 +46,8 @@ gap:
   # Optional inputs (wired from a script node where gap has no type for them): grasp_z
   # (tool centre's world z to grip the piece on the table; needed for a regrasp),
   # set_down_xy ([x, y] free spot), grip_width_m, squeeze_m, gain (+1/-1), plan_only,
-  # joint6_deg, arm_id.
+  # joint6_deg, arm_id, carry_lift_m (height over grasp_z for held turns; 0.0005 turns on the table),
+  # max_step_deg (split held turns into steps with a settle between).
   produces_outputs:
     turned_deg: float
     regrasps: int
