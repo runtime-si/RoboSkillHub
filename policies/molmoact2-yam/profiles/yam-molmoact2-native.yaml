@@ -18,16 +18,22 @@ state: [left.j1, left.j2, left.j3, left.j4, left.j5, left.j6, left.gripper,
 # model joint = station joint - joint_offset_rad (the sign of #173's GAP_GR00T_JOINT_OFFSET:
 # station = model + offset). The station twin is already in the MolmoAct2 data's frame; the real
 # station's base joint reads +pi/2 where the data's reads 0 (molmo-yam-joint-mapping.json, #173).
-# PROVISIONAL until A2's twin calibration (~/sim-wt/mma2-eval) confirms or replaces these.
+# Twin 0: measured (A2, 2026-11-10, official host_server_yam.py in the station twin): from the all-zero rest
+# pose the first chunk holds every joint within 0.05 rad; with +pi/2 on the base joints the model pulls them
+# back 0.46-0.63 rad at once. stations.real (+pi/2) is NOT verified by the twin and stays provisional.
 joint_offset_rad:
   left: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
   right: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-# Linear map station opening -> model opening. norm_stats gripper range 0..1 (state q01 0.06, q99 0.99;
-# frame 0 of the sample episode, arms at rest with jaws open, reads 0.99), so model 1 = open is assumed.
-# PROVISIONAL: A2 measures model_open / model_closed in the twin.
+# Linear map station opening -> model opening; model 1 = open, 0 = closed, measured (A2): data actions span
+# 0.007..0.993 with 0.99 at rest (allenai/19012026-block-13 ep0); in the twin, open jaws reported as 1 are held
+# at 0.99, reported as 0 the model drives one back to 0.96 in the first chunk; its one grasp attempt commanded 0.02.
 gripper: {station_open: 1.0, station_closed: 0.0, model_open: 1.0, model_closed: 0.0}
 action: {type: abs_joint, dim: 14, horizon: 30, execute_steps: 25, hz: 30}
 extra: {norm_tag: yam_dual_molmoact2, num_steps: 10, dtype: bfloat16, inference_action_mode: continuous}
+# Twin closed loop with these values (cube-in-box, 10 seeds, top view cropped to the 640x360 table band):
+# 0/10, no jaw closes; open loop on AllenAI's own frames the model tracks the demo (MSE 0.0045 vs hold 0.0086).
+# The gap is the cameras (twin wrist mount and top framing differ from AllenAI's rig) and scene look, not this
+# mapping. ~/sim-wt/mma2-eval/RESULTS.md.
 stations:
   real:
     joint_offset_rad:
