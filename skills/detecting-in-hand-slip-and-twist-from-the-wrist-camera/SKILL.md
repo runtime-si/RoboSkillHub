@@ -20,7 +20,7 @@ metadata:
   hub:
     stage: verify
     embodiments: [any]
-    version: 0.1.0
+    version: 0.2.0
     tasks: [pick-place, insertion]
     provenance:
       authors: [runtime-si]
@@ -82,7 +82,12 @@ slip detector of Applied Sciences 13(15):8620 (2023). That paper reports
 
 `duration_s` (2.0), `period_s` (0.2; 0 compares back to back), `camera`,
 `near` / `far` (0.02 / 0.20 m), `slip_mm` (2.0), `twist_deg` (3.0),
-`drop_fraction` (0.4), `arm_id`.
+`drop_fraction` (0.4), `jaw_width_m` (0: off), `arm_id`.
+
+With `jaw_width_m` (the jaw opening, e.g. the part's width across the jaws) and a camera pose in the observation,
+the region is the jaw box instead of the band: depth points in the tool frame with |x| (the closing axis) inside
+the opening less 1.5 mm, |y| under 40 mm and under 15 mm past the tool centre. Slip, twist and spin then come from
+a rigid 3D fit (Kabsch, trimmed) to the flow's point matches. Use it: the plain band is not reliable (below).
 
 ## Outputs
 
@@ -108,6 +113,21 @@ the camera axis, signed), `area_fraction`, `frames`.
 - **Fingers**: they sit inside the band too. Their region does not move, so
   they show as outliers in the fit, but if they cover most of the region the
   dominant motion is theirs (zero) and slip is under-read.
-- **Not validated in the station twin yet.** The unit tests use synthetic
-  frames: an 8 px shift at 0.1 m and f = 200 px reads 4.0 mm, and a 6 deg
-  tilt about the closing axis reads 6 deg.
+- **The closing axis is the tool's x** (robot.get_ee_pose frame): a held domino's thickness axis lies within
+  0.04 of it in the station twin. Version 0.1.0 used y.
+
+## Station twin check (2026-11-10, privileged truth, wrist D405 at the real fit)
+
+Domino lift (refilling-a-domino-loading-rack, 2 racks), first 3 s of each hold; DUPLO and peg mid-air insertion
+(inserting-mid-air-between-two-held-parts) as stable holds before the parts meet:
+
+| case | truth | band (0.1.0) | jaw box + rigid fit (`jaw_width_m`) |
+|---|---|---|---|
+| domino, full speed (4 lifts) | 3.0-3.4 mm slip | slip 0.0 mm; fired on a false 33 deg twist | slip 2.4-3.7 mm, 4/4 fire (3/4 on slip > 2 mm) |
+| domino, held_speed_scale 0.25 (6 lifts) | 0.6-1.3 mm | 6/6 false alarms (23-32 deg twist) | slip 0.6-2.6 mm: 2/6 false alarms |
+| mid-air, held before contact (264 frames) | 0.9-1.8 mm, < 1.7 deg | 97-134 deg twist, area < 0.4 ("dropped") | max 0.8 mm, 0.6 deg: 0 false alarms |
+
+The band took in the fingers (the flow fit locked on their zero motion) and the table (its plane read as 100+
+deg of twist when the part left it). Still open: once the mid-air parts meet, the other part enters the jaw
+box and the fit reads false twist (up to 90 deg); twists about the approach axis (8-13 deg on a domino) read
+3-8 deg; the jigsaw turn-fling case (#191) was not recorded.
