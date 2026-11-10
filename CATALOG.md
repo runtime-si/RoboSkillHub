@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-27 tools, 146 skills, 2 policies, 1 recipe and 1 paper.
+27 tools, 147 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -164,6 +164,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`triggering-a-domino-chain-by-push`](#triggering-a-domino-chain-by-push) | execute | Topples the first domino of a standing line so the chain runs. | any |
 | [`turning-by-wrist-ratchet`](#turning-by-wrist-ratchet) | execute | Tightens or loosens a screw lid or cap by wrist ratchet. | any |
 | [`wiping-a-region`](#wiping-a-region) | execute | Wipes a flat region of a surface with back-and-forth strokes. | any |
+| [`auditing-a-domino-line-for-fallen-or-tilted-tiles`](#auditing-a-domino-line-for-fallen-or-tilted-tiles) | verify | Checks a standing domino line or curve from one overhead depth frame, with no reference image, against its planned slots. | any |
 | [`checking-dual-arm-clearance`](#checking-dual-arm-clearance) | verify | Predicts, before a move is sent, the minimum clearance between the two arms along the planned path. | any, 2 arms |
 | [`checking-pick-by-scene-diff`](#checking-pick-by-scene-diff) | verify | Checks whether a pick (or a place, a push, any intended change) happened by showing a VLM one panel. | any |
 | [`checking-spatial-relations`](#checking-spatial-relations) | verify | Decides from one RGB-D view whether a spatial relation holds between two seen objects. | any |
@@ -2374,6 +2375,23 @@ Wipes a flat region of a surface with back-and-forth strokes - the hand comes do
   - `wiped`: The measured strokes swept at least min_coverage (default 0.95) of the region at the wiping height and the hand lifted away; `coverage` says how much.
   - `partial`: Some passes ran but the swept fraction is under min_coverage (passes out of reach, blocked, stopped part way) or the last lift failed; `detail` lists each skipped or stopped pass.
   - `unreachable`: No pass ran - the first hover was refused with every rotation, or every pass was out of reach, blocked or refused; nothing was wiped.
+
+### auditing-a-domino-line-for-fallen-or-tilted-tiles
+
+verify · robots: any · tasks: domino · MIT · v0.1.0 · [`SKILL.md`](skills/auditing-a-domino-line-for-fallen-or-tilted-tiles/SKILL.md) · [upstream](https://github.com/BasisResearch/predicators/blob/afb6f2918091f5ca372a75b9a335aea317a8a209/predicators/envs/pybullet_domino/components/domino_component.py)
+
+Checks a standing domino line or curve from one overhead depth frame, with no reference image, against its planned slots. For every slot it says whether the tile stands upright, is displaced (off its slot or turned), tilted, leaning on its neighbour, fallen or missing. It fits each tile's lean angle (forward or backward) jointly with its shift along the row, to the depth profile along its fall corridor (the cascade-video skill's rotated-box model), and its turn from its top face. A fallen or leaning neighbour's body is taken out of a tile's window, and neighbours are checked against each other physically. It also lists the runs of fallen tiles and the gaps a wave cannot cross. Routes line_ok, fix_needed or fallen. No motion. Use before triggering a line, after building or bumping it, or after a stopped cascade, to know which tiles to re-place.
+
+- **In**: `table_z` float
+- **Out**: `n_tiles` int, `n_upright` int, `first_fault` int, `camera` str
+- **Calls**: connector `robot.get_observation`
+- **Scripts**: [`audit_line`](skills/auditing-a-domino-line-for-fallen-or-tilted-tiles/scripts/audit_line.py)
+- **Exits**:
+  - `line_ok`: Every tile stands upright on its slot (lean under 5 deg, within 4 mm and 10 deg of it) and no gap between neighbours is wider than a wave crosses; trigger the line.
+  - `fix_needed`: No tile has fallen or is missing, but some are displaced, tilted, leaning on a neighbour, or a gap between two standing tiles is over the critical gap (`wide_gaps`); `faults` lists them in line order with lean, shift and direction.
+  - `fallen`: At least one tile has fallen (lean 60 deg or more, or past where its top meets the neighbour) or is missing; `fallen_runs` gives the runs of fallen and leaning tiles (a stopped or premature cascade), `faults` every faulty tile.
+  - `not_seen`: No camera frame with depth saw the slots (none in the observation, out of the image, or a hand over them), or some slots stayed unjudged while the rest were fine; `states` says `unseen` / `unclear` for those.
+  - `invalid_input`: No slots, a slot without a facing, or a tile size that is not height &gt; width &gt; thickness (also the route of a raised error).
 
 ### checking-dual-arm-clearance
 
