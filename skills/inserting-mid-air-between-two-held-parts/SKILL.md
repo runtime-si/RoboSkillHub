@@ -292,6 +292,23 @@ What this shows, honestly:
   (0.27-0.30 mm). Fingertips again at 0.0 mm.
 - Not run: `mode: both_move`, `release: mover`.
 
+### Re-run with the sim harness's grip fix (2026-11-09/10)
+
+The stock twin let held parts creep through and pivot in the jaws: MuJoCo friction creep on light bodies, and no
+torsional friction on the blade-tip pads (~/yam_gap/skill_sources/SIM_GRIP.md). The same harness (peg 12 mm in a
+13 mm blind hole, default 9 trials of injected tip error, holder still) was re-run on GCP RTX PRO 6000 hosts:
+
+| twin | peg in | held socket's axis error over the trials | socket's offset from the left tool centre |
+|---|---|---|---|
+| grip fix (impratio 100, solimp 0.99), no pad torsion | 0 of 9 | 22.5 -> 78.1 deg | 14.2 -> 22.4 mm |
+| + pad torsion (condim 4, 0.004 m), first 8 trials | 1 of 8 (trial 0, 0 mm injected: 17.0 mm deep, 0.75 mm off axis, 4.1 deg); trial 4 (1 mm) part-way, 2.2 mm | 4.1 -> 66.1 deg | 15.8 -> 17.3 mm |
+
+- Pad torsion keeps the parts in place in the jaws between trials: the socket's offset from the tool centre now
+  stays within 1.5 mm. The first clean insertion went 17 mm deep.
+- Each push still turns the held parts about 10 deg. The skill's push through a 70 mm shaft held at its handle
+  puts more torque on the grip than the pads hold. Real jaws may well turn too, so re-register the parts (or
+  re-grasp) between attempts rather than reuse offsets.
+
 ## Provenance
 
 Adapted from ACT's scripted `InsertionPolicy`
