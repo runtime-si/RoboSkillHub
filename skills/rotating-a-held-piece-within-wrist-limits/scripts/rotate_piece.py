@@ -262,6 +262,8 @@ def run(
     plan_only: bool = False,
     joint6_deg: float | None = None,
     arm_id: int = 0,
+    carry_lift_m: float | None = None,
+    max_step_deg: float = 0.0,
 ) -> Output:
     """Turn the held piece by ``turn_deg`` (counter-clockwise seen from above; e.g. -angle_deg of
     localizing-a-piece-in-a-reference-image, or matching-a-piece-to-placed-neighbours' rotation).
@@ -270,7 +272,9 @@ def run(
     needed only when a regrasp is. ``set_down_xy`` is a free spot to set it down at; by default (or
     "auto") the nearest clear spot is chosen from the cameras' depth (choose_drop_spot). ``grip_width_m`` > 0 grips with robot.set_grip (object width, ``squeeze_m``), else
     robot.close_gripper. ``gain`` (+1 / -1) is the hand's world yaw per unit of joint 6 if known; else a small
-    first held step measures it. ``plan_only`` returns the plan without moving (``joint6_deg`` may stand in
+    first held step measures it. ``carry_lift_m`` is the height over ``grasp_z`` held turns are made at
+    (default 3 cm; about 0.5 mm turns a flat piece pinched by its edges while the table still carries it).
+    ``max_step_deg`` > 0 splits each held turn into steps no larger, with a settle between. ``plan_only`` returns the plan without moving (``joint6_deg`` may stand in
     for the current joint, e.g. to choose at pick time whether to grip with the jaws swapped)."""
     lo, hi = _limits(ctx, arm_id)
     lo_r, hi_r = lo + LIMIT_MARGIN_RAD, hi - LIMIT_MARGIN_RAD
@@ -297,9 +301,10 @@ def run(
         return _fail("unreachable", "the turn needs a regrasp and grasp_z is not given", plan=plan)
 
     here = arm.pose()
-    if grasp_z is not None and here["position"]["z"] < grasp_z + LIFT_M - 0.002:
+    lift = LIFT_M if carry_lift_m is None else float(carry_lift_m)
+    if grasp_z is not None and here["position"]["z"] < grasp_z + lift - 0.002:
         why = arm.to_pose(
-            {"position": {**here["position"], "z": grasp_z + LIFT_M}, "rotation": here["rotation"]},
+            {"position": {**here["position"], "z": grasp_z + lift}, "rotation": here["rotation"]},
             True,
         )
         if why:
@@ -349,7 +354,15 @@ def run(
         if kind == "held":
             if abs(dq) < 1e-6:
                 continue
-            why, moved = _turn_joint(arm, dq, sign, lo_r, hi_r)
+            why, moved = None, 0.0
+            n_steps = max(1, math.ceil(abs(dq) / max_step_deg)) if max_step_deg > 0 else 1
+            for _ in range(n_steps):
+                why, m = _turn_joint(arm, dq / n_steps, sign, lo_r, hi_r)
+                moved += m
+                if why:
+                    break
+                if n_steps > 1:
+                    arm.wait()
             turned += moved
             if not why and lost():
                 return _fail(

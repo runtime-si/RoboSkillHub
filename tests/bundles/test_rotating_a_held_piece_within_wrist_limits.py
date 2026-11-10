@@ -281,3 +281,15 @@ def test_a_piece_lost_during_a_turn_is_routed_dropped(script):
     assert out["route"] == "dropped"
     arm = Arm(q6_deg=0.0, gain=1.0)
     assert script.run(arm.ctx(), turn_deg=60.0, gain=1.0)["route"] == "turned"
+
+
+def test_held_turns_can_be_split_into_steps_and_made_on_the_table(script):
+    arm = Arm(q6_deg=0.0, gain=1.0)
+    arm.pos["z"] = 0.0205  # pinched on the table, 0.5 mm over the grasp height
+    out = script.run(
+        arm.ctx(), turn_deg=60.0, gain=1.0, grasp_z=0.02, carry_lift_m=0.0005, max_step_deg=10.0
+    )
+    assert out["route"] == "turned"
+    assert _wrap(arm.piece_yaw - 60.0) == pytest.approx(0.0, abs=0.6)
+    assert arm.calls.count("joints") >= 6  # six 10 degree steps (plus any corrections)
+    assert all(not (isinstance(c, tuple) and c[0] == "pose" and c[1] > 0.0206) for c in arm.calls)

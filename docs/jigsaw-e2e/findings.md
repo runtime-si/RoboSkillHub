@@ -204,3 +204,33 @@ finds no drop with the measured 2 mm, 1 degree residual.
 4. Re-test with condim 4/6 (torsional friction) when it lands in the templates.
 
 **Completion so far: 0 / 12** (baseline 0 / 8). Round 6's 2 trials also ended 0 / 2.
+
+
+## Update, round 8 (2026-11-10)
+
+**A held turn cannot be avoided by gripping at another yaw.** With one grasp the piece turns between pick
+and place exactly as far as the hand does. Another hand yaw at the pick only changes which two points are
+pinched. A put-down and regrasp does not help either: the piece turns only while held, and empty-hand turns
+do not move it. So the turn has to happen with the piece held.
+
+Two ways of making it were added to `rotating-a-held-piece-within-wrist-limits`: `carry_lift_m` (turn at
+0.5 mm, the mat still carrying the piece) and `max_step_deg` (5-10 degree steps with a settle between). Each
+was tried on bare pieces (seat variant A, 4 hosts). Only 3 trials reached the turn within the round:
+
+| turn mode | trials at the turn | piece still held after it |
+|---|---|---|
+| on the mat, 10 degree steps | 2 | 0 (left on the mat, flat: the mat's friction holds it while the jaws twist) |
+| at 3 cm, 5 degree steps | 1 | 0 (flung out and flipped, tilt 180 degrees) |
+
+- **The cause.** An edge grip of a 2 mm piece has almost no hold about the jaw axis in the twin (condim 3).
+  The twin's grip fix does not change this (`SIM_GRIP.md`).
+- **Drop detection by the wrist camera** (re-measure, `not_seen`) is wired for the place step, but no trial
+  got that far.
+- **Completion: 0 / 3 new, 0 / 15 overall** since the fixes (baseline 0 / 8).
+
+**Next:**
+
+- condim 4/6 (torsional friction) on the pads and the piece;
+- or a different hold: a pad on the piece's top (suction, or a pinch across the piece's top and bottom),
+  rather than its edges;
+- or turning the piece on the mat by pushing it (no grip) before the pick.
