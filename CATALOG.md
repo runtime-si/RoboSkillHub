@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-29 tools, 158 skills, 2 policies, 1 recipe and 1 paper.
+29 tools, 159 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -50,6 +50,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 
 | Skill | Stage | What it does | Robots |
 | --- | --- | --- | --- |
+| [`augmenting-sim-depth-with-a-fitted-d405-noise-model`](#augmenting-sim-depth-with-a-fitted-d405-noise-model) | perceive | Replaces each simulated depth image of an observation with the same image under Intel RealSense D405 noise fitted to… | any |
 | [`calibrating-arm-to-arm-base-transform`](#calibrating-arm-to-arm-base-transform) | perceive | Measures where one arm's base sits in the other arm's base frame. | any |
 | [`calibrating-baseplate-stud-grid`](#calibrating-baseplate-stud-grid) | perceive | Estimates a LEGO or DUPLO baseplate's pose (the plate frame computing-brick-pose-from-stud-grid takes, and APEX-MR's… | any |
 | [`classifying-brick-resting-face-from-depth`](#classifying-brick-resting-face-from-depth) | perceive | Tells from depth whether a loose LEGO or DUPLO brick of known size lies studs up, upside down (resting on its stud… | any |
@@ -593,6 +594,20 @@ RynnValue value model (RynnBrain / Qwen3-VL, 8B or 4B, Apache-2.0) run locally o
   - `rynnvalue.remaining_time`: Remaining seconds to completion for each frame of a clip (oldest first, at most 8 used) plus Match / Success from the model's analysis.
 
 ## Skill details
+
+### augmenting-sim-depth-with-a-fitted-d405-noise-model
+
+perceive · robots: any · tasks: lego, jigsaw, domino, pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/augmenting-sim-depth-with-a-fitted-d405-noise-model/SKILL.md)
+
+Replaces each simulated depth image of an observation with the same image under Intel RealSense D405 noise fitted to real wrist frames of the YAM station - correlated fine noise growing with z squared, a smooth low-frequency error, dropouts on depth edges and the stream's 1 mm quantisation. Routes augmented or no_depth. Use when a depth-based check (seat height, flushness, resting face) is tested or tuned on rendered or ray-cast depth and must see what the real sensor would deliver, or to stress it with scale &gt; 1; no motion.
+
+- **In**: -
+- **Out**: `scale` float
+- **Calls**: connector `robot.get_observation`
+- **Scripts**: [`augment_depth`](skills/augmenting-sim-depth-with-a-fitted-d405-noise-model/scripts/augment_depth.py)
+- **Exits**:
+  - `augmented`: At least one camera's depth was replaced by the noisy version (`observation` carries it; `cameras` names them).
+  - `no_depth`: No camera of the observation carries depth; nothing changed.
 
 ### calibrating-arm-to-arm-base-transform
 

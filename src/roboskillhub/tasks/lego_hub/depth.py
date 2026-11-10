@@ -175,3 +175,42 @@ def add_noise(depth, k, rng, baseline=0.018, subpixel=0.08):
     noisy[fly] = (mix * base + (1 - mix) * nb)[fly]
     noisy[rng.random(base.shape) < 0.005] = 0.0
     return np.where(valid, np.round(noisy / 1e-4) * 1e-4, 0.0).astype(np.float32)
+
+
+D405_FIT = {
+    "sigma_coeff_per_m": 0.0228,
+    "corr_sigma_px": 2.4,
+    "lowfreq_coeff_per_m": 0.0452,
+    "lowfreq_scale_px": 30.0,
+    "edge_dropout": 0.41,
+    "quant_step_m": 0.001,
+}
+"""Fitted on 401 real wrist D405 frames of the YAM station (13166 flat 60 px patches, wood table)
+by skills/augmenting-sim-depth-with-a-fitted-d405-noise-model/scripts/fit_noise.py: fine noise
+sigma = 0.0228 z^2 (0.51 mm at 15 cm) with a 2.4 px correlation, a smooth error of 0.0452 z^2 (1.0 mm at
+15 cm; includes the table's own relief), 41 % dropout on depth edges, depth stored in 1 mm steps."""
+
+
+def add_fitted_noise(depth, k, rng, params=None, scale=1.0):
+    """D405 noise fitted to real frames (``D405_FIT``) on a clean depth image (0 = no reading): correlated
+    fine noise + a smooth low-frequency error, both growing with z^2, dropouts on depth edges, then the
+    stream's quantisation. ``scale`` multiplies both noise amplitudes (stress tests)."""
+    import cv2
+
+    p = {**D405_FIT, **(params or {})}
+    base = np.asarray(depth, dtype=np.float64)
+    valid = base > 0
+    z2 = base**2
+    fine = cv2.GaussianBlur(rng.normal(0, 1, base.shape), (0, 0), p["corr_sigma_px"])
+    fine /= fine.std() or 1.0
+    low = cv2.GaussianBlur(rng.normal(0, 1, base.shape), (0, 0), p["lowfreq_scale_px"])
+    low /= low.std() or 1.0
+    noisy = base + scale * z2 * (p["sigma_coeff_per_m"] * fine + p["lowfreq_coeff_per_m"] * low)
+    dz = np.maximum(
+        np.abs(np.diff(base, axis=0, append=base[-1:])),
+        np.abs(np.diff(base, axis=1, append=base[:, -1:])),
+    )
+    edge = cv2.dilate((dz > 0.002).astype(np.uint8), np.ones((3, 3), np.uint8)).astype(bool)
+    noisy[edge & (rng.random(base.shape) < p["edge_dropout"])] = 0.0
+    q = p["quant_step_m"]
+    return np.where(valid & (noisy > 0), np.round(noisy / q) * q, 0.0).astype(np.float32)

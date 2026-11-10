@@ -211,8 +211,12 @@ class GapTools:
 
                 frame = physics.camera_frame("wrist", cam)
                 depth = frame["depth"]
-                if os.environ.get("LEGO_RENDER_NOISE", "1") == "1":
+                mode = os.environ.get("LEGO_RENDER_NOISE", "1")
+                if mode == "1":
                     depth = D.add_noise(depth, D.D405_K, self.rng)
+                elif mode.startswith("fitted"):  # "fitted" or "fitted:<scale>"
+                    scale = float(mode.split(":", 1)[1]) if ":" in mode else 1.0
+                    depth = D.add_fitted_noise(depth, D.D405_K, self.rng, scale=scale)
                 obs["cameras"].append(
                     {
                         "name": "hand_eye_in_hand",
@@ -220,8 +224,7 @@ class GapTools:
                         "intrinsics": D.D405_K.tolist(),
                         "rgb": frame["rgb"],
                         "depth": depth,
-                        "source": "Isaac RTX render (D405 intrinsics"
-                        + (", D405 noise model)" if depth is not frame["depth"] else ")"),
+                        "source": f"Isaac RTX render (D405 intrinsics, noise {mode})",
                     }
                 )
                 top = physics.camera_frame("overhead")

@@ -1,0 +1,32 @@
+{
+ "frames_used": 401,
+ "files_seen": 749,
+ "fine_patches": 13166,
+ "z_range_m": [
+  0.048,
+  1.214
+ ],
+ "fine_std_m": {
+  "median": 0.0005438075949277205,
+  "p10": 0.00030662633776793726,
+  "p90": 0.001400693508876644
+ },
+ "sigma_coeff_per_m": 0.022817103633974573,
+ "sigma_at_0p15_m": 0.0005133848317644278,
+ "lag1_corr": 0.9209679830334456,
+ "lag3_corr": 0.7824927297392567,
+ "corr_sigma_px": 2.386,
+ "corr_sigma_px_from_lag1_lag3": [
+  1.743,
+  3.029
+ ],
+ "lowfreq_windows": 1337,
+ "lowfreq_std_m": {
+  "median": 0.0010715625248849392,
+  "p90": 0.0020374412648379806
+ },
+ "lowfreq_coeff_per_m": 0.045180682129432964,
+ "dropout_all": 0.2578483072916667,
+ "dropout_at_edges": 0.410550918196995,
+ "quant_step_m": 0.001
+}

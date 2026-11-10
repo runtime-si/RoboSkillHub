@@ -1,0 +1,34 @@
+{
+  "skill": "augmenting-sim-depth-with-a-fitted-d405-noise-model",
+  "inputs": {},
+  "outputs": {
+    "scale": {
+      "$ref": "noise.scale"
+    }
+  },
+  "nodes": {
+    "noise": {
+      "type": "script",
+      "script": "scripts/augment_depth.py",
+      "inputs": {}
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "noise"
+    ],
+    [
+      "noise",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "augmented",
+      "no_depth"
+    ]
+  },
+  "on_error": "no_depth"
+}
