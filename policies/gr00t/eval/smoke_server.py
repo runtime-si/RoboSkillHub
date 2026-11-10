@@ -59,7 +59,9 @@ def main() -> None:
     import torch
 
     t0 = time.time()
-    backend = server.N17Backend(server.PROFILES[a.profile], checkpoint=a.checkpoint, backbone=a.backbone)
+    backend = server.N17Backend(
+        server.PROFILES[a.profile], checkpoint=a.checkpoint, backbone=a.backbone
+    )
     svc = server.Service(backend)
     rng = np.random.default_rng(0)
     images = {r: rng.integers(0, 255, (480, 640, 3), dtype=np.uint8) for r in server.ROLES}

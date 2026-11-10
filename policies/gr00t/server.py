@@ -173,11 +173,15 @@ class Profile:
     name: str
     tag: str
     video: dict[str, str]  # modality key -> role
-    state: dict[str, str]  # modality key -> source (left_q, left_g, right_q, right_g, left_ee, right_ee)
+    state: dict[
+        str, str
+    ]  # modality key -> source (left_q, left_g, right_q, right_g, left_ee, right_ee)
     action: dict[str, str]  # modality key -> destination slice name
     language_key: str
     fps: float = 30.0
-    image_size: tuple[int, int] | None = None  # (W, H) the views are resized to, when the keys name it
+    image_size: tuple[int, int] | None = (
+        None  # (W, H) the views are resized to, when the keys name it
+    )
     default_checkpoint: str = ""
 
 
@@ -185,7 +189,11 @@ PROFILES = {
     "yam-molmoact2": Profile(
         name="yam-molmoact2",
         tag="new_embodiment",
-        video={"base_view": "top", "left_wrist_view": "left_wrist", "right_wrist_view": "right_wrist"},
+        video={
+            "base_view": "top",
+            "left_wrist_view": "left_wrist",
+            "right_wrist_view": "right_wrist",
+        },
         state={
             "left_arm": "left_q",
             "left_gripper": "left_g",
@@ -227,7 +235,36 @@ PROFILES = {
         image_size=(320, 240),
         default_checkpoint="nvidia/GR00T-N1.7-3B",
     ),
+    "yam-roles": Profile(
+        name="yam-roles",
+        tag="new_embodiment",
+        video={"top": "top", "left_wrist": "left_wrist", "right_wrist": "right_wrist"},
+        state={
+            "left_arm": "left_q",
+            "left_gripper": "left_g",
+            "right_arm": "right_q",
+            "right_gripper": "right_g",
+        },
+        action={
+            "left_arm": "left_q",
+            "left_gripper": "left_g",
+            "right_arm": "right_q",
+            "right_gripper": "right_g",
+        },
+        language_key="annotation.human.task_description",
+    ),
+    "yam-left-roles": Profile(
+        name="yam-left-roles",
+        tag="new_embodiment",
+        video={"top": "top", "left_wrist": "left_wrist"},
+        state={"left_arm": "left_q", "left_gripper": "left_g"},
+        action={"left_arm": "left_q", "left_gripper": "left_g"},
+        language_key="annotation.human.task_description",
+    ),
 }
+"""``yam-roles`` / ``yam-left-roles``: a fine-tune whose LeRobot dataset names its views and joint groups after
+the roles (the station's own recorder, ``~/yam_gap/real/record_lerobot.py``, and the hub's sim demos): pass its
+checkpoint directory with ``--checkpoint``."""
 
 _SLICES = {"left_q": LEFT_Q, "left_g": LEFT_G, "right_q": RIGHT_Q, "right_g": RIGHT_G}
 
@@ -240,7 +277,9 @@ def state_value(source: str, joints: np.ndarray, ee: dict[str, Any] | None) -> n
     return np.concatenate([pose[:3], rot6d_from_quat(pose[3:7])]).astype(np.float32)
 
 
-def assemble_actions(profile: Profile, action: dict[str, np.ndarray], joints: np.ndarray) -> np.ndarray:
+def assemble_actions(
+    profile: Profile, action: dict[str, np.ndarray], joints: np.ndarray
+) -> np.ndarray:
     """``[T, 14]`` from the model's per-key ``[1, T, d]`` arrays; keys a profile leaves out hold."""
     horizon = max(np.asarray(v).shape[-2] for v in action.values())
     out = np.tile(joints.astype(np.float32), (horizon, 1))
@@ -299,8 +338,8 @@ class ActRequest:
 
 
 class FakeBackend:
-    """No model: holds the arms where they are; a grasp mark closes the left jaw over the chunk, a
-    release mark (alone) opens it. For protocol tests and dry runs of a graph."""
+    """No model: holds the arms where they are; a grasp mark closes the left jaw over the chunk's first
+    six rows, a release mark (alone) opens it. For protocol tests and dry runs of a graph."""
 
     steering = "emulated-overlay"
 
@@ -309,7 +348,13 @@ class FakeBackend:
         self.calls = 0
 
     def info(self) -> dict[str, Any]:
-        return {"backend": "fake", "model": "fake", "revision": "", "profile": "fake", "horizon": self.horizon}
+        return {
+            "backend": "fake",
+            "model": "fake",
+            "revision": "",
+            "profile": "fake",
+            "horizon": self.horizon,
+        }
 
     def reset(self) -> None:
         self.calls = 0
@@ -318,10 +363,10 @@ class FakeBackend:
         self.calls += 1
         actions = np.tile(req.joints.astype(np.float32), (self.horizon, 1))
         kinds = {m["kind"] for m in req.marks}
-        if "grasp" in kinds:
-            actions[:, 6] = np.linspace(req.joints[6], 0.0, self.horizon)
-        elif "release" in kinds:
-            actions[:, 6] = np.linspace(req.joints[6], 1.0, self.horizon)
+        target = 0.0 if "grasp" in kinds else 1.0 if "release" in kinds else None
+        if target is not None:
+            ramp = np.linspace(req.joints[6], target, 6)
+            actions[:, 6] = np.concatenate([ramp, np.full(self.horizon - 6, target)])
         return {"actions": actions, "prompt": req.instruction, "marks_drawn": len(req.marks)}
 
 
@@ -350,7 +395,9 @@ class N17Backend:
         path = self._local(self.checkpoint, self.revision)
         if backbone != "canonical":
             path = self._with_backbone(path, backbone)
-        self.policy = Gr00tPolicy(embodiment_tag=profile.tag, model_path=str(path), device=device, strict=True)
+        self.policy = Gr00tPolicy(
+            embodiment_tag=profile.tag, model_path=str(path), device=device, strict=True
+        )
         self.load_s = time.time() - t0
         self.repaired = self._repair_empty_action_dims()
         self.modality = self.policy.get_modality_config()
@@ -416,7 +463,9 @@ class N17Backend:
             dims = getattr(self.policy.processor, "action_dim", None)
             if isinstance(dims, dict):
                 dims[tag] = sap.get_action_dim(tag)
-            logger.warning("action widths taken from relative stats (absolute stats empty): %s", fixed)
+            logger.warning(
+                "action widths taken from relative stats (absolute stats empty): %s", fixed
+            )
         return fixed
 
     def _check_profile(self) -> None:
@@ -428,9 +477,13 @@ class N17Backend:
             have = set(self.modality[kind].modality_keys)
             missing = sorted(set(keys) - have)
             if missing:
-                raise ValueError(f"profile {self.profile.name}: {kind} keys {missing} not in the checkpoint ({sorted(have)})")
+                raise ValueError(
+                    f"profile {self.profile.name}: {kind} keys {missing} not in the checkpoint ({sorted(have)})"
+                )
         if self.profile.language_key not in self.modality["language"].modality_keys:
-            raise ValueError(f"profile {self.profile.name}: language key {self.profile.language_key!r} not in the checkpoint")
+            raise ValueError(
+                f"profile {self.profile.name}: language key {self.profile.language_key!r} not in the checkpoint"
+            )
 
     def info(self) -> dict[str, Any]:
         torch = self.torch
@@ -442,7 +495,9 @@ class N17Backend:
             "embodiment_tag": self.profile.tag,
             "horizon": self.horizon,
             "video_offsets": self.video_offsets,
-            "backbone": QWEN_BACKBONE[0] if self.backbone == "qwen3-vl-2b" else "nvidia/Cosmos-Reason2-2B",
+            "backbone": QWEN_BACKBONE[0]
+            if self.backbone == "qwen3-vl-2b"
+            else "nvidia/Cosmos-Reason2-2B",
             "load_s": round(self.load_s, 1),
             "repaired_action_widths": self.repaired,
             "gpu": torch.cuda.get_device_name() if torch.cuda.is_available() else "cpu",
@@ -479,7 +534,9 @@ class N17Backend:
             if self.profile.image_size is not None:
                 from PIL import Image
 
-                img = np.asarray(Image.fromarray(img).resize(self.profile.image_size, Image.BILINEAR))
+                img = np.asarray(
+                    Image.fromarray(img).resize(self.profile.image_size, Image.BILINEAR)
+                )
             role_images[role] = img
         prompt = req.instruction + (mark_sentence(req.marks) if req.mark_text else "")
         obs = {
@@ -609,7 +666,11 @@ class Service:
                 "steering": getattr(self.backend, "steering", "none"),
                 "timing_ms": {k: round(float(v), 2) for k, v in timing.items()},
                 "gpu_mem_mb": self.gpu_mem_mb(),
-                **{k: v for k, v in self.backend.info().items() if k in ("backend", "model", "revision", "profile")},
+                **{
+                    k: v
+                    for k, v in self.backend.info().items()
+                    if k in ("backend", "model", "revision", "profile")
+                },
                 **out,
             }
         raise ValueError(f"unknown endpoint {endpoint!r}")
@@ -670,7 +731,11 @@ def serve_zmq(service: Service, host: str, port: int) -> None:
     import zmq
 
     def safe_decode(obj: Any) -> Any:
-        if isinstance(obj, dict) and obj.get(b"nd", obj.get("nd")) and obj.get(b"kind", obj.get("kind")) in (b"O", "O"):
+        if (
+            isinstance(obj, dict)
+            and obj.get(b"nd", obj.get("nd"))
+            and obj.get(b"kind", obj.get("kind")) in (b"O", "O")
+        ):
             raise ValueError("refusing an object-dtype ndarray (pickle) payload")
         return mnp.decode(obj)
 
@@ -689,7 +754,9 @@ def serve_zmq(service: Service, host: str, port: int) -> None:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     p.add_argument("--backend", default="n1.7", choices=["n1.7", "gr00t2", "fake"])
     p.add_argument("--profile", default="yam-molmoact2", choices=sorted(PROFILES))
     p.add_argument("--checkpoint", default="", help="HF repo or local dir (default: the profile's)")
@@ -699,13 +766,25 @@ def main() -> None:
     p.add_argument("--transport", default="http", choices=["http", "zmq"])
     p.add_argument("--host", default="0.0.0.0")
     p.add_argument("--port", type=int, default=5555)
-    p.add_argument("--warmup", type=int, default=2, help="dummy act calls before binding (CUDA kernels, caches)")
+    p.add_argument(
+        "--warmup",
+        type=int,
+        default=2,
+        help="dummy act calls before binding (CUDA kernels, caches)",
+    )
     args = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     service = Service(make_backend(args))
     for _ in range(args.warmup if args.backend != "fake" else 0):
         blank = np.zeros((480, 640, 3), np.uint8)
-        service.handle("act", {"instruction": "warm up", "images": dict.fromkeys(ROLES, blank), "joints": [0.0] * DOF})
+        service.handle(
+            "act",
+            {
+                "instruction": "warm up",
+                "images": dict.fromkeys(ROLES, blank),
+                "joints": [0.0] * DOF,
+            },
+        )
     service.backend.reset()
     logger.info("ready: %s", json.dumps(_jsonable(service.info())))
     if args.transport == "zmq":

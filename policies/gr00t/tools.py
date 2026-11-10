@@ -53,6 +53,10 @@ MAX_JOINT_STEP_RAD = 0.35
 (1/30 s apart). The MolmoAct2-YAM station adapter guards the same jump (its README: a 63 deg base
 jump from a clipped normaliser); 0.35 rad in 33 ms is beyond the YAM's joint speed."""
 
+RAMP_RAD_S = 1.0
+"""Speed [rad/s] of the ramp inserted when a chunk's first target is further than MAX_JOINT_STEP_RAD from
+the measured arm (a policy resuming from a posture it did not leave itself); 0 refuses such a chunk."""
+
 DEFAULT_URL = "http://127.0.0.1:5555"
 
 
@@ -146,7 +150,9 @@ class Client:
             self._sock.setsockopt(zmq.LINGER, 0)
             self._sock.connect("tcp://" + self.url.split("://", 1)[1])
         try:
-            self._sock.send(msgpack.packb({"endpoint": endpoint, "data": data or {}}, default=mnp.encode))
+            self._sock.send(
+                msgpack.packb({"endpoint": endpoint, "data": data or {}}, default=mnp.encode)
+            )
             reply = msgpack.unpackb(self._sock.recv(), object_hook=mnp.decode, raw=False)
         except zmq.error.Again:
             self._sock.close()
@@ -159,7 +165,11 @@ class Client:
     def _encode(self, image: np.ndarray) -> dict[str, Any]:
         a = np.ascontiguousarray(image)
         if self.codec == "npy":
-            return {"npy": base64.b64encode(a.tobytes()).decode(), "shape": list(a.shape), "dtype": str(a.dtype)}
+            return {
+                "npy": base64.b64encode(a.tobytes()).decode(),
+                "shape": list(a.shape),
+                "dtype": str(a.dtype),
+            }
         from PIL import Image
 
         buf = io.BytesIO()
@@ -203,7 +213,11 @@ def joint_offset(override: dict[str, Any] | None = None) -> dict[str, np.ndarray
     The real YAM station needs ``{"left": [pi/2, 0, 0, 0, 0, 0], "right": [pi/2, 0, 0, 0, 0, 0]}``
     (MolmoAct2-YAM configs/molmo-yam-joint-mapping.json: hardware base joint at 90 deg is the
     MolmoAct2 data's 0); the station twin is already in the data's frame (SKILL.md, Measured)."""
-    raw = override if override is not None else json.loads(os.environ.get("GAP_GR00T_JOINT_OFFSET") or "{}")
+    raw = (
+        override
+        if override is not None
+        else json.loads(os.environ.get("GAP_GR00T_JOINT_OFFSET") or "{}")
+    )
     out = {}
     for side in ("left", "right"):
         v = np.asarray(raw.get(side, [0.0] * 6), dtype=np.float64).reshape(-1)
@@ -217,14 +231,18 @@ def _camera_name(cam: dict[str, Any]) -> str:
     return str(cam.get("name") or "").lower()
 
 
-def camera_roles(observation: dict[str, Any], cameras: dict[str, str] | None = None) -> dict[str, dict]:
+def camera_roles(
+    observation: dict[str, Any], cameras: dict[str, str] | None = None
+) -> dict[str, dict]:
     """The observation's camera frames by role (top, left_wrist, right_wrist).
 
     ``cameras`` (or ``GAP_GR00T_CAMERAS``) names them explicitly; otherwise by name: top / base /
     scene / overhead for the top view, a name with left (or a lone "wrist") for the left wrist, one
     with right for the right wrist. Roles not found are left out (the server sends black)."""
     frames = [c for c in (observation.get("cameras") or []) if isinstance(c, dict)]
-    explicit = cameras if cameras is not None else json.loads(os.environ.get("GAP_GR00T_CAMERAS") or "{}")
+    explicit = (
+        cameras if cameras is not None else json.loads(os.environ.get("GAP_GR00T_CAMERAS") or "{}")
+    )
     by_name = {_camera_name(c): c for c in frames}
     out: dict[str, dict] = {}
     for role, name in (explicit or {}).items():
@@ -304,7 +322,9 @@ def measured_joints(observation: dict[str, Any]) -> np.ndarray:
     out = np.zeros(DOF)
     out[6] = out[13] = 1.0
     for side, arm in zip(("left", "right"), arms, strict=False):
-        q = np.asarray((arm.get("joint_state") or {}).get("positions"), dtype=np.float64).reshape(-1)
+        q = np.asarray((arm.get("joint_state") or {}).get("positions"), dtype=np.float64).reshape(
+            -1
+        )
         if q.size < 6:
             raise ValueError(f"{side} arm reports {q.size} joints; the YAM has 6")
         cols = ARM_COLS[side]
@@ -335,10 +355,16 @@ def project(point: np.ndarray, cam: dict[str, Any]) -> tuple[float, float, float
     p = _rot(q).T @ (np.asarray(point, dtype=np.float64) - pos)
     if p[2] <= 1e-6:
         return float("nan"), float("nan"), float(p[2])
-    return float(k[0, 0] * p[0] / p[2] + k[0, 2]), float(k[1, 1] * p[1] / p[2] + k[1, 2]), float(p[2])
+    return (
+        float(k[0, 0] * p[0] / p[2] + k[0, 2]),
+        float(k[1, 1] * p[1] / p[2] + k[1, 2]),
+        float(p[2]),
+    )
 
 
-def marks_for(observation: dict[str, Any], marks: list[dict] | None, cameras: dict[str, str] | None = None) -> tuple[list[dict], list[dict]]:
+def marks_for(
+    observation: dict[str, Any], marks: list[dict] | None, cameras: dict[str, str] | None = None
+) -> tuple[list[dict], list[dict]]:
     """Wire marks (pixels on a role's view) from pixel marks and world-point marks; off-view ones dropped."""
     roles = camera_roles(observation, cameras)
     out, dropped = [], []
@@ -424,7 +450,9 @@ def marks_from_points(
 ) -> MarksResult:
     """``points``: ``[{"kind": "grasp" | "release", "point": Vec3 | [x, y, z], "arm": ...}]``."""
     try:
-        marks, dropped = marks_for(observation, [{**p, "camera": p.get("camera", camera)} for p in points])
+        marks, dropped = marks_for(
+            observation, [{**p, "camera": p.get("camera", camera)} for p in points]
+        )
     except ValueError as e:
         raise ToolError("gr00t.marks_from_points", str(e)) from e
     return {"marks": marks, "dropped": dropped}
@@ -483,7 +511,9 @@ def _check(ctx: Any, spec: Any) -> tuple[bool, dict[str, Any]]:
     {...}, "field": key, "equals": value}`` (``field`` truthy when ``equals`` is left out)."""
     if callable(spec):
         r = spec(ctx)
-        return (bool(r.get("success")) if isinstance(r, dict) else bool(r)), (r if isinstance(r, dict) else {"value": r})
+        return (bool(r.get("success")) if isinstance(r, dict) else bool(r)), (
+            r if isinstance(r, dict) else {"value": r}
+        )
     reply = ctx.tool(str(spec["tool"]), **dict(spec.get("args") or {}))
     value: Any = reply
     for part in str(spec.get("field") or "success").split("."):
@@ -521,17 +551,21 @@ def run_skill(
     joint_offset_rad: dict[str, Any] | None = None,
     mark_text: bool = False,
     max_joint_step_rad: float = MAX_JOINT_STEP_RAD,
+    ramp_rad_s: float = RAMP_RAD_S,
     tolerance: float = 0.0,
     executor: str = "trajectory",
+    executor_args: dict[str, Any] | None = None,
+    reset: bool = True,
     on_chunk: Callable[[dict[str, Any]], None] | None = None,
 ) -> RunResult:
     """Closed-loop GR00T on the station's arms, chunk by chunk.
 
     - ``marks``: as for ``gr00t.act``; world-point marks are re-projected every chunk, so they stay
       put on a wrist view while the wrist moves.
-    - ``success_check``: ``{"tool": ..., "args": {...}, "field": ..., "equals": ...}`` (or a callable
-      when called from Python), checked every ``check_every`` chunks and once at the end; ``None``
-      runs the budget out (route ``max_steps``).
+    - ``success_check``: ``{"tool": ..., "args": {...}, "field": ..., "equals": ...}``,
+      ``"gripper_cycle"`` (a jaw closed and then opened again - one grasp and release), or a
+      callable when called from Python; checked every ``check_every`` chunks and once at the end.
+      ``None`` runs the budget out (route ``max_steps``).
     - ``arms``: ``both``, ``left`` or ``right`` - the arms that move; the other holds.
     - ``execute_steps``: rows of each chunk executed before re-querying (receding horizon; a jaw
       switch ends the segment early so the jaws act at the predicted time).
@@ -540,7 +574,13 @@ def run_skill(
     - ``executor``: ``trajectory`` (``robot.execute_trajectory`` per arm, one after the other),
       ``stream_dual`` (both arms in lockstep through ``robot.stream_dual``, which only some
       connectors have - the station twin does), ``auto`` (stream_dual when both arms move and the
-      connector has it, else trajectory) or ``joints`` (``robot.move_to_joints`` per row).
+      connector has it, else trajectory) or ``joints`` (``robot.move_to_joints`` per row);
+      ``executor_args`` go to that tool as they are (e.g. ``{"settle_steps": 5}`` for stream_dual).
+    - ``max_joint_step_rad``: a chunk whose rows move a joint further than this apart is refused
+      (``unsafe_action``). A first row that far from the measured arm is reached by a ramp at
+      ``ramp_rad_s`` (jaws held) instead; ``ramp_rad_s=0`` refuses it too.
+    - ``reset``: clear the server's per-episode state (frame history) first.
+    - ``on_chunk``: Python callers only; called with each chunk's rows and timings before it runs.
     """
     name = "gr00t.run_skill"
     if arms not in ("both", "left", "right"):
@@ -556,6 +596,20 @@ def run_skill(
     last_check: dict[str, Any] = {}
     gpu: dict[str, float] = {}
     use_dual = executor in ("auto", "stream_dual") and len(sides) == 2
+    extra = dict(executor_args or {})
+
+    def evaluate() -> tuple[bool, dict[str, Any]]:
+        if success_check == "gripper_cycle":
+            seq = [e["jaw"] for e in events if "jaw" in e]
+            ok = "close" in seq and "open" in seq[seq.index("close") :]
+            return ok, {"jaw_events": seq}
+        return _check(ctx, success_check)
+
+    if reset:
+        try:
+            _client().call("reset", {})
+        except Exception as e:
+            raise ToolError(name, f"server at {_client().url}: {e}") from e
 
     def finish(route: str, ok: bool, detail: str) -> RunResult:
         lat = np.asarray(latencies or [0.0])
@@ -579,20 +633,50 @@ def run_skill(
         out = act(obs, instruction, marks, cameras, joint_offset_rad, mark_text)
         chunks += 1
         latencies.append(out["latency_ms"])
-        inference.append(float(out["server_ms"].get("inference", out["server_ms"].get("total", 0.0))))
+        inference.append(
+            float(out["server_ms"].get("inference", out["server_ms"].get("total", 0.0)))
+        )
         gpu = out["gpu_mem_mb"] or gpu
-        rows = np.asarray(out["actions"], dtype=np.float64)[: max(1, min(execute_steps, max_steps - steps))]
+        rows = np.asarray(out["actions"], dtype=np.float64)[
+            : max(1, min(execute_steps, max_steps - steps))
+        ]
+        if on_chunk is not None:
+            on_chunk(
+                {
+                    "chunk": chunks,
+                    "rows": rows,
+                    **{k: out[k] for k in ("latency_ms", "server_ms", "marks_sent")},
+                }
+            )
 
-        # Guard: no joint may jump further than a YAM can move in one row.
-        prev = np.concatenate([current[None], rows[:-1]])
+        # Guard: no joint may jump further than a YAM can move in one row, within the chunk.
         joint_cols = [c for s in sides for c in range(ARM_COLS[s].start, ARM_COLS[s].start + 6)]
-        jump = np.abs(rows[:, joint_cols] - prev[:, joint_cols])
-        if float(jump.max()) > max_joint_step_rad:
+        jump = np.abs(np.diff(rows[:, joint_cols], axis=0))
+        if jump.size and float(jump.max()) > max_joint_step_rad:
             i, j = np.unravel_index(int(np.argmax(jump)), jump.shape)
             return finish(
                 "unsafe_action",
                 False,
-                f"chunk {chunks} row {i}: joint {joint_cols[j]} would move {jump[i, j]:.3f} rad (limit {max_joint_step_rad})",
+                f"chunk {chunks} rows {i}-{i + 1}: joint {joint_cols[j]} would move {jump[i, j]:.3f} rad (limit {max_joint_step_rad})",
+            )
+        # The first row against the measured arm: ramp to it at ramp_rad_s, or refuse.
+        gap0 = float(np.abs(rows[0, joint_cols] - current[joint_cols]).max())
+        if gap0 > max_joint_step_rad:
+            if ramp_rad_s <= 0:
+                return finish(
+                    "unsafe_action",
+                    False,
+                    f"chunk {chunks}: the first target is {gap0:.3f} rad from the measured arm (limit {max_joint_step_rad})",
+                )
+            n = int(np.ceil(gap0 / (ramp_rad_s * out["dt"])))
+            ramp = current[None] + (rows[0] - current)[None] * (np.arange(1, n + 1) / n)[:, None]
+            ramp[:, [ARM_COLS[s].stop - 1 for s in ("left", "right")]] = current[[6, 13]]
+            rows = np.concatenate([ramp, rows[1:]])
+            events.append(
+                {
+                    "chunk": chunks,
+                    "note": f"ramped {gap0:.3f} rad to the first target over {n} rows",
+                }
             )
 
         # End the segment at the first jaw switch so the jaws act when predicted.
@@ -610,33 +694,46 @@ def run_skill(
                     break
         rows = rows[:switch_at]
 
-        if on_chunk is not None:
-            on_chunk({"chunk": chunks, "rows": rows, **{k: out[k] for k in ("latency_ms", "server_ms", "marks_sent")}})
-
         hz = float(control_hz or 0.0)
         factor = max(1, round(hz * out["dt"])) if hz > 0 else 1
         tracks = {}
         for s in sides:
-            arm_rows = np.concatenate([current[None, ARM_COLS[s].start : ARM_COLS[s].start + 6], rows[:, ARM_COLS[s].start : ARM_COLS[s].start + 6]])
+            arm_rows = np.concatenate(
+                [
+                    current[None, ARM_COLS[s].start : ARM_COLS[s].start + 6],
+                    rows[:, ARM_COLS[s].start : ARM_COLS[s].start + 6],
+                ]
+            )
             tracks[s] = _resample(arm_rows, factor)[1:]
         tol = {"tolerance": float(tolerance)} if tolerance > 0 else {}
+        tol.update(extra)
         if executor == "joints":
             for i in range(len(rows)):
                 for s in sides:
                     q = rows[i, ARM_COLS[s].start : ARM_COLS[s].start + 6]
-                    ctx.tool("robot.move_to_joints", joint_config={"positions": q.tolist()}, arm_id=ARM_ID[s], **tol)
+                    ctx.tool(
+                        "robot.move_to_joints",
+                        joint_config={"positions": q.tolist()},
+                        arm_id=ARM_ID[s],
+                        **tol,
+                    )
         elif use_dual:
             try:
                 ctx.tool(
                     "robot.stream_dual",
                     tracks={ARM_ID[s]: tracks[s].tolist() for s in sides},
-                    **({"tolerance": float(tolerance)} if tolerance > 0 else {}),
+                    **tol,
                 )
             except Exception as e:
                 if executor == "stream_dual":
                     raise
                 use_dual = False
-                events.append({"chunk": chunks, "note": f"robot.stream_dual unavailable ({type(e).__name__}); executing per arm"})
+                events.append(
+                    {
+                        "chunk": chunks,
+                        "note": f"robot.stream_dual unavailable ({type(e).__name__}); executing per arm",
+                    }
+                )
         if executor != "joints" and not use_dual:
             for s in sides:
                 kw = {"arm_id": ARM_ID[s]} if ARM_ID[s] else {}
@@ -652,15 +749,23 @@ def run_skill(
             kw = {"arm_id": ARM_ID[s]} if ARM_ID[s] else {}
             ctx.tool("robot.close_gripper" if closed else "robot.open_gripper", **kw)
             jaw[s] = closed
-            events.append({"chunk": chunks, "step": steps, "arm": s, "jaw": "close" if closed else "open"})
+            events.append(
+                {"chunk": chunks, "step": steps, "arm": s, "jaw": "close" if closed else "open"}
+            )
 
         if success_check is not None and chunks % max(1, int(check_every)) == 0:
-            ok, last_check = _check(ctx, success_check)
+            ok, last_check = evaluate()
             if ok:
-                return finish("succeeded", True, f"success check passed after {steps} rows ({chunks} chunks)")
+                return finish(
+                    "succeeded", True, f"success check passed after {steps} rows ({chunks} chunks)"
+                )
 
     if success_check is not None:
-        ok, last_check = _check(ctx, success_check)
+        ok, last_check = evaluate()
         if ok:
-            return finish("succeeded", True, f"success check passed after {steps} rows ({chunks} chunks)")
-    return finish("max_steps", False, f"{steps} rows ({chunks} chunks) without the success check passing")
+            return finish(
+                "succeeded", True, f"success check passed after {steps} rows ({chunks} chunks)"
+            )
+    return finish(
+        "max_steps", False, f"{steps} rows ({chunks} chunks) without the success check passing"
+    )

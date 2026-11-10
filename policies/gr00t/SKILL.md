@@ -51,7 +51,7 @@ gap:
   serving:
     command: ["python", "server.py", "--backend", "n1.7", "--profile", "yam-molmoact2",
               "--port", "{port}"]
-    protocol: http
+    protocol: in-process
     requires_gpu: true
     weights_uri: hf://robocurve/gr00t-n1.7-yam-molmoact2@f04fe258e6a5d84c939547cd49043fbc3b1e8985
   allowed_tools:
@@ -81,13 +81,21 @@ bundle gives a graph that node now, with GR00T N1.7, and keeps the graph side
 unchanged for GR00T 2:
 
 ```python
-marks = ctx.tool("gr00t.marks_from_points", observation=obs, points=[
-    {"kind": "grasp", "point": brick_center},
-    {"kind": "release", "point": seat_position},
-])["marks"]
-r = ctx.tool("gr00t.run_skill", instruction="Put the red brick on the plate.",
-             marks=marks, max_steps=480,
-             success_check={"tool": "robot.get_gripper", "field": "position", "equals": 1.0})
+marks = ctx.tool(
+    "gr00t.marks_from_points",
+    observation=obs,
+    points=[
+        {"kind": "grasp", "point": brick_center},
+        {"kind": "release", "point": seat_position},
+    ],
+)["marks"]
+r = ctx.tool(
+    "gr00t.run_skill",
+    instruction="Put the red brick on the plate.",
+    marks=marks,
+    max_steps=480,
+    success_check={"tool": "robot.get_gripper", "field": "position", "equals": 1.0},
+)
 r["route"]  # succeeded | max_steps | unsafe_action
 ```
 
@@ -159,7 +167,9 @@ cd <hub>/policies/gr00t
 ```
 
 then point the graph's process at it: `GAP_GR00T_URL=http://<host>:5555`
-(or `zmq://<host>:5555` with `--transport zmq`). `uv sync` in a plain clone
+(or `zmq://<host>:5555` with `--transport zmq`). The tools run in the graph's
+process (`protocol: in-process`); `gap.serving.command` is how the server they
+talk to is started, normally on another machine with the GPU. `uv sync` in a plain clone
 fails on an aarch64 torchcodec wheel kept in git LFS; `uv pip install -e .`
 does not read it.
 
