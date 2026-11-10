@@ -39,6 +39,25 @@ REACH_TOL_M = 0.001
 twin's servo reported "reached" 2.3 mm above the set-down height; the piece then dropped 3 mm and shifted).
 A real YAM station refuses moves it cannot finish within 12 mm, so the read-back matters there too."""
 
+DROP_SEARCH_M = 0.15
+"""A drop spot is searched within this distance of the hand when none is given."""
+
+PIECE_REACH_M = 0.035
+"""How far the held piece can reach from the tool centre (a 22.5 mm piece's half diagonal and knob,
+about 22 mm, plus a grip up to 10 mm off its centre); the drop disc's radius before the margin."""
+
+DROP_MARGIN_M = 0.012
+"""Room round that disc: the open jaws (3.9 mm blades 47 mm apart reach past the piece) and the swing
+of a piece that turns a little as it lands."""
+
+OBSTACLE_M = 0.001
+"""A grid cell holding a point this far above the table is an obstacle. Placed jigsaw pieces stand 2 mm
+proud, so this must stay under 2 mm: the station twin's depth is exact; the real overhead Orbbec is
+2-4 mm noisy at 0.9 m, so on the real station give a wrist-camera view (see SKILL.md)."""
+
+GRID_M = 0.002
+"""Cell of the height grid the drop spot is chosen on."""
+
 SETTLE_STEPS = 40
 """Simulation steps waited after a grip or release where the connector offers robot.wait_steps."""
 
@@ -53,6 +72,7 @@ class Output(TypedDict, total=False):
     hand_turned_deg: float
     regrasps: int
     joint6_final: float
+    drop_spot: dict
     jaws_swapped: bool
     detail: str
 
@@ -138,6 +158,7 @@ class _Arm:
     def __init__(self, ctx: NodeContext, arm_id: int):
         self.ctx, self.arm_id = ctx, arm_id
         self.kw = {"arm_id": arm_id} if arm_id else {}
+        self.drop_spot: dict | None = None
 
     def joints(self) -> list[float]:
         obs = self.ctx.tool("robot.get_observation")
@@ -228,8 +249,8 @@ def run(
     localizing-a-piece-in-a-reference-image, or matching-a-piece-to-placed-neighbours' rotation).
 
     ``grasp_z`` is the tool centre's world z when gripping the piece on the table (where it was picked):
-    needed only when a regrasp is. ``set_down_xy`` is a free spot to set it down at (default: straight
-    below). ``grip_width_m`` > 0 grips with robot.set_grip (object width, ``squeeze_m``), else
+    needed only when a regrasp is. ``set_down_xy`` is a free spot to set it down at; by default (or
+    "auto") the nearest clear spot is chosen from the cameras' depth (choose_drop_spot). ``grip_width_m`` > 0 grips with robot.set_grip (object width, ``squeeze_m``), else
     robot.close_gripper. ``gain`` (+1 / -1) is the hand's world yaw per unit of joint 6 if known; else a small
     first held step measures it. ``plan_only`` returns the plan without moving (``joint6_deg`` may stand in
     for the current joint, e.g. to choose at pick time whether to grip with the jaws swapped)."""
@@ -328,12 +349,130 @@ def run(
         "regrasps": regrasps,
         "joint6_final": q6_end,
         "jaws_swapped": regrasps % 2 == 1,
+        **({"drop_spot": arm.drop_spot} if arm.drop_spot else {}),
         "detail": (
             f"turned the piece {turned:+.1f} deg by the hand's yaw (asked {turn_deg:+.1f}, off"
             f" {_wrap(turned - turn_deg):+.2f}) with {regrasps} regrasp(s); joint 6 ends at"
             f" {math.degrees(q6_end):+.1f} deg"
         ),
     }
+
+
+def _rotm(q: dict):
+    import numpy as np
+
+    w, x, y, z = (float(q[k]) for k in "wxyz")
+    n = math.sqrt(w * w + x * x + y * y + z * z) or 1.0
+    w, x, y, z = w / n, x / n, y / n, z / n
+    return np.array(
+        [
+            [1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)],
+            [2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)],
+            [2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)],
+        ]
+    )
+
+
+def choose_drop_spot(
+    ctx: NodeContext,
+    arm: _Arm,
+    grasp_z: float,
+    reach: float = PIECE_REACH_M,
+    search: float = DROP_SEARCH_M,
+) -> tuple[dict | None, str]:
+    """Nearest spot round the hand where a disc of ``reach`` + DROP_MARGIN_M is clear: every camera with
+    depth and a pose is lifted to a world height grid round the hand, the table is the grid's most common
+    height, and a cell with anything OBSTACLE_M over it is an obstacle (the held piece itself, hanging near
+    the hand well above the table, is left out). Candidates go nearest first and must pass an IK preview
+    of the set-down pose. Returns ({x, y}, why) or (None, why)."""
+    import cv2
+    import numpy as np
+
+    here = arm.pose()
+    hx, hy = float(here["position"]["x"]), float(here["position"]["y"])
+    try:
+        obs = ctx.tool("robot.get_observation")
+    except Exception as exc:
+        return None, f"no observation for a drop spot: {exc}"
+    radius = reach + DROP_MARGIN_M
+    half = search + radius
+    n = int(round(2 * half / GRID_M)) + 1
+    top = np.full((n, n), -np.inf)
+    seen = np.zeros((n, n), bool)
+    zs = []
+    for cam in obs.get("cameras") or []:
+        d, k, pose = cam.get("depth"), cam.get("intrinsics"), cam.get("pose")
+        if d is None or k is None or pose is None:
+            continue
+        d = np.asarray(d, dtype=np.float64)[::2, ::2]
+        k = np.asarray(k, dtype=np.float64)
+        vv, uu = np.mgrid[0 : d.shape[0], 0 : d.shape[1]] * 2
+        ok = np.isfinite(d) & (d > 0)
+        pc = np.column_stack(
+            [(uu[ok] - k[0, 2]) * d[ok] / k[0, 0], (vv[ok] - k[1, 2]) * d[ok] / k[1, 1], d[ok]]
+        )
+        r = _rotm(pose["rotation"])
+        t = np.array([float(pose["position"][a]) for a in "xyz"])
+        pw = pc @ r.T + t
+        i = np.round((pw[:, 0] - hx + half) / GRID_M).astype(int)
+        j = np.round((pw[:, 1] - hy + half) / GRID_M).astype(int)
+        inside = (i >= 0) & (i < n) & (j >= 0) & (j < n) & (pw[:, 2] < grasp_z + 0.2)
+        if not inside.any():
+            continue
+        pw, i, j = pw[inside], i[inside], j[inside]
+        np.maximum.at(top, (j, i), pw[:, 2])
+        seen[j, i] = True
+        zs.append(pw[:, 2])
+    if not zs:
+        return None, "no camera with depth sees round the hand"
+    z = np.concatenate(zs)
+    lo = float(np.percentile(z, 5))
+    hist, edges = np.histogram(z, bins=np.arange(lo - 0.002, lo + 0.05, 0.0005))
+    table = float(edges[int(np.argmax(hist))] + 0.00025)
+    gx, gy = np.meshgrid((np.arange(n) * GRID_M - half), (np.arange(n) * GRID_M - half))
+    held = (np.hypot(gx, gy) < reach + 0.005) & (top > table + 0.008)
+    obstacle = seen & (top > table + OBSTACLE_M) & ~held
+    clear = cv2.distanceTransform((~obstacle).astype(np.uint8), cv2.DIST_L2, 5) * GRID_M
+    dist = np.hypot(gx, gy)
+    cand = np.argwhere((clear >= radius) & (dist <= search))
+    if len(cand) == 0:
+        return None, f"no clear {radius * 1e3:.0f} mm disc within {search * 1e3:.0f} mm of the hand"
+    order = np.argsort(dist[cand[:, 0], cand[:, 1]])
+    disc = (
+        np.hypot(*np.mgrid[-radius : radius + 1e-9 : GRID_M, -radius : radius + 1e-9 : GRID_M])
+        <= radius
+    )
+    tried = 0
+    for jj, ii in cand[order]:
+        r0 = int(round(radius / GRID_M))
+        if jj - r0 < 0 or ii - r0 < 0 or jj + r0 >= n or ii + r0 >= n:
+            continue
+        window = seen[jj - r0 : jj + r0 + 1, ii - r0 : ii + r0 + 1][
+            : disc.shape[0], : disc.shape[1]
+        ]
+        if window.shape != disc.shape or window[disc].mean() < 0.5:
+            continue
+        xy = {"x": hx + float(gx[jj, ii]), "y": hy + float(gy[jj, ii])}
+        tried += 1
+        try:
+            ik = ctx.tool(
+                "robot.solve_ik",
+                pose={"position": {**xy, "z": grasp_z}, "rotation": here["rotation"]},
+                **arm.kw,
+            )
+        except Exception:
+            ik = None
+        if isinstance(ik, dict) and (
+            ik.get("success") is False or ik.get("within_servo_tolerance") is False
+        ):
+            if tried >= 40:
+                break
+            continue
+        return (
+            xy,
+            f"clear {radius * 1e3:.0f} mm disc {math.hypot(xy['x'] - hx, xy['y'] - hy) * 1e3:.0f} mm from the hand (table z {table:.4f})",
+        )
+    return None, f"{tried} clear spots failed the IK preview"
 
 
 def _regrasp(
@@ -343,6 +482,12 @@ def _regrasp(
     down, grip, lift. Returns a refusal, "piece_lost", or None."""
     here = arm.pose()
     xy = {"x": here["position"]["x"], "y": here["position"]["y"]}
+    if set_down_xy is None or set_down_xy == "auto":
+        spot, why = choose_drop_spot(ctx, arm, grasp_z)
+        if spot is None:
+            return f"no drop spot: {why}"
+        arm.drop_spot = {**spot, "why": why}
+        set_down_xy = spot
     if set_down_xy is not None:
         if isinstance(set_down_xy, dict):
             xy = {"x": float(set_down_xy["x"]), "y": float(set_down_xy["y"])}

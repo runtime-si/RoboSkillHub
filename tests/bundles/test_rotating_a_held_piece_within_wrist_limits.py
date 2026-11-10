@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import pytest
 from gap.testing import FakeContext
 
@@ -22,7 +23,18 @@ class Arm:
     """Hand yaw (deg) = yaw0 + gain * degrees(q6); joint 6 clamps at its limits; a piece follows the hand
     while the jaws are closed on it."""
 
-    def __init__(self, q6_deg=0.0, gain=-1.0, yaw0=10.0, refuse=None, lose=False, lag=0.0):
+    def __init__(
+        self,
+        q6_deg=0.0,
+        gain=-1.0,
+        yaw0=10.0,
+        refuse=None,
+        lose=False,
+        lag=0.0,
+        obstacles=(),
+        table=0.0,
+    ):
+        self.obstacles, self.table = list(obstacles), table
         self.q = [0.0, 0.5, 0.5, 0.0, 0.3, math.radians(q6_deg)]
         self.gain, self.yaw0, self.refuse, self.lose, self.lag = (
             gain,
@@ -36,6 +48,31 @@ class Arm:
         self.piece_yaw = 0.0
         self.calls = []
         self.max_abs_q6 = abs(self.q[5])
+
+    def overhead(self):
+        """A camera 0.6 m over (0.3, 0.1) looking straight down: depth of the table at ``table`` with
+        ``obstacles`` ((x, y, half_size, height) boxes) and the held piece hanging under the hand."""
+        f, n, cz = 600.0, 400, self.table + 0.6
+        k = np.array([[f, 0, n / 2], [0, f, n / 2], [0, 0, 1.0]])
+        vv, uu = np.mgrid[0:n, 0:n]
+        x = 0.3 + (uu - n / 2) * 0.6 / f
+        y = 0.1 - (vv - n / 2) * 0.6 / f
+        h = np.zeros((n, n))
+        for ox, oy, hs, oh in self.obstacles:
+            h[(abs(x - ox) <= hs) & (abs(y - oy) <= hs)] = oh
+        if self.closed:
+            h[np.hypot(x - self.pos["x"], y - self.pos["y"]) < 0.015] = (
+                self.pos["z"] - 0.013 - self.table
+            )
+        depth = (cz - (self.table + h)).astype(np.float32)
+        # camera axes: x right = world +x, y down = world -y, z = world -z
+        rot = {"w": 0.0, "x": 1.0, "y": 0.0, "z": 0.0}
+        return {
+            "name": "top",
+            "depth": depth,
+            "intrinsics": k,
+            "pose": {"position": {"x": 0.3, "y": 0.1, "z": cz}, "rotation": rot},
+        }
 
     def hand_yaw(self):
         return self.yaw0 + self.gain * math.degrees(self.q[5])
@@ -75,7 +112,8 @@ class Arm:
         return FakeContext(
             {
                 "robot.get_observation": lambda **kw: {
-                    "arms": [{"joint_state": {"positions": list(self.q)}}]
+                    "arms": [{"joint_state": {"positions": list(self.q)}}],
+                    "cameras": [self.overhead()],
                 },
                 "robot.get_ee_pose": lambda **kw: {
                     "position": dict(self.pos),
@@ -190,6 +228,35 @@ def test_refused_moves_and_a_lost_piece_are_routed(script):
     arm = Arm(refuse={"joints"})
     assert script.run(arm.ctx(), turn_deg=30.0)["route"] == "unreachable"
     arm = Arm(q6_deg=0.0, gain=1.0, lose=True)
-    out = script.run(arm.ctx(), turn_deg=150.0, gain=1.0, grasp_z=0.02, grip_width_m=0.01)
+    out = script.run(
+        arm.ctx(), turn_deg=150.0, gain=1.0, grasp_z=0.02, grip_width_m=0.01, set_down_xy=[0.3, 0.1]
+    )
     assert out["route"] == "piece_lost"
     assert script.run(FakeContext(), turn_deg=30.0)["route"] == "unreachable"
+
+
+def test_the_drop_spot_is_chosen_clear_of_what_stands_round_the_hand(script):
+    # Placed pieces 2 mm proud right under the hand and to its west; the hand is at (0.3, 0.1).
+    obstacles = [(0.3, 0.1, 0.04, 0.002), (0.24, 0.1, 0.02, 0.006)]
+    arm = Arm(q6_deg=0.0, gain=1.0, obstacles=obstacles)
+    out = script.run(arm.ctx(), turn_deg=150.0, grasp_z=0.02, gain=1.0)
+    assert out["route"] == "turned_with_regrasp", out["detail"]
+    spot = out["drop_spot"]
+    radius = script.PIECE_REACH_M + script.DROP_MARGIN_M
+    for ox, oy, hs, _ in obstacles:
+        dx = max(abs(spot["x"] - ox) - hs, 0.0)
+        dy = max(abs(spot["y"] - oy) - hs, 0.0)
+        assert math.hypot(dx, dy) >= radius - 0.003
+    # Nearest clear spot: not far beyond the board's edge.
+    assert math.hypot(spot["x"] - 0.3, spot["y"] - 0.1) < 0.04 + radius + 0.01
+
+
+def test_no_clear_spot_is_refused(script):
+    # Pieces 2 mm proud every 3 cm (1 cm gaps): table everywhere between them, no clear 47 mm disc.
+    field = [
+        (0.3 + 0.03 * i, 0.1 + 0.03 * j, 0.01, 0.002) for i in range(-9, 10) for j in range(-9, 10)
+    ]
+    arm = Arm(q6_deg=0.0, gain=1.0, obstacles=field)
+    out = script.run(arm.ctx(), turn_deg=150.0, grasp_z=0.02, gain=1.0)
+    assert out["route"] == "unreachable" and "drop spot" in out["detail"]
+    assert "open" not in arm.calls
