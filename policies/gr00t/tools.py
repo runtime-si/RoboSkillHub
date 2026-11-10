@@ -714,7 +714,7 @@ def run_skill(
                     ctx.tool(
                         "robot.move_to_joints",
                         joint_config={"positions": q.tolist()},
-                        arm_id=ARM_ID[s],
+                        **({"arm_id": ARM_ID[s]} if ARM_ID[s] else {}),
                         **tol,
                     )
         elif use_dual:

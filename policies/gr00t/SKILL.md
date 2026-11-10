@@ -205,7 +205,71 @@ Cosmos-Reason2 may have changed. The canonical path is the token.
 
 ## Measured
 
-PENDING
+2026-11-09/10 on GCP RTX PRO 6000 Blackwell (96 GB) pool hosts, Isaac-GR00T
+7aa0bca, torch 2.9.0+cu128, transformers 4.57.3, bf16, flash-attn 2, backbone
+built from Qwen/Qwen3-VL-2B-Instruct (no Hugging Face token on the pool hosts,
+so the gated Cosmos-Reason2-2B could not be fetched: `GatedRepoError 401`).
+
+**Server** (`eval/smoke_server.py`, 3 x 640x480 views, in-process, idle GPU):
+
+| checkpoint (profile) | load | chunk | per chunk mean / p95 | GPU memory (torch alloc / reserved / peak) |
+|---|---|---|---|---|
+| robocurve YAM fine-tune (`yam-molmoact2`) | 10.5 s | 16 x 14 | 64 / 66 ms | 6.02 / 6.24 / 6.17 GB |
+| base N1.7 (`xdof`) | 8.9 s | 40 x 14 | 82 / 83 ms | 6.02 / 6.41 / 6.29 GB |
+
+Backbone parity with the stand-in: all 493 backbone tensors of either
+checkpoint equal the checkpoint's own after loading (max |diff| 0; only
+`lm_head`, unused after the layer cut, is not in the model). On a GPU shared
+with the twin and other agents' Isaac jobs the same call took 200-1070 ms
+(table below); the HTTP round trip with three JPEG views adds 7-16 ms.
+
+**Twin**: the YAM station twin (calibrated top camera, a D405-like camera on
+each wrist, grip fix on), "Pick up the grey block and put it in the blue
+box." - a 30 mm cube at a seeded offset (+-30 mm, yaw +-45 deg) from the
+station's cube, the box in the middle. Both arms start home with the jaws
+open (where every MolmoAct2-YAM episode starts); `gr00t.run_skill` with both
+arms, 8 rows a chunk interpolated to the twin's 60 Hz, `robot.stream_dual`,
+600 rows (20 s) per episode; success = the cube resting inside the box with
+no hand on it. Marks: a grasp mark on the cube and a release mark on the box
+centre, projected on the top view each chunk (`marks_text` also appends
+"Grasp at the green dot and release at the blue dot."). Seeds 0-9 per
+condition, 50 episodes:
+
+| condition | success | jaw closed | cube lifted | nearest TCP to cube, median (min) | chunk latency mean (worst p95) |
+|---|---|---|---|---|---|
+| YAM fine-tune, no marks | 0/10 | 0 | 0 | 343 (299) mm | 380 (3132) ms |
+| YAM fine-tune, marks | 0/10 | 0 | 0 | 359 (318) mm | 382 (1286) ms |
+| YAM fine-tune, marks + text | 0/10 | 0 | 0 | 357 (341) mm | 315 (1035) ms |
+| base N1.7 XDOF, no marks | 0/10 | 3 | 1 by 9 mm | 109 (5) mm | 300 (714) ms |
+| base N1.7 XDOF, marks | 0/10 | 1 | 1 by 9 mm | 190 (8) mm | 317 (691) ms |
+
+- The plumbing works end to end: 50 episodes, 3,663 chunks, every episode
+  ran its 600 rows with no protocol or guard failure (one episode was re-run:
+  the twin's own bus timed out while its host was overloaded); GPU memory per
+  server 6.0 GB allocated, 6.6 GB reserved.
+- The YAM fine-tune lifts both arms and pulls them back in every episode (left
+  tool centre from 0.94 m to a median peak of 1.32 m) and never closes a jaw.
+  It predicts absolute joints for AllenAI's MolmoAct2 rig; the twin's arm,
+  table and camera geometry differ, and no task in its data is "cube into a
+  box" - a fine-tune on station data is the fix, not a protocol change.
+- The base model on its relative-joint XDOF head reaches for the cube (tool
+  centre within 5-8 mm of it in 2 of 20 episodes, jaws closing 4 times, the
+  cube lifted 9 mm twice) but never holds it.
+- Marks: no measurable benefit on N1.7 (base median 190 mm with vs 109 mm
+  without; the fine-tune unchanged), as expected for a model never trained on
+  them. They are GR00T 2's input; the overlay is only an emulation.
+- Latency on the twin's host was 3-5x the idle number: the GPU was shared with
+  the twin and with other agents' Isaac jobs at 93-99 % utilisation.
+
+The harness (station twin, camera rig, seeded placement, the trials graph)
+is outside the hub, as for the other twin checks; the PR lists it.
+
+**A station fine-tune drops in.** The YAM demo-dataset fine-tune being trained
+on the pool (LeRobot views and joint groups named after the roles) had only a
+60-step smoke checkpoint by the end of this work; served with
+`--profile yam-roles --checkpoint <dir>` it loaded unchanged (493 / 493
+backbone tensors equal, 16 x 14 chunks, 6.0 GB). Its final checkpoint was not
+there to evaluate (the run had restarted at step 37 of 6000).
 
 ## GR00T 2
 

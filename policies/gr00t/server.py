@@ -765,7 +765,12 @@ def main() -> None:
     p.add_argument("--revision", default=None, help="HF commit (default: the pinned one)")
     p.add_argument("--backbone", default="canonical", choices=["canonical", "qwen3-vl-2b"])
     p.add_argument("--device", default="cuda")
-    p.add_argument("--fps", type=float, default=None, help="the checkpoint's control rate (default: the profile's, 30)")
+    p.add_argument(
+        "--fps",
+        type=float,
+        default=None,
+        help="the checkpoint's control rate (default: the profile's, 30)",
+    )
     p.add_argument("--transport", default="http", choices=["http", "zmq"])
     p.add_argument("--host", default="0.0.0.0")
     p.add_argument("--port", type=int, default=5555)

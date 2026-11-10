@@ -469,6 +469,15 @@ def test_run_skill_ramps_to_a_far_first_target_or_refuses_it(srv, g, monkeypatch
         g._clients.clear()
 
 
+def test_run_skill_joint_executor_passes_arm_id_only_when_nonzero(server, g):
+    robot = Robot()
+    calls = []
+    ctx = robot.ctx(**{"robot.move_to_joints": lambda **kw: calls.append(kw)})
+    g.run_skill(ctx, "x", max_steps=2, executor="joints")
+    assert len(calls) == 4
+    assert "arm_id" not in calls[0] and calls[1]["arm_id"] == 1
+
+
 def test_run_skill_rejects_unknown_arms_and_executors(server, g):
     with pytest.raises(ToolError):
         g.run_skill(Robot().ctx(), "x", arms="third")
