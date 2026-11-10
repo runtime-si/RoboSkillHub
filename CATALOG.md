@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-28 tools, 150 skills, 2 policies, 1 recipe and 1 paper.
+28 tools, 151 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -150,6 +150,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`pushing-objects`](#pushing-objects) | execute | Pushes a loose object across its support toward a goal point with a closed hand, never grasping it. | any |
 | [`pushing-on-plane`](#pushing-on-plane) | execute | Executes a bounded planar pushing segment and checks measured target displacement. | yam_i2rt |
 | [`reaching-with-lag-correction`](#reaching-with-lag-correction) | execute | Moves the tool to a target pose, waits for the arm to settle, reads the tool pose back and, if the arm stopped short… | any |
+| [`refilling-a-domino-loading-rack`](#refilling-a-domino-loading-rack) | execute | Puts a standing domino back into an empty slot of a slotted loading rack, so… | any |
 | [`rotating-a-held-piece-within-wrist-limits`](#rotating-a-held-piece-within-wrist-limits) | execute | Turns a held flat part (a jigsaw piece) about the vertical by the angle its slot needs while the wrist's last joint… | any |
 | [`searching-insertion-spiral`](#searching-insertion-spiral) | execute | Finds an opening the held part or the closed fingertips can enter by probing straight down over a hexagonal grid… | any |
 | [`seating-a-cable-crossing`](#seating-a-cable-crossing) | execute | Streams one planned crossing leg of a cable onto a routing station, lets the rod settle, then LOOKS. | any |
@@ -2150,6 +2151,28 @@ Moves the tool to a target pose, waits for the arm to settle, reads the tool pos
 - **Exits**:
   - `reached`: After at most one aim-past move the settled tool centre stands within tolerance (default 5 mm) of the target and its rotation within rot_tolerance (default 0.05 rad); residual is that distance.
   - `not_reached`: The move was refused outright (the hand did not move), or the shortfall exceeded the correction cap and the plain retry also ended off, or the aim-past move did not land; `detail` says which and residual is how far off the hand stands.
+
+### refilling-a-domino-loading-rack
+
+execute · robots: any · tasks: pick-place, domino · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/refilling-a-domino-loading-rack/SKILL.md) · [upstream](https://github.com/BasisResearch/predicators/blob/afb6f2918091f5ca372a75b9a335aea317a8a209/predicators/ground_truth_models/skill_factories/place.py)
+
+Puts a standing domino back into an empty slot of a slotted loading rack, so picking-upright-dominoes-from-a-loading-rack always has tiles to take. It reads every slot from the overhead depth (full, empty, jammed) and chooses an empty one whose neighbours leave room for the open fingers. It picks the tile top-down across its width (or takes the tile already in the hand) at a height that keeps the fingertips over the rack's walls, and squares the jaws to the slot. It lowers the tile from just over the walls into the slot, trying small offsets along the row when the descent stops on a wall, releases it, and reads the slot again. Use when one arm, or a person, keeps the rack filled while the other arm builds.
+
+- **In**: `table_z` float
+- **Out**: `slot_index` int, `picked` bool, `released` bool, `grasp_height` float, `grip_width` float, `jaw_error_deg` float, `wrist_turn_deg` float, `insert_offset_mm` float, `align_error_mm` float, `tile_tilt_deg` float, `attempts` int, `slot_state_after` str, `empty_count` int
+- **Calls**: connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`, `robot.set_grip`, `robot.solve_ik`
+- **Scripts**: [`refill_rack`](skills/refilling-a-domino-loading-rack/scripts/refill_rack.py)
+- **Exits**:
+  - `refilled`: The tile went into slot `slot_index` (at `insert_offset_mm` along the row, after `attempts` descents), was released and the hand rose, and the slot reads full from depth (with verify false, what the hand did only).
+  - `rack_full`: No slot reads empty (or the requested `slot_index` is not empty); `detail` lists jammed slots; nothing moved.
+  - `jammed`: Every offset's descent into the slot stopped more than 3 mm high on a wall; the hand lifted back to transit, still holding the tile.
+  - `fell`: Released, but the slot reads empty or jammed after (the tile tipped out, or lies across the slot).
+  - `unverified`: Released, but no camera saw the slot whole after the release (give look_pose).
+  - `not_holding`: The pick closed on nothing or not across the tile, its descent stopped on the tile, the tile was dropped in transit, or (tile None) the hand holds nothing.
+  - `hand_full`: A tile to pick was given but the jaws already read a tile's width; nothing moved.
+  - `not_seen`: No camera saw the rack, or no empty slot among those seen while some were not.
+  - `unreachable`: Nothing was put in - every empty slot has a standing neighbour where an open finger goes, no grasp height clears the walls, an IK preview or a move failed, or the jaws stayed turned; `detail` says whether the tile is still held.
+  - `invalid_input`: A rack without slots, a wall as high as the tile, an unknown order, a slot_index past the rack, or no tile and no grasp_height (also the route of a raised error).
 
 ### rotating-a-held-piece-within-wrist-limits
 
