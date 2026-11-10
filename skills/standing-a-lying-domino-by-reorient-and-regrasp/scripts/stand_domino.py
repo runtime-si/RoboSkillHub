@@ -2319,6 +2319,10 @@ def run(
             [*(spot_xy - top_off[:2]), table_z + tl / 2.0 + float(release_gap) - top_off[2]]
         )
         r_hold = rot_now()
+        # the tile's thickness axis in this arm's frame now that this arm alone holds it: the
+        # moves to the spot may turn the wrist roll (a station twin leaves it free), so the
+        # facing is read from the hand at the release, not from the helper's grip
+        n_hand = r_hold.T @ n_up
         here_now = _xyz(here())
         why = go(
             "robot.go_to_pose",
@@ -2329,7 +2333,8 @@ def run(
             why = go("robot.go_to_pose_cartesian", down, quat(r_hold))
         if why:
             return finish("unreachable", f"to the staging spot: {why}; still holding (upright)")
-        facing = math.degrees(math.atan2(n_up[1], n_up[0]))
+        n_rel = rot_now() @ n_hand
+        facing = math.degrees(math.atan2(n_rel[1], n_rel[0]))
         out["facing_deg"] = float(facing)
         out["standing_tile"] = standing_pose(spot_xy, facing, table_z, size)
         out["release_position"] = _vec(np.array([*spot_xy, table_z + float(release_gap)]))
