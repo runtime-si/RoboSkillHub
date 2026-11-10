@@ -62,6 +62,9 @@ class Output(TypedDict, total=False):
     edges: list[str]
     interiors: list[str]
     uncertain: list[str]
+    yaw_deg: float
+    sides_agree: int
+    orientations_tied: int
     detail: str
 
 
@@ -182,11 +185,28 @@ def classify_mask(mask: Any) -> dict[str, Any]:
     }
 
 
+def orient(info: dict[str, Any], expected: list[str]) -> tuple[float, int, int]:
+    """The piece's yaw (image degrees, counter-clockwise from +x with y up) at which its sides read
+    ``expected`` (south, east, north, west as the slot needs them, the piece's own frame at yaw 0), the
+    number of sides that then agree, and how many yaws agree as well (a symmetric piece has several)."""
+    types, normals = info["side_types"], info["side_normals_deg"]
+    scored = []
+    for m in range(4):
+        seq = [types[(m + i) % 4] for i in range(4)]
+        agree = sum(a == b for a, b in zip(seq, expected, strict=True))
+        yaw = (normals[m] + 90.0 + 180.0) % 360.0 - 180.0
+        scored.append((agree, yaw))
+    best = max(scored)
+    return best[1], best[0], sum(a == best[0] for a, _ in scored)
+
+
 def run(
     ctx: NodeContext,
     piece_mask: Any = None,
     pieces: Any = None,
     max_uncertain: int = 0,
+    expected_sides: Any = None,
+    min_agree: int = 4,
 ) -> Output:
     """Classify one piece (``piece_mask``: a top-down mask) or many (``pieces``: [{"id", "mask"}, ...]).
 
@@ -233,6 +253,12 @@ def run(
     route = "classified"
     if info["uncertain_sides"] > max_uncertain or info["piece_class"] == "unknown":
         route = "uncertain"
+    if expected_sides is not None:
+        yaw, agree, ties = orient(info, [str(x) for x in expected_sides])
+        info.update(yaw_deg=yaw, sides_agree=agree, orientations_tied=ties)
+        if agree < min_agree or ties > 1:
+            # One misread side flips the yaw by 90 or 180 degrees: refuse rather than guess.
+            route = "mismatch"
     return {
         "route": route,
         **info,

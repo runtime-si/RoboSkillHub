@@ -28,13 +28,15 @@ gap:
   allowed_tools: []
   required_inputs: {}
   # Inputs (wired from a script node in the same graph where gap has no type for them):
-  # piece_mask (one top-down mask) or pieces ([{id, mask}, ...]); max_uncertain (0).
+  # piece_mask (one top-down mask) or pieces ([{id, mask}, ...]); max_uncertain (0);
+  # expected_sides ([south, east, north, west] the slot needs) and min_agree (4) for the yaw.
   produces_outputs:
     piece_class: string
     uncertain_sides: int
   exit_conditions:
     classified: Every side was typed with no more than max_uncertain (0) of them within 0.35 x 12 % of the threshold; for a list of pieces, at least one mask was usable and the ids are sorted into corners / edges / interiors / uncertain.
     uncertain: One piece, but a side's deviation lies near the threshold or the piece has three or four flat sides; look closer, or decide by shape matching.
+    mismatch: expected_sides was given and no turn of the piece makes at least min_agree (4) of its sides read as expected, or two turns agree equally (a symmetric piece); `yaw_deg` and `sides_agree` say the best; look again (re-scan, closer) rather than place it 90 or 180 degrees off.
     no_piece: No usable mask (empty, under 400 px, or no square body found).
   canonical_scripts:
     - classify_sides: scripts/classify_sides.py
@@ -122,6 +124,15 @@ a quarter turn.
   In a sample of 12 failures, most masks had a shadow or a finger merged into them, filling a blank (it then reads flat).
 
 - **Time:** median 8 ms a piece.
+
+## Orientation for a slot
+
+Given `expected_sides` (the slot's south, east, north and west as the piece
+must show them), `yaw_deg` is the turn at which the piece's sides read that
+way, `sides_agree` how many do, and `orientations_tied` how many turns agree
+as well. Under 4 / 4, or tied, the route is `mismatch`. In the first
+end-to-end chain in the twin (docs/jigsaw-e2e), taking the best of 3 / 4 put a
+piece 180 degrees off: one blank had been read as a tab.
 
 ## Limits
 
