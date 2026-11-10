@@ -839,3 +839,10 @@ ForceInserter._phase_spin_search), MIT License, Copyright (c) 2021
 SowmiyaNarayanan G; the file's header lists the changes, and the license is
 skills/searching-insertion-with-yaw-oscillation/LICENSE.shapeforce. Its
 last-joint turn follows skills/seating-a-piece-by-wiggle-search.
+skills/limiting-in-hand-twist-by-grip-placement-and-force/scripts/limit_twist.py
+is adapted from Slip-Aware-Object-Manipulation-with-Parallel-Grippers
+(https://github.com/Gabrieleenx/Slip-Aware-Object-Manipulation-with-Parallel-Grippers,
+commit 639fe4a4bcf8: src/controlled_slippage.py, HoldMode.get_fn and the
+friction parameters of get_friction_param_func), MIT License, Copyright (c)
+2024 Gabriel Arslan Waltersson; the file's header lists the changes, and the
+license is skills/limiting-in-hand-twist-by-grip-placement-and-force/LICENSE.slip-aware.

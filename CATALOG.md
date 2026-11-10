@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-29 tools, 157 skills, 2 policies, 1 recipe and 1 paper.
+29 tools, 158 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -100,6 +100,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`routing-parts-to-sort-bins-by-id-and-colour`](#routing-parts-to-sort-bins-by-id-and-colour) | plan | Sorts parts dropped one at a time on a staging pad into bins. | any |
 | [`following-a-visual-plan`](#following-a-visual-plan) | propose | Follows a visual plan from robobrain.trace or molmo-motion.forecast (the shared visual-plan schema) the way those… | any |
 | [`grasping-concave-contour`](#grasping-concave-contour) | propose | Grasp an awkward rigid part by the waists in its own silhouette. | any |
+| [`limiting-in-hand-twist-by-grip-placement-and-force`](#limiting-in-hand-twist-by-grip-placement-and-force) | propose | Ranks candidate grips on a part by the grip force each needs so the part neither slides nor twists about the jaws'… | any |
 | [`proposing-short-axis-grasps`](#proposing-short-axis-grasps) | propose | Propose top-down grasps whose jaws close ACROSS an elongated object's short axis, derived from its oriented box. | any, **sim only** |
 | [`proposing-side-grasps`](#proposing-side-grasps) | propose | Propose horizontal (side-entry) grasps swept around an object's oriented box — twelve azimuths ranked by jaw margin. | any, **sim only** |
 | [`choosing-next-piece-and-slot`](#choosing-next-piece-and-slot) | select | Chooses the next jigsaw placement (which loose piece, which grid cell, which turn) from the board as believed, the… | any |
@@ -1369,6 +1370,20 @@ Grasp an awkward rigid part by the waists in its own silhouette — take the alp
 - **Exits**:
   - `posed`: The wrist reached the computed pose with the jaws open, ready for the close a verifying skill will make.
   - `failed`: No pair of concave runs fits the jaw span, or the pose could not be reached.
+
+### limiting-in-hand-twist-by-grip-placement-and-force
+
+propose · robots: any · tasks: pick-place · MIT · v0.1.0 · [`SKILL.md`](skills/limiting-in-hand-twist-by-grip-placement-and-force/SKILL.md) · [upstream](https://github.com/Gabrieleenx/Slip-Aware-Object-Manipulation-with-Parallel-Grippers/blob/639fe4a4bcf8/src/controlled_slippage.py)
+
+Ranks candidate grips on a part by the grip force each needs so the part neither slides nor twists about the jaws' closing axis - the part's weight and its torque about each grip's closing axis (from its mass and centre of mass), shared by the two pads and checked against the ellipsoidal friction limit of the Slip-Aware Parallel Gripper work (mu_c x fn for force, mu_c x fn x r for torque, hold margin 2) - and picks the grip needing least. Use when a part will be gripped off its centre of mass (a long bar, a domino by its end, a jigsaw piece away from its centroid) and the grip point is still free to choose, or to tell whether a grip can hold before lifting.
+
+- **In**: `center_of_mass` Vec3, `candidates` GraspCandidates
+- **Out**: `grip_index` int, `grip_position` Vec3, `required_force` float, `available_force` float, `torque` float, `lever` float, `ranked` string
+- **Scripts**: [`limit_twist`](skills/limiting-in-hand-twist-by-grip-placement-and-force/scripts/limit_twist.py)
+- **Exits**:
+  - `grip_selected`: The best candidate needs at most grip_force per pad (with the hold margin); it is the one needing least, normally the one nearest the centre of mass along the part.
+  - `no_grip_holds`: Every candidate needs more than grip_force because of the torque, but a grip through the centre of mass would hold the weight; grip nearer the centre of mass or squeeze harder.
+  - `needs_suction`: Even the weight alone, gripped through the centre of mass, needs more than grip_force per pad.
 
 ### proposing-short-axis-grasps
 

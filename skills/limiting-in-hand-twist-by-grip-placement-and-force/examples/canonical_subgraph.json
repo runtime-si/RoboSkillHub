@@ -1,0 +1,22 @@
+{
+  "skill": "limiting-in-hand-twist-by-grip-placement-and-force",
+  "inputs": {"center_of_mass": "Vec3", "candidates": "GraspCandidates"},
+  "outputs": {
+    "grip_position": {"$ref": "rank.grip_position"},
+    "required_force": {"$ref": "rank.required_force"}
+  },
+  "nodes": {
+    "rank": {
+      "type": "script",
+      "script": "scripts/limit_twist.py",
+      "inputs": {
+        "center_of_mass": {"$ref": "in.center_of_mass"},
+        "candidates": {"$ref": "in.candidates"},
+        "mass": 0.03
+      }
+    }
+  },
+  "edges": [["START", "rank"], ["rank", "END"]],
+  "exit": {"router_field": "route", "success_values": ["grip_selected", "no_grip_holds", "needs_suction"]},
+  "on_error": "no_grip_holds"
+}
