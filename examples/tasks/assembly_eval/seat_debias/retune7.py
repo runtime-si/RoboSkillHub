@@ -83,7 +83,7 @@ def score(rows, j):
 
 best = None
 for H, T in itertools.product([0.0004, 0.0006, 0.0008, 0.001, 0.0012], [1.5, 2.5, 3.5, 5.0, 8.0]):
-    s = score(TR, lambda r: seat(r, H, T))
+    s = score(TR, lambda r, H=H, T=T: seat(r, H, T))
     key = (s["fd"] == 0, s["acc"], -H, -T)
     if best is None or key > best[0]:
         best = (key, H, T, s)
