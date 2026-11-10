@@ -2896,7 +2896,7 @@ Judges the current subgoal of a task from camera frames taken before the step an
 
 judge · robots: any · tasks: pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/scoring-step-progress-from-one-frame/SKILL.md) · [upstream](https://huggingface.co/densereward/densereward-1frame/blob/9796cb2a7be55b339670d8f95fb07841a61487a8/README.md)
 
-Judges whether a step is done from the current camera frame alone - scores the task's progress 0..1 with the DenseReward single-frame reward model (densereward.progress) on a few fresh frames, takes the median, and routes done / in_progress / regressed, or low_confidence when the frames disagree or nothing parses. No start frame, no video, ~0.1 s a frame. Use when a graph needs a cheap "is this step done?" right after a place, press or push, with only the current camera view, as a second opinion beside a geometric check.
+Judges whether a step is done from the current camera frame alone - scores the task's progress 0..1 with the DenseReward single-frame reward model (densereward.progress) on a few fresh frames, takes the median, and routes done / in_progress / regressed, or low_confidence when the frames disagree or nothing parses. No start frame, no video, ~0.1 s a frame. Use when a graph needs a cheap "is this step done?" right after a place, press or push, with only the current camera view, as a second opinion beside a geometric check (measured useful for whole pick-place and a finished domino row; no signal on a single LEGO brick placement).
 
 - **In**: `task` string
 - **Out**: `progress` float, `reason` string, `camera` string, `model` string
