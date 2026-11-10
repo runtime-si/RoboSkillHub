@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-29 tools, 154 skills, 2 policies, 1 recipe and 1 paper.
+29 tools, 155 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -157,6 +157,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`refilling-a-domino-loading-rack`](#refilling-a-domino-loading-rack) | execute | Puts a standing domino back into an empty slot of a slotted loading rack, so… | any |
 | [`rotating-a-held-piece-within-wrist-limits`](#rotating-a-held-piece-within-wrist-limits) | execute | Turns a held flat part (a jigsaw piece) about the vertical by the angle its slot needs while the wrist's last joint… | any |
 | [`searching-insertion-spiral`](#searching-insertion-spiral) | execute | Finds an opening the held part or the closed fingertips can enter by probing straight down over a hexagonal grid… | any |
+| [`searching-insertion-with-yaw-oscillation`](#searching-insertion-with-yaw-oscillation) | execute | Finds the rotation at which a held keyed or polygonal part drops into its socket. | any |
 | [`seating-a-cable-crossing`](#seating-a-cable-crossing) | execute | Streams one planned crossing leg of a cable onto a routing station, lets the rod settle, then LOOKS. | any |
 | [`seating-a-piece-by-wiggle-search`](#seating-a-piece-by-wiggle-search) | execute | Seats a held jigsaw piece in its slot among already-placed neighbours when the arm is less accurate than the slot's… | any |
 | [`setting-gripper-with-feedback`](#setting-gripper-with-feedback) | execute | Opens, closes or releases the gripper through the configured YAM or Isaac workcell adapter and checks measured holding… | yam_i2rt |
@@ -2271,6 +2272,23 @@ Finds an opening the held part or the closed fingertips can enter by probing str
   - `inserted`: A probe's tool centre got at least enter_depth (default 5 mm) below the mouth; the hand stays there unless stay_in is false.
   - `search_exhausted`: Every reachable probe inside search_radius stopped short of enter_depth; `detail` gives the count and the deepest probe.
   - `unreachable`: No probe position could be reached, or the hand's pose could not be read.
+
+### searching-insertion-with-yaw-oscillation
+
+execute · robots: any · tasks: insertion, assembly · MIT · v0.1.0 · [`SKILL.md`](skills/searching-insertion-with-yaw-oscillation/SKILL.md) · [upstream](https://github.com/nolann030628/ShapeForce/blob/1bc2aa8c4ee66622f0a597b2112a61cfbea2a345/third_party/utils_repo/peg_insertion/force_insert.py)
+
+Finds the rotation at which a held keyed or polygonal part drops into its socket - presses it lightly onto the socket (tracking lag as the push, no force sensor), turns the wrist in 6 deg steps alternately either side of the start (0, +6, -6, +12, ... within +-45 deg), renews the press after every turn, and stops when the hand sinks into the socket or a turn is held short (ShapeForce's spin search, its torque stop read from the wrist's own tracking). Feels for the socket first, from 3 mm over the start. Use when a square, hexagonal, keyed or 2x2 part is held over or on its matching hole, slot or stud pattern with its position right but its rotation known only to tens of degrees, and the arm's last joint can turn it.
+
+- **In**: -
+- **Out**: `yaw_found_deg` float, `yaw_read_deg` float, `sink` float, `rest_z` float, `tries` int, `confirmed` bool, `confirm_travel` float, `seat_follow` float
+- **Calls**: connector `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.move_to_joints`
+- **Scripts**: [`yaw_search`](skills/searching-insertion-with-yaw-oscillation/scripts/yaw_search.py)
+- **Exits**:
+  - `dropped_in`: Confirmed (unless confirm is false) by a sideways probe that met a wall within confirm_probe after the hand sank, where a turn was stopped short with the hand already drop_depth under the resting height (the part dropped in while the wrist swept through the matching yaw); or, pressed at some yaw, the hand followed its command (lag over the free baseline under half contact_lag) and sank at least drop_depth (2 mm) under the resting height - the part entered its socket; yaw_found_deg is the hand's yaw from the start (read back). The press is unloaded; the hand still holds the part there.
+  - `unconfirmed`: The hand sank as if the part dropped, but a press seat_check (3 mm) deeper was held back over contact_lag (the part is caught by its lip on the socket's edge, or rests on the rim), or the confirmation probe moved the hand confirm_probe (6 mm) sideways without meeting a wall - the part is not in a socket (it slid in the jaws, or walked off the socket on its rim). The hand still holds it, over where it stopped.
+  - `no_drop`: Every yaw in +-yaw_range_deg was pressed without a drop; the press is unloaded and (return_on_fail) the wrist turned back to the start.
+  - `jammed`: A turn stopped more than jam_deg (3 deg) short of its command - the part is held against turning (a key wall, friction); the press is unloaded where it stands.
+  - `blocked`: The jaws read at their closed stop after a press (the part left the hand; check_holding), no socket felt from start_lift over the start to max_descent under it, a lift or descent step, press or wrist turn was refused, or the last joint had no room for the next turn; `detail` says which.
 
 ### seating-a-cable-crossing
 

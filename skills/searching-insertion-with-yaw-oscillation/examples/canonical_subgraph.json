@@ -1,0 +1,47 @@
+{
+  "skill": "searching-insertion-with-yaw-oscillation",
+  "inputs": {},
+  "outputs": {
+    "yaw_found_deg": {
+      "$ref": "search.yaw_found_deg"
+    },
+    "sink": {
+      "$ref": "search.sink"
+    },
+    "tries": {
+      "$ref": "search.tries"
+    },
+    "confirmed": {
+      "$ref": "search.confirmed"
+    }
+  },
+  "nodes": {
+    "search": {
+      "type": "script",
+      "script": "scripts/yaw_search.py",
+      "inputs": {
+        "yaw_range_deg": 45.0
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "search"
+    ],
+    [
+      "search",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "dropped_in",
+      "unconfirmed",
+      "no_drop",
+      "jammed"
+    ]
+  },
+  "on_error": "blocked"
+}
