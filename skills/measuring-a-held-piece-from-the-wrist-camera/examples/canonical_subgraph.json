@@ -1,0 +1,29 @@
+{
+  "skill": "measuring-a-held-piece-from-the-wrist-camera",
+  "inputs": {
+    "piece_mask": "Mask",
+    "metres_per_pixel": "float",
+    "prior": "Any",
+    "grip_width_m": "float"
+  },
+  "outputs": {
+    "tcp_piece": {"$ref": "measure.tcp_piece"},
+    "world_pose": {"$ref": "measure.world_pose"},
+    "sigma": {"$ref": "measure.sigma"}
+  },
+  "nodes": {
+    "measure": {
+      "type": "script",
+      "script": "scripts/measure_held.py",
+      "inputs": {
+        "piece_mask": {"$ref": "in.piece_mask"},
+        "metres_per_pixel": {"$ref": "in.metres_per_pixel"},
+        "prior": {"$ref": "in.prior"},
+        "grip_width_m": {"$ref": "in.grip_width_m"}
+      }
+    }
+  },
+  "edges": [["START", "measure"], ["measure", "END"]],
+  "exit": {"router_field": "route", "success_values": ["measured", "ambiguous"]},
+  "on_error": "not_seen"
+}
