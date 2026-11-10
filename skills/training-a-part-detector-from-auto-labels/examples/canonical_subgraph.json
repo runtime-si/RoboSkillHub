@@ -1,0 +1,31 @@
+{
+  "skill": "training-a-part-detector-from-auto-labels",
+  "inputs": {
+    "frames_dir": "string",
+    "ontology": "string",
+    "out_dir": "string"
+  },
+  "outputs": {
+    "model_path": {"$ref": "distill.model_path"},
+    "counts": {"$ref": "distill.counts"},
+    "n_empty": {"$ref": "distill.n_empty"},
+    "reason": {"$ref": "distill.reason"}
+  },
+  "nodes": {
+    "distill": {
+      "type": "script",
+      "script": "scripts/train_from_auto_labels.py",
+      "inputs": {
+        "frames_dir": {"$ref": "in.frames_dir"},
+        "ontology": {"$ref": "in.ontology"},
+        "out_dir": {"$ref": "in.out_dir"}
+      }
+    }
+  },
+  "edges": [["START", "distill"], ["distill", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["detector_trained", "too_few_labels", "label_quality_low"]
+  },
+  "on_error": "training_failed"
+}
