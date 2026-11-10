@@ -1,0 +1,19 @@
+{
+  "skill": "servoing-by-learned-keypoint-correspondence",
+  "inputs": {"goal": "Observation", "camera": "string"},
+  "outputs": {
+    "frames": {"$ref": "servo.frames"},
+    "final_error": {"$ref": "servo.final_error"},
+    "reason": {"$ref": "servo.reason"}
+  },
+  "nodes": {
+    "servo": {
+      "type": "script",
+      "script": "scripts/servo_cns.py",
+      "inputs": {"goal": {"$ref": "in.goal"}, "camera": {"$ref": "in.camera"}}
+    }
+  },
+  "edges": [["START", "servo"], ["servo", "END"]],
+  "exit": {"router_field": "route", "success_values": ["converged", "lost_correspondence"]},
+  "on_error": "timeout"
+}
