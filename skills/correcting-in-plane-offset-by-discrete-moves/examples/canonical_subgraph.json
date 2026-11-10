@@ -1,0 +1,19 @@
+{
+  "skill": "correcting-in-plane-offset-by-discrete-moves",
+  "inputs": {"model_path": "string", "camera": "string"},
+  "outputs": {
+    "decisions": {"$ref": "align.decisions"},
+    "last_label": {"$ref": "align.last_label"},
+    "reason": {"$ref": "align.reason"}
+  },
+  "nodes": {
+    "align": {
+      "type": "script",
+      "script": "scripts/align.py",
+      "inputs": {"model_path": {"$ref": "in.model_path"}, "camera": {"$ref": "in.camera"}, "crop": [0, 200, 120, 120]}
+    }
+  },
+  "edges": [["START", "align"], ["align", "END"]],
+  "exit": {"router_field": "route", "success_values": ["aligned", "max_steps", "diverging"]},
+  "on_error": "no_frame"
+}

@@ -822,3 +822,12 @@ Apache-2.0, Copyright Alibaba DAMO Academy; the model and processor code are
 loaded from the pinned Hugging Face revisions of
 Alibaba-DAMO-Academy/RynnValue-8B-Quantile and RynnValue-4B-Quantile
 (Apache-2.0) with trust_remote_code and are not copied.
+tools/move-classifier/tools.py and
+skills/correcting-in-plane-offset-by-discrete-moves/scripts/{collect_offsets,align}.py are adapted
+from vision-guided-rack-insertion-ot2
+(https://github.com/cooper-group-uol-robotics/vision-guided-rack-insertion-ot2, commit 3bfe3fe87b64:
+reference_implementation/vlm_cnn_train/train_cnn.py, training/dataset/build_llava_dataset.py,
+data_collection/collect_offsets_single_camera.py,
+reference_implementation/ot2_rack_insertion/cnn_model_misalignment_prediction.py), MIT License,
+Copyright (c) 2026 Hadi Beyzaee Juneghani; the licence is tools/move-classifier/LICENSE.vision-guided-rack-insertion.
+The files' headers list the changes.
