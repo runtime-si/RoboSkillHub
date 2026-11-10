@@ -1,0 +1,28 @@
+{
+  "skill": "rotating-a-held-piece-within-wrist-limits",
+  "inputs": {
+    "turn_deg": "float",
+    "grasp_z": "float",
+    "set_down_xy": "Any"
+  },
+  "outputs": {
+    "turned_deg": {"$ref": "turn.turned_deg"},
+    "regrasps": {"$ref": "turn.regrasps"},
+    "jaws_swapped": {"$ref": "turn.jaws_swapped"},
+    "joint6_final": {"$ref": "turn.joint6_final"}
+  },
+  "nodes": {
+    "turn": {
+      "type": "script",
+      "script": "scripts/rotate_piece.py",
+      "inputs": {
+        "turn_deg": {"$ref": "in.turn_deg"},
+        "grasp_z": {"$ref": "in.grasp_z"},
+        "set_down_xy": {"$ref": "in.set_down_xy"}
+      }
+    }
+  },
+  "edges": [["START", "turn"], ["turn", "END"]],
+  "exit": {"router_field": "route", "success_values": ["turned", "turned_with_regrasp", "planned", "piece_lost"]},
+  "on_error": "unreachable"
+}

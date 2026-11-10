@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-26 tools, 144 skills, 2 policies, 1 recipe and 1 paper.
+26 tools, 145 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -145,6 +145,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`pushing-objects`](#pushing-objects) | execute | Pushes a loose object across its support toward a goal point with a closed hand, never grasping it. | any |
 | [`pushing-on-plane`](#pushing-on-plane) | execute | Executes a bounded planar pushing segment and checks measured target displacement. | yam_i2rt |
 | [`reaching-with-lag-correction`](#reaching-with-lag-correction) | execute | Moves the tool to a target pose, waits for the arm to settle, reads the tool pose back and, if the arm stopped short… | any |
+| [`rotating-a-held-piece-within-wrist-limits`](#rotating-a-held-piece-within-wrist-limits) | execute | Turns a held flat part (a jigsaw piece) about the vertical by the angle its slot needs while the wrist's last joint… | any |
 | [`searching-insertion-spiral`](#searching-insertion-spiral) | execute | Finds an opening the held part or the closed fingertips can enter by probing straight down over a hexagonal grid… | any |
 | [`seating-a-cable-crossing`](#seating-a-cable-crossing) | execute | Streams one planned crossing leg of a cable onto a routing station, lets the rod settle, then LOOKS. | any |
 | [`seating-a-piece-by-wiggle-search`](#seating-a-piece-by-wiggle-search) | execute | Seats a held jigsaw piece in its slot among already-placed neighbours when the arm is less accurate than the slot's… | any |
@@ -2076,6 +2077,23 @@ Moves the tool to a target pose, waits for the arm to settle, reads the tool pos
 - **Exits**:
   - `reached`: After at most one aim-past move the settled tool centre stands within tolerance (default 5 mm) of the target and its rotation within rot_tolerance (default 0.05 rad); residual is that distance.
   - `not_reached`: The move was refused outright (the hand did not move), or the shortfall exceeded the correction cap and the plain retry also ended off, or the aim-past move did not land; `detail` says which and residual is how far off the hand stands.
+
+### rotating-a-held-piece-within-wrist-limits
+
+execute · robots: any · tasks: jigsaw, reorientation · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/rotating-a-held-piece-within-wrist-limits/SKILL.md) · [upstream](https://github.com/wanweiwei07/wrs/tree/main/0000_examples/x6wg2_regrasp)
+
+Turns a held flat part (a jigsaw piece) about the vertical by the angle its slot needs while the wrist's last joint stays inside its range (+-2.09 rad on the YAM, 240 degrees - less than a full turn) - takes the shorter or the longer way round when one fits, else sets the piece down, turns the empty hand half a turn so the jaws close on the same two contact points swapped, takes it again and finishes the turn (WRS-style regrasp, reduced to one joint and a table). Learns which way the joint turns the hand from a small first held step, and corrects each turn on the hand's yaw read back. Can also only plan, e.g. to grip with the jaws swapped at the pick so no regrasp is needed. Use when a jigsaw piece (or any flat part) is held top-down and must be turned before it is placed, after the turn is known from localizing-a-piece-in-a-reference-image or matching-a-piece-to-placed-neighbours.
+
+- **In**: `turn_deg` float
+- **Out**: `turned_deg` float, `regrasps` int, `jaws_swapped` bool, `joint6_final` float
+- **Calls**: connector `robot.close_gripper`, `robot.describe_arm`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.move_to_joints`, `robot.open_gripper`, `robot.set_grip`
+- **Scripts**: [`rotate_piece`](skills/rotating-a-held-piece-within-wrist-limits/scripts/rotate_piece.py)
+- **Exits**:
+  - `turned`: The hand turned the piece by the asked angle (read back within 0.5 deg) without letting go; joint 6 stayed 3 deg inside its range.
+  - `turned_with_regrasp`: No direct turn fitted the range, so the piece was set down, the empty hand turned half a turn, took it again (jaws swapped, same contacts) and finished the turn; `jaws_swapped` is true.
+  - `planned`: plan_only was set; `plan` says direct or regrasp and the joint moves, nothing moved.
+  - `piece_lost`: After a regrasp the jaws closed past half the given grip width (nothing in them).
+  - `unreachable`: No plan fits the range, a regrasp was needed without grasp_z, the joints could not be read, joint 6 did not move the hand, or a move was refused.
 
 ### searching-insertion-spiral
 
