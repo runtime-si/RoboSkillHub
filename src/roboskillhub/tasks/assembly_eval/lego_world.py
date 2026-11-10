@@ -140,6 +140,9 @@ GRASP_ACROSS = {
         "quaternion_xyzw": [1.0, 0.0, 0.0, 0.0],
         "open_width_m": 0.042,
         "release_open_width_m": 0.046,
+        # Pinched by its 16 x 9.6 mm end faces the brick swings about the closing axis in a 20 mm/s carry
+        # at 2 N (held_object_slipped in 1-2 of 10); at 4 mm/s it stayed within 0.2 mm.
+        "carry_speed_m_s": 0.008,
     },
 }
 
