@@ -186,6 +186,17 @@ Threshold per family (best balanced accuracy):
     unsupported) as high as seated ones, below chance (AUROC 0.39).
   - Millimetre seating faults are invisible in one overhead frame. Use
     `verifying-brick-seated-by-height` or `verifying-a-brick-connection-by-pull-up`.
+  - **An independent check agrees.** #155 scored 75 LEGO placements on
+    real RTX frames of the same Isaac evaluation (RoCo's head camera aimed
+    at the plate, the arm in view):
+    - AUROC was 0.45 (main view), 0.55 (opposite view) and 0.14 on the
+      grasp-loss set.
+    - At 0.85 it passed 1 of 11 successful placements and called 3 of 14
+      failed ones done.
+    - On the grasp-loss set it called 13 of 22 failed placements done,
+      including 8 of the 12 grasp failures.
+
+    **Do not route LEGO placements on this skill.**
 - **Jigsaw:** no episode runner exists in the hub yet; not measured.
 
 The renders are simple (flat colours, no robot arm for LEGO), so these
