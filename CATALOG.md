@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-26 tools, 142 skills, 2 policies, 1 recipe and 1 paper.
+26 tools, 143 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -50,6 +50,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`calibrating-arm-to-arm-base-transform`](#calibrating-arm-to-arm-base-transform) | perceive | Measures where one arm's base sits in the other arm's base frame. | any |
 | [`calibrating-baseplate-stud-grid`](#calibrating-baseplate-stud-grid) | perceive | Estimates a LEGO or DUPLO baseplate's pose (the plate frame computing-brick-pose-from-stud-grid takes, and APEX-MR's… | any |
 | [`classifying-brick-resting-face-from-depth`](#classifying-brick-resting-face-from-depth) | perceive | Tells from depth whether a loose LEGO or DUPLO brick of known size lies studs up, upside down (resting on its stud… | any |
+| [`classifying-piece-sides-for-border-first`](#classifying-piece-sides-for-border-first) | perceive | Types a jigsaw piece's four sides flat / tab / blank from a top-down mask and calls it a corner, edge or interior piece. | any |
 | [`detecting-contact-from-joint-effort`](#detecting-contact-from-joint-effort) | perceive | Feels for contact without a force sensor. | any |
 | [`estimating-cut-grid-from-pieces`](#estimating-cut-grid-from-pieces) | perceive | Estimates a jigsaw's real cut grid (cols x rows) and cell size from the piece count printed on the box, the board's… | any |
 | [`framing-a-target-by-mask-edge-steering`](#framing-a-target-by-mask-edge-steering) | perceive | Moves the wrist camera until a named target lies wholly inside its image with a margin. | any |
@@ -589,6 +590,20 @@ Tells from depth whether a loose LEGO or DUPLO brick of known size lies studs up
   - `unknown`: No resting face of the given brick fits the reading (wrong size, two bricks touching, a part that is not that brick), two faces fit about equally, the up / down share is between 10 % and 25 % or the part is too thin to tell (a plate lying flat), or the depth could not be read (no posed camera, too few points around the brick); detail says which.
   - `no_brick`: Fewer than 40 depth points stand over the table near brick_position.
   - `unreachable`: view 'move' and every view of the brick was out of reach or refused.
+
+### classifying-piece-sides-for-border-first
+
+perceive · robots: any · tasks: jigsaw · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/classifying-piece-sides-for-border-first/SKILL.md)
+
+Types a jigsaw piece's four sides flat / tab / blank from a top-down mask and calls it a corner, edge or interior piece - the side lines are found as the direction (1 degree steps) whose projections pile the outline's points into the sharpest peak near each extreme (straight shoulders and flat sides), then each side's middle stretch is a tab where it reaches past its line by 12 % of the side, a blank where it falls behind it, flat otherwise. Returns the outward direction of each flat side (where the board's edge must lie), sides near the threshold as uncertain, and, for many pieces, the ids sorted into corners, edges and interiors for a border-first build. Use when sorting loose pieces for a frame-first strategy, or to orient a border piece before placing it, from wrist-camera masks of pieces lying flat; CPU only, about 8 ms a piece.
+
+- **In**: -
+- **Out**: `piece_class` string, `uncertain_sides` int
+- **Scripts**: [`classify_sides`](skills/classifying-piece-sides-for-border-first/scripts/classify_sides.py)
+- **Exits**:
+  - `classified`: Every side was typed with no more than max_uncertain (0) of them within 0.35 x 12 % of the threshold; for a list of pieces, at least one mask was usable and the ids are sorted into corners / edges / interiors / uncertain.
+  - `uncertain`: One piece, but a side's deviation lies near the threshold or the piece has three or four flat sides; look closer, or decide by shape matching.
+  - `no_piece`: No usable mask (empty, under 400 px, or no square body found).
 
 ### detecting-contact-from-joint-effort
 
