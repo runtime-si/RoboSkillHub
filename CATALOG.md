@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-29 tools, 152 skills, 2 policies, 1 recipe and 1 paper.
+29 tools, 153 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -129,6 +129,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`grasping-with-planner`](#grasping-with-planner) | execute | Top-down grasping via a fast axis-locked linear descend with a collision-aware cuRobo fallback. | any, *tuned on* panda |
 | [`handing-over-between-arms`](#handing-over-between-arms) | execute | Hands the object one arm holds to the other arm. | any, 2 arms |
 | [`holding-steady-while-other-arm-acts`](#holding-steady-while-other-arm-acts) | execute | One arm holds an object still. | any, 2 arms |
+| [`inserting-a-held-peg-top-down`](#inserting-a-held-peg-top-down) | execute | Inserts a peg that one arm holds top-down (tip below the fingers) into a perceived hole straight down. | any |
 | [`inserting-a-peg-with-pose-refinement`](#inserting-a-peg-with-pose-refinement) | execute | Inserts a held peg into a perceived hole in three stages. | any |
 | [`inserting-mid-air-between-two-held-parts`](#inserting-mid-air-between-two-held-parts) | execute | Inserts the part one arm holds into (or presses it onto) the part the other arm holds, both in the air. | any, 2 arms |
 | [`lifting-with-both-arms`](#lifting-with-both-arms) | execute | Lifts an elongated object (a bar, a tray, a pot by its handles) with both arms. | any, 2 arms |
@@ -1803,6 +1804,24 @@ One arm holds an object still - a top-down grasp, or its closed hand pressed dow
   - `held_and_released`: The holder held (jaws above the stop, or a press that stopped on the object), the other arm's step ended `acted`, and at release the holder's tool centre was within pose_tolerance and angle_tolerance_deg of the hold pose and (grip) its jaw opening within grip_tolerance of the one at the hold; it then opened and backed out to its stand-off.
   - `hold_lost`: The holder's jaws closed to the stop at the hold (missed), its press went down to the target (nothing under it), or at release its pose or jaw opening had changed past the tolerances (or a re-perceived object box had moved); the holder has let go and backed out.
   - `unreachable`: The holder could not reach above the object or down onto it, the connector does not report a separate second arm, the other arm could not reach its start or a waypoint (move mode, or the press target failed the IK preview), or the holder could not back out after letting go; `detail` says which. After a failed step the hold is still checked and released.
+
+### inserting-a-held-peg-top-down
+
+execute · robots: any · tasks: insertion · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/inserting-a-held-peg-top-down/SKILL.md) · [upstream](composed from hub skills inserting-a-peg-with-pose-refinement (ManiSkill, Apache-2.0), searching-insertion-spiral, pressing-in-with-guarded-push (o2ac, BSD-3-Clause) and correcting-insertion-offset-from-port-opening (Apache-2.0); new code is this repository's)
+
+Inserts a peg that one arm holds top-down (tip below the fingers) into a perceived hole straight down - aligns the tip over the mouth from the hand read back, refines from the wrist camera with the tip and the mouth in the same depth view until the lateral error is under half the clearance, descends with stop-on-contact, runs a bounded spiral (and, with a chamfer, a tilt-then-upright try) if blocked at the mouth, pushes to the target depth with a tracking-lag limit, releases, backs out and probes the peg's top with the closed fingers to tell a tip at depth from a peg that slid up in the grip. Use after a top-down regrasp (handing-over-a-peg-to-a-top-down-grasp gives `held`) when the hole's mouth and depth are perceived (`hole`), on an arm with no force sensor (YAM).
+
+- **In**: -
+- **Out**: `stage` string, `refined_by` string, `lateral_error` float, `camera_correction` float, `search` string, `probes` int, `contact_depth` float, `hand_depth` float, `tip_depth` float, `target_depth` float, `slip` float, `peak_lag` float, `released` bool, `tip_in_tcp` Se3Pose, `hole_position` Vec3, `elapsed_s` float
+- **Calls**: connector `robot.close_gripper`, `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.move_cartesian_until_contact`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`insert_held_peg`](skills/inserting-a-held-peg-top-down/scripts/insert_held_peg.py)
+- **Exits**:
+  - `inserted`: The hand pushed the tip, as held, to the target depth, released and backed out, and the closed fingers found the peg's top within slip_tolerance (2 mm) of where a tip at that depth puts it; tip_depth is from the probe.
+  - `jammed`: The tip entered the hole (at least enter_depth, 4 mm) but the lag-limited push stopped short of the target depth; the hand released the peg where it stuck and backed out.
+  - `missed_hole`: The first contact was above the mouth plane (something over the hole, or the hole estimate is high), or the tip was blocked at the mouth and the spiral (and tilt-then-upright with a chamfer) did not enter; the hand is back over the mouth, still holding.
+  - `slipped_in_grip`: The hand reached the target depth but the probe found the peg's top more than slip_tolerance higher than expected - the peg slid up the fingers and the tip is short (tip_depth); the hand is open and backed out.
+  - `unverified`: The hand reached the depth but the top probe could not tell - no peg length, release or probe turned off, the probe start out of reach, or no top within 12 mm of where it should be (the peg fell over, or went further than the hand); open and backed out unless release is false.
+  - `unreachable`: A move was refused or out of reach by the IK preview, the hand's pose could not be read, the hole's axis is more than 30 deg off straight down, or a sibling skill is not installed (raised; on_error).
 
 ### inserting-a-peg-with-pose-refinement
 
