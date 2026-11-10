@@ -28,6 +28,7 @@ metadata:
       code: https://github.com/wanweiwei07/wrs/tree/main/0000_examples/x6wg2_regrasp
       upstream_license: MIT (idea only; no code used)
 gap:
+  requires: {connector: [robot.describe_arm, robot.set_grip]}
   allowed_tools:
     - robot.get_observation
     - robot.get_ee_pose
@@ -136,7 +137,7 @@ yaw before and after (simulator), against the asked turn. Joint 6 started at
 **Direct turns**, all runs with the final code and the earlier ones: every
 one held, joint 6 always inside +-117 degrees. In the final batch, 7 / 7
 turns of -150 to -60 degrees came within -4.6 to +0.5 degrees of the asked
-turn. Over 22 direct turns in earlier runs (-170 to +180 degrees), the error
+turn. In the earlier runs, direct turns of -170 to +180 degrees came within the same band: the error
 was -4.1 to +0.5 degrees. The hand itself turned within 0.01 degree; the rest
 is the piece slipping about 3.5 degrees in the jaws on long turns.
 
