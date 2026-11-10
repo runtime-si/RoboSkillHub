@@ -268,3 +268,35 @@ Not diagnosed in this round.
 1. Trace one held turn (piece pose and contact forces each step) to see what starts the flip.
 2. Turn by pushing the piece on the mat before the pick.
 3. A hold on the piece's top instead of its edges.
+
+
+## Update, round 10 (2026-11-10)
+
+**Two-finger twist on the mat, with the pad torsion fix.** The bare piece is pinched by its edges at the
+grip-selection skill's grip and lowered back to 0.5 mm over the mat. The wrist turns in 10 degree steps
+(`carry_lift_m=0.0005`, `max_step_deg=10`), so the piece would end at the slot's yaw, picked, with no turn
+in the air. Truth is the piece's yaw right after the twist, against the slot's yaw. 8 trials were launched on
+3 hosts; within the round:
+
+| trial (start yaw) | turn asked | piece yaw after the twist (target 0) | tilt | held after the lift |
+|---|---|---|---|---|
+| 0 (30 deg) | -28 deg | +101.8 deg | 0 | no |
+| 1 (135 deg) | -138 deg | -55.0 deg | 0 | no |
+
+The other trials stopped earlier: one at the side check (`mismatch`), one at the pick.
+
+- The piece stays flat on the mat but does not follow the jaws. It slips and spins between them as the wrist
+  turns, and ends 55-102 degrees off. The yaw is not controlled, so the twist cannot replace the held turn.
+- **Press and rotate** (closed tips pressing the top off-centre, dragging round) was not built in the round.
+  Expect it to slide the piece more than turn it: the mat's friction acts over the piece's whole area, the
+  tips' over a small patch.
+
+**Completion: 0 / 2 reached the place step; 0 / 20 overall since the fixes** (baseline 0 / 8).
+
+**What this leaves.** Every way of turning a 2 mm piece held only by its edges has failed in the twin:
+
+- turned in the air: flung, 0 / 14;
+- twisted on the mat: slipped, 0 / 2.
+
+The ways forward are a different hold (suction or a top pad, which a real jigsaw robot uses) or turning by
+pushing with no grip. Both are new manipulation skills, not fixes to the chain.
