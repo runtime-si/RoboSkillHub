@@ -23,6 +23,11 @@ from gap import NodeContext
 
 HERE = Path(os.environ.get("GAP_SKILLS_PATH", "."))
 TIP_REACH = 0.0102
+SEAT_VARIANTS = {
+    "A": {},
+    "B": {"search_radius": 0.004, "yaw_range_deg": 8.0},
+    "C": {"approach": "offset_push"},
+}
 META = json.loads((HERE / os.environ.get("ASSETS", "assets_c03") / "meta.json").read_text())
 
 
@@ -169,15 +174,6 @@ def run(ctx: NodeContext, index: int, start_dx: float, start_dy: float, start_ya
         return done("segment")
     k = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
     mask = (lab == k).astype(np.uint8)
-    handle = ((hm > 0.006) & (mask > 0)).astype(np.uint8)
-    hy, hx = np.nonzero(handle)
-    if len(hx) < 5:
-        _log("segment", found=True, handle=False)
-        return done("segment_handle")
-    (hcx, hcy), (hw_, hh_), hang = cv2.minAreaRect(np.column_stack([hx, hy]).astype(np.float32))
-    handle_xy = px_to_world(hcx, hcy)
-    # Long side of the handle (10 mm) is the closing direction; image angle -> world (y up).
-    long_deg = -hang if hw_ >= hh_ else -(hang + 90.0)
     # The slot's reference point is the body's centre (the cell centre), not the mask's centroid, which the
     # knobs pull off by about 2 mm (seen: the seat jammed on a 2.1 mm offset estimate).
     bc = _skill("selecting-a-grip-clear-of-placed-neighbours", "select_grip.py").body_centre_px(
@@ -188,7 +184,7 @@ def run(ctx: NodeContext, index: int, start_dx: float, start_dy: float, start_ya
     _log(
         "segment",
         area_mm2=round(mask.sum() * mpp * mpp * 1e6, 1),
-        handle_err_mm=round(1e3 * math.dist(handle_xy, (tp["x"] + 0, tp["y"] + 0)), 2),
+        centre_err_mm=round(1e3 * math.dist(piece_xy, (tp["x"], tp["y"])), 2),
     )
 
     # 3. Side types and the yaw at which all four read as the slot needs (else re-scan once, closer).
@@ -223,7 +219,7 @@ def run(ctx: NodeContext, index: int, start_dx: float, start_dy: float, start_ya
     if cls["route"] in ("mismatch", "no_piece"):
         return done("classify")
 
-    # 4. Grip choice at the slot with the station blades (board cells as occupied cells).
+    # 4. Grip choice at the slot with the station blades; the pick uses it (bare piece, no grip block).
     org_board = [slot["x"] - 1.5 * cw, slot["y"] - 1.5 * ch]
     grip = _skill("selecting-a-grip-clear-of-placed-neighbours", "select_grip.py").run(
         ctx,
@@ -234,18 +230,25 @@ def run(ctx: NodeContext, index: int, start_dx: float, start_dy: float, start_ya
         occupied_cells=[[0, 0], [1, 0], [2, 0], [0, 2], [1, 2], [2, 2]],
         cell_size=[cw, ch],
         board_origin=org_board,
+        tab_reach=float(os.environ.get("TAB_REACH", "0.25")),
     )
     _log(
         "grip",
         route=grip["route"],
         closing_yaw=grip.get("closing_yaw_deg"),
+        width_mm=round(1e3 * grip.get("grip_width_m", 0), 1),
+        clearance_mm=round(1e3 * min(grip.get("clearance_m", 0), 1.0), 2),
         offset=grip.get("offset_m"),
-        executed="harness handle (bare 2 mm edges do not hold in the twin)",
-        handle_axis=round(_wrap(long_deg), 1),
     )
+    if "pick_grip_pixel" not in grip:
+        return done("grip")
+    gu, gv = grip["pick_grip_pixel"]
+    handle_xy = px_to_world(gu, gv)
+    long_deg = float(grip["pick_closing_yaw_deg"])
+    gw = float(grip["grip_width_m"])
 
-    # 5. Pick by the handle.
-    grasp_z = slot["z"] + float(META["grip_bottom"]) + 0.001 + TIP_REACH
+    # 5. Pick the bare piece at that grip, blade tips 0.3 mm over the mat.
+    grasp_z = slot["z"] + TIP_REACH + 0.0003
     above = {"x": handle_xy[0], "y": handle_xy[1], "z": grasp_z + 0.05}
     frame = ctx.tool("robot.grasp_frame", close_heading_deg=0.0)
     rot = None
@@ -272,7 +275,7 @@ def run(ctx: NodeContext, index: int, start_dx: float, start_dy: float, start_ya
         tolerance=0.0003,
         max_steps=400,
     )
-    ctx.tool("robot.set_grip", object_width_m=float(META["grip_width"]), squeeze_m=0.003)
+    ctx.tool("robot.set_grip", object_width_m=gw, squeeze_m=0.003)
     _wait(ctx)
     ctx.tool(
         "robot.go_to_pose",
@@ -292,7 +295,6 @@ def run(ctx: NodeContext, index: int, start_dx: float, start_dy: float, start_ya
         return done("pick")
 
     meas = _skill("measuring-a-held-piece-from-the-wrist-camera", "measure_held.py")
-    gw = float(META["grip_width"])
 
     def measure(prior, tag):
         out = meas.run(ctx, piece_mask=mask, metres_per_pixel=mpp, prior=prior, grip_width_m=gw)
