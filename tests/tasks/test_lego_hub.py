@@ -343,3 +343,29 @@ def test_lip_choice_prefers_a_fence_and_picks_the_inverted_push_side():
     lat = {"T_W_baseplate": {"position_m": [0.3, 0.0, 0.0032]}, "plate_studs": [32, 32]}
     assert _support_z([0.3, 0.1, 0.0], {"table_z": 0.0, "lattice": lat}) == pytest.approx(0.0032)
     assert _support_z([0.2, -0.2, 0.0], {"table_z": 0.0, "lattice": lat}) == 0.0
+
+
+def test_judge_place_fuses_pull_and_depth(K):
+    st = Station({})
+    ok = _run(K, "hub.judge_place", {"pull": {"route": "connected", "brick_rise_m": 0.0002},
+                                      "depth": {"route": "seated", "height_error_m": 0.0001},
+                                      "release_status": "succeeded"}, st)  # fmt: skip
+    assert ok["status"] == "succeeded", ok["evidence"]
+    bad = _run(K, "hub.judge_place", {"pull": {"route": "not_connected", "brick_rise_m": 0.0027},
+                                       "depth": {"route": "high_by_stud", "height_error_m": 0.0017},
+                                       "release_status": "succeeded"}, st)  # fmt: skip
+    assert bad["status"] == "failed"
+    g = lego_press_hub(
+        judge=True, flip=True, recovery=True, attempts=2, bricks=7, grasps="configured"
+    )
+    load_graph(g, K)
+    assert (
+        g["nodes"]["depth"]["on"]["succeeded"] == "judge"
+        and g["nodes"]["judge"]["on"]["failed"] == "track"
+    )
+
+
+def test_large_scenes_exist():
+    from roboskillhub.tasks.assembly_eval.lego_scenes import SCENES
+
+    assert len(SCENES["wall7"]["goal"]) == 7 and len(SCENES["pyramid6"]["goal"]) == 6

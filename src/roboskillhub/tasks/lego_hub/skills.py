@@ -375,6 +375,44 @@ class FlipStudsUp(_HubSkill):
         )
 
 
+class JudgePlace(_HubSkill):
+    """skills/judging-assembly-steps-by-fused-checks on one placement: the pull-up (before the release) and
+    the depth seat (after it) fused into done / failed / uncertain. No motion."""
+
+    skill_id = "hub.judge_place"
+    kind = "tool"
+    bundle, script = "judging-assembly-steps-by-fused-checks", "fuse_checks.py"
+    requires = frozenset()
+    input_schema = _schema(["pull", "depth"], pull=_OBJ, depth=_OBJ, release_status=_STR)
+
+    def run(self, request: dict, ctx: SkillContext) -> dict:
+        pull, depth = request["pull"], request["depth"]
+        out = load_script(self.bundle, self.script).run(
+            ctx,
+            step_type="place",
+            release_grip_route="opened" if request.get("release_status") == "succeeded" else "",
+            seat_route=str(depth.get("route") or ""),
+            height_error_m=depth.get("height_error_m"),
+            pull_route=str(pull.get("route") or ""),
+            brick_rise_m=pull.get("brick_rise_m"),
+        )
+        status = {"done": "succeeded", "failed": "failed"}.get(out["route"], "unverified")
+        return ctx.result(
+            self,
+            status,
+            phase="verify",
+            failure_type={"succeeded": None, "failed": "lego.not_seated"}.get(
+                status, "evidence_missing"
+            ),
+            evidence={
+                "hub_bundle": self.bundle,
+                "hub_route": out["route"],
+                "reason": out.get("reason", ""),
+            },
+            outputs={"verdict": out["route"]},
+        )
+
+
 class TrackBuild(_HubSkill):
     """``action: init`` seeds the world model from the pre-built bricks' observed poses; ``action: place``
     adds ``object_id`` at its observed pose and checks every tracked brick against a fresh observation."""
@@ -481,4 +519,11 @@ class TrackBuild(_HubSkill):
         return ctx.result(self, "succeeded", phase="verify", evidence=evidence, outputs=outputs)
 
 
-SKILLS = (PullUpCheck(), VerifySeatDepth(), ClassifyRestingFace(), FlipStudsUp(), TrackBuild())
+SKILLS = (
+    PullUpCheck(),
+    VerifySeatDepth(),
+    ClassifyRestingFace(),
+    FlipStudsUp(),
+    JudgePlace(),
+    TrackBuild(),
+)
