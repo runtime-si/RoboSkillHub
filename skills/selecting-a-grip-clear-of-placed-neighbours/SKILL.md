@@ -157,8 +157,20 @@ Time: median 0.08-0.48 s per placement, max 1.5 s; the offset search, which runs
 | 8 x 4 mm | 79 / 21 / 0 | 81 / 4 / 15 | 59 / 9 / 32 |
 | 10 x 5 mm | 52 / 48 / 0 | 57 / 28 / 15 | 55 / 11 / 34 |
 | 15.5 x 3.9 mm (station model) | 19 / 81 / 0 | 36 / 49 / 15 | 50 / 12 / 38 |
+| 6 x 1.8 mm (narrow blade) | 93 / 7 / 0 | 85 / 0 / 15 | 63 / 5 / 32 |
+| 4 x 1.8 mm (narrow blade) | 94 / 6 / 0 | 91 / 0 / 9 | 68 / 4 / 28 |
 
-Narrower tips grip more pieces in place; 3 and 4-sided slots stay out of reach at every size. Trimming the blades narrower (or fitting narrow pads) is the cheapest way to more in-place grips.
+Narrower tips grip more pieces in place.
+
+**Narrow blades** (fitting-narrow-blade-fingertips-for-flat-parts; box blades
+1.8 mm thick along the closing axis at the linear_4310 tips, both cuts, all
+three orders):
+
+- 2-sided slots: 264 / 305 direct grips at 6 mm wide and 275 / 305 at 4 mm,
+  against 15 / 305 with the station blades.
+- 3- and 4-sided slots, at 4 mm: 24 / 97 direct, the first in-place grips
+  there at any blade size (6 mm: 2 / 97).
+- Occupied cells only: at most 1 grip per run touched a true neighbour. Trimming the blades narrower (or fitting narrow pads) is the cheapest way to more in-place grips.
 
 ## Limits
 
