@@ -18,6 +18,7 @@ MODULES = (
     "roboskillhub.tasks.domino",
     "roboskillhub.tasks.lego",
     "roboskillhub.tasks.assembly_eval",
+    "roboskillhub.tasks.lego_hub",
 )
 
 
