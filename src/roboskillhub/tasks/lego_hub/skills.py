@@ -83,7 +83,7 @@ class _HubSkill:
     measured: tuple[str, ...] = ()
 
     def _run_hub(self, ctx: SkillContext, request: dict, **params: Any) -> tuple[dict, GapTools]:
-        tools = GapTools(ctx, _ids(request), seed=int(request.get("seed", 0)))
+        tools = GapTools(ctx, _ids(request), seed=_noise_seed(ctx, request))
         out = load_script(self.bundle, self.script).run(tools, **params)
         return out, tools
 
@@ -154,7 +154,7 @@ class PullUpCheck(_HubSkill):
         if "hold_lag_m" in request:
             kw["hold_lag"] = float(request["hold_lag_m"])
         # Station time follows wall time; the settle loop's own sleeps let it catch up.
-        tools = GapTools(ctx, [], seed=int(request.get("seed", 0)))
+        tools = GapTools(ctx, [], seed=_noise_seed(ctx, request))
         tools.watch = request.get("object_id")
         out = load_script(self.bundle, self.script).run(tools, **kw)
         log = tools.watch_log
@@ -189,6 +189,17 @@ class PullUpCheck(_HubSkill):
         result["evidence"]["brick_rise_m"] = brick_rise
         result["evidence"]["hand_rise_m"] = hand_rise
         return result
+
+
+def _noise_seed(ctx: SkillContext, request: dict) -> int:
+    """The depth-noise seed of one call: the request's ``seed`` if given, else one derived from the
+    request id (episode, node, attempt). A constant 0 gave every episode the same noise draw, so episodes
+    of different seeds were not independent under depth noise."""
+    import zlib
+
+    if request.get("seed") is not None:
+        return int(request["seed"])
+    return zlib.crc32(str(getattr(ctx, "request_id", "") or getattr(ctx, "task_id", "")).encode())
 
 
 def _seat_options() -> dict:
