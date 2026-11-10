@@ -70,15 +70,24 @@ time, and leaves the judging to the face classifier.
 ## Checked
 
 On the LEGO Isaac + BrickSim station (floating top-down hand), as `hub.flip_studs_up` in
-`roboskillhub.tasks.lego_hub` between the face classifier (on Isaac-rendered depth, `LEGO_RENDER=1`) and the
-pick; see the PR for the numbers. A free push slid side-lying bricks 22 mm per push without tipping
-(BrickSim's table friction is under the ~0.5 a free tip needs for this brick), hence the lip.
+`roboskillhub.tasks.lego_hub`: face classifier on Isaac-rendered wrist depth (`LEGO_RENDER=1`) -> flip ->
+face again -> the normal LEGO graph picks and presses the brick; single_on_plate, seeds 0-4 per start state:
+
+| start | lip | studs-up after the tips | placed (independent evaluator) |
+|---|---|---|---|
+| on a side | none (free push) | 0/5: slid 22 mm per push | - |
+| on a side | baseplate edge | 3/5 | 1/5: the tipped brick landed on the plate's studs and the clutch snapped it on |
+| on a side | feeder fence (`LEGO_FENCE=1`, 4 mm bar 22 mm beside the feeder line) | **5/5** in one tip | **5/5** |
+| upside down | feeder fence | **5/5** in one push (it rolls over the bar fully) | **5/5** |
+
+The face classifier read 20/20 correctly in those runs (on_side 5, upside_down 5, studs_up after the flip 10),
+with its reference on the surface the brick lies on (plate top over the plate, else the table).
 
 ## Limits
 
-- Needs a lip in the push direction for a slippery table; the push direction is fixed by the brick's stud
-  direction, so a brick whose studs point away from every lip cannot be tipped this way (route the flip
-  elsewhere first).
-- A brick tipped over the plate's edge lands on the plate's edge studs, not seated; the normal pick takes it
-  from there.
+- Needs a lip in the push direction on a slippery table; for a brick on its side the push direction is fixed
+  by its stud direction, so one whose studs point at the only lip cannot be tipped this way (an upside-down one
+  is pushed whichever way across its short side meets a lip). Prefer a fence off the build: a brick tipped onto
+  a baseplate's studs gets clutched there.
+- Checked with the feeder's bricks lying along the fence, side-lying ones with their studs pointing away from it; other yaws untested.
 - Not run on a real YAM.
