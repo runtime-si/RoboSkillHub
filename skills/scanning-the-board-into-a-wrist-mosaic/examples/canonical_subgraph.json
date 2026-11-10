@@ -1,0 +1,31 @@
+{
+  "skill": "scanning-the-board-into-a-wrist-mosaic",
+  "inputs": {
+    "region_center": "Vec3",
+    "region_size": "Any",
+    "px_per_m": "float"
+  },
+  "outputs": {
+    "mosaic": {"$ref": "scan.mosaic"},
+    "height_map": {"$ref": "scan.height_map"},
+    "metres_per_pixel": {"$ref": "scan.metres_per_pixel"},
+    "origin": {"$ref": "scan.origin"},
+    "board_corners_px": {"$ref": "scan.board_corners_px"},
+    "covered_fraction": {"$ref": "scan.covered_fraction"},
+    "seam_shift_px": {"$ref": "scan.seam_shift_px"}
+  },
+  "nodes": {
+    "scan": {
+      "type": "script",
+      "script": "scripts/scan_mosaic.py",
+      "inputs": {
+        "region_center": {"$ref": "in.region_center"},
+        "region_size": {"$ref": "in.region_size"},
+        "px_per_m": {"$ref": "in.px_per_m"}
+      }
+    }
+  },
+  "edges": [["START", "scan"], ["scan", "END"]],
+  "exit": {"router_field": "route", "success_values": ["mosaic_built", "partial"]},
+  "on_error": "failed"
+}
