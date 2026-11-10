@@ -139,6 +139,14 @@ skill's `park_pose` were the arm's start pose.
 | B: 20 mm pitch, 25 mm walls, 6 slots | all full | 7 | 6 / 6 | 6 / 6 (1.4-4.2 mm off) | `rack_empty` | 42 / 42 |
 | C: 18 mm pitch, 20 mm walls, 5 slots | all full | 2 | 0 | - | `unreachable` (open finger on a neighbour), nothing moved | 10 / 10 |
 
+- **Re-run with the fixed grip** (SIM_GRIP, `mujoco_500hz_grip@v1`, impratio 100; rshgpu4,
+  2026-11-10) gave the same outcomes:
+  - A: 4 / 4 picked and stood (placement 0.6-3.3 mm off), last round `rack_empty`
+    "jammed: [4]";
+  - B: 6 / 6 picked and stood (1.3-4.9 mm off), then `rack_empty`;
+  - C: `unreachable`, nothing moved;
+  - slot reads 82 / 82; jaws held 27.3-27.8 mm; the lift ended 1.7-2.2 mm short of its
+    command, inside the 6 mm `stuck` bound.
 - The order was nearest first: A took slots 5, 3, 1, 0; B took 5 down to 0. No
   tile left in the rack moved (every later read matched the truth).
 - Grasp height: commanded 32.2 mm (A) and 37.2 mm (B); the hand arrived 2.2-2.4 mm
