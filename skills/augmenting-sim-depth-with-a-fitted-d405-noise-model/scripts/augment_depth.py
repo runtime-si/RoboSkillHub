@@ -10,15 +10,17 @@ from gap import NodeContext
 D405_FIT = {
     "sigma_coeff_per_m": 0.0228,
     "corr_sigma_px": 2.4,
-    "lowfreq_coeff_per_m": 0.0452,
+    "lowfreq_coeff_per_m": 0.0072,
     "lowfreq_scale_px": 30.0,
     "edge_dropout": 0.41,
     "quant_step_m": 0.001,
 }
 """Fitted on 401 real wrist D405 frames of the YAM station (13166 flat 60 px patches, wood table)
 by skills/augmenting-sim-depth-with-a-fitted-d405-noise-model/scripts/fit_noise.py: fine noise
-sigma = 0.0228 z^2 (0.51 mm at 15 cm) with a 2.4 px correlation, a smooth error of 0.0452 z^2 (1.0 mm at
-15 cm; includes the table's own relief), 41 % dropout on depth edges, depth stored in 1 mm steps."""
+sigma = 0.0228 z^2 (0.51 mm at 15 cm) with a 2.4 px correlation, 41 % dropout on depth edges, depth stored
+in 1 mm steps. The smooth error is the frame-to-frame one (scripts/fit_temporal.py, static repeated
+captures, so no table relief): 0.0072 z^2 (0.16 mm at 15 cm) at the model's 30 px scale; the first fit's
+0.0452 z^2 (1.0 mm) measured the wood table's relief."""
 
 
 def add_fitted_noise(depth, k, rng, params=None, scale=1.0):
