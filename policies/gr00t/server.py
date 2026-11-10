@@ -382,6 +382,7 @@ class N17Backend:
         revision: str | None = None,
         device: str = "cuda",
         backbone: str = "canonical",
+        fps: float | None = None,
     ) -> None:
         import torch
         from gr00t.policy.gr00t_policy import Gr00tPolicy
@@ -405,7 +406,7 @@ class N17Backend:
         self.horizon = len(self.modality["action"].delta_indices)
         self.video_offsets = list(self.modality["video"].delta_indices)
         self.history: deque[tuple[float, dict[str, np.ndarray]]] = deque(maxlen=256)
-        self.dt = 1.0 / profile.fps
+        self.dt = 1.0 / (fps or profile.fps)
 
     @staticmethod
     def _local(checkpoint: str, revision: str | None) -> Path:
@@ -601,6 +602,7 @@ def make_backend(args: argparse.Namespace) -> Any:
             revision=args.revision,
             device=args.device,
             backbone=args.backbone,
+            fps=args.fps,
         )
     raise ValueError(f"unknown backend {args.backend!r}")
 
@@ -763,6 +765,7 @@ def main() -> None:
     p.add_argument("--revision", default=None, help="HF commit (default: the pinned one)")
     p.add_argument("--backbone", default="canonical", choices=["canonical", "qwen3-vl-2b"])
     p.add_argument("--device", default="cuda")
+    p.add_argument("--fps", type=float, default=None, help="the checkpoint's control rate (default: the profile's, 30)")
     p.add_argument("--transport", default="http", choices=["http", "zmq"])
     p.add_argument("--host", default="0.0.0.0")
     p.add_argument("--port", type=int, default=5555)

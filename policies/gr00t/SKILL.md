@@ -81,27 +81,41 @@ bundle gives a graph that node now, with GR00T N1.7, and keeps the graph side
 unchanged for GR00T 2:
 
 ```python
-marks = ctx.tool(
-    "gr00t.marks_from_points",
-    observation=obs,
-    points=[
-        {"kind": "grasp", "point": brick_center},
-        {"kind": "release", "point": seat_position},
-    ],
-)["marks"]
+# World-point marks are re-projected onto the top view every chunk.
+marks = [
+    {"kind": "grasp", "point": brick_obb["center"]},
+    {"kind": "release", "point": seat_above},
+]
 r = ctx.tool(
     "gr00t.run_skill",
-    instruction="Put the red brick on the plate.",
+    instruction="Pick up the red 2x2 DUPLO brick and press it onto the plate at the blue dot.",
     marks=marks,
-    max_steps=480,
-    success_check={"tool": "robot.get_gripper", "field": "position", "equals": 1.0},
+    max_steps=600,  # rows at 30 Hz
+    success_check="gripper_cycle",  # or {"tool": ..., "field": ..., "equals": ...}
 )
 r["route"]  # succeeded | max_steps | unsafe_action
 ```
 
-`examples/` has a LEGO GaP graph that plans the brick and its seat with
-existing hub skills, hands the place-and-press step to `gr00t.run_skill` with
-marks, and checks it with `verifying-brick-seated-by-height`.
+### The GaP node example
+
+`examples/lego_place_with_gr00t/make_graph.py OUT` writes a GaP workflow
+(and copies the skills' canonical scripts beside it) in which the graph does
+the what and where and GR00T the how:
+
+| subgraph | skill | does |
+|---|---|---|
+| plate_sg | calibrating-baseplate-stud-grid | the plate's pose (markers + wrist close-up) |
+| plan_sg | planning-brick-assembly-order | the build as a placement order |
+| seat_sg | next_brick.py + computing-brick-pose-from-stud-grid | the next brick (cell, size, name) and its seat |
+| find_sg | perceiving-objects | the loose brick on the table (DINO + VLM + SAM3 + depth) |
+| gr00t_sg | gr00t (place_with_gr00t.py) | grasp mark on the brick, release mark 3 cm over the seat; `gr00t.run_skill` until one grasp-and-release cycle |
+| verify_sg | verifying-brick-seated-by-height | seated, or not_seated / high_by_stud / tilted / ... |
+
+Every route each subgraph can return is mapped (tested), and the workflow
+passes gap's validator with the hub's registry
+(`tests/bundles/test_gr00t_policy.py`). A domino version swaps the plan,
+seat and verify skills (planning-a-domino-layout,
+auditing-a-domino-line-for-fallen-or-tilted-tiles) and keeps gr00t_sg.
 
 ## Tools
 
@@ -123,7 +137,8 @@ marks, and checks it with `verifying-brick-seated-by-height`.
   `robot.close_gripper` with hysteresis (close under 0.35, open over 0.65).
   `success_check` is `{"tool", "args", "field", "equals"}` - any tool the
   graph may call (a camera-only judge on a real station, a simulator query in
-  a twin) - or a callable from Python. `control_hz` interpolates the 30 Hz rows
+  a twin) - `"gripper_cycle"` (a jaw closed, then opened: one grasp and
+  release), or a callable from Python. `control_hz` interpolates the 30 Hz rows
   to the connector's waypoint rate. A guard refuses a chunk whose joints jump
   more than `max_joint_step_rad` (0.35) in one row.
 - `gr00t.marks_from_points(observation, points, camera="top")`: OpenCV pinhole
@@ -143,6 +158,12 @@ right_wrist), `joints[14]`, optional `ee` poses, `instruction`, `marks`. A
 |---|---|---|---|---|---|
 | `yam-molmoact2` (default) | robocurve/gr00t-n1.7-yam-molmoact2 | new_embodiment | base_view, left/right_wrist_view | left/right arm (6) + gripper (1), absolute | 16 x 14 absolute |
 | `xdof` | nvidia/GR00T-N1.7-3B | xdof_relative_eef_relative_joint | 3 x 320x240 at t-1 s and t | + wrist EEF xyz+rot6d | 40 x 14 (relative, made absolute) |
+| `yam-roles` / `yam-left-roles` | a fine-tune given by `--checkpoint DIR` | new_embodiment | top, left_wrist(, right_wrist) | left_arm, left_gripper(, right_*) | as trained |
+
+`yam-roles` fits a fine-tune on a LeRobot dataset that names its views and
+joint groups after the roles (the station's recorder and the hub's sim demos
+do), so a new YAM checkpoint is served with
+`--profile yam-roles --checkpoint <dir>` and nothing else changes.
 
 Backends: `n1.7` (Isaac-GR00T `Gr00tPolicy`, bf16), `gr00t2` (placeholder:
 raises, and its docstring lists what it must return - the same `actions`
