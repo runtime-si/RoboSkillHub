@@ -28,6 +28,10 @@ position servo needs a few millimetres of interference to push)."""
 APPROACH = 0.06
 """Height over the support point from which the support hand descends [m]."""
 
+STALL_TOLERANCE = 0.003
+"""A press leg that times out or stops on contact within this of the target (laterally, and above it by
+at most press_depth plus this) is the hand stalled on the base, as intended [m]."""
+
 TIP_BELOW_TCP = 0.0102
 """Closed linear_4310 fingertips reach this far below the tool centre [m] (PORTING lesson 6)."""
 
@@ -168,6 +172,14 @@ def run(
                 why = _refusal(ctx.tool("robot.go_to_pose_cartesian", pose=pose, **on))
             except Exception as exc:
                 why = str(exc) or type(exc).__name__
+            if why and name == "onto the base":
+                # The press leg is meant to stall on the base: a timeout or contact near the target is the preload.
+                got = _xyz(_pose(ctx.tool("robot.get_ee_pose", **on)))
+                if (
+                    np.linalg.norm(got[:2] - target[:2]) < STALL_TOLERANCE
+                    and got[2] - tcp_z < float(press_depth) + STALL_TOLERANCE
+                ):
+                    why = ""
             if why:
                 return finish("support_unreachable", f"support arm {name}: {why}")
         held = _xyz(_pose(ctx.tool("robot.get_ee_pose", **on)))

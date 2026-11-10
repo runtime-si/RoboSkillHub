@@ -141,3 +141,20 @@ def test_bad_arguments(ht):
 
 def test_the_twist_skill_is_found_beside_this_bundle(ht):
     assert callable(ht._twist_module().run)
+
+
+def test_a_press_leg_stalled_on_the_base_counts_as_support(ht, twist):
+    arms = Arms()
+    twist.arms = arms
+    real_go = arms.go
+
+    def go(pose, arm_id=0, **kw):
+        r = real_go(pose, arm_id=arm_id, **kw)
+        if arm_id == 1 and len([m for a, m in arms.moves if a == 1]) == 2:
+            arms.p[1][2] += ht.PRESS_DEPTH  # stopped on the base, 4 mm above the target
+            return {"reached": False, "outcome": "timeout"}
+        return r
+
+    arms.go = go
+    out = ht.run(_ctx(arms), seat_position=SEAT, support_point=SUPPORT)
+    assert out["route"] == "separated" and out["support_used"]

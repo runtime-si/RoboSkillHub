@@ -91,7 +91,26 @@ hand pressing the base down.
 
 ## Checks
 
-CHECKS
+Unit tests (`tests/bundles/test_disassembling_a_stack_with_hold_and_twist.py`,
+13) with FakeContext and the twist skill stubbed: the support press (and a
+press leg that stalls on the base), drift, route mapping, refusals,
+no-support, the 14 mm floor, bad inputs.
+
+**YAM twin** (two arms; the twist-lever check's DUPLO scene with the plate
+made free, 15 g, and the clutch applied as a pair of forces between brick and
+plate, 2.5 N per stud; harness not in the hub):
+
+| plate (bench) | support | trials | clean separation | routes |
+|---|---|---|---|---|
+| (-0.03, 0.17), default | none | 3 | 0 | base_moved 3 (plate dragged 33-112 mm or thrown) |
+| (-0.03, 0.17) | right arm, plate's -y strip | 3 | 0 | support_unreachable 3 (IK: no pose there) |
+| (-0.08, 0.0), middle | none | 3 | 0 | missed 3 (the twist skill's open jaws stopped 10-12 mm over the grasp) |
+| (-0.08, 0.0) | right arm | 1 | 0 | support_unreachable: the press leg timed out on the plate - the intended stall, which version 0.1.0 now accepts (not re-run) |
+
+An IK probe found all four support points reachable with the plate moved
+0.17 m to the middle. So far support has **not** been shown to help: at the
+default spot the right arm cannot reach, and at the middle the twist arm's
+grasp misses before support matters.
 
 ## Limits
 
