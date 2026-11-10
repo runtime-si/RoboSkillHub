@@ -106,7 +106,40 @@ Upstream is a MATLAB baseline; this is a numpy / scipy reimplementation
 
 ## Measured (standalone MuJoCo check, not the YAM twin)
 
-MEASURED_PLACEHOLDER
+**Scene (`~/sim-wt/suction/sim_suction.py`, MuJoCo 3, CPU):**
+- A 3 x 4 tray of 22 x 22 x 2 mm pieces with **0.3 mm gaps**; the outer
+  pieces carry a 7 mm knob outward.
+- An overhead depth camera at 0.3 m (640 x 480, f = 600 px), built from
+  `mj_multiRay`, with 0.4 mm depth noise. Its segmentation, eroded 1 px,
+  stands in for sam3.
+- A hand on a mocap weld carrying an 8 mm cup. Contact moves stop at 0.05 N.
+- The vacuum is an adhesion actuator that engages only when the lip seals:
+  9 rays from the lip ring must all hit the same piece within 0.4 mm of
+  height, so a lip over a gap, an edge or a knob leaks.
+- **The skill got no vacuum reading** and had to judge the seal from the
+  camera. 3 depth-noise seeds per piece.
+
+| method | held after lift | routed `picked` | false `picked` | `no_seal` (correct) |
+| --- | --- | --- | --- | --- |
+| this skill (ARC affordance + edge rule) | **36/36** | 36 | 0 | 0 |
+| same pick, cup point random on the mask | 18/36 | 18 | 0 | 18 |
+| parallel gripper, 15.5 x 3.9 mm pads | 0/12 slot positions leave room for the pads (geometry; the hub's real-gripper jigsaw run: 19/100 direct grips) | | | |
+
+- **Point choice:** affordance at the chosen points was 0.887-0.911. They
+  sat a full cup radius inside the piece, so the lip never crossed an edge
+  or a knob. A random point leaked half the time, and the camera rim check
+  caught every leak: the rim rose 0.0 mm, against 4.86-4.89 mm when sealed.
+- **No disturbance:** neighbours moved 0.0 mm in every trial.
+- **One bug found and fixed here:** before occluding rim pixels were
+  skipped, the hand in front of the piece looked like a 32 mm "rise" and a
+  failed pick was reported as `picked`.
+- **What this does not show:**
+  - real cup compliance, leakage on printed board, or flatness of warped
+    pieces (the seal model is ideal);
+  - the YAM twin (its gripper has no cup);
+  - `place_point` transport, `dropped_in_transport` and the vacuum-sensor
+    path, which are unit-tested only;
+  - a real station.
 
 ## Licence
 
