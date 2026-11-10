@@ -55,9 +55,6 @@ OBSTACLE_M = 0.001
 proud, so this must stay under 2 mm: the station twin's depth is exact; the real overhead Orbbec is
 2-4 mm noisy at 0.9 m, so on the real station give a wrist-camera view (see SKILL.md)."""
 
-RELEASE_GAP_M = 0.004
-"""On release the jaws first open to the grip width plus this (2 mm a side), then fully, then the hand rises."""
-
 GRID_M = 0.002
 """Cell of the height grid the drop spot is chosen on."""
 
@@ -507,19 +504,9 @@ def _regrasp(
     why = arm.to_point(xy, grasp_z, rot)
     if why:
         return f"set-down refused: {why}"
-    if grip_width_m > 0:
-        # Let go in two steps: take the squeeze off (jaws just past the piece), open fully, then rise.
-        ctx.tool(
-            "robot.set_grip", object_width_m=grip_width_m + RELEASE_GAP_M, squeeze_m=0.0, **arm.kw
-        )
-        arm.wait()
-        ctx.tool("robot.open_gripper", **arm.kw)
-        arm.wait()
-        why = arm.to_pose({"position": {**xy, "z": grasp_z + LIFT_M}, "rotation": rot}, True)
-    else:
-        ctx.tool("robot.open_gripper", **arm.kw)
-        arm.wait()
-        why = arm.to_pose({"position": {**xy, "z": grasp_z + LIFT_M}, "rotation": rot}, True)
+    ctx.tool("robot.open_gripper", **arm.kw)
+    arm.wait()
+    why = arm.to_pose({"position": {**xy, "z": grasp_z + LIFT_M}, "rotation": rot}, True)
     if why:
         return f"rise refused: {why}"
     why, _ = _turn_joint(arm, empty_deg, sign, lo, hi)

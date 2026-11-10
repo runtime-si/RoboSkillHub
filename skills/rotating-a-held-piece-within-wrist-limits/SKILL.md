@@ -181,7 +181,23 @@ Two fixes came from earlier runs, which together held 2 / 23 regrasps:
 - **Set-down height read back.** The servo reported "reached" 2.3 mm short, the piece dropped 3 mm and shifted; it is now re-commanded until within 1 mm.
 - **Straight transfer.** A joint-space move to the set-down spot swung the held piece into the neighbours and knocked it out of the jaws; the transfer is now Cartesian.
 
+**Round 3: the west drop spot, and the chooser** (same harness, plus the
+station twin's grip fix of 2026-11-09, impratio 100 and solimp 0.99,
+`SIM_GRIP.md`):
+
+- **Why the west spot failed.** The overhead and wrist depth showed the west spot flat (within 0.1 mm), so it was not an obstacle. The transfer was not it either: the piece arrived level, 2 mm over the mat. The piece jumped 32 mm and spun 88 degrees when the jaws opened. With the twin's grip fix the same spot keeps the piece in 8 / 8 trials (it was 0 / 4), so it was the stock twin's soft friction letting the handle creep and catch, not the spot.
+- **Chooser** (no spot given): it took a measured-clear spot 80 mm from the hand every time.
+  - Stock physics: 4 / 4 regrasps held, piece within 2.0 degrees, tilt at most 0.6 degrees.
+  - With the grip fix: every regrasp held (tilt under 1 degree), but in 4 of 5 the piece then turned about 45 degrees in the jaws during the held turn after the regrasp. Seen in the trace: the jaw reading closed from 0.115 to 0.096 as the harness's 10 x 4 mm handle turned between the blades. The fixed east and west spots did the same. Open; see Limits.
+- **Two release variants did not help and were dropped:** opening 2 mm a side and rising before opening fully dragged the piece (tilts 7-13 degrees); opening 2 mm, then fully, then rising was not measured before the grip fix landed.
+
 ## Limits
+
+- **After a regrasp the piece can turn in the jaws** in the twin with the grip
+  fix (about 45 degrees in 4 of 5 regrasps on a 10 x 4 mm handle). The skill
+  reads the hand's turn, not the piece's: re-measure the held piece before
+  placing, or avoid the regrasp by gripping with the jaws swapped at the pick
+  (`plan_only`).
 
 - **The piece slips in the hand as it turns**; this reports the hand's turn.
   Measure the held piece with the wrist camera before placing when it matters.
@@ -206,9 +222,11 @@ Two fixes came from earlier runs, which together held 2 / 23 regrasps:
 ## The constants, and why
 
 `WRIST_LIMIT_RAD` 2.0944 (YAM joint 6; station MJCF), `LIMIT_MARGIN_RAD` 0.05,
-`REACH_TOL_M` 1 mm, `RELEASE_GAP_M` 4 mm, `DROP_SEARCH_M` 15 cm,
+`REACH_TOL_M` 1 mm, `DROP_SEARCH_M` 15 cm, `PIECE_REACH_M` 35 mm, `DROP_MARGIN_M` 12 mm,
+`OBSTACLE_M` 1 mm, `GRID_M` 2 mm, `RELEASE_GAP_M` 4 mm, `DROP_SEARCH_M` 15 cm,
 `PIECE_REACH_M` 35 mm, `DROP_MARGIN_M` 12 mm, `OBSTACLE_M` 1 mm, `GRID_M` 2 mm,
-`REACH_TOL_M` 1 mm, `RELEASE_GAP_M` 4 mm, `DROP_SEARCH_M` 15 cm,
+`REACH_TOL_M` 1 mm, `DROP_SEARCH_M` 15 cm, `PIECE_REACH_M` 35 mm, `DROP_MARGIN_M` 12 mm,
+`OBSTACLE_M` 1 mm, `GRID_M` 2 mm, `RELEASE_GAP_M` 4 mm, `DROP_SEARCH_M` 15 cm,
 `PIECE_REACH_M` 35 mm, `DROP_MARGIN_M` 12 mm, `OBSTACLE_M` 1 mm, `GRID_M` 2 mm,
 `YAW_TOL_DEG` 0.5, `MAX_CORRECTIONS` 4, `PROBE_DEG` 4, `LIFT_M` 30 mm,
 `SETTLE_STEPS` 40, `STEP_DEG` 1 (planner grid).
