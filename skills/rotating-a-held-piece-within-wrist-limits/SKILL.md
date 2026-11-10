@@ -159,6 +159,9 @@ Two fixes came from earlier runs, which together held 2 / 23 regrasps:
 - **Regrasps depend on the set-down spot**: 5 / 5 at one free spot in the twin,
   0 / 4 at another. Check the spot is clear well beyond the piece (it hangs
   off the tool centre), and keep the jaws' grip width (`grip_width_m`).
+- **Regrasps depend on the set-down spot**: 5 / 5 at one free spot in the twin,
+  0 / 4 at another. Check the spot is clear well beyond the piece (it hangs
+  off the tool centre), and keep the jaws' grip width (`grip_width_m`).
 - **The set-down spot must be free and flat**, and reachable with the hand's
   current tilt; the skill does not search for one
   (`selecting-free-placement-spots` can).
@@ -170,6 +173,7 @@ Two fixes came from earlier runs, which together held 2 / 23 regrasps:
 ## The constants, and why
 
 `WRIST_LIMIT_RAD` 2.0944 (YAM joint 6; station MJCF), `LIMIT_MARGIN_RAD` 0.05,
+`REACH_TOL_M` 1 mm,
 `REACH_TOL_M` 1 mm,
 `YAW_TOL_DEG` 0.5, `MAX_CORRECTIONS` 4, `PROBE_DEG` 4, `LIFT_M` 30 mm,
 `SETTLE_STEPS` 40, `STEP_DEG` 1 (planner grid).
