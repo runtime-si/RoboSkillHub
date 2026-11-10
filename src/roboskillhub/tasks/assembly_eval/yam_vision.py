@@ -28,6 +28,8 @@ Pipeline, every time the objects are read and the simulation has advanced since 
    contract's canonical one: height axis (+z) up, facing axis (+x) closest to the tile's previous
    estimate (first: the calibrated rack yaw). The truth's frame is a physical one, so without this a
    standing tile can come back "upside down" and a place computed from it is unreachable.
+   A partly hidden fit (coverage < 0.6) within 1 cm of the tile's last full-coverage fit is
+   replaced by that fit (``source: vision_memory``); memory keeps only full-coverage fits.
 6. **Memory.** A tile last seen resting that no camera sees now (the arm is over it) keeps its last
    estimate (``source: vision_memory``, last-seen time in ``evidence``) as long as the reported TCP has
    not come within 8 cm of it since; a tile the hand went near is ``not_found`` until seen again. A
@@ -39,7 +41,8 @@ Pipeline, every time the objects are read and the simulation has advanced since 
    jaw state, no object truth - and no slip detection while held.
 
 Measured 2026-11-09 (rshgpu5/6, MuJoCo EGL, depth segmentation, both cameras), Agent 5's graph and
-baselines on test seeds 0-9: fixed_script and online_replan each 8/10 graph success vs truth's 10/10.
+baselines on test seeds 0-9: fixed_script and online_replan each 8/10 graph success vs truth's 10/10
+(before the partial-fit rule below; with it, fixed_script 10/10 graph and evaluator, 2026-11-10).
 The evaluator found all 10 layouts built in both, so the 2 failures are vision false alarms
 (``place: domino.neighbour_disturbed``, seeds 4 and 5). Pose error against truth over 167 images
 an episode: 1.7 mm median, 5.5 mm max position, 0.2-0.3 deg p90 tilt; held tiles 8 mm median
@@ -84,6 +87,10 @@ MATCH_GATE_M = 0.15
 MIN_IMAGE_INTERVAL_S = 0.05
 #: A tracked tile within this of the TCP when the jaw closes is the held one.
 HELD_GATE_M = 0.03
+#: A partly hidden fit (coverage under pose6d's 0.6) within this of the tile's last full-coverage fit is
+#: replaced by that fit: with the hand beside a placed tile its partial fits were 3-4 mm off (seed 4,
+#: 2026-11-10) against the place skill's 3 mm neighbour tolerance. A real move over 1 cm passes.
+PARTIAL_KEEP_M = 0.010
 #: A remembered (unseen) tile is dropped once the reported TCP comes within this of it.
 MEMORY_HAND_GATE_M = 0.08
 
@@ -316,6 +323,29 @@ class YamVision:
         self._out = {}
         for tid, o in out.items():
             d = o.to_backend_object()
+            full = self._memory.get(tid)
+            if (
+                o.visibility == "partially_occluded"
+                and full is not None
+                and np.linalg.norm(o.T_frame_object[:3, 3] - np.asarray(full["position_m"]))
+                < PARTIAL_KEEP_M
+            ):
+                # a partly hidden fit (the hand beside the tile) is less exact than the last full one
+                d = {
+                    **{k: v for k, v in full.items() if k != "_seen_s"},
+                    "source": "vision_memory",
+                    "evidence": {
+                        "kept_full_fit_from_sim_s": full["_seen_s"],
+                        "partial_fit_offset_m": float(
+                            np.linalg.norm(o.T_frame_object[:3, 3] - np.asarray(full["position_m"]))
+                        ),
+                    },
+                }
+                self._out[tid] = d
+                T = _contract_T(d)
+                self._est[tid] = T[:3, 3].copy()
+                self._T_est[tid] = T
+                continue
             T = _canonical(_contract_T(d), self._x_prev.get(tid))
             d["quaternion_xyzw"] = _R_to_quat(T[:3, :3])
             self._out[tid] = d
@@ -339,7 +369,7 @@ class YamVision:
         held = self._held[0] if self._held else None
         tcp = self._tcp_T()[:3, 3]
         for tid, d in self._out.items():
-            if d.get("source") != "grasp_kinematics":
+            if d.get("source") == "rgbd_pose6d" and d.get("visibility") == "visible":
                 self._memory[tid] = {**d, "_seen_s": sim_t}
         for tid in list(self._memory):
             if tid in self._out or tid == held:
