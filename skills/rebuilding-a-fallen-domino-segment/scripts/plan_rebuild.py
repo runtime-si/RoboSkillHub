@@ -122,7 +122,17 @@ def run(
     leans = [lean_deg[i] for i in range(a, b + 1) if lean_deg[i] is not None]
     forward = (sum(1 for v in leans if v > 0) >= sum(1 for v in leans if v < 0)) if leans else True
     out["direction"] = "forward" if forward else "backward"
-    k = b if forward else a  # the downstream end: nothing lies on it
+    k = b if forward else a  # the downstream end
+    if b > a:
+        # in a cascade each tile falls onto the next, so the downstream tile lies under its
+        # predecessor's top end: a pinch at its centre takes that end instead (station twin:
+        # the arm carried tile 3 off tile 4, and the stand-up handover then closed on nothing)
+        out["tile_index"] = k
+        return finish(
+            "pinned",
+            f"segment {a}-{b} fell {out['direction']}: tile {k} at its downstream end lies under tile "
+            f"{k - 1 if forward else k + 1}'s top; lift the top of the pile ({a if forward else b}) first",
+        )
     out["tile_index"] = k
     lean = lean_deg[k]
     f = math.radians(facings[k])

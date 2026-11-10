@@ -2172,6 +2172,19 @@ def run(
         if w_b >= 0.0 and not (tt - NARROW_MARGIN <= w_b <= tt + FULL_MARGIN):
             hand_b.grip(tt + 2.0 * float(grip_clearance))
             hand_b.line(pre_b, rb)
+            # set the tile down flat under the handover point rather than carry it on: a hand
+            # that moves on holding it sweeps whatever stands nearby
+            c_now, _, r_a = tile_from_a()
+            p_a, _ = hand_a.pose()
+            down = np.array([c_now[0], c_now[1], table_z + tt / 2.0 + float(release_gap)])
+            if not hand_a.line(p_a + (down - c_now), r_a):
+                hand_a.grip(grip_open)
+                hand_a.line(_xyz(here()) + np.array([0.0, 0.0, float(lift_height)]), r_a)
+                return finish(
+                    "dropped",
+                    f"the helper closed to {w_b * 1e3:.1f} mm, not across the {tt * 1e3:.1f} mm tile; "
+                    f"set it down flat at {np.round(down, 4).tolist()} and rose",
+                )
             return finish(
                 "unreachable",
                 f"the helper closed to {w_b * 1e3:.1f} mm, not across the {tt * 1e3:.1f} mm tile; still holding",

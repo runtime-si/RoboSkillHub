@@ -34,8 +34,11 @@ def test_downstream_end_of_a_forward_run(script):
     states = ["upright", "upright", "fallen", "fallen", "fallen", "missing", "upright", "upright"]
     leans = [0.0, 0.0, 76.0, 76.0, 90.0, None, 0.0, 0.0]
     res = _run(script, states, leans)
-    assert res["route"] == "rebuild_next" and res["tile_index"] == 4 and res["segment"] == [2, 4]
+    assert res["route"] == "pinned" and res["tile_index"] == 4 and res["segment"] == [2, 4]
     assert res["direction"] == "forward" and res["remaining"] == 3
+    states = ["upright", "upright", "upright", "upright", "fallen", "missing", "upright", "upright"]
+    res = _run(script, states, [0.0, 0.0, 0.0, 0.0, 90.0, None, 0.0, 0.0])
+    assert res["route"] == "rebuild_next" and res["tile_index"] == 4
     # lying flat forward of slot 4: centre h/2 + d/2 ahead of the slot centre, thickness/2 high
     assert res["tile_center"]["y"] == pytest.approx(0.2 + 4 * 0.03 + 0.0075 / 2 + 0.024)
     assert res["tile_center"]["z"] == pytest.approx(0.0075 / 2)
@@ -46,13 +49,16 @@ def test_downstream_end_of_a_forward_run(script):
 def test_backward_run_starts_at_its_low_end(script):
     states = ["upright", "fallen", "fallen", "upright"]
     res = _run(script, states, [0.0, -90.0, -78.0, 0.0], slots=SLOTS[:4])
-    assert res["direction"] == "backward" and res["tile_index"] == 1
-    assert res["long_axis"]["y"] == pytest.approx(-1.0)
+    assert res["direction"] == "backward" and res["tile_index"] == 1 and res["route"] == "pinned"
+    res = _run(
+        script, ["upright", "fallen", "upright", "upright"], [0.0, -90.0, 0.0, 0.0], slots=SLOTS[:4]
+    )
+    assert res["route"] == "rebuild_next" and res["long_axis"]["y"] == pytest.approx(-1.0)
 
 
 def test_downstream_tile_still_leaning(script):
     res = _run(
-        script, ["upright", "fallen", "leaning", "upright"], [0.0, 78.0, 38.0, 0.0], slots=SLOTS[:4]
+        script, ["upright", "upright", "leaning", "upright"], [0.0, 0.0, 38.0, 0.0], slots=SLOTS[:4]
     )
     assert res["route"] == "not_flat" and res["tile_index"] == 2
 
@@ -81,12 +87,13 @@ def test_example_declares_every_route(script):
         "rebuild_next",
         "nothing_fallen",
         "not_flat",
+        "pinned",
         "invalid_input",
     }
 
 
 def test_flat_body_read_across_the_empty_next_slot(script):
     # the audit in the station twin: tile 4 read 67 deg, its body read flat at the empty slot 5
-    states = ["upright", "upright", "fallen", "fallen", "fallen", "missing", "upright", "upright"]
-    res = _run(script, states, [2.5, 2.5, 75.5, None, 67.0, 90.0, 0.5, 0.0])
+    states = ["upright", "upright", "upright", "upright", "fallen", "missing", "upright", "upright"]
+    res = _run(script, states, [2.5, 2.5, 0.0, 0.0, 67.0, 90.0, 0.5, 0.0])
     assert res["route"] == "rebuild_next" and res["tile_index"] == 4
