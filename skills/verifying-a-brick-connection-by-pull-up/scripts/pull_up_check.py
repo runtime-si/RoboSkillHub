@@ -41,13 +41,15 @@ STEP = 0.0005
 """Commanded rise per step [m]. Each step raises the pull on a held brick by the
 servo stiffness times the step, so a clutch is felt before it lets go."""
 
-HOLD_LAG = 0.0003
+HOLD_LAG = 0.001
 """How far below its command beyond the start's lag the hand must stand for the
-brick to be held [m]. Tuned on a YAM station twin: gripping a fixed wall, the
-jaws slid once the lag reached 0.5-0.76 mm (so a 1.5 mm threshold, half the real
-station's 3 mm contact lag, never fired), while a free cube lifted with 0.04-0.05
-mm; 0.3 mm sits between, above the twin's 0.1-0.2 mm free-motion jitter. A real
-YAM's jitter on 0.5 mm steps is not measured: retune there."""
+brick to be held [m]. A third of the real YAM station's 3 mm contact lag, well
+above a station twin's free lifts (0.04-0.09 mm): gripping a fixed wall in the twin
+(with the harness's grip fix, SIM_GRIP.md) it fired at the third 0.5 mm step with
+1.41 mm of lag. Lower thresholds pull less on the clutch but come closer to a real
+arm's free-motion jitter, and a false "connected" releases a loose brick; a real
+YAM's jitter on 0.5 mm steps is not measured: retune there. (0.3 mm was used
+while the stock twin let the jaws slide at 0.5-0.76 mm of lag.)"""
 
 EFFORT_THRESHOLD = 0.5
 """Joint effort residual read as a hold [N.m], where efforts are published: i2rt's
