@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-29 tools, 153 skills, 2 policies, 1 recipe and 1 paper.
+29 tools, 153 skills, 2 policies, 2 recipes and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -3067,6 +3067,7 @@ Run the openpi π0.5 LIBERO checkpoint (pi05_libero) as a closed-loop VLA policy
 ## Recipes
 
 - [`pick-place-camera-only`](recipes/pick-place-camera-only/RECIPE.md): Put one named rigid object into a named container from the cameras alone. Uses [`grasping-short-axis`](#grasping-short-axis), [`grasping-with-planner`](#grasping-with-planner), [`perceiving-objects`](#perceiving-objects), [`transporting-objects`](#transporting-objects), [`verifying-grasps`](#verifying-grasps).
+- [`side-grasp-regrasp-top-insert`](recipes/side-grasp-regrasp-top-insert/RECIPE.md): Put an elongated part (pin, dowel, pen, rod, plug body) into a hole straight down on a two-arm station. Uses [`handing-over-a-peg-to-a-top-down-grasp`](#handing-over-a-peg-to-a-top-down-grasp), [`inserting-a-held-peg-top-down`](#inserting-a-held-peg-top-down), [`picking-a-peg-with-a-side-grasp`](#picking-a-peg-with-a-side-grasp).
 
 ## Papers
 
