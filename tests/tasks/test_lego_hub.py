@@ -77,6 +77,13 @@ class Station:
             p = list(request["target_pose"]["position_m"])
             if self.stall is not None:
                 p[2] = min(p[2], self.stall)
+            if self.holding and self.stall is None:  # a free held brick follows the hand
+                for o in self.objects.values():
+                    if o.get("class") == "lego_brick":
+                        o["position_m"] = [
+                            *o["position_m"][:2],
+                            o["position_m"][2] + p[2] - self.tcp[2],
+                        ]
             self.tcp = p
             return {"status": "succeeded"}
         if capability == "set_gripper":
@@ -196,6 +203,20 @@ def test_pull_up_reads_a_stalled_hand_as_connected_and_a_free_one_as_not(K):
     r = _run(K, "hub.pull_up_check", {"object_id": "b1"}, st)
     assert r["status"] == "failed" and r["failure_type"] == "lego.not_seated"
     assert r["evidence"]["pull_log"]
+    # Jaws sliding on a clutched brick: the hand rises, the brick does not.
+    slip = Station({"b1": brick(SEAT)}, tcp=seat_tcp, holding=True, width=0.016)
+    slip.holding_follow = False
+    orig = slip.primitive
+
+    def no_follow(capability, request, rid):
+        keep = dict(slip.objects["b1"])
+        out = orig(capability, request, rid)
+        slip.objects["b1"] = keep
+        return out
+
+    slip.primitive = no_follow
+    r = _run(K, "hub.pull_up_check", {"object_id": "b1"}, slip)
+    assert r["status"] == "succeeded" and "jaws slid" in r["evidence"]["reason"]
 
 
 def test_track_build_seeds_places_and_flags_floating_and_moved_bricks(K):
@@ -343,3 +364,29 @@ def test_lip_choice_prefers_a_fence_and_picks_the_inverted_push_side():
     lat = {"T_W_baseplate": {"position_m": [0.3, 0.0, 0.0032]}, "plate_studs": [32, 32]}
     assert _support_z([0.3, 0.1, 0.0], {"table_z": 0.0, "lattice": lat}) == pytest.approx(0.0032)
     assert _support_z([0.2, -0.2, 0.0], {"table_z": 0.0, "lattice": lat}) == 0.0
+
+
+def test_judge_place_fuses_pull_and_depth(K):
+    st = Station({})
+    ok = _run(K, "hub.judge_place", {"pull": {"route": "connected", "brick_rise_m": 0.0002},
+                                      "depth": {"route": "seated", "height_error_m": 0.0001},
+                                      "release_status": "succeeded"}, st)  # fmt: skip
+    assert ok["status"] == "succeeded", ok["evidence"]
+    bad = _run(K, "hub.judge_place", {"pull": {"route": "not_connected", "brick_rise_m": 0.0027},
+                                       "depth": {"route": "high_by_stud", "height_error_m": 0.0017},
+                                       "release_status": "succeeded"}, st)  # fmt: skip
+    assert bad["status"] == "failed"
+    g = lego_press_hub(
+        judge=True, flip=True, recovery=True, attempts=2, bricks=7, grasps="configured"
+    )
+    load_graph(g, K)
+    assert (
+        g["nodes"]["depth"]["on"]["succeeded"] == "judge"
+        and g["nodes"]["judge"]["on"]["failed"] == "track"
+    )
+
+
+def test_large_scenes_exist():
+    from roboskillhub.tasks.assembly_eval.lego_scenes import SCENES
+
+    assert len(SCENES["wall7"]["goal"]) == 7 and len(SCENES["pyramid6"]["goal"]) == 6

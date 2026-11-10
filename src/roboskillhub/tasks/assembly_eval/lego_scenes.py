@@ -47,6 +47,51 @@ SCENES: dict[str, dict] = {
         },
         "note": "three bricks, three connections; brick 3 needs brick 1",
     },
+    # A two-layer running-bond wall of 2x4s: four end to end on the plate, three on top across the joints.
+    "wall7": {
+        "task_type": "2",
+        "goal": {
+            **{
+                str(k + 1): {"brick_id": 2, "x": 4 * k, "y": 0, "z": 0, "ori": 1, "color": "Red"}
+                for k in range(4)
+            },
+            **{
+                str(k + 5): {
+                    "brick_id": 2,
+                    "x": 2 + 4 * k,
+                    "y": 0,
+                    "z": 1,
+                    "ori": 1,
+                    "color": "Blue",
+                }
+                for k in range(3)
+            },
+        },
+        "note": "seven bricks, two layers; each upper brick bridges two lower ones",
+    },
+    # A three-layer stepped pyramid of 2x4s (3 + 2 + 1).
+    "pyramid6": {
+        "task_type": "2",
+        "goal": {
+            **{
+                str(k + 1): {"brick_id": 2, "x": 4 * k, "y": 0, "z": 0, "ori": 1, "color": "Red"}
+                for k in range(3)
+            },
+            **{
+                str(k + 4): {
+                    "brick_id": 2,
+                    "x": 2 + 4 * k,
+                    "y": 0,
+                    "z": 1,
+                    "ori": 1,
+                    "color": "Green",
+                }
+                for k in range(2)
+            },
+            "6": {"brick_id": 2, "x": 4, "y": 0, "z": 2, "ori": 1, "color": "Blue"},
+        },
+        "note": "six bricks, three layers",
+    },
     # As seq3_stack with one free stud row between bricks 1 and 2 (lego.align_connection refuses a hand
     # approach next to a placed brick: would_damage_build).
     "seq3_spaced": {

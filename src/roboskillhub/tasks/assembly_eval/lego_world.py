@@ -191,7 +191,10 @@ def _fences() -> list[dict]:
     if os.environ.get("LEGO_FENCE") != "1":
         return []
     y = FEEDER["y"] + FENCE["y_offset"]
-    x0, x1 = FEEDER["x0"] - 0.04, FEEDER["x0"] + FEEDER["dx"] * 4 + 0.04
+    x0, x1 = (
+        FEEDER["x0"] - 0.04,
+        FEEDER["x0"] + FEEDER["dx"] * 11 + 0.04,
+    )  # up to 10 bricks + a spare
     return [
         {
             "size": (x1 - x0, FENCE["width"], FENCE["height"]),
@@ -214,12 +217,18 @@ def lips(plate_pose: dict, plate_studs=(32, 32)) -> list[dict]:
     return out
 
 
+_CYCLE = False
+
+
 def _env_faces() -> list[str]:
     """Start faces of the feeder pieces in order (``LEGO_FEEDER_FACES=upside_down,side``): studs_up,
     upside_down or side."""
     import os
 
+    global _CYCLE
     raw = os.environ.get("LEGO_FEEDER_FACES", "")
+    _CYCLE = raw.startswith("cycle:")
+    raw = raw.removeprefix("cycle:")
     faces = [f.strip() for f in raw.split(",") if f.strip()]
     bad = [f for f in faces if f not in ("studs_up", "upside_down", "side")]
     if bad:
@@ -249,7 +258,13 @@ def physics_lego_world(
     faces = feeder_faces if feeder_faces is not None else _env_faces()
     for k, name in enumerate(names):
         yaw = math.radians(rng.uniform(-2.0, 2.0))
-        face = faces[k] if k < len(faces) else "studs_up"
+        # LEGO_FEEDER_FACES cycles over the bin when it is shorter than the bin ("cycle:" prefix), else maps
+        # one face per piece in order.
+        face = (
+            faces[k % len(faces)]
+            if faces and _CYCLE
+            else (faces[k] if k < len(faces) else "studs_up")
+        )
         # Turned about the brick's long (BrickSim x) axis: 180 deg lies on its studs, 90 deg on a long side;
         # dropped from a few millimetres and left to settle.
         roll, z = {

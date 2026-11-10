@@ -31,6 +31,7 @@ HUB_NODES = {
     "hub.pull_up_check": "pullup",
     "hub.verify_seat_depth": "depth",
     "hub.track_build": "track",
+    "hub.judge_place": "judge",
 }
 
 
@@ -95,13 +96,20 @@ def main() -> None:
     ap.add_argument(
         "--fault", default=None, help="lego_station.STATION_FAULTS, on the last placement"
     )
+    ap.add_argument(
+        "--judge", action="store_true", help="hub.judge_place (#162) on every placement"
+    )
+    ap.add_argument(
+        "--recovery", action="store_true", help="online_replan (lego_press recovery=True)"
+    )
     ap.add_argument("--out", type=Path, required=True)
     args = ap.parse_args()
     K, unavailable = load_registry()
     args.out.mkdir(parents=True, exist_ok=True)
-    bricks = {"single_on_plate": 1, "single_on_brick": 1, "seq3_stack": 3, "seq3_spaced": 3}[
-        args.scene
-    ]
+    from roboskillhub.tasks.assembly_eval.lego_scenes import SCENES
+
+    sc = SCENES[args.scene]
+    bricks = len(sc["goal"]) - len(sc.get("start", {}))
     base.pair = pair
     env = base.LegoPhysicsEnv(
         K,
@@ -117,9 +125,10 @@ def main() -> None:
         face=not args.no_face,
         pull_up=not args.no_pullup,
         flip=args.flip,
+        judge=args.judge,
         through_seat=args.through_seat,
-        recovery=False,
-        attempts=1,
+        recovery=args.recovery,
+        attempts=2 if args.recovery else 1,
         bricks=bricks,
         grasps=args.grasps,
     )

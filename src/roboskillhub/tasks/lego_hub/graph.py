@@ -71,6 +71,7 @@ def lego_press_hub(
     mode: str = "report",
     face: bool = True,
     flip: bool = False,
+    judge: bool = False,
     pull_up: bool = True,
     depth: bool = True,
     track: bool = True,
@@ -141,7 +142,11 @@ def lego_press_hub(
 
     # verify -> depth -> track -> gate -> (verify's own edges)
     verify_on = dict(nodes["verify"]["on"])
-    chain = [n for n, on in (("depth", depth), ("track", track)) if on]
+    chain = [
+        n
+        for n, on in (("depth", depth), ("judge", judge and depth and pull_up), ("track", track))
+        if on
+    ]
     if chain:
         first = chain[0]
         nodes["verify"]["on"] = {
@@ -160,9 +165,24 @@ def lego_press_hub(
                 },
                 "timeout_s": 90,
                 "max_visits": nodes["verify"].get("max_visits", 10),
-                "on": _pass(chain[chain.index("depth") + 1] if "track" in chain else "gate", mode),
+                "on": _pass(
+                    chain[chain.index("depth") + 1] if chain[-1] != "depth" else "gate", mode
+                ),
             }
             g["skills"]["hub.verify_seat_depth"] = HUB_VERSION
+        if "judge" in chain:
+            nodes["judge"] = {
+                "skill": "hub.judge_place",
+                "params": {
+                    "pull": "$last.pullup.outputs",
+                    "depth": "$last.depth.outputs",
+                    "release_status": "$last.release.status",
+                },
+                "timeout_s": 10,
+                "max_visits": nodes["verify"].get("max_visits", 10),
+                "on": _pass("track" if track else "gate", mode),
+            }
+            g["skills"]["hub.judge_place"] = HUB_VERSION
         if track:
             nodes["track"] = {
                 "skill": "hub.track_build",
@@ -205,7 +225,7 @@ def lego_press_hub(
         # verify's assignment of done / placed only runs when verify succeeded, as before.
 
     g["graph_id"] += f"+hub-{mode}"
-    g["params"] = {**g.get("params", {}), "hub": {"mode": mode, "face": face, "flip": flip, "pull_up": pull_up,
+    g["params"] = {**g.get("params", {}), "hub": {"mode": mode, "face": face, "flip": flip, "judge": judge, "pull_up": pull_up,
                                                    "depth": depth, "track": track, "through_seat": through_seat}}  # fmt: skip
     b = g["budgets"]
     g["budgets"] = {

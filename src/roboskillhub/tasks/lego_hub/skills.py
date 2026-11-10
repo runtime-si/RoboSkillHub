@@ -126,6 +126,12 @@ class _HubSkill:
         )
 
 
+MAX_PULL_RISE_M = 0.0006
+"""judging-assembly-steps-by-fused-checks' max_pull_rise_m: a clutched brick rises at most this much."""
+SLIP_MARGIN_M = 0.001
+"""The hand rose at least this much more than the brick: the jaws slid on it."""
+
+
 class PullUpCheck(_HubSkill):
     skill_id = "hub.pull_up_check"
     bundle, script = "verifying-a-brick-connection-by-pull-up", "pull_up_check.py"
@@ -157,6 +163,21 @@ class PullUpCheck(_HubSkill):
         hand = [e["tcp_z"] for e in log]
         hand_rise = (max(hand) - hand[0]) if len(hand) > 1 else None
         held = [request["object_id"]] if request.get("object_id") else None
+        slid = (
+            out["route"] == "not_connected"
+            and brick_rise is not None
+            and hand_rise is not None
+            and brick_rise <= MAX_PULL_RISE_M
+            and hand_rise - brick_rise >= SLIP_MARGIN_M
+        )
+        if slid:
+            # The hand rose and the brick did not: the jaws slid on a clutched brick (2 N pads on the
+            # Isaac station), which the hand's tracking lag alone reads as "nothing held the lift".
+            out = {
+                **out,
+                "route": "connected",
+                "detail": out.get("detail", "") + "; the brick stayed: jaws slid",
+            }
         result = self._finish(
             ctx,
             out,
@@ -375,6 +396,44 @@ class FlipStudsUp(_HubSkill):
         )
 
 
+class JudgePlace(_HubSkill):
+    """skills/judging-assembly-steps-by-fused-checks on one placement: the pull-up (before the release) and
+    the depth seat (after it) fused into done / failed / uncertain. No motion."""
+
+    skill_id = "hub.judge_place"
+    kind = "tool"
+    bundle, script = "judging-assembly-steps-by-fused-checks", "fuse_checks.py"
+    requires = frozenset()
+    input_schema = _schema(["pull", "depth"], pull=_OBJ, depth=_OBJ, release_status=_STR)
+
+    def run(self, request: dict, ctx: SkillContext) -> dict:
+        pull, depth = request["pull"], request["depth"]
+        out = load_script(self.bundle, self.script).run(
+            ctx,
+            step_type="place",
+            release_grip_route="opened" if request.get("release_status") == "succeeded" else "",
+            seat_route=str(depth.get("route") or ""),
+            height_error_m=depth.get("height_error_m"),
+            pull_route=str(pull.get("route") or ""),
+            brick_rise_m=pull.get("brick_rise_m"),
+        )
+        status = {"done": "succeeded", "failed": "failed"}.get(out["route"], "unverified")
+        return ctx.result(
+            self,
+            status,
+            phase="verify",
+            failure_type={"succeeded": None, "failed": "lego.not_seated"}.get(
+                status, "evidence_missing"
+            ),
+            evidence={
+                "hub_bundle": self.bundle,
+                "hub_route": out["route"],
+                "reason": out.get("reason", ""),
+            },
+            outputs={"verdict": out["route"]},
+        )
+
+
 class TrackBuild(_HubSkill):
     """``action: init`` seeds the world model from the pre-built bricks' observed poses; ``action: place``
     adds ``object_id`` at its observed pose and checks every tracked brick against a fresh observation."""
@@ -481,4 +540,11 @@ class TrackBuild(_HubSkill):
         return ctx.result(self, "succeeded", phase="verify", evidence=evidence, outputs=outputs)
 
 
-SKILLS = (PullUpCheck(), VerifySeatDepth(), ClassifyRestingFace(), FlipStudsUp(), TrackBuild())
+SKILLS = (
+    PullUpCheck(),
+    VerifySeatDepth(),
+    ClassifyRestingFace(),
+    FlipStudsUp(),
+    JudgePlace(),
+    TrackBuild(),
+)
