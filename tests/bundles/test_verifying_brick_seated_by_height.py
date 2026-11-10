@@ -298,3 +298,14 @@ def test_stud_mask_estimator_reads_lego_heights_on_millimetre_steps(script):
     assert abs(np.mean(seated_mask)) < 0.0004
     assert np.mean(high_mask) == pytest.approx(LEGO_STUD, abs=0.0005)
     assert np.mean(high_mask) - np.mean(seated_mask) > 0.0012
+
+
+def test_stud_mask_default_tilt_tolerance_is_the_retuned_one(script):
+    assert script.STUD_MASK_TILT_TOL_DEG == 2.0
+    tilt = 1.8  # over the 1.5 deg LEGO default, under the stud_mask one
+    w = World(system="lego", studs=(2, 4), tilt_deg=tilt)
+    assert check(script, w)["route"] == "tilted"
+    out = check(
+        script, World(system="lego", studs=(2, 4), tilt_deg=tilt), face_estimator="stud_mask"
+    )
+    assert out["route"] != "tilted", out["detail"]
