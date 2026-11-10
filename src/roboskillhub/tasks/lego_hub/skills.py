@@ -60,6 +60,20 @@ def _ids(request: dict) -> list[str]:
     return ids
 
 
+def _support_z(p, request: dict) -> float:
+    """The surface the brick lies on: the baseplate's top when the brick stands over the plate (a brick
+    tipped over its edge), else the table."""
+    table = float(request.get("table_z", 0.0))
+    lat = request.get("lattice")
+    if not lat:
+        return table
+    pl = lat["T_W_baseplate"]["position_m"]
+    half = 0.008 * lat.get("plate_studs", [32, 32])[0] / 2.0
+    if abs(p[0] - pl[0]) <= half and abs(p[1] - pl[1]) <= half:
+        return float(pl[2])
+    return table
+
+
 class _HubSkill:
     kind = "skill"
     version = VERSION
@@ -209,6 +223,7 @@ class ClassifyRestingFace(_HubSkill):
         studs=_ARR,
         system=_STR,
         table_z={"type": "number"},
+        lattice=_OBJ,
         seed={"type": "integer"},
     )
     measured = ("vertical_axis", "height", "deep_share", "yaw_deg", "samples")
@@ -231,17 +246,14 @@ class ClassifyRestingFace(_HubSkill):
                 evidence={"reason": f"{oid} not observed"},
             )  # fmt: skip
         pieces = list(request.get("pieces") or [oid])
+        support = _support_z(p, request)
         out, tools = self._run_hub(
             ctx,
             {**request, "pieces": pieces},
-            brick_position={
-                "x": float(p[0]),
-                "y": float(p[1]),
-                "z": float(request.get("table_z", 0.0)),
-            },
+            brick_position={"x": float(p[0]), "y": float(p[1]), "z": support},
             brick_studs=list(request.get("studs", [2, 4])),
             system=request.get("system", "lego"),
-            table_height=float(request.get("table_z", 0.0)),
+            table_height=support,
         )
         result = self._finish(
             ctx,
@@ -266,31 +278,48 @@ class ClassifyRestingFace(_HubSkill):
         return result
 
 
-def _lip_distance(c: dict, lattice: dict | None, reach: float = 0.15) -> float | None:
-    """Distance from the brick's centre along its push direction to the baseplate's edge (the lip it tips
-    over), or None when the push does not meet the plate within ``reach``."""
-    if lattice is None:
+def _ray_entry(p: tuple, d: tuple, rect: dict) -> float | None:
+    """Distance along the ray p + t d (t > 0) at which it enters an axis-aligned rect from outside."""
+    lo, hi = (rect["x"][0], rect["y"][0]), (rect["x"][1], rect["y"][1])
+    if all(lo[i] <= p[i] <= hi[i] for i in (0, 1)):
         return None
-    u = c["up_vector"]
+    t0, t1 = 0.0, math.inf
+    for i in (0, 1):
+        if abs(d[i]) < 1e-9:
+            if not lo[i] <= p[i] <= hi[i]:
+                return None
+            continue
+        a, b = (lo[i] - p[i]) / d[i], (hi[i] - p[i]) / d[i]
+        t0, t1 = max(t0, min(a, b)), min(t1, max(a, b))
+    return t0 if t0 <= t1 and t0 > 0 else None
+
+
+def choose_lip(c: dict, lips: list[dict] | None, reach: float = 0.12) -> tuple[float, float] | None:
+    """(lip distance, yaw_deg to pass) for the tip: along -u for a brick on a side, along +-x of the brick
+    for an upside-down one; the nearest fence, else the baseplate (a brick tipped onto the plate's studs is
+    snapped on by the clutch and can no longer be picked: fences first)."""
+    if not lips:
+        return None
+    u, yaw = c["up_vector"], float(c.get("yaw_deg", 0.0))
     if u["z"] <= -0.9:
-        a = math.radians(float(c.get("yaw_deg", 0.0)))
-        d = (math.cos(a), math.sin(a))
+        options = [(yaw, (math.cos(math.radians(yaw)), math.sin(math.radians(yaw))))]
+        options.append((yaw + 180.0, (-options[0][1][0], -options[0][1][1])))
     else:
         n = math.hypot(u["x"], u["y"]) or 1.0
-        d = (-u["x"] / n, -u["y"] / n)
-    pl = lattice["T_W_baseplate"]["position_m"]
-    half = 0.008 * lattice.get("plate_studs", [32, 32])[0] / 2.0
+        options = [(yaw, (-u["x"] / n, -u["y"] / n))]
     p = (c["centre"]["x"], c["centre"]["y"])
     best = None
-    for axis in (0, 1):
-        if abs(d[axis]) < 1e-6:
-            continue
-        for side in (-1, 1):
-            t = (pl[axis] + side * half - p[axis]) / d[axis]
-            q = p[1 - axis] + t * d[1 - axis]
-            if 0 < t <= reach and abs(q - pl[1 - axis]) <= half and (best is None or t < best):
-                best = t
-    return best
+    for rank, kind in enumerate(("fence", "baseplate")):
+        for y_deg, d in options:
+            for r in lips:
+                if r.get("kind", "fence") != kind:
+                    continue
+                t = _ray_entry(p, d, r)
+                if t is not None and t <= reach and (best is None or (rank, t) < best[0]):
+                    best = ((rank, t), (t, y_deg))
+        if best is not None:
+            break
+    return None if best is None else best[1]
 
 
 class FlipStudsUp(_HubSkill):
@@ -303,7 +332,7 @@ class FlipStudsUp(_HubSkill):
         ["object_id", "classified"],
         object_id=_STR,
         classified=_OBJ,
-        lattice=_OBJ,
+        lips=_ARR,
         table_z={"type": "number"},
         studs=_ARR,
         system=_STR,
@@ -323,17 +352,18 @@ class FlipStudsUp(_HubSkill):
                 evidence={"reason": "no up_vector / centre from the face classifier"},
             )  # fmt: skip
         tools = GapTools(ctx, [], seed=0)
-        lip = _lip_distance(c, request.get("lattice"))
-        if request.get("lattice") is not None and lip is None:
+        chosen = choose_lip(c, request.get("lips"))
+        if request.get("lips") is not None and chosen is None:
             return ctx.result(
                 self, "failed", phase="validate", failure_type="unreachable",
-                evidence={"reason": "no baseplate edge along the push direction to tip the brick over"},
+                evidence={"reason": "no fence or plate edge along the push direction to tip the brick over"},
             )  # fmt: skip
+        lip, yaw_used = chosen if chosen else (None, float(c.get("yaw_deg", 0.0)))
         out = load_script(self.bundle, self.script).run(
             tools,
             brick_position=c["centre"],
             up_vector=c["up_vector"],
-            yaw_deg=float(c.get("yaw_deg", 0.0)),
+            yaw_deg=yaw_used,
             table_height=float(request.get("table_z", 0.0)),
             brick_studs=list(request.get("studs", [2, 4])),
             system=request.get("system", "lego"),

@@ -92,6 +92,7 @@ def lego_press_hub(
                 "object_id": "$last.select.outputs.piece",
                 "pieces": pieces,
                 "table_z": "$input.table_z",
+                "lattice": "$input.lattice",
             },
             "timeout_s": 60,
             "max_visits": nodes["bind"].get("max_visits", 10),
@@ -107,7 +108,7 @@ def lego_press_hub(
                 "params": {
                     "object_id": "$last.select.outputs.piece",
                     "classified": "$last.face.outputs",
-                    "lattice": "$input.lattice",
+                    "lips": "$input.lips",
                     "table_z": "$input.table_z",
                 },
                 "timeout_s": 60,

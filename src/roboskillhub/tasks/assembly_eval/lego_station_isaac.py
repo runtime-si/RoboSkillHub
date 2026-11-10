@@ -213,6 +213,12 @@ class LegoIsaacPhysics:
         table = cube("/World/table", (0.8, 0.8, 0.02), (0.3, 0.0, -0.01))
         UsdPhysics.CollisionAPI.Apply(table)
         bind(table, "table")
+        # Static fences on the table (scene["fences"]: {size, pos} of boxes, metres): low bars a pushed brick
+        # tips over (regrasping-a-brick-to-turn-studs-up).
+        for k, f in enumerate(scene.get("fences", [])):
+            fence = cube(f"/World/fence_{k}", tuple(f["size"]), tuple(f["pos"]))
+            UsdPhysics.CollisionAPI.Apply(fence)
+            bind(fence, "table")
 
         # ---- hand (same structure as domino_isaac.IsaacBackend's) ----
         h = self.hand_spec

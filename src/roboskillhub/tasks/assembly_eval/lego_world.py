@@ -180,6 +180,40 @@ def grasp_close_axes(prebuilt: list[dict], targets: list[dict], plate_pose: dict
     return axes
 
 
+FENCE = {"y_offset": 0.022, "width": 0.003, "height": 0.004}
+"""A low bar along the feeder line, 22 mm on its +y side (clear of the pads on an upright brick's +y face):
+a brick pushed against it tips over it (regrasping-a-brick-to-turn-studs-up). On with LEGO_FENCE=1."""
+
+
+def _fences() -> list[dict]:
+    import os
+
+    if os.environ.get("LEGO_FENCE") != "1":
+        return []
+    y = FEEDER["y"] + FENCE["y_offset"]
+    x0, x1 = FEEDER["x0"] - 0.04, FEEDER["x0"] + FEEDER["dx"] * 4 + 0.04
+    return [
+        {
+            "size": (x1 - x0, FENCE["width"], FENCE["height"]),
+            "pos": ((x0 + x1) / 2, y, FENCE["height"] / 2),
+        }
+    ]
+
+
+def lips(plate_pose: dict, plate_studs=(32, 32)) -> list[dict]:
+    """Axis-aligned rectangles a pushed brick can tip over: the fences, then the baseplate (world xy)."""
+    out = []
+    for f in _fences():
+        (cx, cy, _), (sx, sy, _) = f["pos"], f["size"]
+        out.append(
+            {"x": [cx - sx / 2, cx + sx / 2], "y": [cy - sy / 2, cy + sy / 2], "kind": "fence"}
+        )
+    px, py = plate_pose["position_m"][:2]
+    h = STUD_PITCH_M * plate_studs[0] / 2
+    out.append({"x": [px - h, px + h], "y": [py - h, py + h], "kind": "baseplate"})
+    return out
+
+
 def _env_faces() -> list[str]:
     """Start faces of the feeder pieces in order (``LEGO_FEEDER_FACES=upside_down,side``): studs_up,
     upside_down or side."""
@@ -254,6 +288,7 @@ def physics_lego_world(
         "prebuilt_ids": ids,
         "prebuilt_bricks": [v for k, v in ids.items() if k != 0],
         "feeder": feeder,
+        "fences": _fences(),
         "hand_start": HAND_START,
         "grip_force_N": grip_force_n,
         "fix_baseplate": fix_baseplate,
@@ -353,6 +388,7 @@ def physics_lego_world(
         # Integration (Agent 5): the plate lattice for perception.classify_object_state and the
         # pre-built bricks for core.bind_target (graph builds align/verify ``build`` from them).
         "lattice": {"T_W_baseplate": plate_pose, "plate_studs": [32, 32]},
+        "lips": lips(plate_pose),
         "prebuilt": prebuilt_matings,
         "gripper_id": "floating_parallel_gripper",
         "table_z": 0.0,
