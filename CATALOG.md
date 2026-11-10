@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-30 tools, 162 skills, 3 policies, 1 recipe and 1 paper.
+30 tools, 162 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -220,6 +220,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | --- | --- | --- | --- |
 | [`gr00t`](#gr00t) | execute | NVIDIA GR00T as the contact-rich step of a GaP graph on the bimanual YAM station. | yam_i2rt, 2 arms |
 | [`molmoact-libero`](#molmoact-libero) | execute | Run the MolmoAct LIBERO checkpoint (allenai/MolmoAct-7B-D-LIBERO-0812) as a closed-loop VLA policy for the dexterous… | panda, **sim only** |
+| [`molmoact2-yam`](#molmoact2-yam) | execute | AllenAI MolmoAct2-BimanualYAM as a vla-yam/1 policy server for the bimanual YAM station. | yam_i2rt, 2 arms |
 | [`pi05-libero`](#pi05-libero) | execute | Run the openpi π0.5 LIBERO checkpoint (pi05_libero) as a closed-loop VLA policy for the dexterous pick-and-place… | panda, **sim only** |
 
 ## Tool details
@@ -3227,6 +3228,21 @@ Run the MolmoAct LIBERO checkpoint (allenai/MolmoAct-7B-D-LIBERO-0812) as a clos
   - `failed`: The policy loop errored (server/inference/execution failure). This is the subgraph's on_error exit.
 - **Functions**:
   - `molmoact-libero.run`: Run the MolmoAct LIBERO checkpoint in closed loop (replan/execute/terminate) against its own preset server.
+
+### molmoact2-yam
+
+execute · robots: yam_i2rt, 2 arms · tasks: pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](policies/molmoact2-yam/SKILL.md) · [upstream](https://github.com/allenai/molmoact2/tree/6070080a20321b4f498ab30f28e1d09ac465edb7/examples/yam)
+
+AllenAI MolmoAct2-BimanualYAM as a vla-yam/1 policy server for the bimanual YAM station - one 30-row chunk of absolute joint + jaw targets (left 7, right 7, station frame and units) at 30 Hz from the top and two wrist views, the 14-D joint state and an instruction. The checkpoint-specific parts (camera order, joint offset, gripper scale, norm tag, solver steps, dtype, pinned revision + sha256) live in a profile YAML, so the same request and reply serve the twin and the real station. Speaks gr00t-wam/1 too, so gr00t.act / gr00t.run_skill drive it unchanged with GAP_GR00T_URL. Use when a graph or a pick_object implementation wants a learned bimanual YAM policy trained on AllenAI's YAM mixture (tabletop pick-place, dishwasher, box packing) and runs its own verifier afterwards. Not for other embodiments, not as a success signal, and not on the real arms before the profile's joint offset and gripper mapping are confirmed in the twin.
+
+- **Calls**: [`gr00t`](#gr00t)
+- **Trained on**: action `joint_position_absolute` ×14 at 30 Hz; state 14 (left_joints_6, left_opening, right_joints_6, right_opening); cameras `top`, `left_wrist`, `right_wrist`
+- **Weights**: `hf://allenai/MolmoAct2-BimanualYAM@8dcbed66f2380e4393189c303ea72488eb9e63c2`
+- **Note**: Station frame and units on the wire; profiles/yam-molmoact2-native.yaml maps them to the checkpoint's (model joint = station joint - joint_offset_rad; linear gripper map). Twin offset 0, real station +pi/2 on each base joint (--station real); gripper identity (model 1 open, 0 closed). Both PROVISIONAL until the twin calibration confirms them. Chunk 30 rows at 30 Hz, execute 25. All three views required; marks ignored.
+- **Exits**:
+  - `chunk_ready`: The server returned a [30, 14] chunk in the station frame (execute the first execute_steps rows, then ask again).
+  - `refused`: The request was malformed or incomplete (a view missing, joints not 14 finite numbers, empty instruction, bad frame or num_steps); HTTP 400, nothing to execute.
+  - `failed`: The server did not answer or the model raised; HTTP 500 or a transport error. The subgraph's on_error exit.
 
 ### pi05-libero
 

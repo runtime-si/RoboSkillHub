@@ -1,0 +1,32 @@
+[project]
+name = "molmoact2-yam-policy-bundle"
+version = "0.1.0"
+description = "MolmoAct2-BimanualYAM policy server (vla-yam/1, gr00t-wam/1 compatible) for the YAM station."
+readme = "SKILL.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "Apache-2.0" }
+
+# The server's environment (a GPU host). torch comes from the cu128 index (Blackwell kernels):
+#   uv pip install torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cu128
+# The protocol code is ../gr00t/server.py (numpy-only at import), not a dependency.
+dependencies = [
+  "torch>=2.8",
+  "transformers>=4.57,<4.58",
+  "accelerate",
+  "safetensors",
+  "huggingface_hub>=0.36",
+  "einops",
+  "numpy>=1.26",
+  "pillow>=10",
+  "pyyaml>=6",
+  "pyzmq>=26",
+  "msgpack>=1.0",
+  "msgpack-numpy>=0.4.8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
