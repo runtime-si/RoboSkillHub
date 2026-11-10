@@ -202,6 +202,7 @@ class YamVision:
         min_interval_s: float = MIN_IMAGE_INTERVAL_S,
         save_dir: str | None = None,
         cameras: tuple[str, ...] = ("overhead", "wrist"),
+        depth: str | None = None,
     ):
         if segmenter not in ("depth", "detector"):
             raise ValueError(f"segmenter must be depth or detector, got {segmenter!r}")
@@ -214,6 +215,12 @@ class YamVision:
                 f"cameras must be a non-empty subset of (overhead, wrist), got {cameras!r}"
             )
         self.cameras = tuple(cameras)
+        # depth the pipeline sees: the renderer's ("rendered"), with #185's fitted D405 noise
+        # ("fitted"), or D405-like passive stereo from a second render 18 mm to the right ("stereo")
+        self.depth_mode = depth or os.environ.get("DOMINO_VISION_DEPTH", "rendered")
+        if self.depth_mode not in ("rendered", "fitted", "stereo"):
+            raise ValueError(f"depth must be rendered, fitted or stereo, got {self.depth_mode!r}")
+        self._rng = np.random.default_rng(0)
         self.segmenter, self.detector = segmenter, detector
         self.calibration = calibration
         self.min_interval_s = min_interval_s
@@ -274,12 +281,24 @@ class YamVision:
         aim = Tt[:3, :3] @ np.asarray(WRIST["aim_tcp_m"]) + Tt[:3, 3]
         return self.render.view(pos, aim - pos, WRIST["fy_px"], dist=0.1)
 
+    def _sensor_depth(self, rgb, depth, T, K):
+        if self.depth_mode == "rendered":
+            return depth
+        from ..lego_hub import depth as D
+
+        if self.depth_mode == "fitted":
+            return D.add_fitted_noise(depth, K, self._rng).astype(np.float32)
+        self.render.view(T[:3, 3] + T[:3, 0] * D.D405_BASELINE_M, T[:3, 2], K[1, 1])
+        right, _, _ = self.render.render()
+        return D.stereo_depth(rgb, right, K, rng=self._rng)
+
     def _image(self, stamp: float, sim_t: float) -> None:
         t0 = time.time()
         fits, n_blobs, shots = [], 0, []
         for name in self.cameras:
             T, K = self._view(name)
             rgb, depth, seg = self.render.render()
+            depth = self._sensor_depth(rgb, depth, T, K)
             blobs = self._segment(rgb, depth, seg, T, K)
             n_blobs += len(blobs)
             frame = RgbdFrame(depth, K, T, stamp, "world", name, rgb)

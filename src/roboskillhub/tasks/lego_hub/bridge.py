@@ -212,7 +212,17 @@ class GapTools:
                 frame = physics.camera_frame("wrist", cam)
                 depth = frame["depth"]
                 mode = os.environ.get("LEGO_RENDER_NOISE", "1")
-                if mode == "1":
+                if os.environ.get("LEGO_RENDER_DEPTH") == "stereo":
+                    # the D405's second imager, 18 mm to the right in the camera's own frame
+                    right_cam = cam.copy()
+                    right_cam[:3, 3] = cam[:3, 3] + cam[:3, 0] * D.D405_BASELINE_M
+                    right = physics.camera_frame("wrist", right_cam)
+                    physics.camera_frame(
+                        "wrist", cam, settle=1
+                    )  # leave the camera where the frame was
+                    depth = D.stereo_depth(frame["rgb"], right["rgb"], D.D405_K, rng=self.rng)
+                    mode = "stereo"
+                elif mode == "1":
                     depth = D.add_noise(depth, D.D405_K, self.rng)
                 elif mode.startswith("fitted"):  # "fitted" or "fitted:<scale>"
                     scale = float(mode.split(":", 1)[1]) if ":" in mode else 1.0
