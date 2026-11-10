@@ -401,3 +401,28 @@ def test_confirmation_can_be_skipped(script):
     out = script.run(arm.ctx(), confirm=False, **FAST)
     assert out["route"] == "dropped_in"
     assert not out["confirmed"]
+
+
+def test_a_part_caught_on_the_socket_edge_fails_the_seat_check(script):
+    # The part goes 2.5 mm down (enough to read as a drop, and its edge meets a
+    # wall sideways) but no further: caught by its lip, not in.
+    arm = Arm(key=20.0, depth=0.0025)
+    out = script.run(arm.ctx(), **FAST)
+    assert out["route"] == "unconfirmed", out["detail"]
+    assert "caught on the socket's edge" in out["detail"]
+    assert out["seat_follow"] == pytest.approx(0.0, abs=1e-6)
+    assert not out["confirmed"]
+
+
+def test_a_part_in_its_socket_follows_the_seat_check(script):
+    arm = Arm(key=20.0)
+    out = script.run(arm.ctx(), **FAST)
+    assert out["route"] == "dropped_in"
+    assert out["seat_follow"] == pytest.approx(0.003, abs=1e-6)
+
+
+def test_the_seat_check_can_be_skipped(script):
+    arm = Arm(key=20.0, depth=0.0025)
+    out = script.run(arm.ctx(), seat_check=0.0, **FAST)
+    assert out["route"] == "dropped_in"
+    assert out["seat_follow"] == -1.0

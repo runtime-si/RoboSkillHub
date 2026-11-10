@@ -104,6 +104,14 @@ command by over CONFIRM_LAG [m]; a part that only slid in the jaws, or walked of
 on the rim, rides the rim freely. The probe must be longer than the clearance plus
 CONFIRM_LAG. Choices, checked in a station twin (see SKILL.md)."""
 
+SEAT_CHECK = 0.003
+"""Before the sideways probe, the hand is commanded this much deeper [m]. A part in
+its socket goes down with it (the hand follows within half CONTACT_LAG); a part
+caught by its lip on the socket's edge, or resting on the rim after sliding in the
+jaws, holds the hand back. In a station twin a cube caught 0.4 mm into the socket
+passed the sideways probe alone. Needs a socket deeper than the drop's sink plus
+this; 0 skips it."""
+
 STOP_MARGIN = 0.002
 """Jaw gap within this of the closed stop reads as nothing held [m]
 (pressing-a-brick-onto-studs' test)."""
@@ -119,6 +127,7 @@ class Output(TypedDict):
     sink: float
     confirmed: bool
     confirm_travel: float
+    seat_follow: float
     rest_z: float
     tries: int
 
@@ -305,6 +314,7 @@ def run(
     confirm_direction: dict[str, float] | None = None,
     confirm_probe: float = CONFIRM_PROBE,
     confirm_lag: float = CONFIRM_LAG,
+    seat_check: float = SEAT_CHECK,
     roll_limits: list[float] | None = None,
     step_tolerance: float = STEP_TOLERANCE,
     step_max_steps: int = 0,
@@ -329,6 +339,7 @@ def run(
         "sink": 0.0,
         "confirmed": False,
         "confirm_travel": -1.0,
+        "seat_follow": -1.0,
         "rest_z": float(p0[2]),
         "tries": 0,
     }
@@ -441,6 +452,26 @@ def run(
         if confirm_direction is not None:
             d = np.array([float(confirm_direction[k]) for k in "xy"] + [0.0])
             d /= float(np.linalg.norm(d)) or 1.0
+        if seat_check > 0:
+            deep = stay(p0) - np.array([0.0, 0.0, float(seat_check)])
+            kind, why = arm.move(deep, r)
+            if kind == "refused":
+                return finish("blocked", detail + f"; the seat check's press was refused: {why}")
+            q, _ = settle()
+            follow = float(p0[2] - q[2])
+            out["seat_follow"] = follow
+            held_back = float(q[2] - deep[2]) - base
+            if held_back > float(contact_lag):
+                unload(q, r)
+                out["sink"] = float(rest[2] - q[2])
+                return finish(
+                    "unconfirmed",
+                    detail.replace("; still holding", "")
+                    + f"; but a press {seat_check * 1e3:.1f} mm deeper was held back "
+                    f"{held_back * 1e3:.1f} mm (the hand went {follow * 1e3:.1f} mm): the part is caught on the "
+                    "socket's edge or resting on the rim, not in; still holding",
+                )
+            p0 = q
         hold = stay(p0)
         kind, why = arm.move(hold, r)
         if kind == "refused":

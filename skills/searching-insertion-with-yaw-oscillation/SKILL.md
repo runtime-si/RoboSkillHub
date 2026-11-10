@@ -41,9 +41,10 @@ gap:
     tries: int
     confirmed: bool
     confirm_travel: float
+    seat_follow: float
   exit_conditions:
     dropped_in: Confirmed (unless confirm is false) by a sideways probe that met a wall within confirm_probe after the hand sank, where a turn was stopped short with the hand already drop_depth under the resting height (the part dropped in while the wrist swept through the matching yaw); or, pressed at some yaw, the hand followed its command (lag over the free baseline under half contact_lag) and sank at least drop_depth (2 mm) under the resting height - the part entered its socket; yaw_found_deg is the hand's yaw from the start (read back). The press is unloaded; the hand still holds the part there.
-    unconfirmed: The hand sank as if the part dropped, but the confirmation probe moved the hand confirm_probe (6 mm) sideways without meeting a wall - the part is not in a socket (it slid in the jaws, or walked off the socket on its rim). The hand still holds it, over where it stopped.
+    unconfirmed: The hand sank as if the part dropped, but a press seat_check (3 mm) deeper was held back over contact_lag (the part is caught by its lip on the socket's edge, or rests on the rim), or the confirmation probe moved the hand confirm_probe (6 mm) sideways without meeting a wall - the part is not in a socket (it slid in the jaws, or walked off the socket on its rim). The hand still holds it, over where it stopped.
     no_drop: Every yaw in +-yaw_range_deg was pressed without a drop; the press is unloaded and (return_on_fail) the wrist turned back to the start.
     jammed: A turn stopped more than jam_deg (3 deg) short of its command - the part is held against turning (a key wall, friction); the press is unloaded where it stands.
     blocked: The jaws read at their closed stop after a press (the part left the hand; check_holding), no socket felt from start_lift over the start to max_descent under it, a lift or descent step, press or wrist turn was refused, or the last joint had no room for the next turn; `detail` says which.
@@ -86,7 +87,11 @@ until its soft wrist feels a torque; here the turn is a search for the drop.
    sink. A turn that ends more than `jam_deg` short of its yaw is `jammed`.
 4. **Confirm a drop.** Proprioception alone cannot tell a drop from the part
    sliding up the jaws or walking off the socket on its rim. So after a drop,
-   the press is unloaded and the hand is moved sideways in 0.5 mm steps up to
+   the hand is first commanded `seat_check` (3 mm) deeper: a part in its
+   socket goes down with it, while one caught by its lip on the socket's edge
+   (or resting on the rim) holds the hand back over `contact_lag`, and that
+   is `unconfirmed` (`seat_follow` says how far the hand went). Then the press
+   is unloaded and the hand is moved sideways in 0.5 mm steps up to
    `confirm_probe`. A part in its socket meets a wall within the socket's
    clearance, and the hand then lags its command by `confirm_lag`
    (`dropped_in`, `confirm_travel` says where). A part that rides freely is
@@ -107,7 +112,9 @@ PORTING lesson 10).
   (0.0005 m), `contact_lag` (0.0015 m).
 - `confirm` (true), `confirm_direction` (Vec3, x/y used; default world +x),
   `confirm_probe` (0.006 m, longer than the socket's total clearance plus
-  `confirm_lag`), `confirm_lag` (0.001 m), `check_holding` (true).
+  `confirm_lag`), `confirm_lag` (0.001 m), `seat_check` (0.003 m; 0 skips
+  it; the socket must be deeper than the drop's sink plus this),
+  `check_holding` (true).
 - `return_on_fail` (true), `roll_limits` (the last joint's range, rad;
   default +-2.0944), `step_tolerance` (0.0002 m, passed as the servo's
   `tolerance`), `step_max_steps` (0), the settle constants, `arm_id` (passed
