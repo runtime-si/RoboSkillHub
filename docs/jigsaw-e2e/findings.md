@@ -132,3 +132,33 @@ its edge.
 - The bare 2 mm grip is not modelled in the twin (blocker 2).
 - The grip block twists in the jaws after a regrasp (#160): pivoting about the jaw axis, which the twin's
   grip fix does not cure (`SIM_GRIP.md`, condim 4/6 pending).
+
+
+## Update, round 6 (2026-11-10)
+
+**A bare 2 mm piece can be gripped in the twin now.** The twin's grip fix (`SIM_GRIP.md`) arrived after the
+harness's grip block was introduced. In a re-test with the stock linear_4310 blades:
+
+- the jaws close across the piece's 21 mm width with the blade tips 0.3 mm over the mat, `robot.set_grip`
+  21-24 mm with a 3 mm squeeze;
+- the piece is lifted 29.7-30.1 mm in 4 / 4 trials (start yaws 0, 30, -60 and 90 degrees), tilt at most
+  0.7 degrees, turned 1.1-1.8 degrees.
+
+So blocker 2 above (the bare grip) is gone, and the chain can drop the grip block. Harness:
+`~/sim-wt/narrow-blade`, `graph_bare`.
+
+**Narrow-blade fingertips** (1.8 mm thick, 4-6 mm wide). In the geometry evaluation of
+`selecting-a-grip-clear-of-placed-neighbours`, a 2-sided slot gets a direct grip in 264-275 of 305 cases
+(station blades: 15). A twin variant (box blades replacing the tip colliders) fails to load:
+robosimstudio's station embodiment requires the tip meshes as colliders (`decompose_colliders` matched no
+mesh collider), so the blade swap needs a gripper-spec change there. Not done.
+
+**8-trial rerun with all fixes:** 2 of 8 finished within the round.
+
+- **Trial 0 (30 degree start):** the turn routed `dropped` (true: the piece fell). Round 3 reported it as
+  `turned`.
+- **Trial 1 (135 degree start):** the seat ended `not_seated`; the piece was lifted back 15 mm, ending
+  0.8 / 2.6 mm off the slot.
+
+Completion so far: **0 / 2** (baseline 0 / 8). The worst breakpoint is still the seat: the seat search
+finds no drop with the measured 2 mm, 1 degree residual.
