@@ -75,7 +75,12 @@ class LegoPhysicsStation:
         max_press_speed_m_s: float = 0.02,
         fault: str | None = None,
         fault_index: int = 0,
+        observations: str = "truth",
+        vision=None,
     ):
+        if observations not in ("truth", "vision") or (observations == "vision" and vision is None):
+            raise ValueError("observations must be truth, or vision with a lego_vision.LegoVision")
+        self.vision = vision if observations == "vision" else None
         if fault is not None and fault not in STATION_FAULTS:
             raise ValueError(f"unknown station fault {fault!r}")
         self.fault, self.fault_index = fault, fault_index
@@ -102,6 +107,8 @@ class LegoPhysicsStation:
         self._after_close = False
         self._after_release = False
         self._held_at_release: str | None = None
+        if self.vision is not None:
+            self.vision.attach(self)
 
     # ---- runtime surface --------------------------------------------------
     def describe(self) -> dict:
@@ -547,6 +554,13 @@ class LegoPhysicsStation:
         )
 
     def _objects(self, stamp: float) -> dict:
+        out = self._truth_objects(stamp)
+        if self.vision is None:
+            return out
+        fixtures = {k: v for k, v in out.items() if k in (self.scene["plate_id"], "table")}
+        return {**self.vision.objects(stamp, self.sim_t), **fixtures}
+
+    def _truth_objects(self, stamp: float = 0.0) -> dict:
         truth = self.physics.truth()["objects"]
         out = {}
         for oid, o in truth.items():
@@ -603,6 +617,10 @@ class LegoPhysicsStation:
     def _state(self) -> dict:
         now = time.time()
         pose, opening = self.physics.hand()
+        objects = self._objects(now)
+        if self.vision is not None:
+            # the simulation does not advance while the images are processed: stamp the read after it
+            now = time.time()
         return {
             "pose": {
                 "frame_id": "world",
@@ -611,7 +629,7 @@ class LegoPhysicsStation:
             },
             "timestamp_s": now,
             "sim_time_s": self.sim_t,
-            "objects": self._objects(now),
+            "objects": objects,
             "gripper": {
                 "holding": self._held_brick() is not None,
                 "width_m": max(0.0, opening),

@@ -27,6 +27,7 @@ Every read after the simulation moved on by ``min_interval_s``:
 from __future__ import annotations
 
 import math
+import os
 import time
 
 import numpy as np
@@ -38,7 +39,11 @@ from .yam_vision import _blobs, _canonical, _quat_to_R, _R_to_quat
 FOREGROUND_OVER_SUPPORT_M = 0.003
 MIN_BLOB_PX = 30
 MATCH_GATE_M = 0.10
-HELD_GATE_M = 0.03
+HELD_GATE_M = 0.02
+HELD_GATE_Z_M = 0.08
+#: The jaw counts as closed (on a brick) after a gripper command narrower than this: the 2 x 4's short
+#: side is 16 mm; the graph opens wider before a pick.
+JAW_CLOSED_BELOW_M = 0.020
 MEMORY_HAND_GATE_M = 0.06
 PARTIAL_KEEP_M = 0.010
 MIN_IMAGE_INTERVAL_S = 0.05
@@ -225,20 +230,28 @@ class LegoVision:
         T[:3, 3] = hand[:3]
         return T
 
+    def _jaw(self) -> tuple[bool, int]:
+        """(jaw commanded closed, number of close commands) from the station's own command log."""
+        grips = [c["grip"] for c in getattr(self.station, "command_log", []) if "grip" in c]
+        closes = sum(1 for g in grips if g < JAW_CLOSED_BELOW_M)
+        return bool(grips) and grips[-1] < JAW_CLOSED_BELOW_M, closes
+
     def _update_held(self, stamp: float) -> None:
-        st = self.station
-        closed = bool(getattr(st, "_after_close", False)) and not bool(
-            getattr(st, "_after_release", False)
-        )
-        closes = int(getattr(st, "grasps", 0))
+        closed, closes = self._jaw()
         if not closed:
             self._held = None
+            self._closes_seen = closes
             return
         if self._held is None and closes > self._closes_seen:
             self._closes_seen = closes
             Tt = self._tcp_T()
+            # the hand's reported point is not at the pads' height: gate in xy, loosely in z
             best = min(
-                ((float(np.linalg.norm(self._est[t] - Tt[:3, 3])), t) for t in self._T_est),
+                (
+                    (float(np.linalg.norm(self._est[t][:2] - Tt[:2, 3])), t)
+                    for t in self._T_est
+                    if abs(self._est[t][2] - Tt[2, 3]) < HELD_GATE_Z_M
+                ),
                 default=(math.inf, None),
             )
             if best[1] is not None and best[0] <= HELD_GATE_M:
@@ -314,11 +327,18 @@ class LegoVision:
         )
 
     def objects(self, stamp: float, sim_t: float) -> dict:
-        if self._last_t is None or sim_t - self._last_t >= self.min_interval_s:
+        imaged = self._last_t is None or sim_t - self._last_t >= self.min_interval_s
+        if imaged:
             self._image(stamp, sim_t)
             self._last_t = sim_t
         else:
             self._update_held(stamp)
+        if os.environ.get("LEGO_VISION_DEBUG"):
+            print(
+                f"LVDBG sim {sim_t:.2f} imaged {imaged} held {self._held[0] if self._held else None} "
+                f"jaw {self._jaw()} out {sorted(self._out)}",
+                flush=True,
+            )
         now = time.time()
         return {tid: {**d, "timestamp_s": now} for tid, d in self._out.items()}
 

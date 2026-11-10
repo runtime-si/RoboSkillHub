@@ -190,7 +190,11 @@ def physics_lego_world(
     fix_baseplate: bool = True,
     fault: str | None = None,
     fault_index: int | None = None,
+    observations: str = "truth",
+    vision=None,
 ) -> dict:
+    """``observations="vision"`` with a ``lego_vision.LegoVision`` (needs ``LEGO_RENDER=1``) estimates the
+    brick poses from the rendered cameras; the default reads the simulator truth."""
     physics = make_physics()
     goal_topo, prebuilt, ids, order = _topologies(scene)
     rng = random.Random(seed)
@@ -240,6 +244,8 @@ def physics_lego_world(
         breakage=breakage,
         fault=fault,
         fault_index=len(order) - 1 if fault_index is None else fault_index,
+        observations=observations,
+        vision=vision,
     )
     station._snap("start")
 

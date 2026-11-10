@@ -80,6 +80,11 @@ class LegoPhysicsEnv:
         self.episodes_run = 0
 
     def __call__(self, graph: dict, seed: int) -> dict:
+        vision = None
+        if os.environ.get("LEGO_OBSERVATIONS") == "vision":  # needs LEGO_RENDER=1
+            from roboskillhub.tasks.assembly_eval.lego_vision import LegoVision
+
+            vision = LegoVision()
         built = physics_lego_world(
             seed,
             scene=self.scene,
@@ -88,6 +93,8 @@ class LegoPhysicsEnv:
             force_limit_n=self.force_limit_n,
             fix_baseplate=self.fix_baseplate,
             fault=self.fault,
+            observations="vision" if vision is not None else "truth",
+            vision=vision,
         )
         runtime = Runtime(built["backend"], built["limits"])
         loaded = load_graph(graph, self.registry)
@@ -108,6 +115,7 @@ class LegoPhysicsEnv:
         episode["seed"] = seed
         episode["scene"] = self.scene
         episode["environment"] = built["describe"]
+        episode["vision"] = vision.summary() if vision is not None else None
         episode["graph_params"] = graph.get("params", {})
         episode["wall_s"] = time.monotonic() - started
         ind = built["independent"]()
