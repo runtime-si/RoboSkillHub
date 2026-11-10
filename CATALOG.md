@@ -2739,7 +2739,7 @@ Checks whether anything already placed was knocked since the last verified step 
 
 ### detecting-in-hand-slip-and-twist-from-the-wrist-camera
 
-verify · robots: any · tasks: pick-place, insertion · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/detecting-in-hand-slip-and-twist-from-the-wrist-camera/SKILL.md)
+verify · robots: any · tasks: pick-place, insertion · Apache-2.0 · v0.2.0 · [`SKILL.md`](skills/detecting-in-hand-slip-and-twist-from-the-wrist-camera/SKILL.md)
 
 Watches the held part in the wrist camera, which rides rigid with the fingers, and says whether it slips, twists or drops in the jaws - the part's region is what lies in a near depth band in front of the camera; dense Farneback optical flow against the frame taken at the start, fitted with a RANSAC similarity (so the still fingers do not drag it), gives the slip in millimetres and the spin about the camera axis; the region's depth-plane normal gives the twist about the jaws' closing axis, which an image alone cannot show; a shrinking region is a drop. Use when a part is carried or pushed with in the jaws and the graph must know, with no tactile or force sensing, that it moved in the hand (a domino sliding down the pads, a bar or peg pivoting about the grip, a piece leaving the hand) before relying on its pose.
 

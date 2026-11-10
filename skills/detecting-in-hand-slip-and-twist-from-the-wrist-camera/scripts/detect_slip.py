@@ -178,6 +178,98 @@ def compare(
     return res
 
 
+JAW_BOX = (0.040, 0.015, 0.0015)
+"""The held part's region in the tool frame [m]: |y| under 40 mm, under 15 mm past the tool centre along the
+approach (z), and |x| (the closing axis) inside the jaws' opening less 1.5 mm a side, so the fingers and the scene
+beyond the part (the table under it, the other hand's part) drop out. In the station twin a plain depth band
+held mostly the fingers, which pinned the flow fit at zero motion, and took in the table, whose plane read as
+100+ deg of twist the moment the part left it."""
+
+CLOSING_AXIS = np.array([1.0, 0.0, 0.0])
+"""The jaws' closing axis in the frame robot.get_ee_pose reports: its x. In the station twin a standing domino's
+thickness axis lies within 0.04 of the tool x when held (the y this skill first assumed is along the pads)."""
+
+
+def _points(depth: np.ndarray, k: np.ndarray, v: np.ndarray, u: np.ndarray) -> np.ndarray:
+    z = depth[v, u]
+    return np.stack([(u - k[0, 2]) * z / k[0, 0], (v - k[1, 2]) * z / k[1, 1], z], axis=1)
+
+
+def jaw_region(
+    depth: np.ndarray, k: np.ndarray, tool_cam: np.ndarray, width: float, box=JAW_BOX
+) -> np.ndarray:
+    """Pixels whose depth point lies between the jaws (``tool_cam``: the camera's pose in the tool frame)."""
+    v, u = np.indices(depth.shape)
+    z = np.where(np.isfinite(depth), depth, 0.0)
+    p = np.stack([(u - k[0, 2]) * z / k[0, 0], (v - k[1, 2]) * z / k[1, 1], z], axis=-1)
+    p = p @ tool_cam[:3, :3].T + tool_cam[:3, 3]
+    return (
+        (z > 0)
+        & (np.abs(p[..., 1]) < box[0])
+        & (p[..., 2] < box[1])
+        & (np.abs(p[..., 0]) < max(width / 2 - box[2], 0.0005))
+    )
+
+
+def _kabsch(a: np.ndarray, b: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    ca, cb = a.mean(axis=0), b.mean(axis=0)
+    u, _, vt = np.linalg.svd((a - ca).T @ (b - cb))
+    d = np.sign(np.linalg.det(vt.T @ u.T)) or 1.0
+    r = vt.T @ np.diag([1.0, 1.0, d]) @ u.T
+    return r, cb - r @ ca
+
+
+def _rotvec(r: np.ndarray) -> np.ndarray:
+    a = math.acos(max(-1.0, min(1.0, (np.trace(r) - 1) / 2)))
+    if a < 1e-9:
+        return np.zeros(3)
+    return np.array([r[2, 1] - r[1, 2], r[0, 2] - r[2, 0], r[1, 0] - r[0, 1]]) / (2 * math.sin(a)) * a
+
+
+def compare_rigid(
+    ref: dict[str, Any], now: dict[str, Any], tool_cam: np.ndarray, width: float, box=JAW_BOX
+) -> dict[str, float]:
+    """Slip [mm] of the part's centroid, its turn about the closing axis (twist) and the camera axis (spin)
+    [deg], and the region's area fraction, from a rigid 3D fit to the flow's point matches inside the jaws."""
+    import cv2
+
+    k = np.asarray(ref["intrinsics"], dtype=float)
+    d0, d1 = np.asarray(ref["depth"], float), np.asarray(now["depth"], float)
+    m0 = jaw_region(d0, k, tool_cam, width, box)
+    m1 = jaw_region(d1, k, tool_cam, width, box)
+    res = {"slip_mm": 0.0, "twist_deg": 0.0, "spin_deg": 0.0, "area_fraction": float(m1.sum()) / max(1, m0.sum())}
+    v, u = np.nonzero(m0)
+    if v.size < MIN_PIXELS:
+        return res
+    flow = cv2.calcOpticalFlowFarneback(_gray(ref), _gray(now), None, **FARNEBACK)
+    step = max(1, v.size // 4000)
+    v, u = v[::step], u[::step]
+    u1 = np.rint(u + flow[v, u, 0]).astype(int)
+    v1 = np.rint(v + flow[v, u, 1]).astype(int)
+    ok = (u1 >= 0) & (u1 < d1.shape[1]) & (v1 >= 0) & (v1 < d1.shape[0])
+    v, u, v1, u1 = v[ok], u[ok], v1[ok], u1[ok]
+    a, b = _points(d0, k, v, u), _points(d1, k, v1, u1)
+    ok = np.isfinite(b).all(axis=1) & (b[:, 2] > 0) & (np.abs(b[:, 2] - a[:, 2]) < 0.015)
+    a, b = a[ok], b[ok]
+    if len(a) < MIN_PIXELS // 4:
+        return res
+    keep = np.ones(len(a), bool)
+    for _ in range(3):
+        r, t = _kabsch(a[keep], b[keep])
+        err = np.linalg.norm(a @ r.T + t - b, axis=1)
+        keep = err < max(0.0015, 2.0 * float(np.median(err)))
+        if keep.sum() < MIN_PIXELS // 4:
+            return res
+    r, t = _kabsch(a[keep], b[keep])
+    c = a[keep].mean(axis=0)
+    rv = np.degrees(_rotvec(r))
+    axis = tool_cam[:3, :3].T @ CLOSING_AXIS
+    res["slip_mm"] = float(np.linalg.norm(r @ c + t - c)) * 1e3
+    res["twist_deg"] = float(rv @ axis)
+    res["spin_deg"] = float(rv[2])
+    return res
+
+
 def run(
     ctx: NodeContext,
     duration_s: float = 2.0,
@@ -188,6 +280,7 @@ def run(
     slip_mm: float = SLIP_MM,
     twist_deg: float = TWIST_DEG,
     drop_fraction: float = DROP_FRACTION,
+    jaw_width_m: float = 0.0,
     arm_id: int = 0,
 ) -> Output:
     on_arm: dict[str, Any] = {"arm_id": int(arm_id)} if arm_id else {}
@@ -215,12 +308,20 @@ def run(
         return out
     # The jaws' closing axis (the tool frame's y) in the camera frame.
     axis_cam = np.array([1.0, 0.0, 0.0])
+    tool_cam = None
     try:
         pose = ctx.tool("robot.get_ee_pose", **on_arm)
         pose = pose.get("pose", pose)
-        axis_world = _rot(pose["rotation"])[:, 1]
+        r_tool = _rot(pose["rotation"])
+        axis_world = r_tool @ CLOSING_AXIS
         if ref.get("pose") is not None:
-            axis_cam = _rot(ref["pose"]["rotation"]).T @ axis_world
+            r_cam = _rot(ref["pose"]["rotation"])
+            axis_cam = r_cam.T @ axis_world
+            tool_cam = np.eye(4)
+            tool_cam[:3, :3] = r_tool.T @ r_cam
+            p_tool = np.array([float(pose["position"][k]) for k in "xyz"])
+            p_cam = np.array([float(ref["pose"]["position"][k]) for k in "xyz"])
+            tool_cam[:3, 3] = r_tool.T @ (p_cam - p_tool)
     except Exception as exc:  # no pose: assume the closing axis runs along the image's x
         logger.info("in-hand slip: no tool or camera pose (%s)", exc)
     m0 = region(np.asarray(ref["depth"], float), near, far)
@@ -242,7 +343,10 @@ def run(
         if cur is None:
             continue
         out["frames"] += 1
-        r = compare(ref, cur, axis_cam, near, far)
+        if tool_cam is not None and jaw_width_m > 0:
+            r = compare_rigid(ref, cur, tool_cam, float(jaw_width_m))
+        else:
+            r = compare(ref, cur, axis_cam, near, far)
         worst["slip_mm"] = max(worst["slip_mm"], r["slip_mm"])
         for key in ("twist_deg", "spin_deg"):
             if abs(r[key]) > abs(worst[key]):
