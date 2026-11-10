@@ -38,15 +38,23 @@ from .yam_vision import _blobs, _canonical, _quat_to_R, _R_to_quat
 
 FOREGROUND_OVER_SUPPORT_M = 0.003
 MIN_BLOB_PX = 30
-MATCH_GATE_M = 0.10
+MATCH_GATE_M = 0.025
+"""A resting brick's fit within this of its last estimate keeps its id (bricks move only in the hand, whose
+brick is predicted from the TCP; a 10 cm gate let a second camera's fit of the neighbouring spare take b1's
+id, 2026-11-10)."""
+DUPLICATE_M = 0.010
 HELD_GATE_M = 0.02
 HELD_GATE_Z_M = 0.08
 #: The jaw counts as closed (on a brick) after a gripper command narrower than this: the 2 x 4's short
 #: side is 16 mm; the graph opens wider before a pick.
 JAW_CLOSED_BELOW_M = 0.020
+#: Reported for a held brick (TCP x grasp offset): the brick can shift in the pads; the domino twin's held
+#: predictions were 8 mm median in transport, a LEGO brick pinched at 2 N moved under 1 mm at carry speed.
+HELD_UNCERTAINTY = {"position_m": 0.003, "rotation_rad": 0.03}
 MEMORY_HAND_GATE_M = 0.06
 PARTIAL_KEEP_M = 0.010
-MIN_IMAGE_INTERVAL_S = 0.05
+MIN_IMAGE_INTERVAL_S = 0.5
+"""RTX frames cost 2-5 s of wall time each (two cameras): at most one image set per 0.5 s simulated."""
 #: Wrist camera: this far over the reported TCP, looking straight down (the floating hand has no arm).
 WRIST_OVER_TCP_M = 0.12
 #: The hand's volume masked from the images: pads and palm within this radius of the TCP axis,
@@ -245,6 +253,23 @@ class LegoVision:
         if self._held is None and closes > self._closes_seen:
             self._closes_seen = closes
             Tt = self._tcp_T()
+            if os.environ.get("LEGO_VISION_DEBUG"):
+                tr = self.station._truth_objects()
+                print(
+                    "LVCLOSE tcp",
+                    np.round(Tt[:3, 3], 4).tolist(),
+                    "est",
+                    {t: np.round(p, 4).tolist() for t, p in self._est.items()},
+                    "T_est",
+                    sorted(self._T_est),
+                    "truth",
+                    {
+                        t: np.round(o["position_m"], 4).tolist()
+                        for t, o in tr.items()
+                        if t in self._est
+                    },
+                    flush=True,
+                )
             # the hand's reported point is not at the pads' height: gate in xy, loosely in z
             best = min(
                 (
@@ -271,6 +296,8 @@ class LegoVision:
                 "source": "grasp_kinematics",
                 "privileged": False,
                 "visibility": "visible",
+                "confidence": 0.8,
+                "uncertainty": dict(HELD_UNCERTAINTY),
             }
             self._est[tid] = T[:3, 3].copy()
             self._T_est[tid] = T
@@ -340,7 +367,11 @@ class LegoVision:
                 flush=True,
             )
         now = time.time()
-        return {tid: {**d, "timestamp_s": now} for tid, d in self._out.items()}
+        out = {tid: {**d, "timestamp_s": now} for tid, d in self._out.items()}
+        if self._held is not None and self._held[0] in out:
+            # recomputed from the TCP on this read, not from the last image
+            out[self._held[0]]["sim_time_s"] = sim_t
+        return out
 
     def summary(self) -> dict:
         def stats(src):
