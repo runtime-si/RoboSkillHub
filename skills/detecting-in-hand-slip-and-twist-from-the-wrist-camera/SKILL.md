@@ -20,7 +20,7 @@ metadata:
   hub:
     stage: verify
     embodiments: [any]
-    version: 0.2.0
+    version: 0.3.0
     tasks: [pick-place, insertion]
     provenance:
       authors: [runtime-si]
@@ -36,6 +36,7 @@ gap:
     spin_deg: float
     area_fraction: float
     frames: int
+    occluded_frames: int
   exit_conditions:
     stable: Over duration_s, the part's region moved under slip_mm (2 mm) and turned under twist_deg (3 deg) about the closing axis and the camera axis, and kept at least drop_fraction of its area.
     slipping: The region's dominant motion moved more than slip_mm (worst frame), with no twist over twist_deg.
@@ -131,3 +132,21 @@ The band took in the fingers (the flow fit locked on their zero motion) and the 
 deg of twist when the part left it). Still open: once the mid-air parts meet, the other part enters the jaw
 box and the fit reads false twist (up to 90 deg); twists about the approach axis (8-13 deg on a domino) read
 3-8 deg; the jigsaw turn-fling case (#191) was not recorded.
+
+### Second part in the jaw box, two-frame confirmation (0.3.0, same recordings)
+
+In the jaw-box mode each flow match must land within `GATE_M` (4 mm) of where the last frame's fit puts the held
+point; with under `MIN_MATCHED` (25 %) left the frame is occluded (counted in `occluded_frames`, not judged).
+A reading counts when two frames in a row agree. The area fraction is the reference region still in the box.
+
+| case | 0.2.0 | 0.3.0 |
+|---|---|---|
+| mid-air after the parts meet (DUPLO 440 + peg 1322 frames) | 181 frames fired, twist up to 94 deg | 0 fired; peg run 1131 of 1322 frames occluded |
+| mid-air before contact (384 frames) | 0 fired | 0 fired |
+| domino, held_speed_scale 0.25 (6 lifts) | 2/6 false alarms | 1-2/6 (two-frame slip 2.0 and 2.3 mm on 1.1 mm true, both the third tile) |
+| domino, full speed (4 lifts, 3.0-3.4 mm true) | 4/4 | 3/4 (second tile 2.1-2.3 mm; first tile once on a 3.2 deg spin, once missed at 1.1 mm) |
+
+Open: after contact the peg run's parts slipped 3.4-3.6 mm while most frames were occluded and the rest read
+1.5-1.8 mm (missed); the gate costs the first tile's full-speed slip; the jigsaw turn that flings a bare 2 mm piece
+(#191) leaves nothing in the jaw box (the flat piece is not seen between the jaws), and the band mode reads the
+table as 30-38 deg of twist there, as before.

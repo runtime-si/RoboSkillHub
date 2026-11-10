@@ -59,6 +59,7 @@ class Output(TypedDict):
     spin_deg: float
     area_fraction: float
     frames: int
+    occluded_frames: int
 
 
 def _camera(obs: Any, name: str | None) -> dict[str, Any] | None:
@@ -226,32 +227,58 @@ def _rotvec(r: np.ndarray) -> np.ndarray:
     return np.array([r[2, 1] - r[1, 2], r[0, 2] - r[2, 0], r[1, 0] - r[0, 1]]) / (2 * math.sin(a)) * a
 
 
+GATE_M = 0.004
+"""A flow match must land within this of where the last frame's fit puts the held part's point [m]. A second
+part brought into the jaw box (a mid-air insertion's mate) or a hand in front of the camera then drops out
+instead of dragging the fit: in the station twin it read up to 90 deg of twist after contact."""
+
+MIN_MATCHED = 0.25
+"""Under this fraction of the reference points still matched, the frame reads as occluded and is not judged."""
+
+
 def compare_rigid(
-    ref: dict[str, Any], now: dict[str, Any], tool_cam: np.ndarray, width: float, box=JAW_BOX
-) -> dict[str, float]:
+    ref: dict[str, Any],
+    now: dict[str, Any],
+    tool_cam: np.ndarray,
+    width: float,
+    box=JAW_BOX,
+    prior: np.ndarray | None = None,
+) -> dict[str, Any]:
     """Slip [mm] of the part's centroid, its turn about the closing axis (twist) and the camera axis (spin)
-    [deg], and the region's area fraction, from a rigid 3D fit to the flow's point matches inside the jaws."""
+    [deg], and the area fraction of the reference region still in the jaw box, from a rigid 3D fit to the flow's
+    point matches inside the jaws. Matches further than GATE_M from ``prior`` (the last frame's fit, camera frame)
+    are left out; ``occluded`` is set when too few remain, and ``pose`` is the fit for the next frame's prior."""
     import cv2
 
     k = np.asarray(ref["intrinsics"], dtype=float)
     d0, d1 = np.asarray(ref["depth"], float), np.asarray(now["depth"], float)
     m0 = jaw_region(d0, k, tool_cam, width, box)
     m1 = jaw_region(d1, k, tool_cam, width, box)
-    res = {"slip_mm": 0.0, "twist_deg": 0.0, "spin_deg": 0.0, "area_fraction": float(m1.sum()) / max(1, m0.sum())}
+    res: dict[str, Any] = {
+        "slip_mm": 0.0, "twist_deg": 0.0, "spin_deg": 0.0,
+        "area_fraction": float((m0 & m1).sum()) / max(1, m0.sum()),
+        "occluded": False, "matched": 0.0, "pose": prior if prior is not None else np.eye(4),
+    }  # fmt: skip
     v, u = np.nonzero(m0)
     if v.size < MIN_PIXELS:
         return res
     flow = cv2.calcOpticalFlowFarneback(_gray(ref), _gray(now), None, **FARNEBACK)
     step = max(1, v.size // 4000)
     v, u = v[::step], u[::step]
+    n0 = len(v)
     u1 = np.rint(u + flow[v, u, 0]).astype(int)
     v1 = np.rint(v + flow[v, u, 1]).astype(int)
     ok = (u1 >= 0) & (u1 < d1.shape[1]) & (v1 >= 0) & (v1 < d1.shape[0])
     v, u, v1, u1 = v[ok], u[ok], v1[ok], u1[ok]
     a, b = _points(d0, k, v, u), _points(d1, k, v1, u1)
-    ok = np.isfinite(b).all(axis=1) & (b[:, 2] > 0) & (np.abs(b[:, 2] - a[:, 2]) < 0.015)
+    ok = np.isfinite(b).all(axis=1) & (b[:, 2] > 0)
     a, b = a[ok], b[ok]
-    if len(a) < MIN_PIXELS // 4:
+    pr = res["pose"]
+    near = np.linalg.norm(a @ pr[:3, :3].T + pr[:3, 3] - b, axis=1) < GATE_M
+    a, b = a[near], b[near]
+    res["matched"] = len(a) / max(1, n0)
+    if len(a) < MIN_PIXELS // 4 or res["matched"] < MIN_MATCHED:
+        res["occluded"] = True
         return res
     keep = np.ones(len(a), bool)
     for _ in range(3):
@@ -259,6 +286,7 @@ def compare_rigid(
         err = np.linalg.norm(a @ r.T + t - b, axis=1)
         keep = err < max(0.0015, 2.0 * float(np.median(err)))
         if keep.sum() < MIN_PIXELS // 4:
+            res["occluded"] = True
             return res
     r, t = _kabsch(a[keep], b[keep])
     c = a[keep].mean(axis=0)
@@ -267,6 +295,9 @@ def compare_rigid(
     res["slip_mm"] = float(np.linalg.norm(r @ c + t - c)) * 1e3
     res["twist_deg"] = float(rv @ axis)
     res["spin_deg"] = float(rv[2])
+    pose = np.eye(4)
+    pose[:3, :3], pose[:3, 3] = r, t
+    res["pose"] = pose
     return res
 
 
@@ -292,6 +323,7 @@ def run(
         "spin_deg": 0.0,
         "area_fraction": 1.0,
         "frames": 0,
+        "occluded_frames": 0,
     }
 
     def frame() -> dict[str, Any] | None:
@@ -333,6 +365,7 @@ def run(
         out["area_fraction"] = 0.0
         return out
     worst = {"slip_mm": 0.0, "twist_deg": 0.0, "spin_deg": 0.0, "area_fraction": 1.0}
+    prior, last = None, {}
     t0 = time.monotonic()
     n = max(1, int(round(float(duration_s) / max(float(period_s), 1e-3))))
     for i in range(n):
@@ -344,13 +377,20 @@ def run(
             continue
         out["frames"] += 1
         if tool_cam is not None and jaw_width_m > 0:
-            r = compare_rigid(ref, cur, tool_cam, float(jaw_width_m))
+            r = compare_rigid(ref, cur, tool_cam, float(jaw_width_m), prior=prior)
+            if r["occluded"]:
+                out["occluded_frames"] += 1
+                continue
+            prior = r["pose"]
+            # a reading counts once two frames in a row agree: one noisy fit is not a slip
+            held = {key: min(abs(r[key]), abs(last.get(key, 0.0))) * math.copysign(1.0, r[key]) for key in worst}
+            last = r
         else:
-            r = compare(ref, cur, axis_cam, near, far)
-        worst["slip_mm"] = max(worst["slip_mm"], r["slip_mm"])
+            r = held = compare(ref, cur, axis_cam, near, far)
+        worst["slip_mm"] = max(worst["slip_mm"], held["slip_mm"])
         for key in ("twist_deg", "spin_deg"):
-            if abs(r[key]) > abs(worst[key]):
-                worst[key] = r[key]
+            if abs(held[key]) > abs(worst[key]):
+                worst[key] = held[key]
         worst["area_fraction"] = min(worst["area_fraction"], r["area_fraction"])
         if r["area_fraction"] < drop_fraction:
             break
