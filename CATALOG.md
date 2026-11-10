@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-24 tools, 139 skills, 2 policies, 1 recipe and 1 paper.
+24 tools, 140 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -102,6 +102,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`anchoring-a-free-end`](#anchoring-a-free-end) | execute | Pins one end of a cable with the support hand before any crossing is attempted. | any, 2 arms |
 | [`approaching-above-a-target`](#approaching-above-a-target) | execute | Moves the hand to hover a set clearance above a target's oriented box, rising in place first and keeping the hand's… | any |
 | [`checking-reachability`](#checking-reachability) | execute | Asks a station whether TCP poses (optionally as a chained path from the current configuration) are reachable, using… | yam_i2rt |
+| [`correcting-brick-offset-from-stud-circles`](#correcting-brick-offset-from-stud-circles) | execute | Closes the last millimetre over a LEGO or DUPLO brick before a pick or a press. | any |
 | [`disassembling-a-brick-by-twist-lever`](#disassembling-a-brick-by-twist-lever) | execute | Removes a seated LEGO or DUPLO brick with a parallel gripper and no force sensor. | any |
 | [`executing-feature-mating`](#executing-feature-mating) | execute | Executes a supplied feature-mating plan for an already-held rigid object. | any |
 | [`executing-held-object-motion`](#executing-held-object-motion) | execute | Executes an ordered, collision-aware pose sequence for an already-grasped rigid object without releasing it. | any |
@@ -1393,6 +1394,23 @@ Asks a station whether TCP poses (optionally as a chained path from the current 
   - `failed`: The attempted operation or tracking update did not meet its required condition.
   - `unverified`: Available evidence is insufficient to establish the requested physical postcondition.
   - `rejected`: The request, station configuration or required backend capability is not accepted.
+
+### correcting-brick-offset-from-stud-circles
+
+execute · robots: any · tasks: assembly, lego · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/correcting-brick-offset-from-stud-circles/SKILL.md) · [upstream](https://github.com/kevinpoi/legoscope/blob/2abdc205ef36/detect_offset.py)
+
+Closes the last millimetre over a LEGO or DUPLO brick before a pick or a press. The hand peeks at a fixed height over the expected stud pair; the wrist RGB-D close-up gives the brick top's plane and a circle at the known stud radius for each stud, fitted only to the rim that is seen (occlusion-aware, as Eye-in-Finger forces its circle tangent to the visible mask edges); the two studs nearest the expected pair (with every other stud on their lattice) give the pair's midpoint and line, compared with the tool axis (or a calibrated tool-centre pixel); the hand steps by the difference in x, y and yaw and repeats until under 0.2 mm and 1 deg. Use when a brick's pose is known to a few millimetres (an overhead estimate, read_studs, computing-brick-pose-from-stud-grid) and a grasp or a press-fit needs it to a few tenths, on an arm whose moves land a millimetre off.
+
+- **In**: `pair_pose` Se3Pose
+- **Out**: `pair_pose` Se3Pose, `tool_pose` Se3Pose, `yaw_offset_deg` float, `iterations` int, `moves` int, `pair_range_m` float, `tool_axis_source` string, `camera_name` string
+- **Calls**: connector `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`
+- **Scripts**: [`correct_offset`](skills/correcting-brick-offset-from-stud-circles/scripts/correct_offset.py)
+- **Exits**:
+  - `aligned`: The tool axis (or the tool_center_px ray) was measured within tolerance_mm (0.2) of the stud pair's midpoint and within tolerance_deg (1.0) of the wanted yaw (and, with tool_center_range, the camera's range within tolerance_mm of it); the hand is at the peek height over the pair and pair_pose is the last measurement.
+  - `ambiguous_stud_pair`: The nearest stud pair is over 0.4 pitch from the expected one, or two pairs are almost as near - the expected pose is about half a stud off, so which pair is meant cannot be told; nothing more is moved.
+  - `lost_studs`: No posed wrist RGB-D frame, no brick-top plane within half a brick of the expected pair, or under two stud circles / no pair one pitch apart along the expected line.
+  - `max_iterations`: max_iterations measurements were taken and the last was still over tolerance (with max_iterations 1 the skill only measures).
+  - `unreachable`: The rise, the peek pose or a correction move was refused (routed or raised); detail says which.
 
 ### disassembling-a-brick-by-twist-lever
 
