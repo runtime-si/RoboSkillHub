@@ -277,7 +277,7 @@ every pixel within 3.6 mm of a stud axis (the brick's own and the plate's
 lattice, from the seat pose), keeps the face pixels within +-4 mm of a first
 level (a narrow window locked the quantisation offset in), trims 10 % per tail
 and fits a plane; the noise dithers the 1 mm steps. Its default tilt
-tolerance is 2.0 deg (`STUD_MASK_TILT_TOL_DEG`).
+tolerance is 6.0 deg (`STUD_MASK_TILT_TOL_DEG`; see the tilt section below).
 
 LEGO station (Isaac + BrickSim), RTX wrist depth + fitted D405 noise,
 single_on_plate / single_on_brick x {no fault + 6 station faults}; tolerances
@@ -301,3 +301,33 @@ chosen on seeds 0-2 (38 placements), reported on seeds 3-5 (39 placements:
 - The 11 unverified / 6 uncertain are lost-target and stuck-jaws placements
   (no brick to read at the seat); 7 of 84 episodes ended before a placement
   and are not counted.
+
+### Tilt under noise (2026-11-10 rerun, independent noise per episode)
+
+The 1.7 deg that seated plate bricks read in the run above was one noise draw:
+the LEGO hub bridge seeded every episode's depth noise with 0, so all episodes
+saw the same noise. With a seed per episode (`lego_hub.skills._noise_seed`),
+200 noise draws on one rendered seated brick (wrist camera 21 cm over it) read:
+
+| estimator | height | tilt median / p95 | tilt > 1.5 deg | > 2.0 deg |
+|---|---|---|---|---|
+| two_layer | +0.37 +- 0.36 mm | 1.6 / 5.2 deg | 52 % | 42 % |
+| stud_mask | -0.01 +- 0.31 mm | 2.5 / 6.3 deg | 75 % | 61 % |
+
+A single frame there cannot resolve 1.5 deg; the height can. Rerun of all 84
+episodes with per-episode noise, chosen on seeds 0-2 (41 placements:
+0.4 mm / 6.0 deg; the 0.6 mm default accepts the same), held-out seeds 3-5
+(39 placements: 21 seated, 18 not):
+
+| `stud_mask`, held-out | false done | successes accepted | failures caught |
+|---|---|---|---|
+| 0.6 mm / 1.5 deg | 0/18 | 6/21 | 12/18 |
+| 0.6 mm / 2.0 deg | 0/18 | 9/21 | 12/18 |
+| 0.6 mm / 4.0 deg | 0/18 | 13/21 | 12/18 |
+| **0.6 mm / 6.0 deg (default)** | **0/18** | **16/21** | 12/18 |
+| judging-assembly-steps-by-fused-checks with it | 0/18 | 16/21 | 18/18 |
+
+Seated heights -0.29 to +0.14 mm, failed 1.53-2.36 mm. The 5 successes not
+accepted are lost-target placements (no brick to read). The earlier 2.0 deg
+retune and its held-out numbers (#199) shared one noise draw between train and
+held-out episodes and are superseded.

@@ -108,12 +108,13 @@ FACE_WINDOW_M = 0.004
 noise around a quantised (1 mm step) level is not truncated on one side (a narrow window kept the
 quantisation bias), yet under a brick height (9.6 mm) so neighbours and fingers stay out."""
 
-STUD_MASK_TILT_TOL_DEG = 2.0
-"""Default tilt tolerance with face_estimator 'stud_mask' (else the 1.5 deg LEGO 2x4 spread limit), retuned
-on the LEGO station (RTX wrist depth + fitted D405 noise, seeds 0-2, 38 placements). Seated bricks on the
-bare plate read 1.7 deg there while BrickSim's own settled tilt was 0.00 deg - an estimator / render
-artifact of that view, not a real tilt; held-out seeds 3-5: 16 of 22 successes accepted, 0 of 17 failures
-(SKILL.md)."""
+STUD_MASK_TILT_TOL_DEG = 6.0
+"""Default tilt tolerance with face_estimator 'stud_mask' (else the 1.5 deg LEGO 2x4 spread limit). A single
+wrist frame at ~21 cm under the station's fitted D405 noise cannot resolve 1.5 deg: over 200 noise draws of
+one rendered seated brick the tilt read median 2.5 deg, p95 6.3 deg, while the height read -0.01 +- 0.31 mm.
+Retuned on seeds 0-2 (41 placements, independent noise per episode), held-out seeds 3-5: 16 of 21 seated
+accepted at 6 deg (6 of 21 at 1.5 deg), 0 of 18 failures accepted. A brick with one end on the studs still
+fails on its height (+0.85 mm mean) (SKILL.md)."""
 
 TRIM_FRACTION = 0.1
 """face_estimator 'stud_mask': each tail trimmed from the face heights before the plane fit."""
