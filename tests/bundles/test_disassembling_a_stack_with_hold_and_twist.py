@@ -50,6 +50,7 @@ def _ctx(arms):
             "robot.get_ee_pose": arms.ee,
             "robot.go_to_pose_cartesian": arms.go,
             "robot.close_gripper": {},
+            "robot.open_gripper": {},
             "robot.grasp_frame": {"rotation": DOWN},
         }
     )
@@ -79,7 +80,11 @@ def test_support_presses_then_twist_separates(ht, twist):
     arms = Arms()
     twist.arms = arms
     out = ht.run(
-        _ctx(arms), seat_position=SEAT, support_point=SUPPORT, twist_inputs={"system": "duplo"}
+        _ctx(arms),
+        seat_position=SEAT,
+        support_point=SUPPORT,
+        support_mode="press",
+        twist_inputs={"system": "duplo"},
     )
     assert out["route"] == "separated" and out["support_used"] and out["support_drift_mm"] == 0.0
     sup = [m for a, m in arms.moves if a == 1]
@@ -128,13 +133,15 @@ def test_without_support_only_twists(ht, twist):
 def test_tool_centre_floor(ht, twist):
     arms = Arms()
     low = {"x": 0.5, "y": 0.0, "z": 0.0}
-    ht.run(_ctx(arms), seat_position=SEAT, support_point=low)
+    ht.run(_ctx(arms), seat_position=SEAT, support_point=low, support_mode="press")
     assert min(m["z"] for a, m in arms.moves if a == 1) >= ht.MIN_TCP_Z
 
 
 def test_bad_arguments(ht):
     with pytest.raises(ValueError, match="support_point"):
         ht.run(FakeContext({}), seat_position=SEAT)
+    with pytest.raises(ValueError, match="support_mode"):
+        ht.run(FakeContext({}), seat_position=SEAT, support_point=SUPPORT, support_mode="hug")
     with pytest.raises(ValueError, match="differ"):
         ht.run(FakeContext({}), seat_position=SEAT, support_point=SUPPORT, support_arm=0)
 
@@ -156,5 +163,27 @@ def test_a_press_leg_stalled_on_the_base_counts_as_support(ht, twist):
         return r
 
     arms.go = go
-    out = ht.run(_ctx(arms), seat_position=SEAT, support_point=SUPPORT)
+    out = ht.run(_ctx(arms), seat_position=SEAT, support_point=SUPPORT, support_mode="press")
     assert out["route"] == "separated" and out["support_used"]
+
+
+def test_grip_mode_grips_the_lower_part_and_lets_go(ht, twist):
+    arms = Arms()
+    twist.arms = arms
+    calls = []
+    ctx = _ctx(arms)
+    ctx_tools = {
+        "robot.get_ee_pose": arms.ee,
+        "robot.go_to_pose_cartesian": arms.go,
+        "robot.close_gripper": lambda **kw: calls.append("close") or {},
+        "robot.open_gripper": lambda **kw: calls.append("open") or {},
+        "robot.grasp_frame": lambda **kw: (
+            calls.append(("frame", kw.get("close_heading_deg"))) or {"rotation": DOWN}
+        ),
+    }
+    ctx = FakeContext(ctx_tools)
+    out = ht.run(ctx, seat_position=SEAT, support_point=SUPPORT, seat_yaw_deg=90.0)
+    assert out["route"] == "separated" and out["support_used"]
+    assert calls[0] == ("frame", 180.0) and calls[1:] == ["open", "close", "open"]
+    sup = [m for a, m in arms.moves if a == 1]
+    assert sup[1]["z"] == pytest.approx(SUPPORT["z"] + ht.TIP_BELOW_TCP / 2)

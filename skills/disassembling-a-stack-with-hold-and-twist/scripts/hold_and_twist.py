@@ -119,6 +119,8 @@ def run(
     seat_position: dict[str, float],
     support_point: dict[str, float] | None = None,
     support: bool = True,
+    support_mode: str = "grip",
+    grip_heading_deg: float = 90.0,
     seat_yaw_deg: float = 0.0,
     twist_arm: int = 0,
     support_arm: int = 1,
@@ -130,6 +132,8 @@ def run(
         raise ValueError(
             "support_point (where the support hand presses the base, its top surface) is required"
         )
+    if support_mode not in ("grip", "press"):
+        raise ValueError(f"support_mode must be 'grip' or 'press', got {support_mode!r}")
     if int(twist_arm) == int(support_arm):
         raise ValueError("twist_arm and support_arm must differ")
     out: Output = {
@@ -154,12 +158,22 @@ def run(
         here = _pose(ctx.tool("robot.get_ee_pose", **on))
         rot = here["rotation"]
         try:
-            gf = ctx.tool("robot.grasp_frame", **on)
+            kw = (
+                {"close_heading_deg": float(seat_yaw_deg) + float(grip_heading_deg)}
+                if support_mode == "grip"
+                else {}
+            )
+            gf = ctx.tool("robot.grasp_frame", **kw, **on)
             rot = gf.get("rotation", rot) if isinstance(gf, dict) else rot
         except Exception as exc:  # keep the current rotation
             logger.info("no grasp frame for the support arm (%s)", exc)
-        tcp_z = max(float(target[2]) + TIP_BELOW_TCP - float(press_depth), MIN_TCP_Z)
-        ctx.tool("robot.close_gripper", **on)
+        if support_mode == "grip":
+            # Grip the lower part across its sides: fingertips around support_point (its side faces' middle).
+            tcp_z = float(target[2]) + TIP_BELOW_TCP / 2.0
+            ctx.tool("robot.open_gripper", **on)
+        else:
+            tcp_z = max(float(target[2]) + TIP_BELOW_TCP - float(press_depth), MIN_TCP_Z)
+            ctx.tool("robot.close_gripper", **on)
         for name, z in (
             ("over the support point", float(target[2]) + TIP_BELOW_TCP + APPROACH),
             ("onto the base", tcp_z),
@@ -172,7 +186,7 @@ def run(
                 why = _refusal(ctx.tool("robot.go_to_pose_cartesian", pose=pose, **on))
             except Exception as exc:
                 why = str(exc) or type(exc).__name__
-            if why and name == "onto the base":
+            if why and name == "onto the base" and support_mode == "press":
                 # The press leg is meant to stall on the base: a timeout or contact near the target is the preload.
                 got = _xyz(_pose(ctx.tool("robot.get_ee_pose", **on)))
                 if (
@@ -182,6 +196,8 @@ def run(
                     why = ""
             if why:
                 return finish("support_unreachable", f"support arm {name}: {why}")
+        if support_mode == "grip":
+            ctx.tool("robot.close_gripper", **on)
         held = _xyz(_pose(ctx.tool("robot.get_ee_pose", **on)))
         out["support_used"] = True
         out["support_pose"] = {
@@ -204,6 +220,8 @@ def run(
         now = _xyz(_pose(ctx.tool("robot.get_ee_pose", **on)))
         drift = float(np.linalg.norm(now - held))
         out["support_drift_mm"] = round(drift * 1e3, 2)
+        if support_mode == "grip":
+            ctx.tool("robot.open_gripper", **on)
         up = dict(out["support_pose"])
         up["position"] = {**up["position"], "z": float(held[2]) + APPROACH}
         try:

@@ -71,11 +71,16 @@ hand pressing the base down.
 
 ## What it does
 
-1. **Support** (`support`, default true): the support arm closes its hand,
-   moves over `support_point` (a free spot on the base's top, e.g. the plate
-   strip beside the brick) at 60 mm, and descends to put its fingertips
-   `press_depth` (4 mm) below it - the servo stalls on the base, which is
-   the preload. Rotation: `robot.grasp_frame` of that arm (top-down), else its
+1. **Support** (`support`, default true), `support_mode`:
+   - `grip` (default): the support arm opens, comes over `support_point` (the
+     middle of the lower brick's side faces) with its jaws turned
+     `grip_heading_deg` (90) from the brick's yaw - across the twist hand's -
+     descends so the fingertips straddle it, and closes; it lets go after the
+     twist.
+   - `press`: the closed hand comes over `support_point` (a free spot on the
+     base's top) and its fingertips are commanded `press_depth` (4 mm) below
+     it; the servo stalls on the base (a timeout or contact within 3 mm is
+     accepted as that stall). Rotation: `robot.grasp_frame` of that arm (top-down), else its
    current one. The tool centre is kept over 14 mm above the table.
 2. **Twist**: disassembling-a-brick-by-twist-lever's script, loaded from the
    same skills root (or `GAP_SKILLS_PATH`), run on `twist_arm` with
@@ -120,6 +125,14 @@ lightest case); the drift is the same at 15 g / 2 mm and 60 g / 0.5 mm, so it
 is not the support's press: the lever pulls the still-clutched plate up into
 the support fingers, the brick slips out of the twist hand, and the rigid
 contact between a held plate and a pair-force clutch blows up in the solver.
+
+**Grip mode** (lower brick instead of a plate: a free 8 g 2 x 2 DUPLO brick
+with 2 x 2 studs, same pair-force clutch): not measured. The scene's seat
+step failed before the skill ran - after `check.seat_brick` the top brick
+read 19.3-22.7 mm under its seat and 18-58 mm off it sideways (it slid off
+the lower brick), in 3 runs at 2.5 N per stud and 1 run at 1.0 N, so not the
+clutch's strength; the stacked two-light-body seat in the harness needs
+fixing first.
 
 The IK probe found all four support points reachable with the plate moved
 towards the middle (bench y <= 0.09). The no-support rows show the problem
