@@ -47,7 +47,7 @@ gap:
     released: bool
     jaw_width: float
   exit_conditions:
-    connected: A lift step left the hand more than hold_lag (0.3 mm) below its command beyond the start's lag, or a joint effort residual over effort_threshold; the hand was put back down at once, then (release, default) opened and rose `retreat`. `signal` says which fired.
+    connected: A lift step left the hand more than hold_lag (1 mm) below its command beyond the start's lag, or a joint effort residual over effort_threshold; the hand was put back down at once, then (release, default) opened and rose `retreat`. `signal` says which fired.
     not_connected: The whole lift (lift_height, 3 mm) ran with the hand following its command and the jaws still holding something; the brick came up with the hand (or the jaws slid on it). It is put back at the start, still held (put_back), ready for another press.
     not_holding: The jaws read at their stop before the lift (nothing moved), or after a free lift (the brick slipped out).
     blocked: The top of the lift is out of reach (IK preview - a stall there would read as connected), a move was refused, or signal=effort without published efforts; `detail` says which.
@@ -81,7 +81,7 @@ on a z reaction; connected if the force changed by more than 0.3 N).
    reading (vibro_tactile_toolbox's baseline wrench).
 4. **Lift** `step` (0.5 mm) at a time to `lift_height` (3 mm) with
    `robot.go_to_pose`, the rotation kept, settling after each step. A step that
-   leaves the hand more than `hold_lag` (0.3 mm) further below its command than
+   leaves the hand more than `hold_lag` (1 mm) further below its command than
    at the start, or a joint effort residual over `effort_threshold`, is a hold:
    stop at once and command the start again, so the pull on the clutch is never
    more than about one step past the threshold.
@@ -92,7 +92,7 @@ on a z reaction; connected if the force changed by more than 0.3 N).
 
 ## Inputs
 
-- `lift_height` (0.003 m), `step` (0.0005 m), `hold_lag` (0.0003 m).
+- `lift_height` (0.003 m), `step` (0.0005 m), `hold_lag` (0.001 m).
 - `signal` (`auto`: lag, plus efforts when published; `lag`; `effort`),
   `effort_threshold` (0.5 N.m), `effort_samples` (5), `speed_threshold`
   (0.3 rad/s).
@@ -111,7 +111,7 @@ on a z reaction; connected if the force changed by more than 0.3 N).
 
 - **The force is not known.** The pull at the stop is the servo stiffness
   times about `hold_lag`, uncalibrated (no force sensor). A LEGO 2x2 clutch is
-  a few newtons; if the arm's stiffness lets the clutch go before 0.3 mm of
+  a few newtons; if the arm's stiffness lets the clutch go before 1 mm of
   lag builds, a seated brick comes up and reads `not_connected` (a false
   negative, not a false positive), and the brick is put back for a re-press.
 - **Jaws that slide** on the brick also read `not_connected` (the jaw width
@@ -123,37 +123,40 @@ on a z reaction; connected if the force changed by more than 0.3 N).
 ## Simulation check
 
 A YAM station twin (left arm, MuJoCo at 500 Hz; simulator ground truth only
-to set up and to measure). The twin has no stud clutch, so two stand-ins:
-**fixed** - the box (a fixture) clamped across its 3 mm +y wall by
-grasping-container-rims (`lift_height` 0, `wall_thickness` 0.003; the jaws
-read 6.0 mm) stands in for a clutched brick; **loose** - the free 30 mm cube
-gripped by a scripted top-down grasp (tool centre 5 mm over its centre) on
-the table stands in for a brick resting on the stud tops; **empty** - the
-hand closed on nothing. One rollout per case, defaults unless noted:
+to set up and to measure), run with the sim harness's grip fix (impratio 100,
+solimp 0.99; ~/yam_gap/skill_sources/SIM_GRIP.md). Without it the stock twin
+let held parts creep through the jaws at under 1 N. The twin has no stud
+clutch, so there are two stand-ins:
 
-| case | hold_lag | route | hand rose (of commanded) | lag over start | after |
-|---|---|---|---|---|---|
-| fixed | 0.3 mm (default) | connected, step 2 | 0.53 of 1.0 mm | 0.41 mm | put back, released |
-| loose | 0.3 mm (default) | not_connected | 2.91 of 3.0 mm | 0.05 mm | cube put back (rests 0.2 mm high), still held |
-| empty | default | not_holding | - (jaws 0.44 mm) | - | nothing moved |
-| fixed | 0.5 mm | connected, step 3 | 0.94 of 1.5 mm | 0.51 mm | released |
-| loose | 0.5 mm | not_connected | 2.91 of 3.0 mm | 0.05 mm | put back |
-| fixed | 1.5 mm | not_connected | 2.37 of 3.0 mm | 0.58 mm | the jaws slid up the wall |
+- **fixed**: the box (a fixture) clamped across its 3 mm +y wall by
+  grasping-container-rims (`lift_height` 0, `wall_thickness` 0.003; the jaws
+  read 6.1 mm), standing in for a clutched brick.
+- **loose**: the free 30 mm cube gripped by a scripted top-down grasp on the
+  table, standing in for a brick resting on the stud tops.
+- **empty**: the hand closed on nothing.
 
-- On the fixed wall the twin's jaws slide once the lag reaches about
-  0.5-0.76 mm (in an earlier run the hand rose 2.19 mm with 0.76 mm lag), so
-  the lag never builds to 1.5 mm, half a real station's contact lag. That is
-  why `hold_lag` is 0.3 mm. The jaw width did not change while they slid
-  (5.8-6.0 mm). That is the false negative named under Limits, seen here.
-- An earlier set of runs passed a 1 mm arrival ball (`step_tolerance`) to
-  the servo with 0.5 mm steps: the servo called each step reached without
-  moving, and both stand-ins read `connected` at the first step. The ball is
-  now 0.2 mm.
-- grasping-container-rims, run with its default 30 mm lift on the fixed wall,
-  reported `grasped` with the wall slipped out (0.9 mm jaw gap after the
-  lift, over its 0.8 mm empty margin; the twin's closed jaws read 0.4-0.9
-  mm). The pull-up then read `not_holding` correctly.
-- No efforts in the twin; no real clutch, no real YAM.
+One rollout per case:
+
+| case | hold_lag | route | hand rose (of commanded) | lag over start |
+|---|---|---|---|---|
+| fixed | 1.0 mm (default) | connected, step 3 | 0.09 of 1.5 mm | 1.41 mm |
+| loose | 1.0 mm (default) | not_connected, cube put back | 2.91 of 3.0 mm | 0.09 mm |
+| empty | default | not_holding (jaws 0.44 mm) | - | - |
+| fixed | 0.3 mm | connected, step 1 | 0.02 of 0.5 mm | 0.48 mm |
+| fixed | 1.5 mm | connected, step 4 | 0.26 of 2.0 mm | 1.74 mm |
+| loose | 0.3 / 1.5 mm | not_connected | 2.91 of 3.0 mm | 0.09 mm |
+
+- With the grip holding, the fixed wall stopped the hand within 0.3 mm at
+  every threshold, and the lag grew by about 0.5 mm per step. A free lift
+  stayed under 0.1 mm.
+- On the stock twin (before the harness fix) the jaws slid up the fixed wall
+  once the lag reached 0.5-0.76 mm, so 1.5 mm never fired. That is why this
+  skill shipped with 0.3 mm. It also showed what a sliding grip does here: a
+  `not_connected` with the jaw width unchanged (see Limits).
+- An earlier set of runs passed a 1 mm arrival ball (`step_tolerance`) to the
+  servo with 0.5 mm steps: each step was called reached without moving, and
+  both stand-ins read `connected` at the first step. The ball is 0.2 mm.
+- No efforts in the twin, no real clutch, no real YAM.
 
 ## What changed from vibro_tactile_toolbox, and why
 

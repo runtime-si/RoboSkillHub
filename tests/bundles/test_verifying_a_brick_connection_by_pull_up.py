@@ -176,7 +176,7 @@ def test_sagging_arm_is_not_read_as_a_hold(script):
 
 
 def test_weak_clutch_letting_go_early_reads_not_connected(script):
-    arm = Arm(clutched=True, breaks_at=0.0002)
+    arm = Arm(clutched=True, breaks_at=0.0006)
     out = script.run(arm.ctx(), **FAST)
     assert out["route"] == "not_connected"
 

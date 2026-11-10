@@ -2549,7 +2549,7 @@ Checks that a brick just pressed onto studs is clutched by lifting it a few mill
 - **Calls**: connector `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.open_gripper`, `robot.solve_ik`
 - **Scripts**: [`pull_up_check`](skills/verifying-a-brick-connection-by-pull-up/scripts/pull_up_check.py)
 - **Exits**:
-  - `connected`: A lift step left the hand more than hold_lag (0.3 mm) below its command beyond the start's lag, or a joint effort residual over effort_threshold; the hand was put back down at once, then (release, default) opened and rose `retreat`. `signal` says which fired.
+  - `connected`: A lift step left the hand more than hold_lag (1 mm) below its command beyond the start's lag, or a joint effort residual over effort_threshold; the hand was put back down at once, then (release, default) opened and rose `retreat`. `signal` says which fired.
   - `not_connected`: The whole lift (lift_height, 3 mm) ran with the hand following its command and the jaws still holding something; the brick came up with the hand (or the jaws slid on it). It is put back at the start, still held (put_back), ready for another press.
   - `not_holding`: The jaws read at their stop before the lift (nothing moved), or after a free lift (the brick slipped out).
   - `blocked`: The top of the lift is out of reach (IK preview - a stall there would read as connected), a move was refused, or signal=effort without published efforts; `detail` says which.
