@@ -38,7 +38,15 @@ BASE_MOVED = 0.003
 """Support tool centre drift during the twist past which the base counts as moved [m]: over the
 YAM servo's settle noise (~1 mm), under a DUPLO stud's 4.5 mm engagement."""
 
-ROUTES = ("separated", "base_moved", "clutch_too_strong", "missed", "unverified", "support_unreachable", "unreachable")
+ROUTES = (
+    "separated",
+    "base_moved",
+    "clutch_too_strong",
+    "missed",
+    "unverified",
+    "support_unreachable",
+    "unreachable",
+)
 
 TWIST_TO_ROUTE = {
     "removed": "separated",
@@ -77,7 +85,9 @@ def _refusal(reply: Any) -> str:
         return ""
     if reply.get("outcome") not in (None, "reached", "contact"):
         return f"{reply['outcome']}: {reply.get('reason', '')}".rstrip(": ")
-    if reply.get("outcome") is None and (reply.get("reached") is False or reply.get("success") is False):
+    if reply.get("outcome") is None and (
+        reply.get("reached") is False or reply.get("success") is False
+    ):
         return str(reply.get("reason") or "the move reported failure")
     return ""
 
@@ -86,10 +96,14 @@ def _twist_module() -> Any:
     """The hub's disassembling-a-brick-by-twist-lever script, a sibling bundle in the same skills root."""
     rel = Path("disassembling-a-brick-by-twist-lever") / "scripts" / "disassemble_brick.py"
     roots = [Path(__file__).resolve().parents[2]]
-    roots += [Path(p) / "skills" for p in os.environ.get("GAP_SKILLS_PATH", "").split(os.pathsep) if p]
+    roots += [
+        Path(p) / "skills" for p in os.environ.get("GAP_SKILLS_PATH", "").split(os.pathsep) if p
+    ]
     path = next((r / rel for r in roots if (r / rel).is_file()), None)
     if path is None:
-        raise RuntimeError("disassembling-a-brick-by-twist-lever is needed beside this bundle (skills root or GAP_SKILLS_PATH)")
+        raise RuntimeError(
+            "disassembling-a-brick-by-twist-lever is needed beside this bundle (skills root or GAP_SKILLS_PATH)"
+        )
     spec = importlib.util.spec_from_file_location("disassemble_brick_for_hold_and_twist", path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -109,7 +123,9 @@ def run(
     twist_inputs: dict[str, Any] | None = None,
 ) -> Output:
     if support and support_point is None:
-        raise ValueError("support_point (where the support hand presses the base, its top surface) is required")
+        raise ValueError(
+            "support_point (where the support hand presses the base, its top surface) is required"
+        )
     if int(twist_arm) == int(support_arm):
         raise ValueError("twist_arm and support_arm must differ")
     out: Output = {
@@ -140,8 +156,14 @@ def run(
             logger.info("no grasp frame for the support arm (%s)", exc)
         tcp_z = max(float(target[2]) + TIP_BELOW_TCP - float(press_depth), MIN_TCP_Z)
         ctx.tool("robot.close_gripper", **on)
-        for name, z in (("over the support point", float(target[2]) + TIP_BELOW_TCP + APPROACH), ("onto the base", tcp_z)):
-            pose = {"position": dict(zip("xyz", (float(target[0]), float(target[1]), z), strict=True)), "rotation": rot}
+        for name, z in (
+            ("over the support point", float(target[2]) + TIP_BELOW_TCP + APPROACH),
+            ("onto the base", tcp_z),
+        ):
+            pose = {
+                "position": dict(zip("xyz", (float(target[0]), float(target[1]), z), strict=True)),
+                "rotation": rot,
+            }
             try:
                 why = _refusal(ctx.tool("robot.go_to_pose_cartesian", pose=pose, **on))
             except Exception as exc:
@@ -150,11 +172,18 @@ def run(
                 return finish("support_unreachable", f"support arm {name}: {why}")
         held = _xyz(_pose(ctx.tool("robot.get_ee_pose", **on)))
         out["support_used"] = True
-        out["support_pose"] = {"position": dict(zip("xyz", map(float, held), strict=True)), "rotation": rot}
+        out["support_pose"] = {
+            "position": dict(zip("xyz", map(float, held), strict=True)),
+            "rotation": rot,
+        }
 
     kwargs = dict(twist_inputs or {})
     twist = _twist_module().run(
-        ctx, seat_position=seat_position, seat_yaw_deg=float(seat_yaw_deg), arm_id=int(twist_arm), **kwargs
+        ctx,
+        seat_position=seat_position,
+        seat_yaw_deg=float(seat_yaw_deg),
+        arm_id=int(twist_arm),
+        **kwargs,
     )
     out["twist_route"], out["twist_detail"] = str(twist["route"]), str(twist.get("detail", ""))
 
@@ -172,7 +201,9 @@ def run(
     route = TWIST_TO_ROUTE.get(out["twist_route"], "unreachable")
     if drift > float(base_moved_tolerance):
         route = "base_moved"
-    msg = f"twist {out['twist_route']}" + (f", support drifted {drift * 1e3:.1f} mm" if held is not None else ", no support")
+    msg = f"twist {out['twist_route']}" + (
+        f", support drifted {drift * 1e3:.1f} mm" if held is not None else ", no support"
+    )
     if not math.isfinite(drift):
         route = "unreachable"
     return finish(route, msg)

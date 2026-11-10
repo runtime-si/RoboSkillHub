@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-29 tools, 160 skills, 2 policies, 1 recipe and 1 paper.
+29 tools, 161 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -118,6 +118,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`correcting-brick-offset-from-stud-circles`](#correcting-brick-offset-from-stud-circles) | execute | Closes the last millimetre over a LEGO or DUPLO brick before a pick or a press. | any |
 | [`correcting-in-plane-offset-by-discrete-moves`](#correcting-in-plane-offset-by-discrete-moves) | execute | Final x, y and yaw alignment of a held part (or the hand) over its target from the wrist camera, by a small classifier… | any |
 | [`disassembling-a-brick-by-twist-lever`](#disassembling-a-brick-by-twist-lever) | execute | Removes a seated LEGO or DUPLO brick with a parallel gripper and no force sensor. | any |
+| [`disassembling-a-stack-with-hold-and-twist`](#disassembling-a-stack-with-hold-and-twist) | execute | Frees a clutched LEGO / DUPLO brick from a loose base with two arms. | any, 2 arms |
 | [`executing-feature-mating`](#executing-feature-mating) | execute | Executes a supplied feature-mating plan for an already-held rigid object. | any |
 | [`executing-held-object-motion`](#executing-held-object-motion) | execute | Executes an ordered, collision-aware pose sequence for an already-grasped rigid object without releasing it. | any |
 | [`grasping-a-cable-by-its-plug`](#grasping-a-cable-by-its-plug) | execute | Grasps a cable by the rigid plug at its end rather than by its thin jacket. | any |
@@ -1643,6 +1644,25 @@ Removes a seated LEGO or DUPLO brick with a parallel gripper and no force sensor
   - `missed`: Before anything was gripped - the wrist depth finds no brick top at the seat, the open jaws stopped 3 mm or more over the grasp, or the jaws closed past the brick's width.
   - `unverified`: Lifted free, but the seat was not read (verify false, or no wrist camera / reachable view / 3 depth readings); detail says whether the jaws hold something.
   - `unreachable`: The grasp, or every strategy's motion, failed the IK preview, or a move was refused.
+
+### disassembling-a-stack-with-hold-and-twist
+
+execute · robots: any, 2 arms · tasks: assembly, lego, bimanual · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/disassembling-a-stack-with-hold-and-twist/SKILL.md) · [upstream](https://github.com/intelligent-control-lab/APEX-MR/blob/6b5a17f1133c3f739caf50fa0fff6c478ef73b7a/src/lego_policy.cpp)
+
+Frees a clutched LEGO / DUPLO brick from a loose base with two arms - the support arm closes its hand and presses the base (the plate beside the brick, or the brick under it) down, the other arm runs disassembling-a-brick-by-twist-lever (grasp, lever about an edge, lift), and the support's read-back pose before and after says whether the base moved. Use when the base is not clamped (a loose plate, a sub-assembly, a stack on the table), so a one-arm twist would drag the base along, and a second arm can reach a free spot of the base.
+
+- **In**: `seat_position` Vec3
+- **Out**: `twist_route` string, `twist_detail` string, `support_used` bool, `support_drift_mm` float
+- **Calls**: connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`, `robot.set_grip`, `robot.solve_ik`
+- **Scripts**: [`hold_and_twist`](skills/disassembling-a-stack-with-hold-and-twist/scripts/hold_and_twist.py)
+- **Exits**:
+  - `separated`: The twist-lever skill ended `removed` and the support hand drifted less than base_moved_tolerance (3 mm) while it ran - the brick is in the twist hand, the base where it was.
+  - `base_moved`: The support hand drifted more than 3 mm during the twist (the base came along or shifted), or the twist skill read `neighbour_lifted`.
+  - `clutch_too_strong`: The twist skill ended `stuck` or `slipped`.
+  - `missed`: The twist skill found no brick to grip.
+  - `unverified`: The twist lifted free but the seat was not read.
+  - `support_unreachable`: The support arm could not get over or onto the support point (routed or raised refusal); nothing else was moved.
+  - `unreachable`: The twist skill's motion was refused.
 
 ### executing-feature-mating
 

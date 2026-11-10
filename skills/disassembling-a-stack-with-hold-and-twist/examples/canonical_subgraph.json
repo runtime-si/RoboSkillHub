@@ -1,0 +1,27 @@
+{
+  "skill": "disassembling-a-stack-with-hold-and-twist",
+  "inputs": {"seat_position": "Vec3", "support_point": "Vec3"},
+  "outputs": {
+    "twist_route": {"$ref": "ht.twist_route"},
+    "support_drift_mm": {"$ref": "ht.support_drift_mm"}
+  },
+  "nodes": {
+    "ht": {
+      "type": "script",
+      "script": "scripts/hold_and_twist.py",
+      "inputs": {
+        "seat_position": {"$ref": "in.seat_position"},
+        "support_point": {"$ref": "in.support_point"},
+        "twist_arm": 0,
+        "support_arm": 1,
+        "twist_inputs": {"system": "duplo"}
+      }
+    }
+  },
+  "edges": [["START", "ht"], ["ht", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["separated", "base_moved", "clutch_too_strong", "missed", "unverified", "support_unreachable"]
+  },
+  "on_error": "unreachable"
+}
