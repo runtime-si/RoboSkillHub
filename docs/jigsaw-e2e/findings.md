@@ -162,3 +162,45 @@ mesh collider), so the blade swap needs a gripper-spec change there. Not done.
 
 Completion so far: **0 / 2** (baseline 0 / 8). The worst breakpoint is still the seat: the seat search
 finds no drop with the measured 2 mm, 1 degree residual.
+
+
+## Update, round 7 (2026-11-10)
+
+**Changes to the chain** (`e2e_orchestrator.py`):
+
+- **Bare pieces.** The grip block is gone (`ASSETS=assets_bare`). The pick goes where
+  `selecting-a-grip-clear-of-placed-neighbours` puts it: its `pick_grip_pixel`, `pick_closing_yaw_deg` and
+  `grip_width_m`, with the board cells grown by 0.25 cell. The blade tips sit 0.3 mm over the mat.
+- **Scan** at 3 px per mm, for a finer template for the held-piece fit.
+- **Three seat variants**, 8 trials each over 5 GCP hosts: A, the default wiggle search; B, a ±4 mm and
+  ±8 degree search; C, `approach="offset_push"`.
+
+**Result: no trial reached the seat. The new worst breakpoint is the turn with a bare piece.**
+
+| stage | result (A, B, C first halves: 12 trials; second halves not finished in the round) |
+|---|---|
+| scan, segment | 12 / 12 |
+| classify (four sides must agree) | 10 / 12; the two `mismatch` trials stopped after one re-scan (a `partial` scan in one) |
+| grip choice | `no_clear_grip` with the station blades every time (the least-bad grip, closing across the 20.8 mm width, was used) |
+| pick, bare piece | 10 / 10 lifted 29.5-29.8 mm |
+| measured after the pick | 0.3-0.9 mm, 1.1-1.3 degrees (sigma 0.1-0.4 mm, 0.9-1.8 degrees) |
+| turn | **0 / 9 kept the piece**: flung out and flipped over (final tilt 180 degrees), landing 80-150 mm away |
+| seat | not reached |
+
+- **Why.** A 2 mm piece pinched by its two edges is held by edge contacts only. The grip fix stops sliding,
+  not pivoting about the jaw axis (`SIM_GRIP.md`), and the wrist turn spins the piece out.
+- **The drop is not detected.** The gripper read 0.189 before and after: with an edge grip the jaws hold
+  their commanded width with or without the piece. `rotating-a-held-piece-within-wrist-limits`' `dropped`
+  check (#169) needs the jaws to close further when the piece goes, so it misses this case.
+
+**Fixes to try next, in order:**
+
+1. Turn the piece before the pick instead of while holding it (with a bare edge grip). Put the hand at the
+   needed yaw over the piece and grip it there; then only the slip has to be corrected, as a small turn.
+   This replaces the held turn for jigsaw pieces.
+2. Hold slower: limit the wrist's speed during held turns (the skill sends one joint target per turn).
+3. Add a "still held" check to the rotation skill by re-measuring with
+   `measuring-a-held-piece-from-the-wrist-camera` (`not_seen` means dropped), instead of the gripper reading.
+4. Re-test with condim 4/6 (torsional friction) when it lands in the templates.
+
+**Completion so far: 0 / 12** (baseline 0 / 8). Round 6's 2 trials also ended 0 / 2.
