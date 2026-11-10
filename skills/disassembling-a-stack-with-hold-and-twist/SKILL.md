@@ -107,10 +107,16 @@ plate, 2.5 N per stud; harness not in the hub):
 | (-0.08, 0.0), middle | none | 3 | 0 | missed 3 (the twist skill's open jaws stopped 10-12 mm over the grasp) |
 | (-0.08, 0.0) | right arm | 1 | 0 | support_unreachable: the press leg timed out on the plate - the intended stall, which version 0.1.0 now accepts (not re-run) |
 
-An IK probe found all four support points reachable with the plate moved
-0.17 m to the middle. So far support has **not** been shown to help: at the
-default spot the right arm cannot reach, and at the middle the twist arm's
-grasp misses before support matters.
+| (-0.08, 0.09) | none | 2 | 0 | missed 2 (jaws stopped 27 mm over the grasp) |
+| (-0.08, 0.09) | right arm, -y strip, 4 mm | 2 | 0 | support held (drift 0.0 mm), but its press pushed the loose plate 7.8 mm; missed 2 |
+| (-0.08, 0.09), brick turned 90 deg | none | 2 | 0 | unverified 2: the brick lifted ~100 mm **with the plate still clutched to it** (plate up 101-102 mm) |
+| (-0.08, 0.09), brick turned 90 deg | right arm on the corner stud, 2 mm | 1 | 0 | base_moved (support drift 3.9 mm, twist slipped); the plate then blew up in the solver - not a valid trial |
+
+The IK probe found all four support points reachable with the plate moved
+towards the middle (bench y <= 0.09). The no-support rows show the problem
+the skill is for (the base comes along). Support has **not** yet been shown
+to help: the support press shoves a 15 g plate sideways in the twin, and the
+twist-lever skill's grasp only works at some plate spots and brick yaws.
 
 ## Limits
 
