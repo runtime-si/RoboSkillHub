@@ -122,6 +122,11 @@ ENTRY_CLEARANCE = 0.003
 RELEASE_GAP = 0.0015
 """The tile's bottom over the rack's floor when the jaws open [m] (placing skill)."""
 
+SEAT_PRESS = 0.001
+"""How far under the floor the held tile's bottom is commanded before the release [m]: a
+tile held a few degrees tilted about the jaw axis squares up on the floor first (a YAM
+station twin with its grip fixed lifts parts 4-6.5 deg tilted, SIM_GRIP.md)."""
+
 RELEASE_CLEARANCE = 0.004
 """Jaw opening each side of the tile at the release, held through the retreat [m]
 (placing skill)."""
@@ -460,6 +465,7 @@ def run(
     tile_size: dict[str, float] | None = None,
     wall_height: float | None = None,
     offsets: list[float] | None = None,
+    seat_press: float = SEAT_PRESS,
     grip_clearance: float = GRIP_CLEARANCE,
     release_clearance: float = RELEASE_CLEARANCE,
     transit_clearance: float = TRANSIT_CLEARANCE,
@@ -877,8 +883,8 @@ def run(
     out["grasp_height"] = gh
 
     # --- over the slot, the jaws across the slot's width
-    release_bottom = max(RELEASE_GAP, wall + WALL_CLEARANCE + tip_reach - gh)
-    if release_bottom > RELEASE_GAP + 1e-9:
+    release_bottom = max(-float(seat_press), wall + WALL_CLEARANCE + tip_reach - gh)
+    if release_bottom > 1e-9:
         notes.append(
             f"held {gh * 1e3:.1f} mm over its bottom: released {release_bottom * 1e3:.1f} mm over the floor so the fingertips clear the walls"
         )

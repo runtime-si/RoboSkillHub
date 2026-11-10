@@ -46,7 +46,7 @@ gap:
     # choose), `order` (index | reverse | nearest), `tile_size`, `wall_height`, `offsets`,
     # `grip_clearance`, `release_clearance`, `transit_clearance`, `read_slots`, `verify`,
     # `camera_name`, `look_pose`, `yaw_tolerance_deg`, `roll_limits`, `reach_tolerance`,
-    # `descent_tolerance`, `check_reach`, `arm_id`.
+    # `descent_tolerance`, `check_reach`, `arm_id`, `seat_press`.
     table_z: float
   produces_outputs:
     slot_index: int
@@ -100,7 +100,8 @@ out, this puts them back in, so one arm can keep the rack filled while the other
    most 15 deg a move while holding. The held tile (its offset in the grip re-expressed
    with the hand's rotation, and any tilt) is brought within 0.5 mm of the slot along
    the row, with up to 3 corrective moves read back.
-5. **Into the slot.** It comes down from 3 mm over the walls to 1.5 mm over the floor. A
+5. **Into the slot.** It comes down from 3 mm over the walls to 1 mm into the floor
+   (`seat_press`). A
    descent that ends more than 4 mm higher than the hand's own arrival offset (read on
    the free move just before) stopped on a wall. Offsets of +-1 and +-2 mm along the
    row are then tried; if none goes in, `jammed`, lifted back, still holding.
@@ -111,30 +112,33 @@ out, this puts them back in, so one arm can keep the rack filled while the other
 
 ## Measured
 
-**Station twin (GPU, rshgpu2/6; harness `~/sim-wt/refilling-a-domino-loading-rack`).**
-- **Setup:** a 6-slot rack (24 mm pitch, 20 mm walls) holding tiles in slots 0 and 3.
-  Five standing tiles at a staging row facing 0 deg (the rack faces 90 deg, so every
-  refill turns the wrist 90 deg). Five rounds: four empty slots, then the rack is full.
-- **Truth:** each tile's box, with a slot counting as full when a tile stands upright
-  within 4 mm along the row and 10 mm across.
+**Station twin (GPU, rshgpu2/6; harness `~/sim-wt/refilling-a-domino-loading-rack`), with
+the fixed grip (`SIM_GRIP`, `mujoco_500hz_grip@v1`).**
+- **Setup:** a 6-slot rack (24 mm pitch, 20 mm walls) holding tiles in slots 0 and 3,
+  and five standing tiles at a staging row facing 0 deg. The rack faces 90 deg, so
+  every refill turns the wrist 90 deg. Five rounds.
+- **Truth:** each tile's box; a slot is full when a tile stands upright in it within
+  4 mm along the row and 10 mm across.
 
-| rack slot opening | seated / tried | routes that match truth | last round |
+| rack slot opening | seated / tried | routes that match truth | then |
 |---|---|---|---|
-| 11.5 mm (2 mm a side) | 3 / 4 (slots 1, 2, 4) | 5 / 5 | `rack_full`, "jammed: [5]" |
-| 9.5 mm (1 mm a side) | 2 / 4 (slots 1, 2) | 5 / 5 | `rack_full` (the failed tiles lie on the walls) |
+| 11.5 mm (2 mm a side) | 2 / 3 (slots 4, 5) | 5 / 5 | `rack_full`, "jammed: [1, 2]" |
+| 9.5 mm (1 mm a side) | 2 / 3 (slots 4, 5) | 5 / 5 | `rack_full`, "jammed: [1, 2]" |
 
-- **Seated tiles** sat 0.1-1.2 mm along and 0.1-1.1 mm across from the slot centre,
-  upright. The held tile was aligned to within 0.02-0.27 mm along the row before every
+- **Seated tiles** sat 0.0-0.8 mm along and 0.2-0.4 mm across from the slot centre,
+  upright. The held tile was aligned within 0.01-0.25 mm along the row before each
   descent.
-- **Every failure ended the same way:** the tile on a wall's top, leaning back 28-52
-  deg, reported `fell`. In the 11.5 mm rack the fallen tile also tipped the neighbour in
-  slot 4 (11.8 deg).
-- **Not explained.** The failure follows the staging spot, not the slot. Slot 5 alone
-  refilled from the first staging spot (y 0.14) seated; from the fourth (y 0.29) it fell.
-  At the slot the hand was level (0.1 deg), the tile tilted 0.13 deg in the hand, and it
-  was aligned to 0.25 mm. Torsional friction on the pads (MuJoCo condim 4, 0.005) changed
-  nothing. The one difference recorded is the direction of the 90 deg wrist turn (+95
-  seated, -85 fell), but in the 4-round runs a -68 deg turn seated.
+- **The one failure, the first refill (slot 1) in both racks:** the tile ended flat
+  forward across slot 2, 20 mm along. It is reported `fell`, and slots 1 and 2 then
+  read jammed, so the rack reads full: the routes are right, but two slots are lost.
+- **Not explained.** On the stock grip (before SIM_GRIP) the same scene seated 3/4
+  (11.5 mm) and 2/4 (9.5 mm). There every failure was a tile on a wall's top leaning
+  back, and it followed the staging spot (the same slot seated from one spot and fell
+  from another), not the hand's tilt (0.1 deg), the tile's tilt in the hand (0.13 deg)
+  or alignment (0.25 mm).
+- **Pressing the tile 1 mm into the floor before the release** (`SEAT_PRESS`): with the
+  fixed grip, the 9.5 mm rack went from 1/3 to 2/3 seated, and the 11.5 mm rack stayed
+  2/3.
 
 **Bugs found in the twin, fixed and tested:**
 1. A single 90 deg turn of the last joint while holding left the tile where it was; the
@@ -157,13 +161,14 @@ out, this puts them back in, so one arm can keep the rack filled while the other
 - **`ALIGN_TOLERANCE` 0.5 mm, `ALIGN_TRIES` 3**: half of a 9.5 mm slot's 1 mm a side.
 - **`OFFSETS` 0, +-1, +-2 mm**: the twin hand landed 1-4 mm off before alignment.
 - **`SEATED_TOP` 4 mm**: bug 4.
-- **`ENTRY_CLEARANCE` 3 mm, `RELEASE_GAP` 1.5 mm, `RELEASE_CLEARANCE` 4 mm**: the placing
-  skill's release.
+- **`SEAT_PRESS` 1 mm**: the fixed-grip twin lifts parts tilted 4-6.5 deg about the jaw
+  axis; pressed on the floor they square up (above).
+- **`ENTRY_CLEARANCE` 3 mm, `RELEASE_CLEARANCE` 4 mm**: the placing skill's release.
 - The rest are the rack picker's and the placing skill's.
 
 ## Not done
 
-- A third to half of refills fail in the twin, for a reason not found (above). A rack
+- One refill in three fails in the twin, for a reason not found (above). A rack
   with chamfered slot tops would guide a tile in; this skill does not need one, but the
   twin results argue for it.
 - No real rack. The hand's arrival offset and the pinch slip are the twin's; a real
