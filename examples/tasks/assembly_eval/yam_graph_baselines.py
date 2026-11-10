@@ -9,6 +9,12 @@ pairing and summaries are reused unchanged; only the world factory differs.
     PYTHONPATH=src python examples/tasks/assembly_eval/yam_graph_baselines.py \
         --embodiment yam --out runs/yam --mode both
 
+Vision in the loop (tile poses from the rendered overhead RGB-D camera instead of simulator truth;
+``--segmenter detector`` adds 2D detector boxes, see ``yam_vision``)::
+
+    MUJOCO_GL=egl PYTHONPATH=src python examples/tasks/assembly_eval/yam_graph_baselines.py \
+        --embodiment yam --out runs/yam_vision --mode baselines --observations vision
+
 Refusal ablation (every proposed grasp tilted off top-down; the floating gripper refuses
 it before motion, so pick ends ``unreachable``)::
 
@@ -30,7 +36,11 @@ from roboskillhub.tasks import graphs, load_registry
 from roboskillhub.tasks.assembly_eval.domino_geometry import quat_mul
 from roboskillhub.tasks.assembly_eval.domino_station import STATION_FAULTS
 from roboskillhub.tasks.assembly_eval.domino_world import physics_domino_world
+from roboskillhub.tasks.assembly_eval.yam_vision import YamVision
 from roboskillhub.tasks.assembly_eval.yam_world import yam_domino_world
+
+#: ``--observations`` / ``--segmenter`` / detector set by main(); truth unless asked.
+OBSERVE = {"observations": "truth", "segmenter": "depth", "detector": None}
 
 _spec = importlib.util.spec_from_file_location(
     "domino_graph_baselines", Path(__file__).with_name("domino_graph_baselines.py")
@@ -53,6 +63,11 @@ def with_pick_candidate(graph: dict, index: int) -> dict:
 
 def make_world(embodiment: str, seed: int, slots: int, fault: str | None) -> dict:
     if embodiment == "yam":
+        if OBSERVE["observations"] == "vision":
+            vision = YamVision(segmenter=OBSERVE["segmenter"], detector=OBSERVE["detector"])
+            return yam_domino_world(
+                seed, slots=slots, fault=fault, observations="vision", vision=vision
+            )
         return yam_domino_world(seed, slots=slots, fault=fault)
     return physics_domino_world(seed, physics="mujoco", slots=slots, fault=fault)
 
@@ -110,6 +125,8 @@ class EmbodimentEnv(dgb.PhysicsEnv):
         episode["station_motions"] = getattr(station, "motions", None)
         episode["stopped_at"] = _stopped_at(episode)
         episode["picked_candidates"] = _picked(episode, self.pick_candidate)
+        vision = getattr(station, "vision", None)
+        episode["vision"] = vision.summary() if vision is not None else None
         return super().record(episode, ind, built)
 
 
@@ -170,6 +187,7 @@ def episode_row(e: dict) -> dict:
         "refusals": [r["reason"] for r in e.get("station_refusals", [])],
         "motion": _motion_summary(e.get("station_motions")),
         "picked_candidates": e.get("picked_candidates"),
+        "vision": e.get("vision"),
         "steps": len(e["steps"]),
         "sim_s": e["independent"]["sim_time_s"],
         "wall_s": e["wall_s"],
@@ -188,6 +206,52 @@ def _motion_summary(motions: list[dict] | None) -> dict | None:
         "max_ack_error_m": max(m["ack_error_m"] for m in done) if done else None,
         "max_ack_error_rad": max(m["ack_error_rad"] for m in done) if done else None,
     }
+
+
+def hub_detector(name: str, floor: float, slice_px: int):
+    """A ``detector(rgb) -> [[x1, y1, x2, y2], ...]`` over the hub's tools through sahi (prompt
+    ``domino``), loaded in-process from ``tools/``; ``rfdetr:<model_dir>`` for a trained student."""
+    root = Path(__file__).resolve().parents[3]
+
+    def load(n):
+        spec = importlib.util.spec_from_file_location(f"t_{n}", root / "tools" / n / "tools.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    sahi = load("sahi")
+    if name.startswith("rfdetr:"):
+        rf, model = load("rfdetr"), name.split(":", 1)[1]
+        fn, call = (
+            "rfdetr.detect",
+            lambda **kw: rf.detect(kw["image"], model, threshold=0.05, query=kw.get("query")),
+        )
+        prompts = ["domino"]
+    else:
+        mod = load(name)
+        fn = f"{name}.detect"
+        call = mod.detect
+        prompts = ["domino"]
+
+    class Ctx:
+        def tool(self, n, **kw):
+            return call(**kw)
+
+    def detect(rgb):
+        r = sahi.detect_sliced(
+            Ctx(),
+            rgb,
+            prompts,
+            backend=fn if name != "grounding-dino" else "grounding-dino",
+            slice_px=slice_px,
+            min_score=floor,
+        )
+        return [
+            [d["box"]["x1"], d["box"]["y1"], d["box"]["x2"], d["box"]["y2"]]
+            for d in r["detections"]
+        ]
+
+    return detect
 
 
 def seeds(text: str) -> list[int]:
@@ -219,7 +283,28 @@ def main() -> None:
         help="refusal ablation (diagnostic K'): every proposed grasp pose tilted this many degrees "
         "about its closing axis, so no pick pose is top-down (default 0 = Agent 1's proposals)",
     )
+    ap.add_argument(
+        "--observations",
+        choices=("truth", "vision"),
+        default="truth",
+        help="tile poses from simulator truth (default) or the rendered overhead RGB-D camera",
+    )
+    ap.add_argument("--segmenter", choices=("depth", "detector"), default="depth")
+    ap.add_argument(
+        "--detector",
+        default="grounding-dino",
+        help="with --segmenter detector: a tools/<name>/tools.py detector (grounding-dino, owlv2, "
+        "mm-grounding-dino, omdet-turbo) prompted 'domino', or rfdetr:<model_dir>",
+    )
+    ap.add_argument("--detector-floor", type=float, default=0.15)
+    ap.add_argument("--detector-slice-px", type=int, default=320)
     args = ap.parse_args()
+    OBSERVE["observations"] = args.observations
+    OBSERVE["segmenter"] = args.segmenter
+    if args.observations == "vision" and args.segmenter == "detector":
+        OBSERVE["detector"] = hub_detector(
+            args.detector, args.detector_floor, args.detector_slice_px
+        )
     registry, unavailable = load_registry()
     registry = tilted_grasps(registry, args.tilt_grasp_deg)
     args.out.mkdir(parents=True, exist_ok=True)
@@ -234,6 +319,11 @@ def main() -> None:
         if not args.tilt_grasp_deg
         else f"diagnostic K' (propose_grasps poses tilted {args.tilt_grasp_deg} deg off top-down)",
         "unavailable_modules": unavailable,
+        "observations": args.observations,
+        "segmenter": args.segmenter if args.observations == "vision" else None,
+        "detector": args.detector
+        if args.segmenter == "detector" and args.observations == "vision"
+        else None,
     }
     if args.mode in ("baselines", "both"):
         env = EmbodimentEnv(

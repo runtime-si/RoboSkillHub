@@ -118,6 +118,8 @@ class YamDominoStation:
         joint_rate_rad_s: float = 0.5,
         angular_rate_rad_s: float = 0.5,
         start_q=WORK_POSE,
+        observations: str = "truth",
+        vision=None,
     ):
         if fault is not None and fault not in STATION_FAULTS:
             raise ValueError(f"unknown station fault {fault!r}")
@@ -131,8 +133,16 @@ class YamDominoStation:
         self.tcp_floor_m = tcp_floor_m
         self.joint_rate = joint_rate_rad_s
         self.angular_rate = angular_rate_rad_s
+        if observations not in ("truth", "vision"):
+            raise ValueError(f"observations must be truth or vision, got {observations!r}")
+        if observations == "vision" and vision is None:
+            raise ValueError("observations='vision' needs a vision provider (yam_vision.YamVision)")
+        self.observations = observations
+        self.vision = vision if observations == "vision" else None
         physics.reset(spec, feeder_poses, q0=start_q, base_table_z=calibrated_table_z)
         self.kin = physics.kin
+        if self.vision is not None:
+            self.vision.attach(self)
         bx, by = physics.cfg.mount.base_xy
         bz = calibrated_table_z + physics.cfg.mount.base_over_table_m
         (x0, y0), (x1, y1), z1 = STATION_BOX_BASE
@@ -201,7 +211,11 @@ class YamDominoStation:
                 "bridging rule from the commanded (or previous chained) configuration",
                 "rules": "tool box, TCP floor, IK tolerance, per-step joint travel",
             },
-            "observations": "simulation truth (tile poses, contact pairs), privileged",
+            "observations": "simulation truth (tile poses, contact pairs), privileged"
+            if self.vision is None
+            else "tile poses estimated from the rendered overhead RGB-D camera (yam_vision: "
+            f"{self.vision.segmenter} segmentation, pose6d box fit, nearest-centre identity); "
+            "table = calibrated support; gripper holding from contacts",
             "clock": "simulation advanced to track wall time in get_state (catch-up capped at "
             f"{self.max_catch_up_s} s); timestamps are time.time() at the read",
             "physics_backend": self.physics.describe(),
@@ -613,6 +627,10 @@ class YamDominoStation:
                 self._lost = tile
 
     def _objects(self, stamp: float) -> dict:
+        if self.vision is not None:
+            objs = self.vision.objects(stamp, self.sim_t)
+            objs["table"] = self._table(stamp)
+            return objs
         truth = self.physics.truth()
         objs = {}
         offset_active = self.fault == "perception_offset" and self.closes == self.fault_index
@@ -635,8 +653,12 @@ class YamDominoStation:
                 "class": "domino",
                 "geometry": {"type": "box", "size_m": [t.height, t.width, t.thickness]},
             }
+        objs["table"] = self._table(stamp)
+        return objs
+
+    def _table(self, stamp: float) -> dict:
         tb = self.spec.table
-        objs["table"] = {
+        return {
             "position_m": [tb.center_xy[0], tb.center_xy[1], tb.top_z],
             "quaternion_xyzw": [0.0, 0.0, 0.0, 1.0],
             "frame_id": "world",
@@ -649,13 +671,20 @@ class YamDominoStation:
             "class": "support",
             "geometry": {"type": "box", "size_m": [tb.size_xy[0], tb.size_xy[1], tb.thickness]},
         }
-        return objs
 
     def _state(self) -> dict:
         now = time.time()
         p, R = self.physics.tcp()
         reported = p - self.offset
         objects = self._objects(now)
+        if self.vision is not None:
+            # the simulation does not advance while the images are processed: stamp the read after it
+            now = time.time()
+            objects["table"]["timestamp_s"] = now
+        if self.vision is not None:
+            # the simulation does not advance while the images are processed: stamp the read after it
+            now = time.time()
+            objects["table"]["timestamp_s"] = now
         if self._frozen is not None:
             objects = copy.deepcopy(self._frozen)
         if self._lost is not None:
