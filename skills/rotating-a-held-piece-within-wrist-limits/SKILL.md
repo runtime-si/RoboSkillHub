@@ -56,6 +56,7 @@ gap:
     turned: The hand turned the piece by the asked angle (read back within 0.5 deg) without letting go; joint 6 stayed 3 deg inside its range.
     turned_with_regrasp: No direct turn fitted the range, so the piece was set down, the empty hand turned half a turn, took it again (jaws swapped, same contacts) and finished the turn; `jaws_swapped` is true.
     planned: plan_only was set; `plan` says direct or regrasp and the joint moves, nothing moved.
+    dropped: After a held turn the gripper reads under 0.78 of its reading with the piece in the jaws (closed on nothing), so the piece fell during the turn; turned_deg says how far the hand had turned.
     piece_lost: After a regrasp the jaws closed past half the given grip width (nothing in them).
     unreachable: No plan fits the range, a regrasp was needed without grasp_z, the joints could not be read, joint 6 did not move the hand, or a move was refused.
   canonical_scripts:
@@ -229,4 +230,4 @@ station twin's grip fix of 2026-11-09, impratio 100 and solimp 0.99,
 `OBSTACLE_M` 1 mm, `GRID_M` 2 mm, `RELEASE_GAP_M` 4 mm, `DROP_SEARCH_M` 15 cm,
 `PIECE_REACH_M` 35 mm, `DROP_MARGIN_M` 12 mm, `OBSTACLE_M` 1 mm, `GRID_M` 2 mm,
 `YAW_TOL_DEG` 0.5, `MAX_CORRECTIONS` 4, `PROBE_DEG` 4, `LIFT_M` 30 mm,
-`SETTLE_STEPS` 40, `STEP_DEG` 1 (planner grid).
+`DROP_RATIO` 0.78, `SETTLE_STEPS` 40, `STEP_DEG` 1 (planner grid).

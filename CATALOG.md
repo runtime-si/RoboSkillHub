@@ -650,6 +650,7 @@ Types a jigsaw piece's four sides flat / tab / blank from a top-down mask and ca
 - **Exits**:
   - `classified`: Every side was typed with no more than max_uncertain (0) of them within 0.35 x 12 % of the threshold; for a list of pieces, at least one mask was usable and the ids are sorted into corners / edges / interiors / uncertain.
   - `uncertain`: One piece, but a side's deviation lies near the threshold or the piece has three or four flat sides; look closer, or decide by shape matching.
+  - `mismatch`: expected_sides was given and no turn of the piece makes at least min_agree (4) of its sides read as expected, or two turns agree equally (a symmetric piece); `yaw_deg` and `sides_agree` say the best; look again (re-scan, closer) rather than place it 90 or 180 degrees off.
   - `no_piece`: No usable mask (empty, under 400 px, or no square body found).
 
 ### detecting-contact-from-joint-effort
@@ -2236,6 +2237,7 @@ Turns a held flat part (a jigsaw piece) about the vertical by the angle its slot
   - `turned`: The hand turned the piece by the asked angle (read back within 0.5 deg) without letting go; joint 6 stayed 3 deg inside its range.
   - `turned_with_regrasp`: No direct turn fitted the range, so the piece was set down, the empty hand turned half a turn, took it again (jaws swapped, same contacts) and finished the turn; `jaws_swapped` is true.
   - `planned`: plan_only was set; `plan` says direct or regrasp and the joint moves, nothing moved.
+  - `dropped`: After a held turn the gripper reads under 0.78 of its reading with the piece in the jaws (closed on nothing), so the piece fell during the turn; turned_deg says how far the hand had turned.
   - `piece_lost`: After a regrasp the jaws closed past half the given grip width (nothing in them).
   - `unreachable`: No plan fits the range, a regrasp was needed without grasp_z, the joints could not be read, joint 6 did not move the hand, or a move was refused.
 

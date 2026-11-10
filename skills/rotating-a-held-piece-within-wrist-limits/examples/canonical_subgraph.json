@@ -23,6 +23,6 @@
     }
   },
   "edges": [["START", "turn"], ["turn", "END"]],
-  "exit": {"router_field": "route", "success_values": ["turned", "turned_with_regrasp", "planned", "piece_lost"]},
+  "exit": {"router_field": "route", "success_values": ["turned", "turned_with_regrasp", "planned", "piece_lost", "dropped"]},
   "on_error": "unreachable"
 }

@@ -260,3 +260,24 @@ def test_no_clear_spot_is_refused(script):
     out = script.run(arm.ctx(), turn_deg=150.0, grasp_z=0.02, gain=1.0)
     assert out["route"] == "unreachable" and "drop spot" in out["detail"]
     assert "open" not in arm.calls
+
+
+def test_a_piece_lost_during_a_turn_is_routed_dropped(script):
+    arm = Arm(q6_deg=0.0, gain=1.0)
+    ctx = arm.ctx()
+    base = ctx.tool
+    state = {"n": 0}
+
+    def tool(name, **kw):
+        out = base(name, **kw)
+        if name == "robot.move_to_joints":
+            state["n"] += 1
+        if name == "robot.get_gripper":
+            return {"position": 0.088 if state["n"] == 0 else 0.06}
+        return out
+
+    ctx.tool = tool
+    out = script.run(ctx, turn_deg=60.0, gain=1.0)
+    assert out["route"] == "dropped"
+    arm = Arm(q6_deg=0.0, gain=1.0)
+    assert script.run(arm.ctx(), turn_deg=60.0, gain=1.0)["route"] == "turned"

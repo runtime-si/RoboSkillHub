@@ -19,6 +19,6 @@
     }
   },
   "edges": [["START", "classify"], ["classify", "END"]],
-  "exit": {"router_field": "route", "success_values": ["classified", "uncertain"]},
+  "exit": {"router_field": "route", "success_values": ["classified", "uncertain", "mismatch"]},
   "on_error": "no_piece"
 }

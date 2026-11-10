@@ -122,3 +122,22 @@ def test_unusable_masks(script):
     long[30:70, 20:280] = 1
     assert script.run(FakeContext(), piece_mask=long)["route"] == "no_piece"
     assert script.run(FakeContext(), pieces=[{"id": "x", "mask": tiny}])["route"] == "no_piece"
+
+
+def test_orientation_for_a_slot_needs_all_four_sides(script, puzzle):
+    want = list(puzzle.side_types(2, 3))  # south, east, north, west
+    for angle in (0.0, 37.0, -120.0):
+        out = script.run(
+            FakeContext(), piece_mask=_mask(puzzle.outline(2, 3), angle), expected_sides=want
+        )
+        assert out["sides_agree"] == 4
+        if out["orientations_tied"] == 1:
+            assert out["route"] in ("classified", "uncertain")
+            assert abs((out["yaw_deg"] - angle + 180.0) % 360.0 - 180.0) < 4.0
+    # One side the piece does not have: no turn agrees on all four.
+    wrong = want[:]
+    wrong[0] = "flat" if wrong[0] != "flat" else "tab"
+    out = script.run(
+        FakeContext(), piece_mask=_mask(puzzle.outline(2, 3), 10.0), expected_sides=wrong
+    )
+    assert out["route"] == "mismatch" and out["sides_agree"] < 4

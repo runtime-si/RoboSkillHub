@@ -58,6 +58,11 @@ proud, so this must stay under 2 mm: the station twin's depth is exact; the real
 GRID_M = 0.002
 """Cell of the height grid the drop spot is chosen on."""
 
+DROP_RATIO = 0.78
+"""The piece is taken for lost when the gripper's reading falls under this fraction of its reading with the
+piece in the jaws (taken at the start, and again after a regrasp). Station twin, a 10 mm grip block held with a
+3 mm squeeze: held 0.088, a turning block 0.096 of 0.115 (0.83), jaws closed on nothing about 0.7 of held."""
+
 SETTLE_STEPS = 40
 """Simulation steps waited after a grip or release where the connector offers robot.wait_steps."""
 
@@ -229,6 +234,19 @@ def _turn_joint(
     return why, _wrap(_yaw_deg(arm.pose()["rotation"]) - yaw0)
 
 
+def _grip_reading(ctx: NodeContext, kw: dict) -> float | None:
+    try:
+        g = ctx.tool("robot.get_gripper", **kw)
+    except Exception:
+        return None
+    if not isinstance(g, dict):
+        return None
+    for key in ("width_m", "width", "position"):
+        if g.get(key) is not None:
+            return float(g[key])
+    return None
+
+
 def _fail(route: str, detail: str, **extra) -> Output:
     return {"route": route, "detail": detail, **extra}
 
@@ -316,12 +334,31 @@ def run(
     if plan["kind"] == "regrasp":
         steps += [("regrasp", plan["empty"]), ("held", plan["held"][1])]
     regrasps = 0
+    held_reading = _grip_reading(ctx, arm.kw)
+
+    def lost() -> bool:
+        now = _grip_reading(ctx, arm.kw)
+        return (
+            held_reading is not None
+            and now is not None
+            and held_reading > 0
+            and now < DROP_RATIO * held_reading
+        )
+
     for kind, dq in steps:
         if kind == "held":
             if abs(dq) < 1e-6:
                 continue
             why, moved = _turn_joint(arm, dq, sign, lo_r, hi_r)
             turned += moved
+            if not why and lost():
+                return _fail(
+                    "dropped",
+                    "the jaws closed on nothing after a turn: the piece is no longer held",
+                    plan=plan,
+                    turned_deg=turned,
+                    regrasps=regrasps,
+                )
             if why:
                 return _fail(
                     "unreachable",
@@ -340,6 +377,7 @@ def run(
                          turned_deg=turned, regrasps=regrasps)  # fmt: skip
         if why:
             return _fail("unreachable", why, plan=plan, turned_deg=turned, regrasps=regrasps)
+        held_reading = _grip_reading(ctx, arm.kw)
     q6_end = arm.joints()[5]
     return {
         "route": "turned" if regrasps == 0 else "turned_with_regrasp",
