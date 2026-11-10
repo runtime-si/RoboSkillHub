@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-28 tools, 151 skills, 2 policies, 1 recipe and 1 paper.
+29 tools, 152 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -25,6 +25,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`locate-anything`](#locate-anything) | perceive | NVIDIA LocateAnything-3B (non-commercial licence) run locally on a GPU. | any |
 | [`mm-grounding-dino`](#mm-grounding-dino) | perceive | MM-Grounding-DINO open-vocabulary detection (OpenMMLab's open retraining of Grounding DINO, Apache-2.0 weights) with… | any, *tuned on* yam-station-orbbec-overhead |
 | [`molmo`](#molmo) | perceive | Visual pointing and Q&A via the Molmo VLM served from a self-hosted vLLM endpoint (OpenAI-compatible API). | any |
+| [`move-classifier`](#move-classifier) | perceive | Trains and runs the 27-class "which way to nudge" classifier of vision-guided rack insertion (ResNet18, ImageNet… | any |
 | [`omdet-turbo`](#omdet-turbo) | perceive | OmDet-Turbo fast open-vocabulary detection (omlab/omdet-turbo-swin-tiny-hf, Apache-2.0). | any, *tuned on* yam-station-orbbec-overhead |
 | [`owlv2`](#owlv2) | perceive | OWLv2 open-vocabulary detection (google/owlv2-*, Apache-2.0) in two modes. | any |
 | [`pose6d`](#pose6d) | perceive | 6D pose of a known rigid part from depth. | any |
@@ -112,6 +113,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`approaching-above-a-target`](#approaching-above-a-target) | execute | Moves the hand to hover a set clearance above a target's oriented box, rising in place first and keeping the hand's… | any |
 | [`checking-reachability`](#checking-reachability) | execute | Asks a station whether TCP poses (optionally as a chained path from the current configuration) are reachable, using… | yam_i2rt |
 | [`correcting-brick-offset-from-stud-circles`](#correcting-brick-offset-from-stud-circles) | execute | Closes the last millimetre over a LEGO or DUPLO brick before a pick or a press. | any |
+| [`correcting-in-plane-offset-by-discrete-moves`](#correcting-in-plane-offset-by-discrete-moves) | execute | Final x, y and yaw alignment of a held part (or the hand) over its target from the wrist camera, by a small classifier… | any |
 | [`disassembling-a-brick-by-twist-lever`](#disassembling-a-brick-by-twist-lever) | execute | Removes a seated LEGO or DUPLO brick with a parallel gripper and no force sensor. | any |
 | [`executing-feature-mating`](#executing-feature-mating) | execute | Executes a supplied feature-mating plan for an already-held rigid object. | any |
 | [`executing-held-object-motion`](#executing-held-object-motion) | execute | Executes an ordered, collision-aware pose sequence for an already-grasped rigid object without releasing it. | any |
@@ -336,6 +338,17 @@ Visual pointing and Q&A via the Molmo VLM served from a self-hosted vLLM endpoin
   - `molmo.point_prompt`: Point at a named object in an image; returns pixel coordinates.
   - `molmo.query`: Free-form visual question answering via Molmo.
   - `molmo.query_yes_no`: Yes/no visual question answering via Molmo; coerces the reply to a bool.
+
+### move-classifier
+
+perceive · robots: any · MIT · v0.1.0 · [`SKILL.md`](tools/move-classifier/SKILL.md) · [upstream](https://github.com/cooper-group-uol-robotics/vision-guided-rack-insertion-ot2/blob/3bfe3fe87b64/reference_implementation/vlm_cnn_train/train_cnn.py)
+
+Trains and runs the 27-class "which way to nudge" classifier of vision-guided rack insertion (ResNet18, ImageNet weights, MIT) - from one cropped wrist image, the sign of the x, y (world) and yaw correction that brings a held part over its target. Training data is self-labelled by skills/correcting-in-plane-offset-by-discrete-moves (collect_offsets). Use when a per-target learned alignment cue is needed and a GPU is available for training (inference runs on CPU too).
+
+- **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
+- **Functions**:
+  - `move-classifier.train`: Train the classifier on a folder of self-labelled crops (index.jsonl of measured offsets).
+  - `move-classifier.predict`: Which way to nudge (x, y, yaw signs, world frame) from one cropped wrist image.
 
 ### omdet-turbo
 
@@ -1543,6 +1556,22 @@ Closes the last millimetre over a LEGO or DUPLO brick before a pick or a press. 
   - `lost_studs`: No posed wrist RGB-D frame, no brick-top plane within half a brick of the expected pair, or under two stud circles / no pair one pitch apart along the expected line.
   - `max_iterations`: max_iterations measurements were taken and the last was still over tolerance (with max_iterations 1 the skill only measures).
   - `unreachable`: The rise, the peek pose or a correction move was refused (routed or raised); detail says which.
+
+### correcting-in-plane-offset-by-discrete-moves
+
+execute · robots: any · tasks: insertion, lego, domino, jigsaw · MIT · v0.1.0 · [`SKILL.md`](skills/correcting-in-plane-offset-by-discrete-moves/SKILL.md) · [upstream](https://github.com/cooper-group-uol-robotics/vision-guided-rack-insertion-ot2/blob/3bfe3fe87b64/reference_implementation/ot2_rack_insertion/cnn_model_misalignment_prediction.py)
+
+Final x, y and yaw alignment of a held part (or the hand) over its target from the wrist camera, by a small classifier that looks at one cropped wrist frame and says which way to nudge - +/-x, +/-y, +/-yaw or stay per axis (27 classes); the hand steps 1 mm / 0.5 deg and repeats until three "aligned" in a row. The classifier is trained per target from images the arm labels itself (collect_offsets jogs from a taught aligned pose to random offsets and records each offset). Use when a part must sit over a slot, stud grid or rack within a millimetre and the target has no reference image or keypoints to servo on (textureless bricks, domino backs, slots).
+
+- **In**: `model_path` string, `camera` string
+- **Out**: `decisions` int, `turned_deg` float, `last_label` string, `reason` string
+- **Calls**: [`move-classifier`](#move-classifier); connector `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.move_to_joints`
+- **Scripts**: [`align`](skills/correcting-in-plane-offset-by-discrete-moves/scripts/align.py), [`collect_offsets`](skills/correcting-in-plane-offset-by-discrete-moves/scripts/collect_offsets.py)
+- **Exits**:
+  - `aligned`: The classifier said "000" (no move on any axis) streak (3) times in a row; the hand stays there for the next skill to lower / place.
+  - `max_steps`: max_decisions (80) decisions without three aligned in a row (dithering, or a target the model was not trained on).
+  - `diverging`: The hand drifted more than max_drift (25 mm / 10 deg) from where the loop started, or a step was refused.
+  - `no_frame`: The camera gave no RGB or move-classifier.predict raised; nothing was moved by this decision.
 
 ### disassembling-a-brick-by-twist-lever
 

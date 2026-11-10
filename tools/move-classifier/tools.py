@@ -55,8 +55,13 @@ _lock = threading.Lock()
 _models: dict[str, Any] = {}
 
 
-def label_for_offset(dx: float, dy: float, dyaw_deg: float, deadband_m: float = DEADBAND_M,
-                     deadband_deg: float = DEADBAND_DEG) -> str:
+def label_for_offset(
+    dx: float,
+    dy: float,
+    dyaw_deg: float,
+    deadband_m: float = DEADBAND_M,
+    deadband_deg: float = DEADBAND_DEG,
+) -> str:
     """The class that undoes an offset of the hand from its aligned pose (move against it)."""
 
     def sign(v: float, band: float) -> str:
@@ -104,7 +109,9 @@ def _build(torch, pretrained: bool):
             self.backbone = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1 if pretrained else None)
             n = self.backbone.fc.in_features
             self.backbone.fc = nn.Identity()
-            self.classifier = nn.Sequential(nn.Linear(n, 1024), nn.ReLU(), nn.Linear(1024, len(CLASSES)))
+            self.classifier = nn.Sequential(
+                nn.Linear(n, 1024), nn.ReLU(), nn.Linear(1024, len(CLASSES))
+            )
 
         def forward(self, x):
             return self.classifier(torch.flatten(self.backbone(x), 1))
@@ -132,7 +139,9 @@ def _transforms(train: bool, size: int):
 
 def read_index(dataset_dir: str | Path) -> list[dict[str, Any]]:
     root = Path(dataset_dir)
-    rows = [json.loads(line) for line in (root / "index.jsonl").read_text().splitlines() if line.strip()]
+    rows = [
+        json.loads(line) for line in (root / "index.jsonl").read_text().splitlines() if line.strip()
+    ]
     for r in rows:
         r["path"] = str(root / r["image"])
     return rows
@@ -164,7 +173,10 @@ def train(
     except Exception as exc:
         raise ToolError("move-classifier.train", f"torch / torchvision unavailable: {exc}") from exc
     rows = read_index(dataset_dir)
-    labels = [CLASSES.index(label_for_offset(r["dx"], r["dy"], r["dyaw_deg"], deadband_m, deadband_deg)) for r in rows]
+    labels = [
+        CLASSES.index(label_for_offset(r["dx"], r["dy"], r["dyaw_deg"], deadband_m, deadband_deg))
+        for r in rows
+    ]
     if len(rows) < 20:
         raise ToolError("move-classifier.train", f"only {len(rows)} samples in {dataset_dir}")
     rng = np.random.default_rng(seed)
@@ -211,11 +223,17 @@ def train(
         logger.info("move-classifier.train: epoch %d val loss %.4f", epoch + 1, vloss)
         if vloss < best:
             best, best_pred = vloss, preds
-            torch.save({"state_dict": model.state_dict(), "classes": CLASSES, "image_size": image_size}, model_path)
+            torch.save(
+                {"state_dict": model.state_dict(), "classes": CLASSES, "image_size": image_size},
+                model_path,
+            )
         sched.step()
     truth = [CLASSES[labels[i]] for i in val_idx]
     pred = [CLASSES[p] for p in best_pred]
-    axis_acc = {a: float(np.mean([t[k] == p[k] for t, p in zip(truth, pred, strict=True)])) for k, a in enumerate(AXES)}
+    axis_acc = {
+        a: float(np.mean([t[k] == p[k] for t, p in zip(truth, pred, strict=True)]))
+        for k, a in enumerate(AXES)
+    }
     counts: dict[str, int] = {}
     for i in labels:
         counts[CLASSES[i]] = counts.get(CLASSES[i], 0) + 1
@@ -243,7 +261,12 @@ def _load(model_path: str):
             model = _build(torch, pretrained=False)
             model.load_state_dict(ck["state_dict"])
             model.to(dev).eval()
-            _models[model_path] = (torch, model, dev, _transforms(False, int(ck.get("image_size", IMAGE_SIZE))))
+            _models[model_path] = (
+                torch,
+                model,
+                dev,
+                _transforms(False, int(ck.get("image_size", IMAGE_SIZE))),
+            )
         return _models[model_path]
 
 
@@ -256,7 +279,9 @@ def predict(image: np.ndarray, model_path: str) -> PredictResult:
     """Classify a uint8 RGB crop with the weights at ``model_path`` (from move-classifier.train)."""
     arr = np.asarray(image)
     if arr.dtype != np.uint8 or arr.ndim != 3 or arr.shape[2] < 3:
-        raise ValueError(f"move-classifier expects a uint8 [H, W, 3] image, got {arr.dtype} {arr.shape}")
+        raise ValueError(
+            f"move-classifier expects a uint8 [H, W, 3] image, got {arr.dtype} {arr.shape}"
+        )
     try:
         torch, model, dev, tf = _load(str(model_path))
     except Exception as exc:
@@ -268,4 +293,11 @@ def predict(image: np.ndarray, model_path: str) -> PredictResult:
         p = torch.softmax(model(x), 1)[0].cpu().numpy()
     k = int(np.argmax(p))
     lab = CLASSES[k]
-    return {"label": lab, "x": lab[0], "y": lab[1], "yaw": lab[2], "confidence": round(float(p[k]), 4), "aligned": lab == ALIGNED}
+    return {
+        "label": lab,
+        "x": lab[0],
+        "y": lab[1],
+        "yaw": lab[2],
+        "confidence": round(float(p[k]), 4),
+        "aligned": lab == ALIGNED,
+    }

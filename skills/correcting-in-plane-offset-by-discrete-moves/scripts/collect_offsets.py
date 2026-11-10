@@ -28,6 +28,12 @@ MAX_OFFSET_M = 0.012
 """Upstream's jog range in x and y (+-12 mm)."""
 MAX_YAW_DEG = 5.0
 """Upstream's jog range in yaw (+-5 deg)."""
+ZERO_FRACTION = 0.35
+"""Per axis, the share of jogs drawn inside the label dead-band (0.5 mm / 0.2 deg) instead of the full
+range. Uniform jogs over +-12 mm put almost nothing there: in the twin, 0 of 400 images were "000", and a
+model that never sees "aligned" never ends the loop. Not upstream."""
+ALIGNED_FRACTION = 0.1
+"""Share of jogs inside the dead-band on all three axes (the "000" class). Not upstream."""
 
 
 class Output(TypedDict):
@@ -67,6 +73,8 @@ def run(
     arm_id: int = 0,
     seed: int = 0,
     max_refused: int = 20,
+    zero_fraction: float = ZERO_FRACTION,
+    aligned_fraction: float = ALIGNED_FRACTION,
 ) -> Output:
     """The hand must start at the taught aligned pose (part over its target); it returns there."""
     from PIL import Image
@@ -81,8 +89,15 @@ def run(
     got = refused = 0
     with index.open("a") as f:
         while got < samples and refused <= max_refused:
-            dx, dy = rng.uniform(-max_offset_m, max_offset_m, 2)
-            dyaw = float(rng.uniform(-max_yaw_deg, max_yaw_deg))
+            all_zero = rng.random() < aligned_fraction
+            band = [rng.random() < zero_fraction or all_zero for _ in range(3)]
+            dx, dy = (
+                rng.uniform(-0.0004, 0.0004) if b else rng.uniform(-max_offset_m, max_offset_m)
+                for b in band[:2]
+            )
+            dyaw = float(
+                rng.uniform(-0.15, 0.15) if band[2] else rng.uniform(-max_yaw_deg, max_yaw_deg)
+            )
             why = hand.move_xy(home[0] + dx, home[1] + dy, home[2], home_rot)
             if not why:
                 _, yaw_now, _ = hand.state()
@@ -94,18 +109,34 @@ def run(
             pos, yaw, _ = hand.state()
             img = crop_frame(ctx.tool("robot.get_observation"), camera, crop)
             if img is None:
-                return {"route": "no_frame", "samples": got, "refused": refused, "dataset_dir": str(out),
-                        "reason": f"no RGB from camera {camera!r}"}
+                return {
+                    "route": "no_frame",
+                    "samples": got,
+                    "refused": refused,
+                    "dataset_dir": str(out),
+                    "reason": f"no RGB from camera {camera!r}",
+                }
             name = f"images/{start + got:05d}.png"
             Image.fromarray(img).save(out / name)
-            row = {"image": name, "dx": float(pos[0] - home[0]), "dy": float(pos[1] - home[1]),
-                   "dyaw_deg": float(wrap(yaw - home_yaw)), "commanded": [float(dx), float(dy), dyaw]}
+            row = {
+                "image": name,
+                "dx": float(pos[0] - home[0]),
+                "dy": float(pos[1] - home[1]),
+                "dyaw_deg": float(wrap(yaw - home_yaw)),
+                "commanded": [float(dx), float(dy), dyaw],
+            }
             f.write(json.dumps(row) + "\n")
+            f.flush()
             got += 1
     # back to the taught pose
     hand.move_xy(home[0], home[1], home[2], home_rot)
     _, yaw_now, _ = hand.state()
     hand.turn(wrap(home_yaw - yaw_now))
     route = "collected" if got >= samples else "move_refused"
-    return {"route": route, "samples": got, "refused": refused, "dataset_dir": str(out),
-            "reason": f"{got} images, {refused} jogs refused"}
+    return {
+        "route": route,
+        "samples": got,
+        "refused": refused,
+        "dataset_dir": str(out),
+        "reason": f"{got} images, {refused} jogs refused",
+    }

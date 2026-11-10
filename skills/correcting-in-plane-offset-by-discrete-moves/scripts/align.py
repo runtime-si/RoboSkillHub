@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import numpy as np
 from gap import NodeContext
@@ -59,6 +59,8 @@ def run(
     max_drift_deg: float = MAX_DRIFT_DEG,
     min_confidence: float = 0.0,
     arm_id: int = 0,
+    step_tool: str = "robot.go_to_pose",
+    tolerance: float | None = None,
 ) -> Output:
     hand = Hand(ctx, arm_id)
     start, start_yaw, rotation = hand.state()
@@ -68,16 +70,34 @@ def run(
     for k in range(1, int(max_decisions) + 1):
         img = crop_frame(ctx.tool("robot.get_observation"), camera, crop)
         if img is None:
-            return _out("no_frame", k - 1, hand, start, start_yaw, label, f"no RGB from camera {camera!r}")
+            return _out(
+                "no_frame", k - 1, hand, start, start_yaw, label, f"no RGB from camera {camera!r}"
+            )
         try:
             pred = ctx.tool("move-classifier.predict", image=img, model_path=model_path)
         except Exception as exc:  # noqa: BLE001
-            return _out("no_frame", k - 1, hand, start, start_yaw, label, f"move-classifier.predict failed: {exc}")
+            return _out(
+                "no_frame",
+                k - 1,
+                hand,
+                start,
+                start_yaw,
+                label,
+                f"move-classifier.predict failed: {exc}",
+            )
         label = str(pred.get("label", ""))
         if pred.get("aligned") and float(pred.get("confidence", 1.0)) >= min_confidence:
             run_ok += 1
             if run_ok >= streak:
-                return _out("aligned", k, hand, start, start_yaw, label, f"{streak} aligned predictions in a row")
+                return _out(
+                    "aligned",
+                    k,
+                    hand,
+                    start,
+                    start_yaw,
+                    label,
+                    f"{streak} aligned predictions in a row",
+                )
             continue
         run_ok = 0
         pos, yaw, rot_now = hand.state()
@@ -86,7 +106,9 @@ def run(
         st = {"+": 1, "-": -1}.get(label[2:3], 0)
         why = ""
         if sx or sy:
-            why = hand.move_xy(pos[0] + sx * step_m, pos[1] + sy * step_m, z, rot_now)
+            why = hand.move_xy(
+                pos[0] + sx * step_m, pos[1] + sy * step_m, z, rot_now, step_tool, tolerance
+            )
         if not why and st:
             why = hand.turn(st * step_yaw_deg)
         if why:
@@ -94,15 +116,37 @@ def run(
         pos, yaw, _ = hand.state()
         drift = float(np.linalg.norm(pos[:2] - start[:2]))
         if drift > max_drift_m or abs(wrap(yaw - start_yaw)) > max_drift_deg:
-            return _out("diverging", k, hand, start, start_yaw, label,
-                        f"moved {drift * 1e3:.1f} mm / {wrap(yaw - start_yaw):.1f} deg from the start")
-    return _out("max_steps", int(max_decisions), hand, start, start_yaw, label, f"no {streak} aligned in a row")
+            return _out(
+                "diverging",
+                k,
+                hand,
+                start,
+                start_yaw,
+                label,
+                f"moved {drift * 1e3:.1f} mm / {wrap(yaw - start_yaw):.1f} deg from the start",
+            )
+    return _out(
+        "max_steps",
+        int(max_decisions),
+        hand,
+        start,
+        start_yaw,
+        label,
+        f"no {streak} aligned in a row",
+    )
 
 
-def _out(route: str, n: int, hand: Hand, start: np.ndarray, start_yaw: float, label: str, reason: str) -> Output:
+def _out(
+    route: str, n: int, hand: Hand, start: np.ndarray, start_yaw: float, label: str, reason: str
+) -> Output:
     pos, yaw, _ = hand.state()
     d = pos - start
     logger.info("align: %s after %d decisions (%s)", route, n, reason)
-    return {"route": route, "decisions": n, "moved_m": [round(float(v), 5) for v in d[:2]],
-            "turned_deg": round(float(wrap(yaw - start_yaw)), 3), "last_label": label, "reason": reason}
-
+    return {
+        "route": route,
+        "decisions": n,
+        "moved_m": [round(float(v), 5) for v in d[:2]],
+        "turned_deg": round(float(wrap(yaw - start_yaw)), 3),
+        "last_label": label,
+        "reason": reason,
+    }

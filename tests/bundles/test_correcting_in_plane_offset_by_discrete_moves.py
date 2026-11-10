@@ -44,8 +44,14 @@ def quat_yaw(deg):
     def mul(p, q):
         x1, y1, z1, w1 = p
         x2, y2, z2, w2 = q
-        return np.array([w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2, w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
-                         w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2, w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2])
+        return np.array(
+            [
+                w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+                w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+                w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+                w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+            ]
+        )
 
     q = mul(qz, qx)
     return dict(zip("xyzw", map(float, q), strict=True))
@@ -63,8 +69,12 @@ class Arm:
 
     def tools(self, extra=None):
         t = {
-            "robot.get_ee_pose": lambda **kw: {"position": dict(zip("xyz", map(float, self.p), strict=True)), "rotation": quat_yaw(self.yaw)},
+            "robot.get_ee_pose": lambda **kw: {
+                "position": dict(zip("xyz", map(float, self.p), strict=True)),
+                "rotation": quat_yaw(self.yaw),
+            },
             "robot.go_to_pose": self.go,
+            "robot.go_to_pose_cartesian": self.go,
             "robot.move_to_joints": self.joints,
             "robot.get_observation": self.obs,
         }
@@ -86,14 +96,29 @@ class Arm:
 
     def obs(self):
         img = np.full((40, 60, 3), 100, np.uint8)
-        return {"cameras": [{"name": "wrist", "rgb": img}], "arms": [{"joint_state": {"positions": self.q.tolist()}}]}
+        return {
+            "cameras": [{"name": "wrist", "rgb": img}],
+            "arms": [{"joint_state": {"positions": self.q.tolist()}}],
+        }
 
 
 def oracle(arm, target, deadband_m=0.0005, deadband_deg=0.2, mc=None):
     def predict(image, model_path):
-        lab = mc.label_for_offset(arm.p[0] - target[0], arm.p[1] - target[1], (arm.yaw - target[2] + 180) % 360 - 180,
-                                  deadband_m, deadband_deg)
-        return {"label": lab, "x": lab[0], "y": lab[1], "yaw": lab[2], "confidence": 0.9, "aligned": lab == "000"}
+        lab = mc.label_for_offset(
+            arm.p[0] - target[0],
+            arm.p[1] - target[1],
+            (arm.yaw - target[2] + 180) % 360 - 180,
+            deadband_m,
+            deadband_deg,
+        )
+        return {
+            "label": lab,
+            "x": lab[0],
+            "y": lab[1],
+            "yaw": lab[2],
+            "confidence": 0.9,
+            "aligned": lab == "000",
+        }
 
     return predict
 
@@ -119,8 +144,13 @@ def test_predict_rejects_bad_images(mc):
 
 
 def test_tool_schemas(tool_registry):
-    assert set(tool_registry.get("move-classifier.predict").schema.inputs) == {"image", "model_path"}
-    assert {"dataset_dir", "model_path", "epochs"} <= set(tool_registry.get("move-classifier.train").schema.inputs)
+    assert set(tool_registry.get("move-classifier.predict").schema.inputs) == {
+        "image",
+        "model_path",
+    }
+    assert {"dataset_dir", "model_path", "epochs"} <= set(
+        tool_registry.get("move-classifier.train").schema.inputs
+    )
 
 
 # --- align ----------------------------------------------------------------------------
@@ -145,7 +175,12 @@ def test_crop_is_applied(align, mc):
         seen.append(image.shape)
         return {"label": "000", "aligned": True, "confidence": 1.0}
 
-    align.run(FakeContext(arm.tools({"move-classifier.predict": pred})), model_path="m", camera="wrist", crop=[0, 10, 5, 5])
+    align.run(
+        FakeContext(arm.tools({"move-classifier.predict": pred})),
+        model_path="m",
+        camera="wrist",
+        crop=[0, 10, 5, 5],
+    )
     assert seen[0] == (30, 50, 3) and len(seen) == 3
 
 
@@ -157,21 +192,33 @@ def test_dithering_hits_max_steps(align):
         lab = next(labels)
         return {"label": lab, "aligned": False, "confidence": 1.0}
 
-    out = align.run(FakeContext(arm.tools({"move-classifier.predict": pred})), model_path="m", camera="wrist", max_decisions=10)
+    out = align.run(
+        FakeContext(arm.tools({"move-classifier.predict": pred})),
+        model_path="m",
+        camera="wrist",
+        max_decisions=10,
+    )
     assert out["route"] == "max_steps" and out["decisions"] == 10
 
 
 def test_runaway_routes_diverging(align):
     arm = Arm()
     pred = lambda image, model_path: {"label": "+0+", "aligned": False, "confidence": 1.0}  # noqa: E731
-    out = align.run(FakeContext(arm.tools({"move-classifier.predict": pred})), model_path="m", camera="wrist", max_drift_m=0.005)
+    out = align.run(
+        FakeContext(arm.tools({"move-classifier.predict": pred})),
+        model_path="m",
+        camera="wrist",
+        max_drift_m=0.005,
+    )
     assert out["route"] == "diverging" and "from the start" in out["reason"]
 
 
 def test_refused_step_routes_diverging(align):
-    arm = Arm(refuse=lambda pose: True)
+    arm = Arm(refuse=lambda pose: True)  # both move tools refuse
     pred = lambda image, model_path: {"label": "+00", "aligned": False, "confidence": 1.0}  # noqa: E731
-    out = align.run(FakeContext(arm.tools({"move-classifier.predict": pred})), model_path="m", camera="wrist")
+    out = align.run(
+        FakeContext(arm.tools({"move-classifier.predict": pred})), model_path="m", camera="wrist"
+    )
     assert out["route"] == "diverging" and "refused" in out["reason"]
 
 
@@ -184,15 +231,22 @@ def test_no_frame_and_failed_classifier(align):
     def boom(**kw):
         raise RuntimeError("no weights")
 
-    out = align.run(FakeContext(arm.tools({"move-classifier.predict": boom})), model_path="m", camera="wrist")
+    out = align.run(
+        FakeContext(arm.tools({"move-classifier.predict": boom})), model_path="m", camera="wrist"
+    )
     assert out["route"] == "no_frame" and "no weights" in out["reason"]
 
 
 def test_low_confidence_aligned_does_not_count(align):
     arm = Arm()
     pred = lambda image, model_path: {"label": "000", "aligned": True, "confidence": 0.3}  # noqa: E731
-    out = align.run(FakeContext(arm.tools({"move-classifier.predict": pred})), model_path="m", camera="wrist",
-                    min_confidence=0.5, max_decisions=5)
+    out = align.run(
+        FakeContext(arm.tools({"move-classifier.predict": pred})),
+        model_path="m",
+        camera="wrist",
+        min_confidence=0.5,
+        max_decisions=5,
+    )
     assert out["route"] == "max_steps"
 
 
@@ -202,8 +256,10 @@ def test_second_arm_passes_arm_id(align, mc):
     t = arm.tools({"move-classifier.predict": lambda **kw: {"label": "+00", "aligned": False}})
     go = t["robot.go_to_pose"]
     t["robot.go_to_pose"] = lambda **kw: (calls.append(kw.get("arm_id")), go(**kw))[1]
-    t["robot.get_observation"] = lambda: {"cameras": [{"name": "wrist", "rgb": np.zeros((4, 4, 3), np.uint8)}],
-                                          "arms": [{}, {"joint_state": [0.0] * 6}]}
+    t["robot.get_observation"] = lambda: {
+        "cameras": [{"name": "wrist", "rgb": np.zeros((4, 4, 3), np.uint8)}],
+        "arms": [{}, {"joint_state": [0.0] * 6}],
+    }
     align.run(FakeContext(t), model_path="m", camera="wrist", arm_id=1, max_decisions=2)
     assert calls and set(calls) == {1}
 
@@ -214,7 +270,13 @@ def test_second_arm_passes_arm_id(align, mc):
 def test_collect_labels_from_the_read_back_and_returns_home(collect, tmp_path, mc):
     arm = Arm()
     home = (arm.p.copy(), arm.yaw)
-    out = collect.run(FakeContext(arm.tools()), dataset_dir=str(tmp_path / "ds"), camera="wrist", samples=6, seed=3)
+    out = collect.run(
+        FakeContext(arm.tools()),
+        dataset_dir=str(tmp_path / "ds"),
+        camera="wrist",
+        samples=6,
+        seed=3,
+    )
     assert out["route"] == "collected" and out["samples"] == 6
     rows = [json.loads(line) for line in (tmp_path / "ds" / "index.jsonl").read_text().splitlines()]
     assert len(rows) == 6
@@ -230,15 +292,38 @@ def test_collect_labels_from_the_read_back_and_returns_home(collect, tmp_path, m
 
 def test_collect_appends_and_counts_refusals(collect, tmp_path):
     arm = Arm(refuse=lambda pose: pose["position"]["x"] > 0.305)
-    out = collect.run(FakeContext(arm.tools()), dataset_dir=str(tmp_path / "ds"), camera="wrist", samples=4, seed=1)
+    out = collect.run(
+        FakeContext(arm.tools()),
+        dataset_dir=str(tmp_path / "ds"),
+        camera="wrist",
+        samples=4,
+        seed=1,
+    )
     assert out["route"] == "collected" and out["refused"] > 0
-    out = collect.run(FakeContext(arm.tools()), dataset_dir=str(tmp_path / "ds"), camera="wrist", samples=2, seed=2)
+    out = collect.run(
+        FakeContext(arm.tools()),
+        dataset_dir=str(tmp_path / "ds"),
+        camera="wrist",
+        samples=2,
+        seed=2,
+    )
     assert len((tmp_path / "ds" / "index.jsonl").read_text().splitlines()) == 6
     arm = Arm(refuse=lambda pose: True)
-    out = collect.run(FakeContext(arm.tools()), dataset_dir=str(tmp_path / "ds2"), camera="wrist", samples=4, max_refused=3)
+    out = collect.run(
+        FakeContext(arm.tools()),
+        dataset_dir=str(tmp_path / "ds2"),
+        camera="wrist",
+        samples=4,
+        max_refused=3,
+    )
     assert out["route"] == "move_refused" and out["samples"] == 0
 
 
 def test_examples_declare_every_route(bundle):
     ex = json.loads((Path(bundle.bundle_dir) / "examples" / "canonical_subgraph.json").read_text())
-    assert set(ex["exit"]["success_values"]) | {ex["on_error"]} == {"aligned", "max_steps", "diverging", "no_frame"}
+    assert set(ex["exit"]["success_values"]) | {ex["on_error"]} == {
+        "aligned",
+        "max_steps",
+        "diverging",
+        "no_frame",
+    }

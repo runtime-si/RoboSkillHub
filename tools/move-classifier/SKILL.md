@@ -33,4 +33,30 @@ gap:
 
 # move-classifier
 
-Draft.
+The 27-class nudge classifier of vision-guided rack insertion
+(`reference_implementation/vlm_cnn_train/train_cnn.py`, MIT), kept as
+upstream wrote it:
+- ResNet18 with ImageNet weights, a 1024-unit head and 27 outputs;
+- 336 px input;
+- ColorJitter / grayscale / blur augmentation;
+- Adam 1e-4, StepLR (5, 0.1), 20 epochs, keeping the best validation loss.
+
+Labels use upstream's dead-bands (0.5 mm, 0.2 deg). Changed: they are
+world-frame signs ("+", "-", "0" for x, y and yaw about +z) instead of the
+"Move Up / Rotate Clockwise" strings.
+
+| tool | returns |
+| --- | --- |
+| `move-classifier.train(dataset_dir, model_path, epochs=20, ...)` | `{model_path, n_train, n_val, val_accuracy, val_axis_accuracy, class_counts, epochs, seconds}` |
+| `move-classifier.predict(image, model_path)` | `{label, x, y, yaw, confidence, aligned}` |
+
+`dataset_dir/index.jsonl` rows are `{image, dx, dy, dyaw_deg}`: the hand's
+measured offset from the aligned pose (skills/correcting-in-plane-offset-by-discrete-moves
+`collect_offsets` writes them).
+
+**Measured in the twin:** 600 frames, 20 epochs in 27 s on an RTX PRO 6000.
+On held-out frames, all three axes were right 0.73 of the time (x 0.91, y
+0.92, yaw 0.90). The closed-loop numbers are in the skill.
+
+No weights are shipped: a model is trained per target. Upstream did not
+publish theirs.
