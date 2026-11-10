@@ -197,6 +197,24 @@ centre.
   push.
 - Nothing ran on a real YAM.
 
+With the seat check and the harness's pad torsion (condim 4, 0.004 m;
+SIM_GRIP.md), the cases that had read false or doubtful drops above, and three
+true insertions, were re-run. 7 rollouts, GCP rshgpu4, 2026-11-09/10:
+
+| socket, seed | route | ground truth |
+|---|---|---|
+| +33 deg, 0 (the lip catch above) | dropped_in, confirmed; seat check followed 3.0 mm | in, 2.8 mm, 1.4 deg off |
+| +8 deg, 1 (false drop in an earlier version) | no_drop | not in |
+| +45 deg, 1 | blocked (jaws closed: part lost) | not in |
+| 0 deg, 1 | unconfirmed (seat check held back 3.1 mm) | **in, at the socket's floor**: the deeper press hit the floor |
+| -14 deg, 0 | blocked (no socket felt; hand went 8.2 mm freely) | in 1.3 mm: slid in while feeling |
+| -25 deg, 0 | blocked (no socket felt) | in 1.6 mm: slid in while feeling |
+
+- No false drop in these 7. Every `dropped_in` was in.
+- The misses are conservative but frequent. A part that slides into the socket
+  while the socket is being felt reads `blocked`. A shallow socket (sink plus
+  `seat_check` deeper than the socket) reads `unconfirmed`.
+
 ## Limits
 
 - **A part that slides in the jaws, or walks on the rim, is not told from a
