@@ -1,0 +1,2102 @@
+[
+ {
+  "id": "p0/seq3_bridge__goal_fsm__none__brk-roco__s0/part1",
+  "scene": "seq3_bridge",
+  "fault": "none",
+  "part": "1",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/p0/frames/00001.png",
+   "runs/lego/p0/frames/00002.png",
+   "runs/lego/p0/frames/00003.png",
+   "runs/lego/p0/frames/00004.png",
+   "runs/lego/p0/frames/00005.png",
+   "runs/lego/p0/frames/00006.png",
+   "runs/lego/p0/frames/00007.png",
+   "runs/lego/p0/frames/00008.png"
+  ],
+  "settled_error": {
+   "dx_m": -1.9480269250471416e-07,
+   "dy_m": -6.001572962072155e-07,
+   "dz_m": -3.8938769014035257e-07,
+   "dxy_m": 6.309808786309151e-07,
+   "tilt_rad": 1.5501959361561957e-06,
+   "yaw_rad": -3.37174190789824e-07
+  }
+ },
+ {
+  "id": "p0/seq3_bridge__goal_fsm__none__brk-roco__s0/part2",
+  "scene": "seq3_bridge",
+  "fault": "none",
+  "part": "2",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the green LEGO brick on the baseplate right next to the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/p0/frames/00009.png",
+   "runs/lego/p0/frames/00010.png",
+   "runs/lego/p0/frames/00011.png",
+   "runs/lego/p0/frames/00012.png",
+   "runs/lego/p0/frames/00013.png",
+   "runs/lego/p0/frames/00014.png",
+   "runs/lego/p0/frames/00015.png",
+   "runs/lego/p0/frames/00016.png"
+  ],
+  "settled_error": {
+   "dx_m": -2.4556068347059146e-05,
+   "dy_m": -0.00012596565715530805,
+   "dz_m": -3.679395601434779e-07,
+   "dxy_m": 0.0001283368508076852,
+   "tilt_rad": 3.513063432469304e-07,
+   "yaw_rad": 3.371776361094092e-05
+  }
+ },
+ {
+  "id": "p0/seq3_bridge__goal_fsm__none__brk-roco__s0/part3",
+  "scene": "seq3_bridge",
+  "fault": "none",
+  "part": "3",
+  "faulted": false,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the blue LEGO brick across the red and green bricks, bridging them, and press it onto the studs",
+  "frames": [
+   "runs/lego/p0/frames/00017.png",
+   "runs/lego/p0/frames/00018.png",
+   "runs/lego/p0/frames/00019.png",
+   "runs/lego/p0/frames/00020.png",
+   "runs/lego/p0/frames/00021.png",
+   "runs/lego/p0/frames/00022.png",
+   "runs/lego/p0/frames/00023.png",
+   "runs/lego/p0/frames/00024.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.0002706721736764131,
+   "dy_m": -4.2959954048155113e-05,
+   "dz_m": 0.0016997371823277464,
+   "dxy_m": 0.00027406018181146623,
+   "tilt_rad": 3.246170525387842e-05,
+   "yaw_rad": -0.01698462978533577
+  }
+ },
+ {
+  "id": "p0/single_on_brick__goal_fsm__lateral_offset__brk-roco__s0/part2",
+  "scene": "single_on_brick",
+  "fault": "lateral_offset",
+  "part": "2",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/p0/frames/00093.png",
+   "runs/lego/p0/frames/00094.png",
+   "runs/lego/p0/frames/00095.png",
+   "runs/lego/p0/frames/00096.png",
+   "runs/lego/p0/frames/00097.png",
+   "runs/lego/p0/frames/00098.png",
+   "runs/lego/p0/frames/00099.png",
+   "runs/lego/p0/frames/00100.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.0031946795169165796,
+   "dy_m": 4.798510530840128e-06,
+   "dz_m": 0.0017004567432469236,
+   "dxy_m": 0.0031946831206724814,
+   "tilt_rad": 0.0001440895544803558,
+   "yaw_rad": 0.0047642256524365045
+  }
+ },
+ {
+  "id": "p0/single_on_brick__goal_fsm__none__brk-roco__s0/part2",
+  "scene": "single_on_brick",
+  "fault": "none",
+  "part": "2",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/p0/frames/00053.png",
+   "runs/lego/p0/frames/00054.png",
+   "runs/lego/p0/frames/00055.png",
+   "runs/lego/p0/frames/00056.png",
+   "runs/lego/p0/frames/00057.png",
+   "runs/lego/p0/frames/00058.png",
+   "runs/lego/p0/frames/00059.png",
+   "runs/lego/p0/frames/00060.png"
+  ],
+  "settled_error": {
+   "dx_m": 2.542499727316294e-06,
+   "dy_m": -5.9903488859036624e-06,
+   "dz_m": -4.186036427749479e-07,
+   "dxy_m": 6.5075790151369415e-06,
+   "tilt_rad": 5.58644571831906e-07,
+   "yaw_rad": -3.5105985105587934e-06
+  }
+ },
+ {
+  "id": "p0/single_on_brick__goal_fsm__partial_engagement__brk-roco__s0/part2",
+  "scene": "single_on_brick",
+  "fault": "partial_engagement",
+  "part": "2",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.partially_seated",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/p0/frames/00133.png",
+   "runs/lego/p0/frames/00134.png",
+   "runs/lego/p0/frames/00135.png",
+   "runs/lego/p0/frames/00136.png",
+   "runs/lego/p0/frames/00137.png",
+   "runs/lego/p0/frames/00138.png",
+   "runs/lego/p0/frames/00139.png",
+   "runs/lego/p0/frames/00140.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.007998894909845669,
+   "dy_m": 2.4894868971558903e-06,
+   "dz_m": -4.0557138424740513e-07,
+   "dxy_m": 0.007998895297245737,
+   "tilt_rad": 9.261579357213613e-07,
+   "yaw_rad": 3.8037350633679523e-06
+  }
+ },
+ {
+  "id": "p0/single_on_plate__goal_fsm__angle_error__brk-roco__s0/part1",
+  "scene": "single_on_plate",
+  "fault": "angle_error",
+  "part": "1",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/p0/frames/00073.png",
+   "runs/lego/p0/frames/00074.png",
+   "runs/lego/p0/frames/00075.png",
+   "runs/lego/p0/frames/00076.png",
+   "runs/lego/p0/frames/00077.png",
+   "runs/lego/p0/frames/00078.png",
+   "runs/lego/p0/frames/00079.png",
+   "runs/lego/p0/frames/00080.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.0001984332402440829,
+   "dy_m": 0.0006270408242590175,
+   "dz_m": 0.0016999545420715505,
+   "dxy_m": 0.0006576898555711453,
+   "tilt_rad": 1.358887703064249e-05,
+   "yaw_rad": 0.1605734939539878
+  }
+ },
+ {
+  "id": "p0/single_on_plate__goal_fsm__lifted_on_release__brk-roco__s0/part1",
+  "scene": "single_on_plate",
+  "fault": "lifted_on_release",
+  "part": "1",
+  "faulted": true,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/p0/frames/00113.png",
+   "runs/lego/p0/frames/00114.png",
+   "runs/lego/p0/frames/00115.png",
+   "runs/lego/p0/frames/00116.png",
+   "runs/lego/p0/frames/00117.png",
+   "runs/lego/p0/frames/00118.png",
+   "runs/lego/p0/frames/00119.png",
+   "runs/lego/p0/frames/00120.png"
+  ],
+  "settled_error": {
+   "dx_m": 2.3636835403857692e-06,
+   "dy_m": -2.2202812476335154e-06,
+   "dz_m": -3.8250516699476697e-07,
+   "dxy_m": 3.2429382815100944e-06,
+   "tilt_rad": 3.4492505864686633e-07,
+   "yaw_rad": 7.272457542839561e-07
+  }
+ },
+ {
+  "id": "p1/seq3_spaced__goal_fsm__none__brk-roco__s0/part1",
+  "scene": "seq3_spaced",
+  "fault": "none",
+  "part": "1",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/p1/frames/00001.png",
+   "runs/lego/p1/frames/00002.png",
+   "runs/lego/p1/frames/00003.png",
+   "runs/lego/p1/frames/00004.png",
+   "runs/lego/p1/frames/00005.png",
+   "runs/lego/p1/frames/00006.png",
+   "runs/lego/p1/frames/00007.png",
+   "runs/lego/p1/frames/00008.png"
+  ],
+  "settled_error": {
+   "dx_m": -1.9480269250471416e-07,
+   "dy_m": -6.001572962072155e-07,
+   "dz_m": -3.8938769014035257e-07,
+   "dxy_m": 6.309808786309151e-07,
+   "tilt_rad": 1.5501959361561957e-06,
+   "yaw_rad": -3.37174190789824e-07
+  }
+ },
+ {
+  "id": "p1/seq3_spaced__goal_fsm__none__brk-roco__s0/part2",
+  "scene": "seq3_spaced",
+  "fault": "none",
+  "part": "2",
+  "faulted": false,
+  "success": false,
+  "failure_type": "lego.structure_damaged",
+  "instruction": "put the green LEGO brick on the baseplate one stud away from the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/p1/frames/00009.png",
+   "runs/lego/p1/frames/00010.png",
+   "runs/lego/p1/frames/00011.png",
+   "runs/lego/p1/frames/00012.png",
+   "runs/lego/p1/frames/00013.png",
+   "runs/lego/p1/frames/00014.png",
+   "runs/lego/p1/frames/00015.png",
+   "runs/lego/p1/frames/00016.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.00031126869890263364,
+   "dy_m": -0.0035711835558638987,
+   "dz_m": -3.8236821475051697e-07,
+   "dxy_m": 0.003584723168194339,
+   "tilt_rad": 3.594464570888779e-07,
+   "yaw_rad": -0.0005574408004906939
+  }
+ },
+ {
+  "id": "p1/seq3_spaced__goal_fsm__none__brk-roco__s0/part3",
+  "scene": "seq3_spaced",
+  "fault": "none",
+  "part": "3",
+  "faulted": false,
+  "success": false,
+  "failure_type": "lego.structure_damaged",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/p1/frames/00017.png",
+   "runs/lego/p1/frames/00018.png",
+   "runs/lego/p1/frames/00019.png",
+   "runs/lego/p1/frames/00020.png",
+   "runs/lego/p1/frames/00021.png",
+   "runs/lego/p1/frames/00022.png",
+   "runs/lego/p1/frames/00023.png",
+   "runs/lego/p1/frames/00024.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.00020623095966135208,
+   "dy_m": 0.0001556552340993382,
+   "dz_m": 0.0016992100411292541,
+   "dxy_m": 0.0002583791025322327,
+   "tilt_rad": 0.00034882528276441646,
+   "yaw_rad": -0.004021462299090839
+  }
+ },
+ {
+  "id": "p1/seq3_stack__goal_fsm__damaging_build__brk-roco__s0/part1",
+  "scene": "seq3_stack",
+  "fault": "damaging_build",
+  "part": "1",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/p1/frames/00073.png",
+   "runs/lego/p1/frames/00074.png",
+   "runs/lego/p1/frames/00075.png",
+   "runs/lego/p1/frames/00076.png",
+   "runs/lego/p1/frames/00077.png",
+   "runs/lego/p1/frames/00078.png",
+   "runs/lego/p1/frames/00079.png",
+   "runs/lego/p1/frames/00080.png"
+  ],
+  "settled_error": {
+   "dx_m": -1.9480269250471416e-07,
+   "dy_m": -6.001572962072155e-07,
+   "dz_m": -3.8938769014035257e-07,
+   "dxy_m": 6.309808786309151e-07,
+   "tilt_rad": 1.5501959361561957e-06,
+   "yaw_rad": -3.37174190789824e-07
+  }
+ },
+ {
+  "id": "p1/seq3_stack__goal_fsm__damaging_build__brk-roco__s0/part2",
+  "scene": "seq3_stack",
+  "fault": "damaging_build",
+  "part": "2",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.structure_damaged",
+  "instruction": "put the green LEGO brick on the baseplate right next to the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/p1/frames/00081.png",
+   "runs/lego/p1/frames/00082.png",
+   "runs/lego/p1/frames/00083.png",
+   "runs/lego/p1/frames/00084.png",
+   "runs/lego/p1/frames/00085.png",
+   "runs/lego/p1/frames/00086.png",
+   "runs/lego/p1/frames/00087.png",
+   "runs/lego/p1/frames/00088.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.0001877125281602443,
+   "dy_m": -0.027261521733307717,
+   "dz_m": -3.7916360831266593e-07,
+   "dxy_m": 0.0272621679843852,
+   "tilt_rad": 3.628908196422615e-07,
+   "yaw_rad": -0.0033729512253446448
+  }
+ },
+ {
+  "id": "p1/seq3_stack__goal_fsm__damaging_build__brk-roco__s0/part3",
+  "scene": "seq3_stack",
+  "fault": "damaging_build",
+  "part": "3",
+  "faulted": false,
+  "success": false,
+  "failure_type": "lego.structure_damaged",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/p1/frames/00089.png",
+   "runs/lego/p1/frames/00090.png",
+   "runs/lego/p1/frames/00091.png",
+   "runs/lego/p1/frames/00092.png",
+   "runs/lego/p1/frames/00093.png",
+   "runs/lego/p1/frames/00094.png",
+   "runs/lego/p1/frames/00095.png",
+   "runs/lego/p1/frames/00096.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.0006057317266871809,
+   "dy_m": 0.004837865457265809,
+   "dz_m": 9.949868491205931e-05,
+   "dxy_m": 0.004875638738393273,
+   "tilt_rad": 1.570738101535794,
+   "yaw_rad": -0.024083682750105417
+  }
+ },
+ {
+  "id": "p1/single_on_brick__goal_fsm__not_fully_pressed__brk-roco__s0/part2",
+  "scene": "single_on_brick",
+  "fault": "not_fully_pressed",
+  "part": "2",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/p1/frames/00145.png",
+   "runs/lego/p1/frames/00146.png",
+   "runs/lego/p1/frames/00147.png",
+   "runs/lego/p1/frames/00148.png",
+   "runs/lego/p1/frames/00149.png",
+   "runs/lego/p1/frames/00150.png",
+   "runs/lego/p1/frames/00151.png",
+   "runs/lego/p1/frames/00152.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.0006757611799015732,
+   "dy_m": -0.00020527839841427697,
+   "dz_m": 0.0016997228617034402,
+   "dxy_m": 0.0007062523579553537,
+   "tilt_rad": 0.00015677408826656082,
+   "yaw_rad": 0.00289662662661172
+  }
+ },
+ {
+  "id": "p1/single_on_plate__goal_fsm__lateral_offset__brk-roco__s0/part1",
+  "scene": "single_on_plate",
+  "fault": "lateral_offset",
+  "part": "1",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/p1/frames/00125.png",
+   "runs/lego/p1/frames/00126.png",
+   "runs/lego/p1/frames/00127.png",
+   "runs/lego/p1/frames/00128.png",
+   "runs/lego/p1/frames/00129.png",
+   "runs/lego/p1/frames/00130.png",
+   "runs/lego/p1/frames/00131.png",
+   "runs/lego/p1/frames/00132.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.003319075362907929,
+   "dy_m": -9.027080068202409e-05,
+   "dz_m": 0.0016999340370681868,
+   "dxy_m": 0.0033203027094104195,
+   "tilt_rad": 2.384229466908964e-05,
+   "yaw_rad": -0.0006095351567001472
+  }
+ },
+ {
+  "id": "p1/single_on_plate__goal_fsm__none__brk-roco__s0/part1",
+  "scene": "single_on_plate",
+  "fault": "none",
+  "part": "1",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/p1/frames/00053.png",
+   "runs/lego/p1/frames/00054.png",
+   "runs/lego/p1/frames/00055.png",
+   "runs/lego/p1/frames/00056.png",
+   "runs/lego/p1/frames/00057.png",
+   "runs/lego/p1/frames/00058.png",
+   "runs/lego/p1/frames/00059.png",
+   "runs/lego/p1/frames/00060.png"
+  ],
+  "settled_error": {
+   "dx_m": 2.36927147986149e-06,
+   "dy_m": -2.1904789259952206e-06,
+   "dz_m": -3.880931023461827e-07,
+   "dxy_m": 3.2267081167211623e-06,
+   "tilt_rad": 3.040810298632803e-07,
+   "yaw_rad": 7.277735045718714e-07
+  }
+ },
+ {
+  "id": "p2/seq3_stack__goal_fsm__insufficient_support__brk-roco__s0/part2",
+  "scene": "seq3_stack",
+  "fault": "insufficient_support",
+  "part": "2",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the green LEGO brick on the baseplate right next to the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/p2/frames/00073.png",
+   "runs/lego/p2/frames/00074.png",
+   "runs/lego/p2/frames/00075.png",
+   "runs/lego/p2/frames/00076.png",
+   "runs/lego/p2/frames/00077.png",
+   "runs/lego/p2/frames/00078.png",
+   "runs/lego/p2/frames/00079.png",
+   "runs/lego/p2/frames/00080.png"
+  ],
+  "settled_error": {
+   "dx_m": -2.696048009176444e-06,
+   "dy_m": -4.3269025993761256e-07,
+   "dz_m": -3.81909092474729e-07,
+   "dxy_m": 2.7305486131598436e-06,
+   "tilt_rad": 1.2304088186539375e-06,
+   "yaw_rad": 2.697400610207623e-06
+  }
+ },
+ {
+  "id": "p2/seq3_stack__goal_fsm__insufficient_support__brk-roco__s0/part3",
+  "scene": "seq3_stack",
+  "fault": "insufficient_support",
+  "part": "3",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.insufficient_support",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/p2/frames/00081.png",
+   "runs/lego/p2/frames/00082.png",
+   "runs/lego/p2/frames/00083.png",
+   "runs/lego/p2/frames/00084.png",
+   "runs/lego/p2/frames/00085.png",
+   "runs/lego/p2/frames/00086.png",
+   "runs/lego/p2/frames/00087.png",
+   "runs/lego/p2/frames/00088.png"
+  ],
+  "settled_error": {
+   "dx_m": -1.663054140643716e-05,
+   "dy_m": 0.0019958685859402057,
+   "dz_m": -0.0029812856657089413,
+   "dxy_m": 0.0019959378715908036,
+   "tilt_rad": 0.6621570969302626,
+   "yaw_rad": -0.0006633346778281979
+  }
+ },
+ {
+  "id": "p2/seq3_stack__goal_fsm__none__brk-roco__s0/part1",
+  "scene": "seq3_stack",
+  "fault": "none",
+  "part": "1",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/p2/frames/00001.png",
+   "runs/lego/p2/frames/00002.png",
+   "runs/lego/p2/frames/00003.png",
+   "runs/lego/p2/frames/00004.png",
+   "runs/lego/p2/frames/00005.png",
+   "runs/lego/p2/frames/00006.png",
+   "runs/lego/p2/frames/00007.png",
+   "runs/lego/p2/frames/00008.png"
+  ],
+  "settled_error": {
+   "dx_m": -1.9480269250471416e-07,
+   "dy_m": -6.001572962072155e-07,
+   "dz_m": -3.8938769014035257e-07,
+   "dxy_m": 6.309808786309151e-07,
+   "tilt_rad": 1.5501959361561957e-06,
+   "yaw_rad": -3.37174190789824e-07
+  }
+ },
+ {
+  "id": "p2/seq3_stack__goal_fsm__none__brk-roco__s0/part2",
+  "scene": "seq3_stack",
+  "fault": "none",
+  "part": "2",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the green LEGO brick on the baseplate right next to the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/p2/frames/00009.png",
+   "runs/lego/p2/frames/00010.png",
+   "runs/lego/p2/frames/00011.png",
+   "runs/lego/p2/frames/00012.png",
+   "runs/lego/p2/frames/00013.png",
+   "runs/lego/p2/frames/00014.png",
+   "runs/lego/p2/frames/00015.png",
+   "runs/lego/p2/frames/00016.png"
+  ],
+  "settled_error": {
+   "dx_m": -2.4556068347059146e-05,
+   "dy_m": -0.00012596565715530805,
+   "dz_m": -3.679395601434779e-07,
+   "dxy_m": 0.0001283368508076852,
+   "tilt_rad": 3.513063432469304e-07,
+   "yaw_rad": 3.371776361094092e-05
+  }
+ },
+ {
+  "id": "p2/seq3_stack__goal_fsm__none__brk-roco__s0/part3",
+  "scene": "seq3_stack",
+  "fault": "none",
+  "part": "3",
+  "faulted": false,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/p2/frames/00017.png",
+   "runs/lego/p2/frames/00018.png",
+   "runs/lego/p2/frames/00019.png",
+   "runs/lego/p2/frames/00020.png",
+   "runs/lego/p2/frames/00021.png",
+   "runs/lego/p2/frames/00022.png",
+   "runs/lego/p2/frames/00023.png",
+   "runs/lego/p2/frames/00024.png"
+  ],
+  "settled_error": {
+   "dx_m": 8.077814400939132e-05,
+   "dy_m": 0.0006055064062350374,
+   "dz_m": 0.0016998209890303727,
+   "dxy_m": 0.0006108707854704398,
+   "tilt_rad": 1.8826144279046635e-05,
+   "yaw_rad": -0.018415751188957108
+  }
+ },
+ {
+  "id": "p2/single_on_brick__goal_fsm__angle_error__brk-roco__s0/part2",
+  "scene": "single_on_brick",
+  "fault": "angle_error",
+  "part": "2",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/p2/frames/00053.png",
+   "runs/lego/p2/frames/00054.png",
+   "runs/lego/p2/frames/00055.png",
+   "runs/lego/p2/frames/00056.png",
+   "runs/lego/p2/frames/00057.png",
+   "runs/lego/p2/frames/00058.png",
+   "runs/lego/p2/frames/00059.png",
+   "runs/lego/p2/frames/00060.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.0008439980909359796,
+   "dy_m": 0.0004290340270911852,
+   "dz_m": 0.001699907268823058,
+   "dxy_m": 0.0009467856008123792,
+   "tilt_rad": 3.637859683378548e-05,
+   "yaw_rad": 0.1561310540772396
+  }
+ },
+ {
+  "id": "p2/single_on_brick__goal_fsm__lifted_on_release__brk-roco__s0/part2",
+  "scene": "single_on_brick",
+  "fault": "lifted_on_release",
+  "part": "2",
+  "faulted": true,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/p2/frames/00109.png",
+   "runs/lego/p2/frames/00110.png",
+   "runs/lego/p2/frames/00111.png",
+   "runs/lego/p2/frames/00112.png",
+   "runs/lego/p2/frames/00113.png",
+   "runs/lego/p2/frames/00114.png",
+   "runs/lego/p2/frames/00115.png",
+   "runs/lego/p2/frames/00116.png"
+  ],
+  "settled_error": {
+   "dx_m": 2.546225015612885e-06,
+   "dy_m": -6.005250047569355e-06,
+   "dz_m": -4.2232893316535014e-07,
+   "dxy_m": 6.5227517171792285e-06,
+   "tilt_rad": 6.619302999431038e-07,
+   "yaw_rad": -3.5105424416315145e-06
+  }
+ },
+ {
+  "id": "p2/single_on_plate__goal_fsm__not_fully_pressed__brk-roco__s0/part1",
+  "scene": "single_on_plate",
+  "fault": "not_fully_pressed",
+  "part": "1",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/p2/frames/00129.png",
+   "runs/lego/p2/frames/00130.png",
+   "runs/lego/p2/frames/00131.png",
+   "runs/lego/p2/frames/00132.png",
+   "runs/lego/p2/frames/00133.png",
+   "runs/lego/p2/frames/00134.png",
+   "runs/lego/p2/frames/00135.png",
+   "runs/lego/p2/frames/00136.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.0003261269277947884,
+   "dy_m": -0.0007012486140811902,
+   "dz_m": 0.0016999210090665883,
+   "dxy_m": 0.0007733746774905791,
+   "tilt_rad": 2.3837358269398048e-05,
+   "yaw_rad": -0.006136483520936764
+  }
+ },
+ {
+  "id": "v1/seq3_bridge__goal_fsm__none__brk-roco__s0/part1",
+  "scene": "seq3_bridge",
+  "fault": "none",
+  "part": "1",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00001.png",
+   "runs/lego/v1/frames/00002.png",
+   "runs/lego/v1/frames/00003.png",
+   "runs/lego/v1/frames/00004.png",
+   "runs/lego/v1/frames/00005.png",
+   "runs/lego/v1/frames/00006.png",
+   "runs/lego/v1/frames/00007.png",
+   "runs/lego/v1/frames/00008.png"
+  ],
+  "settled_error": {
+   "dx_m": -1.9480269250471416e-07,
+   "dy_m": -6.001572962072155e-07,
+   "dz_m": -3.8938769014035257e-07,
+   "dxy_m": 6.309808786309151e-07,
+   "tilt_rad": 1.5501959361561957e-06,
+   "yaw_rad": -3.37174190789824e-07
+  }
+ },
+ {
+  "id": "v1/seq3_bridge__goal_fsm__none__brk-roco__s0/part2",
+  "scene": "seq3_bridge",
+  "fault": "none",
+  "part": "2",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the green LEGO brick on the baseplate right next to the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00009.png",
+   "runs/lego/v1/frames/00010.png",
+   "runs/lego/v1/frames/00011.png",
+   "runs/lego/v1/frames/00012.png",
+   "runs/lego/v1/frames/00013.png",
+   "runs/lego/v1/frames/00014.png",
+   "runs/lego/v1/frames/00015.png",
+   "runs/lego/v1/frames/00016.png"
+  ],
+  "settled_error": {
+   "dx_m": -2.4556068347059146e-05,
+   "dy_m": -0.00012596565715530805,
+   "dz_m": -3.679395601434779e-07,
+   "dxy_m": 0.0001283368508076852,
+   "tilt_rad": 3.513063432469304e-07,
+   "yaw_rad": 3.371776361094092e-05
+  }
+ },
+ {
+  "id": "v1/seq3_bridge__goal_fsm__none__brk-roco__s0/part3",
+  "scene": "seq3_bridge",
+  "fault": "none",
+  "part": "3",
+  "faulted": false,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the blue LEGO brick across the red and green bricks, bridging them, and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00017.png",
+   "runs/lego/v1/frames/00018.png",
+   "runs/lego/v1/frames/00019.png",
+   "runs/lego/v1/frames/00020.png",
+   "runs/lego/v1/frames/00021.png",
+   "runs/lego/v1/frames/00022.png",
+   "runs/lego/v1/frames/00023.png",
+   "runs/lego/v1/frames/00024.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.0002706721736764131,
+   "dy_m": -4.2959954048155113e-05,
+   "dz_m": 0.0016997371823277464,
+   "dxy_m": 0.00027406018181146623,
+   "tilt_rad": 3.246170525387842e-05,
+   "yaw_rad": -0.01698462978533577
+  }
+ },
+ {
+  "id": "v1/seq3_spaced__goal_fsm__none__brk-roco__s0/part1",
+  "scene": "seq3_spaced",
+  "fault": "none",
+  "part": "1",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00027.png",
+   "runs/lego/v1/frames/00028.png",
+   "runs/lego/v1/frames/00029.png",
+   "runs/lego/v1/frames/00030.png",
+   "runs/lego/v1/frames/00031.png",
+   "runs/lego/v1/frames/00032.png",
+   "runs/lego/v1/frames/00033.png",
+   "runs/lego/v1/frames/00034.png"
+  ],
+  "settled_error": {
+   "dx_m": -1.9480269250471416e-07,
+   "dy_m": -6.001572962072155e-07,
+   "dz_m": -3.8938769014035257e-07,
+   "dxy_m": 6.309808786309151e-07,
+   "tilt_rad": 1.5501959361561957e-06,
+   "yaw_rad": -3.37174190789824e-07
+  }
+ },
+ {
+  "id": "v1/seq3_spaced__goal_fsm__none__brk-roco__s0/part2",
+  "scene": "seq3_spaced",
+  "fault": "none",
+  "part": "2",
+  "faulted": false,
+  "success": false,
+  "failure_type": "lego.structure_damaged",
+  "instruction": "put the green LEGO brick on the baseplate one stud away from the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00035.png",
+   "runs/lego/v1/frames/00036.png",
+   "runs/lego/v1/frames/00037.png",
+   "runs/lego/v1/frames/00038.png",
+   "runs/lego/v1/frames/00039.png",
+   "runs/lego/v1/frames/00040.png",
+   "runs/lego/v1/frames/00041.png",
+   "runs/lego/v1/frames/00042.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.00031126869890263364,
+   "dy_m": -0.0035711835558638987,
+   "dz_m": -3.8236821475051697e-07,
+   "dxy_m": 0.003584723168194339,
+   "tilt_rad": 3.594464570888779e-07,
+   "yaw_rad": -0.0005574408004906939
+  }
+ },
+ {
+  "id": "v1/seq3_spaced__goal_fsm__none__brk-roco__s0/part3",
+  "scene": "seq3_spaced",
+  "fault": "none",
+  "part": "3",
+  "faulted": false,
+  "success": false,
+  "failure_type": "lego.structure_damaged",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00043.png",
+   "runs/lego/v1/frames/00044.png",
+   "runs/lego/v1/frames/00045.png",
+   "runs/lego/v1/frames/00046.png",
+   "runs/lego/v1/frames/00047.png",
+   "runs/lego/v1/frames/00048.png",
+   "runs/lego/v1/frames/00049.png",
+   "runs/lego/v1/frames/00050.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.00020623095966135208,
+   "dy_m": 0.0001556552340993382,
+   "dz_m": 0.0016992100411292541,
+   "dxy_m": 0.0002583791025322327,
+   "tilt_rad": 0.00034882528276441646,
+   "yaw_rad": -0.004021462299090839
+  }
+ },
+ {
+  "id": "v1/seq3_stack__goal_fsm__damaging_build__brk-roco__s0/part1",
+  "scene": "seq3_stack",
+  "fault": "damaging_build",
+  "part": "1",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00119.png",
+   "runs/lego/v1/frames/00120.png",
+   "runs/lego/v1/frames/00121.png",
+   "runs/lego/v1/frames/00122.png",
+   "runs/lego/v1/frames/00123.png",
+   "runs/lego/v1/frames/00124.png",
+   "runs/lego/v1/frames/00125.png",
+   "runs/lego/v1/frames/00126.png"
+  ],
+  "settled_error": {
+   "dx_m": -1.9480269250471416e-07,
+   "dy_m": -6.001572962072155e-07,
+   "dz_m": -3.8938769014035257e-07,
+   "dxy_m": 6.309808786309151e-07,
+   "tilt_rad": 1.5501959361561957e-06,
+   "yaw_rad": -3.37174190789824e-07
+  }
+ },
+ {
+  "id": "v1/seq3_stack__goal_fsm__damaging_build__brk-roco__s0/part2",
+  "scene": "seq3_stack",
+  "fault": "damaging_build",
+  "part": "2",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.structure_damaged",
+  "instruction": "put the green LEGO brick on the baseplate right next to the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00127.png",
+   "runs/lego/v1/frames/00128.png",
+   "runs/lego/v1/frames/00129.png",
+   "runs/lego/v1/frames/00130.png",
+   "runs/lego/v1/frames/00131.png",
+   "runs/lego/v1/frames/00132.png",
+   "runs/lego/v1/frames/00133.png",
+   "runs/lego/v1/frames/00134.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.0001877125281602443,
+   "dy_m": -0.027261521733307717,
+   "dz_m": -3.7916360831266593e-07,
+   "dxy_m": 0.0272621679843852,
+   "tilt_rad": 3.628908196422615e-07,
+   "yaw_rad": -0.0033729512253446448
+  }
+ },
+ {
+  "id": "v1/seq3_stack__goal_fsm__damaging_build__brk-roco__s0/part3",
+  "scene": "seq3_stack",
+  "fault": "damaging_build",
+  "part": "3",
+  "faulted": false,
+  "success": false,
+  "failure_type": "lego.structure_damaged",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00135.png",
+   "runs/lego/v1/frames/00136.png",
+   "runs/lego/v1/frames/00137.png",
+   "runs/lego/v1/frames/00138.png",
+   "runs/lego/v1/frames/00139.png",
+   "runs/lego/v1/frames/00140.png",
+   "runs/lego/v1/frames/00141.png",
+   "runs/lego/v1/frames/00142.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.0006057317266871809,
+   "dy_m": 0.004837865457265809,
+   "dz_m": 9.949868491205931e-05,
+   "dxy_m": 0.004875638738393273,
+   "tilt_rad": 1.570738101535794,
+   "yaw_rad": -0.024083682750105417
+  }
+ },
+ {
+  "id": "v1/seq3_stack__goal_fsm__insufficient_support__brk-roco__s0/part2",
+  "scene": "seq3_stack",
+  "fault": "insufficient_support",
+  "part": "2",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the green LEGO brick on the baseplate right next to the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00145.png",
+   "runs/lego/v1/frames/00146.png",
+   "runs/lego/v1/frames/00147.png",
+   "runs/lego/v1/frames/00148.png",
+   "runs/lego/v1/frames/00149.png",
+   "runs/lego/v1/frames/00150.png",
+   "runs/lego/v1/frames/00151.png",
+   "runs/lego/v1/frames/00152.png"
+  ],
+  "settled_error": {
+   "dx_m": -2.696048009176444e-06,
+   "dy_m": -4.3269025993761256e-07,
+   "dz_m": -3.81909092474729e-07,
+   "dxy_m": 2.7305486131598436e-06,
+   "tilt_rad": 1.2304088186539375e-06,
+   "yaw_rad": 2.697400610207623e-06
+  }
+ },
+ {
+  "id": "v1/seq3_stack__goal_fsm__insufficient_support__brk-roco__s0/part3",
+  "scene": "seq3_stack",
+  "fault": "insufficient_support",
+  "part": "3",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.insufficient_support",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00153.png",
+   "runs/lego/v1/frames/00154.png",
+   "runs/lego/v1/frames/00155.png",
+   "runs/lego/v1/frames/00156.png",
+   "runs/lego/v1/frames/00157.png",
+   "runs/lego/v1/frames/00158.png",
+   "runs/lego/v1/frames/00159.png",
+   "runs/lego/v1/frames/00160.png"
+  ],
+  "settled_error": {
+   "dx_m": -1.663054140643716e-05,
+   "dy_m": 0.0019958685859402057,
+   "dz_m": -0.0029812856657089413,
+   "dxy_m": 0.0019959378715908036,
+   "tilt_rad": 0.6621570969302626,
+   "yaw_rad": -0.0006633346778281979
+  }
+ },
+ {
+  "id": "v1/seq3_stack__goal_fsm__none__brk-roco__s0/part1",
+  "scene": "seq3_stack",
+  "fault": "none",
+  "part": "1",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00053.png",
+   "runs/lego/v1/frames/00054.png",
+   "runs/lego/v1/frames/00055.png",
+   "runs/lego/v1/frames/00056.png",
+   "runs/lego/v1/frames/00057.png",
+   "runs/lego/v1/frames/00058.png",
+   "runs/lego/v1/frames/00059.png",
+   "runs/lego/v1/frames/00060.png"
+  ],
+  "settled_error": {
+   "dx_m": -1.9480269250471416e-07,
+   "dy_m": -6.001572962072155e-07,
+   "dz_m": -3.8938769014035257e-07,
+   "dxy_m": 6.309808786309151e-07,
+   "tilt_rad": 1.5501959361561957e-06,
+   "yaw_rad": -3.37174190789824e-07
+  }
+ },
+ {
+  "id": "v1/seq3_stack__goal_fsm__none__brk-roco__s0/part2",
+  "scene": "seq3_stack",
+  "fault": "none",
+  "part": "2",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the green LEGO brick on the baseplate right next to the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00061.png",
+   "runs/lego/v1/frames/00062.png",
+   "runs/lego/v1/frames/00063.png",
+   "runs/lego/v1/frames/00064.png",
+   "runs/lego/v1/frames/00065.png",
+   "runs/lego/v1/frames/00066.png",
+   "runs/lego/v1/frames/00067.png",
+   "runs/lego/v1/frames/00068.png"
+  ],
+  "settled_error": {
+   "dx_m": -2.4556068347059146e-05,
+   "dy_m": -0.00012596565715530805,
+   "dz_m": -3.679395601434779e-07,
+   "dxy_m": 0.0001283368508076852,
+   "tilt_rad": 3.513063432469304e-07,
+   "yaw_rad": 3.371776361094092e-05
+  }
+ },
+ {
+  "id": "v1/seq3_stack__goal_fsm__none__brk-roco__s0/part3",
+  "scene": "seq3_stack",
+  "fault": "none",
+  "part": "3",
+  "faulted": false,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00069.png",
+   "runs/lego/v1/frames/00070.png",
+   "runs/lego/v1/frames/00071.png",
+   "runs/lego/v1/frames/00072.png",
+   "runs/lego/v1/frames/00073.png",
+   "runs/lego/v1/frames/00074.png",
+   "runs/lego/v1/frames/00075.png",
+   "runs/lego/v1/frames/00076.png"
+  ],
+  "settled_error": {
+   "dx_m": 8.077814400939132e-05,
+   "dy_m": 0.0006055064062350374,
+   "dz_m": 0.0016998209890303727,
+   "dxy_m": 0.0006108707854704398,
+   "tilt_rad": 1.8826144279046635e-05,
+   "yaw_rad": -0.018415751188957108
+  }
+ },
+ {
+  "id": "v1/single_on_brick__goal_fsm__angle_error__brk-roco__s0/part2",
+  "scene": "single_on_brick",
+  "fault": "angle_error",
+  "part": "2",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00099.png",
+   "runs/lego/v1/frames/00100.png",
+   "runs/lego/v1/frames/00101.png",
+   "runs/lego/v1/frames/00102.png",
+   "runs/lego/v1/frames/00103.png",
+   "runs/lego/v1/frames/00104.png",
+   "runs/lego/v1/frames/00105.png",
+   "runs/lego/v1/frames/00106.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.0008439980909359796,
+   "dy_m": 0.0004290340270911852,
+   "dz_m": 0.001699907268823058,
+   "dxy_m": 0.0009467856008123792,
+   "tilt_rad": 3.637859683378548e-05,
+   "yaw_rad": 0.1561310540772396
+  }
+ },
+ {
+  "id": "v1/single_on_brick__goal_fsm__lateral_offset__brk-roco__s0/part2",
+  "scene": "single_on_brick",
+  "fault": "lateral_offset",
+  "part": "2",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00163.png",
+   "runs/lego/v1/frames/00164.png",
+   "runs/lego/v1/frames/00165.png",
+   "runs/lego/v1/frames/00166.png",
+   "runs/lego/v1/frames/00167.png",
+   "runs/lego/v1/frames/00168.png",
+   "runs/lego/v1/frames/00169.png",
+   "runs/lego/v1/frames/00170.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.0031946795169165796,
+   "dy_m": 4.798510530840128e-06,
+   "dz_m": 0.0017004567432469236,
+   "dxy_m": 0.0031946831206724814,
+   "tilt_rad": 0.0001440895544803558,
+   "yaw_rad": 0.0047642256524365045
+  }
+ },
+ {
+  "id": "v1/single_on_brick__goal_fsm__lifted_on_release__brk-roco__s0/part2",
+  "scene": "single_on_brick",
+  "fault": "lifted_on_release",
+  "part": "2",
+  "faulted": true,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00183.png",
+   "runs/lego/v1/frames/00184.png",
+   "runs/lego/v1/frames/00185.png",
+   "runs/lego/v1/frames/00186.png",
+   "runs/lego/v1/frames/00187.png",
+   "runs/lego/v1/frames/00188.png",
+   "runs/lego/v1/frames/00189.png",
+   "runs/lego/v1/frames/00190.png"
+  ],
+  "settled_error": {
+   "dx_m": 2.546225015612885e-06,
+   "dy_m": -6.005250047569355e-06,
+   "dz_m": -4.2232893316535014e-07,
+   "dxy_m": 6.5227517171792285e-06,
+   "tilt_rad": 6.619302999431038e-07,
+   "yaw_rad": -3.5105424416315145e-06
+  }
+ },
+ {
+  "id": "v1/single_on_brick__goal_fsm__none__brk-roco__s0/part2",
+  "scene": "single_on_brick",
+  "fault": "none",
+  "part": "2",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00079.png",
+   "runs/lego/v1/frames/00080.png",
+   "runs/lego/v1/frames/00081.png",
+   "runs/lego/v1/frames/00082.png",
+   "runs/lego/v1/frames/00083.png",
+   "runs/lego/v1/frames/00084.png",
+   "runs/lego/v1/frames/00085.png",
+   "runs/lego/v1/frames/00086.png"
+  ],
+  "settled_error": {
+   "dx_m": 2.542499727316294e-06,
+   "dy_m": -5.9903488859036624e-06,
+   "dz_m": -4.186036427749479e-07,
+   "dxy_m": 6.5075790151369415e-06,
+   "tilt_rad": 5.58644571831906e-07,
+   "yaw_rad": -3.5105985105587934e-06
+  }
+ },
+ {
+  "id": "v1/single_on_brick__goal_fsm__not_fully_pressed__brk-roco__s0/part2",
+  "scene": "single_on_brick",
+  "fault": "not_fully_pressed",
+  "part": "2",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00203.png",
+   "runs/lego/v1/frames/00204.png",
+   "runs/lego/v1/frames/00205.png",
+   "runs/lego/v1/frames/00206.png",
+   "runs/lego/v1/frames/00207.png",
+   "runs/lego/v1/frames/00208.png",
+   "runs/lego/v1/frames/00209.png",
+   "runs/lego/v1/frames/00210.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.0006757611799015732,
+   "dy_m": -0.00020527839841427697,
+   "dz_m": 0.0016997228617034402,
+   "dxy_m": 0.0007062523579553537,
+   "tilt_rad": 0.00015677408826656082,
+   "yaw_rad": 0.00289662662661172
+  }
+ },
+ {
+  "id": "v1/single_on_brick__goal_fsm__partial_engagement__brk-roco__s0/part2",
+  "scene": "single_on_brick",
+  "fault": "partial_engagement",
+  "part": "2",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.partially_seated",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00223.png",
+   "runs/lego/v1/frames/00224.png",
+   "runs/lego/v1/frames/00225.png",
+   "runs/lego/v1/frames/00226.png",
+   "runs/lego/v1/frames/00227.png",
+   "runs/lego/v1/frames/00228.png",
+   "runs/lego/v1/frames/00229.png",
+   "runs/lego/v1/frames/00230.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.007998894909845669,
+   "dy_m": 2.4894868971558903e-06,
+   "dz_m": -4.0557138424740513e-07,
+   "dxy_m": 0.007998895297245737,
+   "tilt_rad": 9.261579357213613e-07,
+   "yaw_rad": 3.8037350633679523e-06
+  }
+ },
+ {
+  "id": "v1/single_on_plate__goal_fsm__angle_error__brk-roco__s0/part1",
+  "scene": "single_on_plate",
+  "fault": "angle_error",
+  "part": "1",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00109.png",
+   "runs/lego/v1/frames/00110.png",
+   "runs/lego/v1/frames/00111.png",
+   "runs/lego/v1/frames/00112.png",
+   "runs/lego/v1/frames/00113.png",
+   "runs/lego/v1/frames/00114.png",
+   "runs/lego/v1/frames/00115.png",
+   "runs/lego/v1/frames/00116.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.0001984332402440829,
+   "dy_m": 0.0006270408242590175,
+   "dz_m": 0.0016999545420715505,
+   "dxy_m": 0.0006576898555711453,
+   "tilt_rad": 1.358887703064249e-05,
+   "yaw_rad": 0.1605734939539878
+  }
+ },
+ {
+  "id": "v1/single_on_plate__goal_fsm__lateral_offset__brk-roco__s0/part1",
+  "scene": "single_on_plate",
+  "fault": "lateral_offset",
+  "part": "1",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00173.png",
+   "runs/lego/v1/frames/00174.png",
+   "runs/lego/v1/frames/00175.png",
+   "runs/lego/v1/frames/00176.png",
+   "runs/lego/v1/frames/00177.png",
+   "runs/lego/v1/frames/00178.png",
+   "runs/lego/v1/frames/00179.png",
+   "runs/lego/v1/frames/00180.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.003319075362907929,
+   "dy_m": -9.027080068202409e-05,
+   "dz_m": 0.0016999340370681868,
+   "dxy_m": 0.0033203027094104195,
+   "tilt_rad": 2.384229466908964e-05,
+   "yaw_rad": -0.0006095351567001472
+  }
+ },
+ {
+  "id": "v1/single_on_plate__goal_fsm__lifted_on_release__brk-roco__s0/part1",
+  "scene": "single_on_plate",
+  "fault": "lifted_on_release",
+  "part": "1",
+  "faulted": true,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00193.png",
+   "runs/lego/v1/frames/00194.png",
+   "runs/lego/v1/frames/00195.png",
+   "runs/lego/v1/frames/00196.png",
+   "runs/lego/v1/frames/00197.png",
+   "runs/lego/v1/frames/00198.png",
+   "runs/lego/v1/frames/00199.png",
+   "runs/lego/v1/frames/00200.png"
+  ],
+  "settled_error": {
+   "dx_m": 2.3636835403857692e-06,
+   "dy_m": -2.2202812476335154e-06,
+   "dz_m": -3.8250516699476697e-07,
+   "dxy_m": 3.2429382815100944e-06,
+   "tilt_rad": 3.4492505864686633e-07,
+   "yaw_rad": 7.272457542839561e-07
+  }
+ },
+ {
+  "id": "v1/single_on_plate__goal_fsm__none__brk-roco__s0/part1",
+  "scene": "single_on_plate",
+  "fault": "none",
+  "part": "1",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00089.png",
+   "runs/lego/v1/frames/00090.png",
+   "runs/lego/v1/frames/00091.png",
+   "runs/lego/v1/frames/00092.png",
+   "runs/lego/v1/frames/00093.png",
+   "runs/lego/v1/frames/00094.png",
+   "runs/lego/v1/frames/00095.png",
+   "runs/lego/v1/frames/00096.png"
+  ],
+  "settled_error": {
+   "dx_m": 2.36927147986149e-06,
+   "dy_m": -2.1904789259952206e-06,
+   "dz_m": -3.880931023461827e-07,
+   "dxy_m": 3.2267081167211623e-06,
+   "tilt_rad": 3.040810298632803e-07,
+   "yaw_rad": 7.277735045718714e-07
+  }
+ },
+ {
+  "id": "v1/single_on_plate__goal_fsm__not_fully_pressed__brk-roco__s0/part1",
+  "scene": "single_on_plate",
+  "fault": "not_fully_pressed",
+  "part": "1",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/v1/frames/00213.png",
+   "runs/lego/v1/frames/00214.png",
+   "runs/lego/v1/frames/00215.png",
+   "runs/lego/v1/frames/00216.png",
+   "runs/lego/v1/frames/00217.png",
+   "runs/lego/v1/frames/00218.png",
+   "runs/lego/v1/frames/00219.png",
+   "runs/lego/v1/frames/00220.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.0003261269277947884,
+   "dy_m": -0.0007012486140811902,
+   "dz_m": 0.0016999210090665883,
+   "dxy_m": 0.0007733746774905791,
+   "tilt_rad": 2.3837358269398048e-05,
+   "yaw_rad": -0.006136483520936764
+  }
+ },
+ {
+  "id": "v2/seq3_bridge__goal_fsm__none__brk-roco__grip1__s0/part1",
+  "scene": "seq3_bridge",
+  "fault": "none",
+  "part": "1",
+  "faulted": false,
+  "success": false,
+  "failure_type": "grasp_lost",
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00001.png",
+   "runs/lego/v2/frames/00002.png",
+   "runs/lego/v2/frames/00003.png",
+   "runs/lego/v2/frames/00004.png",
+   "runs/lego/v2/frames/00005.png",
+   "runs/lego/v2/frames/00006.png",
+   "runs/lego/v2/frames/00007.png",
+   "runs/lego/v2/frames/00008.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.19399733407556158,
+   "dy_m": -0.017359771202650316,
+   "dz_m": -0.003199904049963453,
+   "dxy_m": 0.19477250135641175,
+   "tilt_rad": 2.8628733170822645e-05,
+   "yaw_rad": 1.4793632405137958
+  }
+ },
+ {
+  "id": "v2/seq3_bridge__goal_fsm__none__brk-roco__grip1__s0/part2",
+  "scene": "seq3_bridge",
+  "fault": "none",
+  "part": "2",
+  "faulted": false,
+  "success": false,
+  "failure_type": "grasp_missed",
+  "instruction": "put the green LEGO brick on the baseplate right next to the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00009.png",
+   "runs/lego/v2/frames/00010.png",
+   "runs/lego/v2/frames/00011.png",
+   "runs/lego/v2/frames/00012.png",
+   "runs/lego/v2/frames/00013.png",
+   "runs/lego/v2/frames/00014.png",
+   "runs/lego/v2/frames/00015.png",
+   "runs/lego/v2/frames/00016.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.20616436372005342,
+   "dy_m": -0.022247448875245983,
+   "dz_m": -0.0032000162067815216,
+   "dxy_m": 0.20736126410096742,
+   "tilt_rad": 5.316997583087142e-06,
+   "yaw_rad": -1.2469396354822948
+  }
+ },
+ {
+  "id": "v2/seq3_bridge__goal_fsm__none__brk-roco__grip1__s0/part3",
+  "scene": "seq3_bridge",
+  "fault": "none",
+  "part": "3",
+  "faulted": false,
+  "success": false,
+  "failure_type": "lego.insufficient_support",
+  "instruction": "put the blue LEGO brick across the red and green bricks, bridging them, and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00017.png",
+   "runs/lego/v2/frames/00018.png",
+   "runs/lego/v2/frames/00019.png",
+   "runs/lego/v2/frames/00020.png",
+   "runs/lego/v2/frames/00021.png",
+   "runs/lego/v2/frames/00022.png",
+   "runs/lego/v2/frames/00023.png",
+   "runs/lego/v2/frames/00024.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.0006136837385650566,
+   "dy_m": 0.000779181820645819,
+   "dz_m": -0.007900075150337863,
+   "dxy_m": 0.0009918326676431454,
+   "tilt_rad": 2.1977031196158954e-05,
+   "yaw_rad": 0.07944632510564142
+  }
+ },
+ {
+  "id": "v2/seq3_spaced__goal_fsm__none__brk-roco__grip1__s0/part1",
+  "scene": "seq3_spaced",
+  "fault": "none",
+  "part": "1",
+  "faulted": false,
+  "success": false,
+  "failure_type": "grasp_lost",
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00027.png",
+   "runs/lego/v2/frames/00028.png",
+   "runs/lego/v2/frames/00029.png",
+   "runs/lego/v2/frames/00030.png",
+   "runs/lego/v2/frames/00031.png",
+   "runs/lego/v2/frames/00032.png",
+   "runs/lego/v2/frames/00033.png",
+   "runs/lego/v2/frames/00034.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.19399733407556158,
+   "dy_m": -0.017359771202650316,
+   "dz_m": -0.003199904049963453,
+   "dxy_m": 0.19477250135641175,
+   "tilt_rad": 2.8628733170822645e-05,
+   "yaw_rad": 1.4793632405137958
+  }
+ },
+ {
+  "id": "v2/seq3_spaced__goal_fsm__none__brk-roco__grip1__s0/part2",
+  "scene": "seq3_spaced",
+  "fault": "none",
+  "part": "2",
+  "faulted": false,
+  "success": false,
+  "failure_type": "grasp_missed",
+  "instruction": "put the green LEGO brick on the baseplate one stud away from the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00035.png",
+   "runs/lego/v2/frames/00036.png",
+   "runs/lego/v2/frames/00037.png",
+   "runs/lego/v2/frames/00038.png",
+   "runs/lego/v2/frames/00039.png",
+   "runs/lego/v2/frames/00040.png",
+   "runs/lego/v2/frames/00041.png",
+   "runs/lego/v2/frames/00042.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.20616436185740822,
+   "dy_m": -0.030247448991661034,
+   "dz_m": -0.0032000157411202416,
+   "dxy_m": 0.2083714286330434,
+   "tilt_rad": 5.44805264402626e-06,
+   "yaw_rad": -1.2469396973650344
+  }
+ },
+ {
+  "id": "v2/seq3_spaced__goal_fsm__none__brk-roco__grip1__s0/part3",
+  "scene": "seq3_spaced",
+  "fault": "none",
+  "part": "3",
+  "faulted": false,
+  "success": false,
+  "failure_type": "lego.insufficient_support",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00043.png",
+   "runs/lego/v2/frames/00044.png",
+   "runs/lego/v2/frames/00045.png",
+   "runs/lego/v2/frames/00046.png",
+   "runs/lego/v2/frames/00047.png",
+   "runs/lego/v2/frames/00048.png",
+   "runs/lego/v2/frames/00049.png",
+   "runs/lego/v2/frames/00050.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.0011666407197043482,
+   "dy_m": 0.0007573165134307919,
+   "dz_m": -0.00790004861156591,
+   "dxy_m": 0.0013908913941739845,
+   "tilt_rad": 1.6029830059520313e-05,
+   "yaw_rad": 0.009364735080849673
+  }
+ },
+ {
+  "id": "v2/seq3_stack__goal_fsm__damaging_build__brk-roco__grip1__s0/part1",
+  "scene": "seq3_stack",
+  "fault": "damaging_build",
+  "part": "1",
+  "faulted": false,
+  "success": false,
+  "failure_type": "grasp_lost",
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00119.png",
+   "runs/lego/v2/frames/00120.png",
+   "runs/lego/v2/frames/00121.png",
+   "runs/lego/v2/frames/00122.png",
+   "runs/lego/v2/frames/00123.png",
+   "runs/lego/v2/frames/00124.png",
+   "runs/lego/v2/frames/00125.png",
+   "runs/lego/v2/frames/00126.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.19399733407556158,
+   "dy_m": -0.017359771202650316,
+   "dz_m": -0.003199904049963453,
+   "dxy_m": 0.19477250135641175,
+   "tilt_rad": 2.8628733170822645e-05,
+   "yaw_rad": 1.4793632405137958
+  }
+ },
+ {
+  "id": "v2/seq3_stack__goal_fsm__damaging_build__brk-roco__grip1__s0/part2",
+  "scene": "seq3_stack",
+  "fault": "damaging_build",
+  "part": "2",
+  "faulted": true,
+  "success": false,
+  "failure_type": "grasp_missed",
+  "instruction": "put the green LEGO brick on the baseplate right next to the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00127.png",
+   "runs/lego/v2/frames/00128.png",
+   "runs/lego/v2/frames/00129.png",
+   "runs/lego/v2/frames/00130.png",
+   "runs/lego/v2/frames/00131.png",
+   "runs/lego/v2/frames/00132.png",
+   "runs/lego/v2/frames/00133.png",
+   "runs/lego/v2/frames/00134.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.20616436372005345,
+   "dy_m": -0.022247448526000017,
+   "dz_m": -0.003200015275458946,
+   "dxy_m": 0.20736126406349742,
+   "tilt_rad": 5.370103339124826e-06,
+   "yaw_rad": -1.2469396664236565
+  }
+ },
+ {
+  "id": "v2/seq3_stack__goal_fsm__damaging_build__brk-roco__grip1__s0/part3",
+  "scene": "seq3_stack",
+  "fault": "damaging_build",
+  "part": "3",
+  "faulted": false,
+  "success": false,
+  "failure_type": "lego.insufficient_support",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00135.png",
+   "runs/lego/v2/frames/00136.png",
+   "runs/lego/v2/frames/00137.png",
+   "runs/lego/v2/frames/00138.png",
+   "runs/lego/v2/frames/00139.png",
+   "runs/lego/v2/frames/00140.png",
+   "runs/lego/v2/frames/00141.png",
+   "runs/lego/v2/frames/00142.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.0019922417551845595,
+   "dy_m": -0.0008396479578707001,
+   "dz_m": -0.007900047229864078,
+   "dxy_m": 0.00216195187371442,
+   "tilt_rad": 1.8223213110268407e-05,
+   "yaw_rad": 0.00623583306783293
+  }
+ },
+ {
+  "id": "v2/seq3_stack__goal_fsm__insufficient_support__brk-roco__grip1__s0/part2",
+  "scene": "seq3_stack",
+  "fault": "insufficient_support",
+  "part": "2",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the green LEGO brick on the baseplate right next to the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00145.png",
+   "runs/lego/v2/frames/00146.png",
+   "runs/lego/v2/frames/00147.png",
+   "runs/lego/v2/frames/00148.png",
+   "runs/lego/v2/frames/00149.png",
+   "runs/lego/v2/frames/00150.png",
+   "runs/lego/v2/frames/00151.png",
+   "runs/lego/v2/frames/00152.png"
+  ],
+  "settled_error": {
+   "dx_m": -9.067247348093499e-05,
+   "dy_m": 0.0002244630968786139,
+   "dz_m": -3.8004640108731114e-07,
+   "dxy_m": 0.00024208506626285082,
+   "tilt_rad": 1.8815818638769223e-06,
+   "yaw_rad": 0.00012813052615712195
+  }
+ },
+ {
+  "id": "v2/seq3_stack__goal_fsm__insufficient_support__brk-roco__grip1__s0/part3",
+  "scene": "seq3_stack",
+  "fault": "insufficient_support",
+  "part": "3",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.insufficient_support",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00153.png",
+   "runs/lego/v2/frames/00154.png",
+   "runs/lego/v2/frames/00155.png",
+   "runs/lego/v2/frames/00156.png",
+   "runs/lego/v2/frames/00157.png",
+   "runs/lego/v2/frames/00158.png",
+   "runs/lego/v2/frames/00159.png",
+   "runs/lego/v2/frames/00160.png"
+  ],
+  "settled_error": {
+   "dx_m": -5.25124651153952e-05,
+   "dy_m": 0.0025384412900474485,
+   "dz_m": -0.0028665104021273115,
+   "dxy_m": 0.0025389843918406135,
+   "tilt_rad": 0.6806262210536069,
+   "yaw_rad": -0.002411239405824661
+  }
+ },
+ {
+  "id": "v2/seq3_stack__goal_fsm__none__brk-roco__grip1__s0/part1",
+  "scene": "seq3_stack",
+  "fault": "none",
+  "part": "1",
+  "faulted": false,
+  "success": false,
+  "failure_type": "grasp_lost",
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00053.png",
+   "runs/lego/v2/frames/00054.png",
+   "runs/lego/v2/frames/00055.png",
+   "runs/lego/v2/frames/00056.png",
+   "runs/lego/v2/frames/00057.png",
+   "runs/lego/v2/frames/00058.png",
+   "runs/lego/v2/frames/00059.png",
+   "runs/lego/v2/frames/00060.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.19399733407556158,
+   "dy_m": -0.017359771202650316,
+   "dz_m": -0.003199904049963453,
+   "dxy_m": 0.19477250135641175,
+   "tilt_rad": 2.8628733170822645e-05,
+   "yaw_rad": 1.4793632405137958
+  }
+ },
+ {
+  "id": "v2/seq3_stack__goal_fsm__none__brk-roco__grip1__s0/part2",
+  "scene": "seq3_stack",
+  "fault": "none",
+  "part": "2",
+  "faulted": false,
+  "success": false,
+  "failure_type": "grasp_missed",
+  "instruction": "put the green LEGO brick on the baseplate right next to the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00061.png",
+   "runs/lego/v2/frames/00062.png",
+   "runs/lego/v2/frames/00063.png",
+   "runs/lego/v2/frames/00064.png",
+   "runs/lego/v2/frames/00065.png",
+   "runs/lego/v2/frames/00066.png",
+   "runs/lego/v2/frames/00067.png",
+   "runs/lego/v2/frames/00068.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.20616436372005342,
+   "dy_m": -0.022247448875245983,
+   "dz_m": -0.0032000162067815216,
+   "dxy_m": 0.20736126410096742,
+   "tilt_rad": 5.316997583087142e-06,
+   "yaw_rad": -1.2469396354822948
+  }
+ },
+ {
+  "id": "v2/seq3_stack__goal_fsm__none__brk-roco__grip1__s0/part3",
+  "scene": "seq3_stack",
+  "fault": "none",
+  "part": "3",
+  "faulted": false,
+  "success": false,
+  "failure_type": "lego.insufficient_support",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00069.png",
+   "runs/lego/v2/frames/00070.png",
+   "runs/lego/v2/frames/00071.png",
+   "runs/lego/v2/frames/00072.png",
+   "runs/lego/v2/frames/00073.png",
+   "runs/lego/v2/frames/00074.png",
+   "runs/lego/v2/frames/00075.png",
+   "runs/lego/v2/frames/00076.png"
+  ],
+  "settled_error": {
+   "dx_m": 6.861902406909981e-05,
+   "dy_m": 0.002017045927126402,
+   "dz_m": -0.007900050476344086,
+   "dxy_m": 0.0020182127842726105,
+   "tilt_rad": 1.565289203639311e-05,
+   "yaw_rad": 0.04006051618416939
+  }
+ },
+ {
+  "id": "v2/single_on_brick__goal_fsm__angle_error__brk-roco__grip1__s0/part2",
+  "scene": "single_on_brick",
+  "fault": "angle_error",
+  "part": "2",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00099.png",
+   "runs/lego/v2/frames/00100.png",
+   "runs/lego/v2/frames/00101.png",
+   "runs/lego/v2/frames/00102.png",
+   "runs/lego/v2/frames/00103.png",
+   "runs/lego/v2/frames/00104.png",
+   "runs/lego/v2/frames/00105.png",
+   "runs/lego/v2/frames/00106.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.00024049729667030562,
+   "dy_m": 0.00012667464639337656,
+   "dz_m": 0.0016997638427394997,
+   "dxy_m": 0.0002718187185324292,
+   "tilt_rad": 8.146479882340006e-05,
+   "yaw_rad": 0.15562758896399176
+  }
+ },
+ {
+  "id": "v2/single_on_brick__goal_fsm__lateral_offset__brk-roco__grip1__s0/part2",
+  "scene": "single_on_brick",
+  "fault": "lateral_offset",
+  "part": "2",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00163.png",
+   "runs/lego/v2/frames/00164.png",
+   "runs/lego/v2/frames/00165.png",
+   "runs/lego/v2/frames/00166.png",
+   "runs/lego/v2/frames/00167.png",
+   "runs/lego/v2/frames/00168.png",
+   "runs/lego/v2/frames/00169.png",
+   "runs/lego/v2/frames/00170.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.003108860844367364,
+   "dy_m": 0.0006840679320241627,
+   "dz_m": 0.001700107501687283,
+   "dxy_m": 0.0031832317988585708,
+   "tilt_rad": 0.00018588098014784237,
+   "yaw_rad": -0.008366670915107122
+  }
+ },
+ {
+  "id": "v2/single_on_brick__goal_fsm__lifted_on_release__brk-roco__grip1__s0/part2",
+  "scene": "single_on_brick",
+  "fault": "lifted_on_release",
+  "part": "2",
+  "faulted": true,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00183.png",
+   "runs/lego/v2/frames/00184.png",
+   "runs/lego/v2/frames/00185.png",
+   "runs/lego/v2/frames/00186.png",
+   "runs/lego/v2/frames/00187.png",
+   "runs/lego/v2/frames/00188.png",
+   "runs/lego/v2/frames/00189.png",
+   "runs/lego/v2/frames/00190.png"
+  ],
+  "settled_error": {
+   "dx_m": 1.2181597850088877e-06,
+   "dy_m": -3.42808615522161e-07,
+   "dz_m": -4.1674096260164994e-07,
+   "dxy_m": 1.265476593497138e-06,
+   "tilt_rad": 5.569696757205057e-07,
+   "yaw_rad": 7.001968733710839e-07
+  }
+ },
+ {
+  "id": "v2/single_on_brick__goal_fsm__none__brk-roco__grip1__s0/part2",
+  "scene": "single_on_brick",
+  "fault": "none",
+  "part": "2",
+  "faulted": false,
+  "success": true,
+  "failure_type": null,
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00079.png",
+   "runs/lego/v2/frames/00080.png",
+   "runs/lego/v2/frames/00081.png",
+   "runs/lego/v2/frames/00082.png",
+   "runs/lego/v2/frames/00083.png",
+   "runs/lego/v2/frames/00084.png",
+   "runs/lego/v2/frames/00085.png",
+   "runs/lego/v2/frames/00086.png"
+  ],
+  "settled_error": {
+   "dx_m": 1.2200224241490365e-06,
+   "dy_m": -3.8751209938125974e-07,
+   "dz_m": -4.148783177351789e-07,
+   "dxy_m": 1.2800860684318702e-06,
+   "tilt_rad": 6.579473164300852e-07,
+   "yaw_rad": 7.004363209439646e-07
+  }
+ },
+ {
+  "id": "v2/single_on_brick__goal_fsm__not_fully_pressed__brk-roco__grip1__s0/part2",
+  "scene": "single_on_brick",
+  "fault": "not_fully_pressed",
+  "part": "2",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00203.png",
+   "runs/lego/v2/frames/00204.png",
+   "runs/lego/v2/frames/00205.png",
+   "runs/lego/v2/frames/00206.png",
+   "runs/lego/v2/frames/00207.png",
+   "runs/lego/v2/frames/00208.png",
+   "runs/lego/v2/frames/00209.png",
+   "runs/lego/v2/frames/00210.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.00018825391259538748,
+   "dy_m": -0.0006044656711370056,
+   "dz_m": 0.001699693988538779,
+   "dxy_m": 0.0006331021111879049,
+   "tilt_rad": 8.075125071560132e-05,
+   "yaw_rad": 0.013760862679651709
+  }
+ },
+ {
+  "id": "v2/single_on_brick__goal_fsm__partial_engagement__brk-roco__grip1__s0/part2",
+  "scene": "single_on_brick",
+  "fault": "partial_engagement",
+  "part": "2",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.partially_seated",
+  "instruction": "put the blue LEGO brick on top of the red brick and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00223.png",
+   "runs/lego/v2/frames/00224.png",
+   "runs/lego/v2/frames/00225.png",
+   "runs/lego/v2/frames/00226.png",
+   "runs/lego/v2/frames/00227.png",
+   "runs/lego/v2/frames/00228.png",
+   "runs/lego/v2/frames/00229.png",
+   "runs/lego/v2/frames/00230.png"
+  ],
+  "settled_error": {
+   "dx_m": -0.007995128642024623,
+   "dy_m": -2.502402608767218e-06,
+   "dz_m": -4.130219937552304e-07,
+   "dxy_m": 0.007995129033639251,
+   "tilt_rad": 9.865006235778982e-07,
+   "yaw_rad": 2.144812447646416e-06
+  }
+ },
+ {
+  "id": "v2/single_on_plate__goal_fsm__angle_error__brk-roco__grip1__s0/part1",
+  "scene": "single_on_plate",
+  "fault": "angle_error",
+  "part": "1",
+  "faulted": true,
+  "success": false,
+  "failure_type": "lego.not_seated",
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00109.png",
+   "runs/lego/v2/frames/00110.png",
+   "runs/lego/v2/frames/00111.png",
+   "runs/lego/v2/frames/00112.png",
+   "runs/lego/v2/frames/00113.png",
+   "runs/lego/v2/frames/00114.png",
+   "runs/lego/v2/frames/00115.png",
+   "runs/lego/v2/frames/00116.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.0009386370233349789,
+   "dy_m": -0.0010352434110124376,
+   "dz_m": 0.001699957800564034,
+   "dxy_m": 0.0013974148924424043,
+   "tilt_rad": 1.2125951790763374e-05,
+   "yaw_rad": 0.14850073043724188
+  }
+ },
+ {
+  "id": "v2/single_on_plate__goal_fsm__lateral_offset__brk-roco__grip1__s0/part1",
+  "scene": "single_on_plate",
+  "fault": "lateral_offset",
+  "part": "1",
+  "faulted": true,
+  "success": false,
+  "failure_type": "grasp_lost",
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00173.png",
+   "runs/lego/v2/frames/00174.png",
+   "runs/lego/v2/frames/00175.png",
+   "runs/lego/v2/frames/00176.png",
+   "runs/lego/v2/frames/00177.png",
+   "runs/lego/v2/frames/00178.png",
+   "runs/lego/v2/frames/00179.png",
+   "runs/lego/v2/frames/00180.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.008679282183651122,
+   "dy_m": -0.13667128351715663,
+   "dz_m": -0.003199960139809011,
+   "dxy_m": 0.1369465942528344,
+   "tilt_rad": 2.0173386488000188e-05,
+   "yaw_rad": 0.12805312066975683
+  }
+ },
+ {
+  "id": "v2/single_on_plate__goal_fsm__lifted_on_release__brk-roco__grip1__s0/part1",
+  "scene": "single_on_plate",
+  "fault": "lifted_on_release",
+  "part": "1",
+  "faulted": true,
+  "success": false,
+  "failure_type": "grasp_lost",
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00193.png",
+   "runs/lego/v2/frames/00194.png",
+   "runs/lego/v2/frames/00195.png",
+   "runs/lego/v2/frames/00196.png",
+   "runs/lego/v2/frames/00197.png",
+   "runs/lego/v2/frames/00198.png",
+   "runs/lego/v2/frames/00199.png",
+   "runs/lego/v2/frames/00200.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.010720724398407433,
+   "dy_m": -0.1374527304867703,
+   "dz_m": -0.00319991449873299,
+   "dxy_m": 0.13787018187372976,
+   "tilt_rad": 1.5444559332336913e-05,
+   "yaw_rad": 0.06090257101898322
+  }
+ },
+ {
+  "id": "v2/single_on_plate__goal_fsm__none__brk-roco__grip1__s0/part1",
+  "scene": "single_on_plate",
+  "fault": "none",
+  "part": "1",
+  "faulted": false,
+  "success": false,
+  "failure_type": "grasp_lost",
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00089.png",
+   "runs/lego/v2/frames/00090.png",
+   "runs/lego/v2/frames/00091.png",
+   "runs/lego/v2/frames/00092.png",
+   "runs/lego/v2/frames/00093.png",
+   "runs/lego/v2/frames/00094.png",
+   "runs/lego/v2/frames/00095.png",
+   "runs/lego/v2/frames/00096.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.010720724398406937,
+   "dy_m": -0.1374527342120606,
+   "dz_m": -0.0031999149643942865,
+   "dxy_m": 0.1378701855877404,
+   "tilt_rad": 1.5501303317532738e-05,
+   "yaw_rad": 0.06090251879204178
+  }
+ },
+ {
+  "id": "v2/single_on_plate__goal_fsm__not_fully_pressed__brk-roco__grip1__s0/part1",
+  "scene": "single_on_plate",
+  "fault": "not_fully_pressed",
+  "part": "1",
+  "faulted": true,
+  "success": false,
+  "failure_type": "grasp_lost",
+  "instruction": "put the red LEGO brick on the grey baseplate and press it onto the studs",
+  "frames": [
+   "runs/lego/v2/frames/00213.png",
+   "runs/lego/v2/frames/00214.png",
+   "runs/lego/v2/frames/00215.png",
+   "runs/lego/v2/frames/00216.png",
+   "runs/lego/v2/frames/00217.png",
+   "runs/lego/v2/frames/00218.png",
+   "runs/lego/v2/frames/00219.png",
+   "runs/lego/v2/frames/00220.png"
+  ],
+  "settled_error": {
+   "dx_m": 0.010720454314641477,
+   "dy_m": -0.1374543621638848,
+   "dz_m": -0.0031998926126576067,
+   "dxy_m": 0.1378717876093319,
+   "tilt_rad": 2.7537269379513613e-05,
+   "yaw_rad": 0.06091475132028723
+  }
+ }
+]
