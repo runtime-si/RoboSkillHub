@@ -24,12 +24,14 @@ def plane(z=0.15):
 
 def test_noise_grows_with_z_squared_and_is_quantised_to_1_mm():
     rng = np.random.default_rng(0)
-    near = D.add_fitted_noise(plane(0.10), D.D405_K, rng)
-    far = D.add_fitted_noise(plane(0.20), D.D405_K, rng)
+    raw = {"quant_step_m": 1e-7}  # the z^2 law without the 1 mm steps
+    near = D.add_fitted_noise(plane(0.10), D.D405_K, rng, raw)
+    far = D.add_fitted_noise(plane(0.20), D.D405_K, rng, raw)
     s_near = near[near > 0].std()
     s_far = far[far > 0].std()
     assert 3.0 < s_far / s_near < 5.0  # (0.20 / 0.10)^2 = 4
-    q = np.unique(np.round(near[near > 0] * 1e4).astype(int) % 10)
+    stepped = D.add_fitted_noise(plane(0.20), D.D405_K, rng)
+    q = np.unique(np.round(stepped[stepped > 0] * 1e4).astype(int) % 10)
     assert set(q.tolist()) <= {0, 9, 1}  # 1 mm steps (float32 rounding)
 
 

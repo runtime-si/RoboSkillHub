@@ -42,6 +42,24 @@ gap:
 
 Simulated depth is too clean. This puts the station's real D405 back into it.
 
+## Refit of the smooth term (texture-free)
+
+The first fit's smooth term (1.0 mm at 15 cm) came from plane residuals on the
+wood table, so it held the table's relief. `scripts/fit_temporal.py` measures
+what changes between two captures of the same static scene instead: consecutive
+wrist frames of one run with RGB mean difference < 0.5, median depth within
+0.05 mm and some pixels changed (not a duplicated save) - 6 such pairs at
+16 cm in the recorded data. Their depth difference / sqrt(2), low-passed at
+the model's 30 px: **0.0072 z^2 = 0.16 mm at 15 cm** (p90 0.018 z^2 =
+0.41 mm), against the first fit's 0.0452 z^2 = 1.0 mm: about 85 % of the old
+term was not the sensor's time-varying error. Frame to frame, the fine noise
+is ~0 (0.001 mm): 93-95 % of pixels repeat exactly (the stream's 1 mm steps
+and its temporal filter), so the fine term (0.51 mm, spatial) stays as fitted
+and is a fixed-pattern-plus-relief upper bound. Six pairs is little: the
+smooth term carries that uncertainty. No flat reference surface was found in
+the recorded wrist frames (the holders on the table are pocketed or carry
+pens).
+
 ## The fitted model (`D405_FIT`)
 
 `scripts/fit_noise.py` on **401 real wrist D405 frames** of the YAM station
@@ -52,7 +70,8 @@ over 35 cm excluded; 13 166 flat 60 x 60 px patches, 1 337 flat 192 px windows):
 |---|---|---|
 | fine noise (plane residual, 60 px patch) | sigma = 0.0228 z^2 (0.51 mm at 15 cm; patch median 0.54 mm, p10-p90 0.31-1.40 mm) | 0.0113 z^2 (0.25 mm) |
 | its spatial correlation | Gaussian, 2.4 px (lag-1 0.93, lag-3 0.79) | 1 px |
-| smooth error (192 px window, low-passed) | 0.0452 z^2 (1.0 mm at 15 cm; median 1.07 mm) | none |
+| smooth error, frame to frame (30 px; refit, below) | **0.0072 z^2 (0.16 mm at 15 cm)** | none |
+| (first fit: smooth spatial error, 192 px window - the table's relief) | (0.0452 z^2, 1.0 mm; no longer used) | |
 | dropout at depth edges (> 2 cm jumps) | 41 % | 50 % flying / mixed pixels |
 | quantisation of the stream | **1 mm** | 0.1 mm |
 
