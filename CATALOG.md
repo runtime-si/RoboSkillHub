@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-26 tools, 143 skills, 2 policies, 1 recipe and 1 paper.
+26 tools, 144 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -69,6 +69,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`reconstructing-collision-worlds`](#reconstructing-collision-worlds) | perceive | Reconstructs a planner collision world from calibrated RGB-D views alone, excluding the grasp target, the robot, and a… | any |
 | [`refining-target-from-wrist-closeup`](#refining-target-from-wrist-closeup) | perceive | Refines a coarse world-frame target (an overhead perception's OBB or point) by aiming the wrist RGB-D camera at it… | any |
 | [`registering-held-objects`](#registering-held-objects) | perceive | Reobserves a grasped rigid object from the wrist cameras, estimates its functional feature in the TCP frame, and fits… | any |
+| [`scanning-the-board-into-a-wrist-mosaic`](#scanning-the-board-into-a-wrist-mosaic) | perceive | Scans a table region (the jigsaw board, a staging area) with the wrist camera from straight above and blends the… | any |
 | [`segmenting-and-picking-pieces-classical`](#segmenting-and-picking-pieces-classical) | perceive | Finds the loose jigsaw pieces lying on a staging mat in one top-down RGB(-D) frame without a learned model. | any |
 | [`tracking-build-state`](#tracking-build-state) | perceive | Keeps a world model of the LEGO or DUPLO bricks placed so far and their stud connections. | any |
 | [`tracking-identical-parts-by-id`](#tracking-identical-parts-by-id) | perceive | Keeps a stable id for each of many look-alike parts (dominoes, same-colour bricks, jigsaw pieces, cubes) across… | any |
@@ -873,6 +874,21 @@ Reobserves a grasped rigid object from the wrist cameras, estimates its function
 - **Exits**:
   - `registered`: A feature-in-TCP transform and attachment were produced; registration_confidence is the accepted mask score, or 0.25 when the grasp-time or prior transform was retained.
   - `lost`: Registration raised — no cloud could be fitted into an attachment or a geometry fit failed, so the object is no longer localized.
+
+### scanning-the-board-into-a-wrist-mosaic
+
+perceive · robots: any · tasks: jigsaw, pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/scanning-the-board-into-a-wrist-mosaic/SKILL.md) · [upstream](https://github.com/OpenStitching/stitching)
+
+Scans a table region (the jigsaw board, a staging area) with the wrist camera from straight above and blends the frames into one top-down image at a chosen resolution - picks the camera height for the asked pixels per metre (10-30 cm), tiles the region with 25 % overlap in a serpentine, previews each pose with IK (trying the other wrist rolls), and maps every frame onto the region's plane by the homography its own camera pose and intrinsics induce, feathered at the frame borders; checks the overlaps by phase correlation and also returns a height map from the depth. Gives the board corners in the mosaic for registering-assembled-board-to-reference. Use when the overhead camera sees too few pixels per piece (about 11 at 0.9 m) and a board-wide check or a staging inventory needs 50-100 px per piece; moves the arm, no learned model.
+
+- **In**: `region_center` Vec3
+- **Out**: `metres_per_pixel` float, `covered_fraction` float, `seam_shift_px` float, `tiles_seen` int
+- **Calls**: connector `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.solve_ik`
+- **Scripts**: [`scan_mosaic`](skills/scanning-the-board-into-a-wrist-mosaic/scripts/scan_mosaic.py)
+- **Exits**:
+  - `mosaic_built`: Every planned frame was reached and the frames cover at least 98 % of the region; `mosaic` (RGB), `height_map` (m over the surface), `metres_per_pixel`, `origin` and `board_corners_px` describe it.
+  - `partial`: Some frame positions were not reached (IK, refusal) or under 98 % is covered; the mosaic is returned with the gaps black and the height map NaN there.
+  - `failed`: No wrist camera with a pose in the observation, more than 64 frames needed, or no frame position reached.
 
 ### segmenting-and-picking-pieces-classical
 
