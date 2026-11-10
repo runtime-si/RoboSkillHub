@@ -169,6 +169,7 @@ class GapTools:
             "robot.get_gripper": self._gripper,
             "robot.describe_gripper": self._describe_gripper,
             "robot.open_gripper": self._open,
+            "robot.close_gripper": self._close,
         }.get(name)
         if fn is None:
             raise RuntimeError(f"{name} is not served on this station")
@@ -293,6 +294,12 @@ class GapTools:
 
     def _describe_gripper(self, **_kw) -> dict:
         return {"width_fit": {"at_open_m": MAX_OPENING_M, "at_closed_m": 0.0}}
+
+    def _close(self, **_kw) -> dict:
+        r = self.ctx.invoke(
+            "set_gripper", {"width_m": 0.0, "purpose": "close", "timeout_s": self.timeout}
+        )
+        return {"success": r.get("status") == "succeeded"}
 
     def _open(self, **_kw) -> dict:
         r = self.ctx.invoke(

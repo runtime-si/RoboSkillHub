@@ -1,0 +1,23 @@
+{
+  "skill": "regrasping-a-brick-to-turn-studs-up",
+  "inputs": {"brick_position": "Vec3", "up_vector": "Vec3"},
+  "outputs": {
+    "push_direction": {"$ref": "tip.push_direction"},
+    "tips_left": {"$ref": "tip.tips_left"}
+  },
+  "nodes": {
+    "tip": {
+      "type": "script",
+      "script": "scripts/tip_brick.py",
+      "inputs": {
+        "brick_position": {"$ref": "in.brick_position"},
+        "up_vector": {"$ref": "in.up_vector"},
+        "system": "lego",
+        "brick_studs": [2, 4]
+      }
+    }
+  },
+  "edges": [["START", "tip"], ["tip", "END"]],
+  "exit": {"router_field": "route", "success_values": ["tipped", "already_studs_up"]},
+  "on_error": "blocked"
+}
