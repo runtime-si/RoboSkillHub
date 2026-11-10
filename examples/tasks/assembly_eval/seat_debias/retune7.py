@@ -6,6 +6,7 @@ import importlib.util
 import itertools
 import json
 import sys
+from collections import Counter
 from pathlib import Path
 
 spec = importlib.util.spec_from_file_location("f", sys.argv[1])
@@ -17,6 +18,8 @@ for f in glob.glob(sys.argv[2] + "/*__r7_*/**/episode.json", recursive=True):
     ind = e["independent"]
     name = Path(f).relative_to(sys.argv[2]).parts[0]
     steps = {s.get("node"): s for s in e["steps"]}
+    if not ind["placements"]:
+        continue
     p = ind["placements"][0]
     d = (steps.get("depth") or {}).get("result") or {}
     hub = (d.get("evidence") or {}).get("hub_outputs") or {}
@@ -35,6 +38,12 @@ for f in glob.glob(sys.argv[2] + "/*__r7_*/**/episode.json", recursive=True):
             if rel.get("status") == "failed" or relm.get("holding") is True
             else ("reached" if rel else ""),
             "rise": (pull.get("evidence") or {}).get("brick_rise_m"),
+            "true_tilt_deg": __import__("math").degrees(
+                abs(((p.get("measured") or {}).get("settled_error") or {}).get("tilt_rad") or 0.0)
+            ),
+            "true_dz_mm": 1e3
+            * (((p.get("measured") or {}).get("settled_error") or {}).get("dz_m") or 0.0),
+            "scene": name.split("__")[0],
         }
     )
 TR = [r for r in rows if r["seed"] < 3]
@@ -82,7 +91,9 @@ def score(rows, j):
 
 
 best = None
-for H, T in itertools.product([0.0004, 0.0006, 0.0008, 0.001, 0.0012], [1.5, 2.5, 3.5, 5.0, 8.0]):
+for H, T in itertools.product(
+    [0.0004, 0.0006, 0.0008, 0.001, 0.0012, 0.0014], [1.5, 2.0, 2.5, 3.0, 4.0, 5.0]
+):
     s = score(TR, lambda r, H=H, T=T: seat(r, H, T))
     key = (s["fd"] == 0, s["acc"], -H, -T)
     if best is None or key > best[0]:
@@ -106,4 +117,33 @@ print(
 print(
     "tilts deg (seated):",
     sorted(round(r["tilt"], 1) for r in rows if r["truth"] and r["tilt"] is not None),
+)
+
+print("seated: estimator tilt vs BrickSim tilt (deg), height vs true dz (mm), by scene:")
+print(
+    Counter(
+        (
+            r["scene"],
+            round(r["tilt"], 1),
+            round(r["true_tilt_deg"], 2),
+            round(r["h"] * 1e3, 2),
+            round(r["true_dz_mm"], 2),
+        )
+        for r in rows
+        if r["truth"] and r["h"] is not None
+    )
+)
+print(
+    "failed:",
+    Counter(
+        (
+            r["scene"],
+            round(r["tilt"], 1),
+            round(r["true_tilt_deg"], 2),
+            round(r["h"] * 1e3, 2),
+            round(r["true_dz_mm"], 2),
+        )
+        for r in rows
+        if not r["truth"] and r["h"] is not None
+    ),
 )

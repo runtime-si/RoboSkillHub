@@ -266,3 +266,38 @@ here they apply to a depth camera's view of the released brick. The
 measurement (two-layer plane, local reference, coverage) is new. The view
 code follows pressing-a-brick-onto-studs. The script's header lists the
 changes; licences in LICENSE.bricksim and LICENSE.icl.
+
+## Noisy, millimetre-stepped depth: `face_estimator="stud_mask"`
+
+The default `two_layer` fit separates face pixels from stud-top pixels by
+height; under the station's D405 (fitted noise, depth in 1 mm steps) it
+misassigns them and reads seated LEGO bricks high (+1.10 mm on 12 of 16
+seated placements, LEGO station, RTX wrist depth). `stud_mask` leaves out
+every pixel within 3.6 mm of a stud axis (the brick's own and the plate's
+lattice, from the seat pose), keeps the face pixels within +-4 mm of a first
+level (a narrow window locked the quantisation offset in), trims 10 % per tail
+and fits a plane; the noise dithers the 1 mm steps. Its default tilt
+tolerance is 2.0 deg (`STUD_MASK_TILT_TOL_DEG`).
+
+LEGO station (Isaac + BrickSim), RTX wrist depth + fitted D405 noise,
+single_on_plate / single_on_brick x {no fault + 6 station faults}; tolerances
+chosen on seeds 0-2 (38 placements), reported on seeds 3-5 (39 placements:
+22 seated, 17 not):
+
+| `stud_mask` tolerances | false done | successes accepted | unverified | failures caught |
+|---|---|---|---|---|
+| 0.6 mm, 1.5 deg (the LEGO defaults) | 0/17 | 7/22 | 11 | 12/17 |
+| **0.6 mm, 2.0 deg (retuned)** | **0/17** | **16/22** | 11 | 12/17 |
+| judging-assembly-steps-by-fused-checks with it | 0/17 | 16/22 | 6 uncertain | 17/17 |
+
+- Seated bricks read -0.04 mm (on the plate) and +0.45 mm (on a brick);
+  failed ones 1.45-2.12 mm (BrickSim: 1.7 mm high).
+- **The 1.7 deg on seated plate bricks is not real**: BrickSim's settled tilt
+  of those bricks is 0.00 deg, the reading is the same for every noise seed
+  (deterministic), and a ray-cast scene of the same view reads 0.0 deg - an
+  artifact of the rendered view with this estimator, absorbed by the 2.0 deg
+  tolerance, not yet removed. Failed plate bricks read 1.2-2.1 deg but are
+  caught by their height.
+- The 11 unverified / 6 uncertain are lost-target and stuck-jaws placements
+  (no brick to read at the seat); 7 of 84 episodes ended before a placement
+  and are not counted.
