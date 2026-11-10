@@ -1,0 +1,186 @@
+{
+ "chosen": {
+  "max_height_error_m": 0.0003,
+  "max_pull_rise_m": 0.0006
+ },
+ "train": {
+  "n": 132,
+  "succ": 91,
+  "fail": 41,
+  "false_done": 0,
+  "false_done_rate": 0.0,
+  "accepted_succ": 82,
+  "accept_rate": 0.901,
+  "uncertain": 9,
+  "failed_caught": 41
+ },
+ "held-out": {
+  "fused": {
+   "n": 75,
+   "succ": 42,
+   "fail": 33,
+   "false_done": 0,
+   "false_done_rate": 0.0,
+   "accepted_succ": 36,
+   "accept_rate": 0.857,
+   "uncertain": 6,
+   "failed_caught": 33
+  },
+  "depth seat (hub verify_seat_depth route)": {
+   "n": 75,
+   "succ": 42,
+   "fail": 33,
+   "false_done": 0,
+   "false_done_rate": 0.0,
+   "accepted_succ": 36,
+   "accept_rate": 0.857,
+   "uncertain": 12,
+   "failed_caught": 27
+  },
+  "pull-up route (hub pull_up_check)": {
+   "n": 75,
+   "succ": 42,
+   "fail": 33,
+   "false_done": 0,
+   "false_done_rate": 0.0,
+   "accepted_succ": 0,
+   "accept_rate": 0.0,
+   "uncertain": 0,
+   "failed_caught": 33
+  },
+  "task verify (lego.verify_connection)": {
+   "n": 75,
+   "succ": 42,
+   "fail": 33,
+   "false_done": 0,
+   "false_done_rate": 0.0,
+   "accepted_succ": 36,
+   "accept_rate": 0.857,
+   "uncertain": 12,
+   "failed_caught": 27
+  },
+  "press connection_verified (guarded_seat)": {
+   "n": 75,
+   "succ": 42,
+   "fail": 33,
+   "false_done": 0,
+   "false_done_rate": 0.0,
+   "accepted_succ": 0,
+   "accept_rate": 0.0,
+   "uncertain": 0,
+   "failed_caught": 33
+  },
+  "release jaws opened (gripper at release)": {
+   "n": 75,
+   "succ": 42,
+   "fail": 33,
+   "false_done": 27,
+   "false_done_rate": 0.818,
+   "accepted_succ": 36,
+   "accept_rate": 0.857,
+   "uncertain": 0,
+   "failed_caught": 6
+  },
+  "pull rise alone": {
+   "n": 75,
+   "succ": 42,
+   "fail": 33,
+   "false_done": 6,
+   "false_done_rate": 0.182,
+   "accepted_succ": 42,
+   "accept_rate": 1.0,
+   "uncertain": 0,
+   "failed_caught": 27
+  }
+ },
+ "held-out, no depth result": {
+  "fused": {
+   "n": 12,
+   "succ": 6,
+   "fail": 6,
+   "false_done": 0,
+   "false_done_rate": 0.0,
+   "accepted_succ": 0,
+   "accept_rate": 0.0,
+   "uncertain": 6,
+   "failed_caught": 6
+  },
+  "depth seat (hub verify_seat_depth route)": {
+   "n": 12,
+   "succ": 6,
+   "fail": 6,
+   "false_done": 0,
+   "false_done_rate": 0.0,
+   "accepted_succ": 0,
+   "accept_rate": 0.0,
+   "uncertain": 12,
+   "failed_caught": 0
+  },
+  "pull-up route (hub pull_up_check)": {
+   "n": 12,
+   "succ": 6,
+   "fail": 6,
+   "false_done": 0,
+   "false_done_rate": 0.0,
+   "accepted_succ": 0,
+   "accept_rate": 0.0,
+   "uncertain": 0,
+   "failed_caught": 6
+  },
+  "task verify (lego.verify_connection)": {
+   "n": 12,
+   "succ": 6,
+   "fail": 6,
+   "false_done": 0,
+   "false_done_rate": 0.0,
+   "accepted_succ": 0,
+   "accept_rate": 0.0,
+   "uncertain": 12,
+   "failed_caught": 0
+  },
+  "press connection_verified (guarded_seat)": {
+   "n": 12,
+   "succ": 6,
+   "fail": 6,
+   "false_done": 0,
+   "false_done_rate": 0.0,
+   "accepted_succ": 0,
+   "accept_rate": 0.0,
+   "uncertain": 0,
+   "failed_caught": 6
+  },
+  "release jaws opened (gripper at release)": {
+   "n": 12,
+   "succ": 6,
+   "fail": 6,
+   "false_done": 0,
+   "false_done_rate": 0.0,
+   "accepted_succ": 0,
+   "accept_rate": 0.0,
+   "uncertain": 0,
+   "failed_caught": 6
+  },
+  "pull rise alone": {
+   "n": 12,
+   "succ": 6,
+   "fail": 6,
+   "false_done": 6,
+   "false_done_rate": 1.0,
+   "accepted_succ": 6,
+   "accept_rate": 1.0,
+   "uncertain": 0,
+   "failed_caught": 0
+  }
+ },
+ "pick": {
+  "n": 207,
+  "succ": 207,
+  "fail": 0,
+  "false_done": 0,
+  "false_done_rate": null,
+  "accepted_succ": 207,
+  "accept_rate": 1.0,
+  "uncertain": 0,
+  "failed_caught": 0
+ }
+}

@@ -1,0 +1,53 @@
+{
+  "skill": "judging-assembly-steps-by-fused-checks",
+  "inputs": {
+    "step_type": "string",
+    "seat_route": "string",
+    "height_error_m": "float",
+    "brick_rise_m": "float"
+  },
+  "outputs": {
+    "reason": {
+      "$ref": "fuse.reason"
+    }
+  },
+  "nodes": {
+    "fuse": {
+      "type": "script",
+      "script": "scripts/fuse_checks.py",
+      "inputs": {
+        "step_type": {
+          "$ref": "in.step_type"
+        },
+        "seat_route": {
+          "$ref": "in.seat_route"
+        },
+        "height_error_m": {
+          "$ref": "in.height_error_m"
+        },
+        "brick_rise_m": {
+          "$ref": "in.brick_rise_m"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "fuse"
+    ],
+    [
+      "fuse",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "done",
+      "failed",
+      "uncertain"
+    ]
+  },
+  "on_error": "uncertain"
+}
