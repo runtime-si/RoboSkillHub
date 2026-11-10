@@ -89,8 +89,21 @@ through the last joint; `full` sends the whole rotation to `step_tool`.
   - Integrating at `dt_s` 0.5 s with a step cap, instead of streaming
     velocity.
   - The path tracer's noisy frames.
-- **Next:** `mode="full"` on an arm whose IK honours the full rotation,
-  smaller `dt_s`, and a check of the velocity frame on a single-axis offset.
+- **Single-axis check** (hand +4.6 mm in x, no turn, `dt_s` 0.3; 5 steps
+  before the shared host ran out of time):
+  - CNS commanded mostly rotation (wx up to 0.18 rad/s, wy 0.07-0.18) and
+    little translation.
+  - Plane mode applied only the translation, and the hand moved further
+    +x by 1.3-2.6 mm per step: 4.6 mm became 14 mm off.
+  - CNS's error grew from 0.010 to 0.048; matches fell from 41 to 28.
+  - Either the translation sign / frame is wrong, or the translation without
+    its rotation is the wrong command (a 45 deg tilted camera sees a
+    sideways offset much like a tilt). Not separated yet.
+- **Next:**
+  - repeat the single-axis check with the translation negated;
+  - `mode="full"` on an arm whose IK honours the full rotation (the twin's
+    leaves the wrist roll free);
+  - a smaller `dt_s`.
 
 Compare `correcting-in-plane-offset-by-discrete-moves`, which brought the
 same starts to a median 0.52 mm.
