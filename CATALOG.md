@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-30 tools, 162 skills, 2 policies, 1 recipe and 1 paper.
+30 tools, 162 skills, 3 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -218,6 +218,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 
 | Policy | Stage | What it does | Robots |
 | --- | --- | --- | --- |
+| [`gr00t`](#gr00t) | execute | NVIDIA GR00T as the contact-rich step of a GaP graph on the bimanual YAM station. | yam_i2rt, 2 arms |
 | [`molmoact-libero`](#molmoact-libero) | execute | Run the MolmoAct LIBERO checkpoint (allenai/MolmoAct-7B-D-LIBERO-0812) as a closed-loop VLA policy for the dexterous… | panda, **sim only** |
 | [`pi05-libero`](#pi05-libero) | execute | Run the openpi π0.5 LIBERO checkpoint (pi05_libero) as a closed-loop VLA policy for the dexterous pick-and-place… | panda, **sim only** |
 
@@ -3186,6 +3187,27 @@ Judges whether a step is done from the current camera frame alone - scores the t
   - `low_confidence`: The sampled frames disagree by more than max_spread, the camera has no RGB, densereward raised, or no float parsed; nothing was judged.
 
 ## Policy details
+
+### gr00t
+
+execute · robots: yam_i2rt, 2 arms · tasks: pick-place, assembly · Apache-2.0 · v0.1.0 · [`SKILL.md`](policies/gr00t/SKILL.md) · [upstream](https://github.com/NVIDIA/Isaac-GR00T/tree/7aa0bca50f1097f8b17f5c274c98264b72a1419f/gr00t/policy)
+
+NVIDIA GR00T as the contact-rich step of a GaP graph on the bimanual YAM station - the graph decides what and where (perception, planning) and marks grasp / release points on the policy's top camera view; GR00T does the how. gr00t.act returns one chunk of 14-D absolute joint + jaw targets (left 7, right 7) from the top and two wrist views, the joint state, an instruction and the marks; gr00t.run_skill executes chunks closed-loop through the robot connector until a success check passes or the step budget runs out. Backend GR00T N1.7 now (robocurve/gr00t-n1.7-yam-molmoact2, or base N1.7 on its XDOF tag), with a GR00T 2 slot behind the same protocol. Use when a graph has already chosen the object and the place and wants a learned bimanual YAM policy to grasp, place or press it, optionally steered by pixel marks. Not for embodiments other than the YAM, for tasks far from the checkpoint's data (block, box, charging) without fine-tuning, or as a success signal - attach a verify skill after it.
+
+- **Calls**: connector `robot.close_gripper`, `robot.execute_trajectory`, `robot.get_observation`, `robot.move_to_joints`, `robot.open_gripper`
+- **Trained on**: action `joint_position_absolute` ×14 at 30 Hz; state 14 (left_joints_6, left_opening, right_joints_6, right_opening); cameras `top`, `left_wrist`, `right_wrist`
+- **Weights**: `hf://robocurve/gr00t-n1.7-yam-molmoact2@f04fe258e6a5d84c939547cd49043fbc3b1e8985`
+- **Note**: Opening 0 closed, 1 open. Joint frame = the MolmoAct2-YAM data's; the real station adds pi/2 to each base joint (GAP_GR00T_JOINT_OFFSET). Chunk 16 rows (YAM fine-tune) or 40 (base, XDOF tag) at 30 Hz. N1.7 never saw marks: they are drawn into the image (steering emulated-overlay); GR00T 2 takes them as input.
+- **Exits**:
+  - `succeeded`: The success check passed (checked after every check_every chunks and at the end).
+  - `max_steps`: max_steps action rows ran without the success check passing (or no check was given).
+  - `unsafe_action`: A chunk asked a joint to move further than max_joint_step_rad in one row (from the measured arm or between rows); nothing of that chunk was executed.
+  - `failed`: The server did not answer, refused the request, or the connector refused a move. The subgraph's on_error exit.
+- **Functions**:
+  - `gr00t.act`: One GR00T chunk [T, 14] for the YAM station from three views, the joint state, an instruction and optional grasp/release marks.
+  - `gr00t.run_skill`: Closed-loop GR00T until a success check passes or max_steps rows ran.
+  - `gr00t.marks_from_points`: World points (grasp, release) to pixel marks on a camera view.
+  - `gr00t.info`: What the server runs (backend, checkpoint, horizon, rate, steering mode, GPU memory).
 
 ### molmoact-libero
 

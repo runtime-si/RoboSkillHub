@@ -850,3 +850,15 @@ skills/picking-flat-pieces-by-suction-cup/scripts/suction_points.py reimplements
 baseline of arc-robot-vision (https://github.com/andyzeng/arc-robot-vision, commit 728139e9ad0e,
 suction-based-grasping/baseline/predict.m) in numpy, Apache License 2.0, Copyright (c) 2017 Andy Zeng et al.;
 the licence is skills/picking-flat-pieces-by-suction-cup/LICENSE.arc-robot-vision. The file's header lists the changes.
+policies/gr00t/server.py runs GR00T N1.7 through NVIDIA Isaac-GR00T
+(https://github.com/NVIDIA/Isaac-GR00T, commit
+7aa0bca50f1097f8b17f5c274c98264b72a1419f), Apache License 2.0, Copyright NVIDIA
+Corporation & Affiliates, which it imports from the bundle's own environment;
+no Isaac-GR00T code is copied. Its ZMQ transport follows the request framing
+of gr00t/policy/server_client.py, the rot6d state follows
+gr00t/data/state_action/pose.py, and the profiles' modality keys are those of
+the checkpoints' configs. The weights - nvidia/GR00T-N1.7-3B,
+robocurve/gr00t-n1.7-yam-molmoact2 and the gated nvidia/Cosmos-Reason2-2B
+backbone - are under the NVIDIA Open Model License and are downloaded from
+Hugging Face at run time; none are redistributed here. The optional stand-in
+backbone Qwen/Qwen3-VL-2B-Instruct is Apache-2.0.

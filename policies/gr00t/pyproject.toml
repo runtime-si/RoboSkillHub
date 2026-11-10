@@ -1,0 +1,33 @@
+[project]
+name = "gr00t-policy-bundle"
+version = "0.1.0"
+description = "GR00T policy server (gr00t-wam/1 over HTTP or ZMQ) for the YAM station: N1.7 through Isaac-GR00T's Gr00tPolicy now, a GR00T 2 backend slot for when it is released."
+readme = "SKILL.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "Apache-2.0" }
+
+# The server's environment (a GPU host): Isaac-GR00T at the commit the bundle was measured with, which
+# brings torch 2.9 (cu128, Blackwell kernels), transformers 4.57.3, pyzmq, msgpack-numpy and
+# huggingface_hub. Isaac-GR00T's own uv.lock also lists an aarch64 torchcodec wheel stored with git
+# LFS, which `uv sync` in a plain clone cannot read; SKILL.md (Install) gives the recipe that works:
+# clone at the commit, `uv venv --python 3.12`, `uv pip install -e .`.
+dependencies = [
+  "gr00t @ git+https://github.com/NVIDIA/Isaac-GR00T.git@7aa0bca50f1097f8b17f5c274c98264b72a1419f",
+  "huggingface_hub>=0.24",
+  "numpy>=1.26",
+  "pillow>=10",
+  "pyzmq>=26",
+  "msgpack>=1.0",
+  "msgpack-numpy>=0.4.8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# The wheel carries no code: server.py is run directly (cwd = this bundle).
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
+
+[tool.hatch.metadata]
+allow-direct-references = true
