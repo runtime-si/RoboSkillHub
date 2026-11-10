@@ -368,6 +368,13 @@ class LegoVision:
             )
         now = time.time()
         out = {tid: {**d, "timestamp_s": now} for tid, d in self._out.items()}
+        diag = os.environ.get("LEGO_VISION_DIAG_SIGMA_M")
+        if diag:
+            # DIAGNOSTIC ONLY: claim a position sigma the estimates do not have (align needs 2 sigma <= 0.5 mm;
+            # measured vision error ~1.1 mm), to see what fails after align. Never a result.
+            for d in out.values():
+                d["uncertainty"] = {**(d.get("uncertainty") or {}), "position_m": float(diag)}
+                d["diagnostic_claimed_sigma_m"] = float(diag)
         if self._held is not None and self._held[0] in out:
             # recomputed from the TCP on this read, not from the last image
             out[self._held[0]]["sim_time_s"] = sim_t

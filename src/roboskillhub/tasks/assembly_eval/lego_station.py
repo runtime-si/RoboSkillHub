@@ -619,8 +619,12 @@ class LegoPhysicsStation:
         pose, opening = self.physics.hand()
         objects = self._objects(now)
         if self.vision is not None:
-            # the simulation does not advance while the images are processed: stamp the read after it
+            # Perception time is not robot time: the RTX images take 1.5-5 s of wall time to process, which
+            # the catch-up would otherwise add to the simulation (and every read would re-image). The clock
+            # resumes from here, as if perception ran in real time on its own GPU; vision.log keeps the
+            # processing time. The read is stamped after it.
             now = time.time()
+            self._last_wall = now
         return {
             "pose": {
                 "frame_id": "world",
