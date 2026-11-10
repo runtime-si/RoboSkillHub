@@ -1,0 +1,9 @@
+{
+  "skill": "simulating-d405-stereo-depth",
+  "inputs": {"camera": "string"},
+  "outputs": {"hole_fraction": {"$ref": "stereo.hole_fraction"}, "reason": {"$ref": "stereo.reason"}},
+  "nodes": {"stereo": {"type": "script", "script": "scripts/stereo_depth.py", "inputs": {"camera": {"$ref": "in.camera"}}}},
+  "edges": [["START", "stereo"], ["stereo", "END"]],
+  "exit": {"router_field": "route", "success_values": ["depth_rendered"]},
+  "on_error": "no_pair"
+}

@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-29 tools, 160 skills, 2 policies, 1 recipe and 1 paper.
+30 tools, 161 skills, 2 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -18,6 +18,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | --- | --- | --- | --- |
 | [`colour`](#colour) | perceive | What colour a segmented part is. | any, *tuned on* yam-station-orbbec-overhead |
 | [`curve`](#curve) | perceive | Ordered centrelines of deformable linear objects. | any |
+| [`d405-stereo`](#d405-stereo) | perceive | Depth the way a RealSense D405 measures it, from a rendered passive IR stereo pair (18 mm baseline, no projector). | any |
 | [`depth`](#depth) | perceive | Robbyant LingBot-Depth v0.5 run locally on a GPU. | any |
 | [`gemini-er`](#gemini-er) | perceive | Open-vocabulary 2D detection and pointing via the Gemini Robotics-ER API. | any |
 | [`geometry`](#geometry) | perceive | Pure-math 3D geometry toolbox. | any, *tuned on* panda |
@@ -77,6 +78,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`registering-held-objects`](#registering-held-objects) | perceive | Reobserves a grasped rigid object from the wrist cameras, estimates its functional feature in the TCP frame, and fits… | any |
 | [`scanning-the-board-into-a-wrist-mosaic`](#scanning-the-board-into-a-wrist-mosaic) | perceive | Scans a table region (the jigsaw board, a staging area) with the wrist camera from straight above and blends the… | any |
 | [`segmenting-and-picking-pieces-classical`](#segmenting-and-picking-pieces-classical) | perceive | Finds the loose jigsaw pieces lying on a staging mat in one top-down RGB(-D) frame without a learned model. | any |
+| [`simulating-d405-stereo-depth`](#simulating-d405-stereo-depth) | perceive | Replaces a simulated camera's perfect depth with D405-like passive stereo depth computed from the camera's two… | any |
 | [`tracking-build-state`](#tracking-build-state) | perceive | Keeps a world model of the LEGO or DUPLO bricks placed so far and their stud connections. | any |
 | [`tracking-identical-parts-by-id`](#tracking-identical-parts-by-id) | perceive | Keeps a stable id for each of many look-alike parts (dominoes, same-colour bricks, jigsaw pieces, cubes) across… | any |
 | [`tracking-objects`](#tracking-objects) | perceive | Long-running skill that drives the SAM3 tracker from the graph-scoped observation stream. | any |
@@ -245,6 +247,16 @@ Ordered centrelines of deformable linear objects — skeletonises a cable, rope 
   - `curve.fit_centerline`: Fit an ordered, arc-length-parameterised 3D centreline to a deformable linear object from its mask and a depth frame.
   - `curve.track_centerline`: Advance a known centreline onto a new frame, imputing motion for occluded stretches from their visible neighbours.
   - `curve.endpoints`: Both ends of a centreline -- each end's position, outward direction and pixel -- and which end a pixel or point hint names.
+
+### d405-stereo
+
+perceive · robots: any · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/d405-stereo/SKILL.md) · [upstream](https://github.com/haosulab/SAPIEN/blob/788fd0afb009/python/py_package/sensor/stereodepth.py)
+
+Depth the way a RealSense D405 measures it, from a rendered passive IR stereo pair (18 mm baseline, no projector) - OpenCV semi-global matching with uniqueness and left-right checks, sub-pixel disparity, speckle filtering, image noise and the stream's 1 mm quantisation - so simulated depth gets the real camera's holes on untextured / glossy faces, fattened edges and z^2 noise. CPU only. Use when a sim station must feed perception skills depth that fails where the wrist D405 fails.
+
+- **Runs**: in its own environment over `stdio-msgpack`
+- **Functions**:
+  - `d405-stereo.depth_from_pair`: D405-like passive stereo depth (holes, edge fattening, z^2 noise) from a rendered rectified left/right pair.
 
 ### depth
 
@@ -1001,6 +1013,20 @@ Finds the loose jigsaw pieces lying on a staging mat in one top-down RGB(-D) fra
   - `segmented`: At least one piece was found and none touches anything; `pieces` lists them, piece_mask / pick_point are the best pickable one (clearest of its surroundings, then the widest inscribed circle).
   - `touching_pieces`: Pieces were found but some touch or lie on one another (split by the watershed or by height; their records say touching, neighbours, layer), or a blob did not split into piece-sized parts (`clusters`, with the source's drag point and direction); piece_mask / pick_point still name the best pickable piece when n_pickable &gt; 0. Singulate the rest, e.g. singulating-by-pushing toward `free_spot`.
   - `nothing_found`: No piece-sized blob on the mat (empty, or only foreign objects and specks).
+
+### simulating-d405-stereo-depth
+
+perceive · robots: any · tasks: lego, domino, jigsaw · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/simulating-d405-stereo-depth/SKILL.md) · [upstream](https://github.com/haosulab/SAPIEN/blob/788fd0afb009/python/py_package/sensor/stereodepth.py)
+
+Replaces a simulated camera's perfect depth with D405-like passive stereo depth computed from the camera's two rendered imagers (d405-stereo.depth_from_pair), keeping the true depth beside it - holes on untextured and glossy faces (LEGO tops, domino faces), edge dropout and z^2 noise appear where the real wrist D405 has them. Use when a sim check should exercise perception on depth as bad as the real camera's, instead of ground truth or an image-independent noise model.
+
+- **In**: `camera` string
+- **Out**: `observation` Observation, `hole_fraction` float, `reason` string
+- **Calls**: [`d405-stereo`](#d405-stereo); connector `robot.get_observation`
+- **Scripts**: [`stereo_depth`](skills/simulating-d405-stereo-depth/scripts/stereo_depth.py)
+- **Exits**:
+  - `depth_rendered`: The camera's depth is now the stereo depth (0 = hole) and depth_true holds the renderer's depth.
+  - `no_pair`: The camera carries no rendered pair (ir_left / ir_right, or rgb / rgb_right) with intrinsics, or d405-stereo failed; the observation is returned unchanged.
 
 ### tracking-build-state
 
