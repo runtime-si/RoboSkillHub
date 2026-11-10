@@ -94,6 +94,22 @@ TRIM_SIGMAS = 2.5
 """Two-layer plane fit: reassign / refit rounds, and the residual cut in robust sigmas."""
 
 MIN_POINTS = 40
+
+STUD_MASK_RADIUS_FRACTION = 0.45
+"""face_estimator 'stud_mask': pixels within this fraction of the pitch of a stud axis (3.6 mm for LEGO:
+the 2.4 mm stud radius plus 1.2 mm of edge blur) are left out of both the brick top and the plate around
+it, so only flat face pixels are averaged. With 1 mm depth steps the sensor noise dithers the quantisation
+and the mean over hundreds of face pixels resolves a fraction of a millimetre; the two-layer fit instead
+misassigns noisy face / stud-top pixels and read seated LEGO bricks 0.4-1.1 mm high under the station's
+fitted D405 noise."""
+
+FACE_WINDOW_M = 0.004
+"""face_estimator 'stud_mask': face pixels kept within this of the first level estimate - wide, so the
+noise around a quantised (1 mm step) level is not truncated on one side (a narrow window kept the
+quantisation bias), yet under a brick height (9.6 mm) so neighbours and fingers stay out."""
+
+TRIM_FRACTION = 0.1
+"""face_estimator 'stud_mask': each tail trimmed from the face heights before the plane fit."""
 """Fewer depth points in the footprint than this: the brick was not read."""
 
 NO_BRICK_COVERAGE = 0.25
@@ -319,6 +335,41 @@ def _two_layer_plane(pts: np.ndarray, stud_h: float) -> tuple[np.ndarray, float]
     return plane, float(on_face[keep].mean()) if keep.any() else 0.0
 
 
+def _node_distance(v: np.ndarray, n: int, pitch: float) -> np.ndarray:
+    """Distance along one axis to the nearest stud axis of a brick n studs long centred at 0 (the plate's
+    lattice continues it)."""
+    off = 0.0 if n % 2 else 0.5 * pitch
+    r = np.mod(v - off, pitch)
+    return np.minimum(r, pitch - r)
+
+
+def _trimmed_plane(p: np.ndarray) -> np.ndarray | None:
+    if len(p) < MIN_POINTS:
+        return None
+    lo, hi = np.quantile(p[:, 2], [TRIM_FRACTION, 1.0 - TRIM_FRACTION])
+    keep = (p[:, 2] >= lo) & (p[:, 2] <= hi)
+    return _fit_plane(p[keep]) if keep.sum() >= 3 else None
+
+
+def _stud_masked(pts, fp, flx, fly, high, lx, ly, ring, ref_z, seat, len_x, len_y, pitch, stud_h):
+    """(top face plane, plate face plane) from pixels away from every stud axis: the brick's own studs in
+    its footprint, the plate's lattice in the ring. None when too few points remain."""
+    nx, ny = max(1, round((len_x + 0.002) / pitch)), max(1, round((len_y + 0.002) / pitch))
+    rad = STUD_MASK_RADIUS_FRACTION * pitch
+    d_fp = np.hypot(_node_distance(flx, nx, pitch), _node_distance(fly, ny, pitch))
+    top_pts = fp[high & (d_fp > rad)]
+    # Keep the face layer: drop what reads a stud height or more over its median (missed studs, fingers).
+    if len(top_pts) >= MIN_POINTS:
+        med = float(np.median(top_pts[:, 2]))
+        top_pts = top_pts[np.abs(top_pts[:, 2] - med) < FACE_WINDOW_M]
+    d_ring = np.hypot(_node_distance(lx[ring], nx, pitch), _node_distance(ly[ring], ny, pitch))
+    rp = pts[ring][(d_ring > rad) & (np.abs(pts[ring][:, 2] - ref_z) < FACE_WINDOW_M)]
+    top, ref = _trimmed_plane(top_pts), _trimmed_plane(rp)
+    if top is None or ref is None:
+        return None
+    return top, ref
+
+
 def measure(
     pts: np.ndarray,
     seat: np.ndarray,
@@ -329,6 +380,7 @@ def measure(
     stud_h: float,
     body_h: float,
     reference: str = "auto",
+    face_estimator: str = "two_layer",
 ) -> dict[str, Any]:
     """Height, tilt and coverage of the brick top over the footprint at ``seat``.
 
@@ -380,6 +432,14 @@ def measure(
         return out
     plane, face_share = _two_layer_plane(fp[high], stud_h)
     out["face_share"] = face_share
+    if face_estimator == "stud_mask":
+        masked = _stud_masked(
+            pts, fp, flx, fly, high, lx, ly, ring, ref_z, seat, len_x, len_y, pitch, stud_h
+        )
+        if masked is not None:
+            plane, ref_plane = masked
+            ref_z = float(seat[0] * ref_plane[0] + seat[1] * ref_plane[1] + ref_plane[2])
+            out["reference_offset"] = ref_z - seat_z
     # The brick's top plane at the footprint centre.
     z_top = float(seat[0] * plane[0] + seat[1] * plane[1] + plane[2])
     grad = math.hypot(float(plane[0]), float(plane[1]))
@@ -419,6 +479,7 @@ def run(
     frames: int = FRAMES,
     check_reach: bool = True,
     arm_id: int = 0,
+    face_estimator: str = "two_layer",
 ) -> Output:
     if system not in PRESETS:
         raise ValueError(f"system must be one of {sorted(PRESETS)}, got {system!r}")
@@ -513,7 +574,18 @@ def run(
             tries.append(why)
             continue
         pts = world_points(cam_now, depth)
-        m = measure(pts, seat, float(seat_yaw_deg), len_x, len_y, pitch, stud_h, body_h, reference)
+        m = measure(
+            pts,
+            seat,
+            float(seat_yaw_deg),
+            len_x,
+            len_y,
+            pitch,
+            stud_h,
+            body_h,
+            reference,
+            face_estimator,
+        )
         out["samples"] = int(m.get("samples", 0))
         out["reference"] = str(m.get("reference", ""))
         out["reference_offset"] = float(m.get("reference_offset", 0.0))

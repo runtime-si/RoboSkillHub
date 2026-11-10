@@ -271,3 +271,30 @@ def test_every_route_is_declared_in_the_example(script, skills_registry):
     skill_md = (Path(bundle.bundle_dir) / "SKILL.md").read_text()
     for route in script.ROUTES:
         assert f"    {route}:" in skill_md
+
+
+def _quantised(world, step=0.001):
+    """The world's noisy depth rounded to ``step`` (the station's D405 stream stores millimetres)."""
+    raw = world.depth
+
+    def depth(cam_world):
+        d = raw(cam_world)
+        return np.where(d > 0, np.round(d / step) * step, 0.0).astype(np.float32)
+
+    world.depth = depth
+    return world
+
+
+def test_stud_mask_estimator_reads_lego_heights_on_millimetre_steps(script):
+    seated_two, seated_mask, high_mask = [], [], []
+    for seed in range(4):
+        w = _quantised(World(system="lego", studs=(2, 4), seed=seed))
+        seated_two.append(check(script, w)["height_error"])
+        w = _quantised(World(system="lego", studs=(2, 4), seed=seed))
+        out = check(script, w, face_estimator="stud_mask")
+        seated_mask.append(out["height_error"])
+        w = _quantised(World(system="lego", studs=(2, 4), dz=LEGO_STUD, seed=seed))
+        high_mask.append(check(script, w, face_estimator="stud_mask")["height_error"])
+    assert abs(np.mean(seated_mask)) < 0.0004
+    assert np.mean(high_mask) == pytest.approx(LEGO_STUD, abs=0.0005)
+    assert np.mean(high_mask) - np.mean(seated_mask) > 0.0012
