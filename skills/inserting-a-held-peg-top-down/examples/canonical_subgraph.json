@@ -1,0 +1,58 @@
+{
+  "skill": "inserting-a-held-peg-top-down",
+  "inputs": {
+    "held": "dict",
+    "hole": "dict",
+    "peg": "dict"
+  },
+  "outputs": {
+    "tip_depth": {
+      "$ref": "insert.tip_depth"
+    },
+    "slip": {
+      "$ref": "insert.slip"
+    },
+    "hole_position": {
+      "$ref": "insert.hole_position"
+    }
+  },
+  "nodes": {
+    "insert": {
+      "type": "script",
+      "script": "scripts/insert_held_peg.py",
+      "inputs": {
+        "held": {
+          "$ref": "in.held"
+        },
+        "hole": {
+          "$ref": "in.hole"
+        },
+        "peg": {
+          "$ref": "in.peg"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "insert"
+    ],
+    [
+      "insert",
+      "END"
+    ]
+  ],
+  "conditional_edges": {},
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "inserted",
+      "jammed",
+      "missed_hole",
+      "slipped_in_grip",
+      "unverified"
+    ]
+  },
+  "on_error": "unreachable"
+}
