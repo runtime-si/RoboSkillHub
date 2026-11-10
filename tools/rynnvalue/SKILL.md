@@ -22,7 +22,8 @@ metadata:
     tasks: [pick-place, lego]
     weights:
       uri: hf://Alibaba-DAMO-Academy/RynnValue-8B-Quantile@0fb3ac12c73844ea1abaf4f767c895aae248a9ec
-      license: Apache-2.0 (model card); GAP_RYNNVALUE_MODEL=4b loads hf://Alibaba-DAMO-Academy/RynnValue-4B-Quantile@d48ffefcefaf8b5381ae1e412e9a62faf1456bcd (Apache-2.0)
+      sha256: 38aaf511983dfbfd6c8f26f5e299e0321e1180aa3738c72def3086a7991fa288
+      license: Apache-2.0 (model card); GAP_RYNNVALUE_MODEL=4b loads hf://Alibaba-DAMO-Academy/RynnValue-4B-Quantile@d48ffefcefaf8b5381ae1e412e9a62faf1456bcd (Apache-2.0, manifest sha256 8afd41c9d5ec9546a68003407a848adaf9383e8bd0450bd92a497e9a347be6de)
     provenance:
       authors: [Dongchi Huang, Hongyin Zhang, Bohan Hou, Siteng Huang, Zhian Su, Hang Guo, Tong Lu, Jiahao Tang, Jianfei Yang, Donglin Wang, Peixi Peng, Mingxiu Chen, Deli Zhao, Xin Li]
       code: https://github.com/alibaba-damo-academy/RynnValue/blob/cd29294f1ac56bc817074bd665ba92b630936ad7/rynn_infer/inference.py
