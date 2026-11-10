@@ -410,6 +410,14 @@ from predicators (https://github.com/BasisResearch/predicators, commit
 afb6f2918091f5ca372a75b9a335aea317a8a209), MIT License, Copyright (c) 2022
 Rohan Chitnis and Tom Silver; the license is
 skills/auditing-a-domino-line-for-fallen-or-tilted-tiles/LICENSE.predicators.
+skills/refilling-a-domino-loading-rack/scripts/refill_rack.py reuses the rack
+geometry, slot judge, jaw read-back and pick of
+skills/picking-upright-dominoes-from-a-loading-rack and
+skills/placing-an-upright-domino-beside-neighbours, adapted from predicators
+(https://github.com/BasisResearch/predicators, commit
+afb6f2918091f5ca372a75b9a335aea317a8a209), MIT License, Copyright (c) 2022
+Rohan Chitnis and Tom Silver; the license is
+skills/refilling-a-domino-loading-rack/LICENSE.predicators.
 skills/pressing-a-brick-onto-studs/scripts/press_brick.py is adapted from
 BrickSim (https://github.com/intelligent-control-lab/BrickSim,
 python/bricksim/envs/assemble_brick/expert.py, commit

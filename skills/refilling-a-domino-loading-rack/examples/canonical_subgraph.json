@@ -1,0 +1,33 @@
+{
+  "skill": "refilling-a-domino-loading-rack",
+  "inputs": {
+    "table_z": "float",
+    "rack": "Any",
+    "tile": "Se3Pose"
+  },
+  "outputs": {
+    "slot_index": {"$ref": "refill.slot_index"},
+    "released": {"$ref": "refill.released"},
+    "attempts": {"$ref": "refill.attempts"},
+    "insert_offset_mm": {"$ref": "refill.insert_offset_mm"},
+    "slot_states": {"$ref": "refill.slot_states"},
+    "empty_count": {"$ref": "refill.empty_count"}
+  },
+  "nodes": {
+    "refill": {
+      "type": "script",
+      "script": "scripts/refill_rack.py",
+      "inputs": {
+        "table_z": {"$ref": "in.table_z"},
+        "rack": {"$ref": "in.rack"},
+        "tile": {"$ref": "in.tile"}
+      }
+    }
+  },
+  "edges": [["START", "refill"], ["refill", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["refilled", "rack_full", "jammed", "fell", "unverified", "not_holding", "hand_full", "not_seen", "invalid_input"]
+  },
+  "on_error": "unreachable"
+}
