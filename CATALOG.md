@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-30 tools, 165 skills, 4 policies, 1 recipe and 1 paper.
+30 tools, 166 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -73,6 +73,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`perceiving-routing-fixtures`](#perceiving-routing-fixtures) | perceive | Survey a cable-routing bench from one overhead RGB-D frame. | any |
 | [`perceiving-sorting-pairs`](#perceiving-sorting-pairs) | perceive | Discovers a labelled four-compartment destination from RGB-D and repeatedly perceives one remaining source object with… | any |
 | [`reading-domino-pips-and-orientation`](#reading-domino-pips-and-orientation) | perceive | Reads each domino's two pip values, which end is which, its long axis and whether it lies flat, stands or has fallen… | any |
+| [`reading-domino-tiles-in-clutter`](#reading-domino-tiles-in-clutter) | perceive | Reads every domino in a cluttered top-down photo. | any |
 | [`reconstructing-collision-worlds`](#reconstructing-collision-worlds) | perceive | Reconstructs a planner collision world from calibrated RGB-D views alone, excluding the grasp target, the robot, and a… | any |
 | [`refining-target-from-wrist-closeup`](#refining-target-from-wrist-closeup) | perceive | Refines a coarse world-frame target (an overhead perception's OBB or point) by aiming the wrist RGB-D camera at it… | any |
 | [`registering-held-objects`](#registering-held-objects) | perceive | Reobserves a grasped rigid object from the wrist cameras, estimates its functional feature in the TCP frame, and fits… | any |
@@ -946,6 +947,21 @@ Reads each domino's two pip values, which end is which, its long axis and whethe
   - `ambiguous`: Tiles were segmented but at least one judged tile was not read, its status says why - `not_flat` (standing or fallen; state, axis and ends are still given), `face_down` (no divider and no pips), or `ambiguous` (a small layout margin, glare over a deciding position, an unexplained pip, no divider, or a mask that is not one tile).
   - `needs_closeup`: A judged flat tile is narrower than min_tile_width_px (30 px) in this frame and none failed otherwise; `closeup_targets` lists their world centres for refining-target-from-wrist-closeup, then run this skill again on the wrist frame.
   - `not_seen`: No camera frame, the segmenter failed or returned no mask scoring min_score and 40 px.
+
+### reading-domino-tiles-in-clutter
+
+perceive · robots: any · tasks: domino · MIT · v0.1.0 · [`SKILL.md`](skills/reading-domino-tiles-in-clutter/SKILL.md) · [upstream](https://github.com/jjmlovesgit/pipcounter/blob/79cad4071f4c/pipperjones.py)
+
+Reads every domino in a cluttered top-down photo - touching, rotated, scattered tiles - as (left, right) halves with each tile's centre and angle, by finding each tile's black centre bar (which separates touching tiles without a learned model) and counting the coloured pips in each half (pipcounter's HSV mask and contour filter, scaled to the tile). Use when a domino workflow must know which tiles lie on the table (a draw pile, a hand laid out, a played line) from one wrist or overhead frame where tiles touch, before choosing or matching a tile.
+
+- **In**: -
+- **Out**: `n_tiles` int, `total_pips` int, `camera_name` string
+- **Calls**: connector `robot.get_observation`
+- **Scripts**: [`read_tiles`](skills/reading-domino-tiles-in-clutter/scripts/read_tiles.py)
+- **Exits**:
+  - `tiles_read`: At least one tile bar was found, every half reads 0-9, and every pip-sized coloured blob lies on a tile.
+  - `ambiguous`: Tiles were read but a half reads over 9 or pip-sized blobs lie on no tile (a tile whose bar was missed, a face-down or occluded tile, or stray colour); tiles still lists what was read.
+  - `no_tiles`: No RGB frame, or no tile bar found.
 
 ### reconstructing-collision-worlds
 
