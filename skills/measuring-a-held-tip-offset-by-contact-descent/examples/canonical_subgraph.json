@@ -1,0 +1,18 @@
+{
+  "skill": "measuring-a-held-tip-offset-by-contact-descent",
+  "inputs": {"surface_z": "float"},
+  "outputs": {
+    "tip_offset_m": {"$ref": "touch.tip_offset_m"},
+    "contact_tcp_z": {"$ref": "touch.contact_tcp_z"}
+  },
+  "nodes": {
+    "touch": {
+      "type": "script",
+      "script": "scripts/tip_offset.py",
+      "inputs": {"surface_z": {"$ref": "in.surface_z"}}
+    }
+  },
+  "edges": [["START", "touch"], ["touch", "END"]],
+  "exit": {"router_field": "route", "success_values": ["measured"]},
+  "on_error": "unreachable"
+}

@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-30 tools, 163 skills, 4 policies, 1 recipe and 1 paper.
+30 tools, 164 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -189,6 +189,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`detecting-disturbed-pieces-by-snapshot-diff`](#detecting-disturbed-pieces-by-snapshot-diff) | verify | Checks whether anything already placed was knocked since the last verified step. | any |
 | [`detecting-in-hand-slip-and-twist-from-the-wrist-camera`](#detecting-in-hand-slip-and-twist-from-the-wrist-camera) | verify | Watches the held part in the wrist camera, which rides rigid with the fingers, and says whether it slips, twists or… | any |
 | [`flagging-odd-one-out-parts-by-mutual-scoring`](#flagging-odd-one-out-parts-by-mutual-scoring) | verify | Finds the part that differs from its siblings in one frame. | any |
+| [`measuring-a-held-tip-offset-by-contact-descent`](#measuring-a-held-tip-offset-by-contact-descent) | verify | Finds how far the tip of a held part (a pen, a peg, a tool, a brick) sticks out past the tool centre, with no force… | any |
 | [`previewing-target-overlay`](#previewing-target-overlay) | verify | Checks a target gripper pose before the arm moves. | any |
 | [`registering-assembled-board-to-reference`](#registering-assembled-board-to-reference) | verify | Aligns a top-down view of the part-built jigsaw (overhead frame, rectified view or wrist mosaic) to the box picture… | any |
 | [`simulating-a-domino-layout-before-building`](#simulating-a-domino-layout-before-building) | verify | Checks a planned domino line or curve in a rigid-body simulation before the arm builds it. | any |
@@ -2789,6 +2790,22 @@ Finds the part that differs from its siblings in one frame - a fallen or turned 
   - `outliers_found`: At least one part is odd - its appearance score over z_threshold (3.5) robust z and 1.4x the median, its height-map score over 3.5 z and 2 mm, its box turned over 20 deg from the others' (when they are laid out aligned), or a side of its box 1.25x off the median at 3.5 z; outliers lists them and parts[i].why says which test.
   - `all_consistent`: Every part passed every test; detail gives the highest z.
   - `too_few_parts`: Under min_parts (4) parts were given or segmented, or no RGB frame.
+
+### measuring-a-held-tip-offset-by-contact-descent
+
+verify · robots: any · tasks: insertion, pick-place, tool-use · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/measuring-a-held-tip-offset-by-contact-descent/SKILL.md)
+
+Finds how far the tip of a held part (a pen, a peg, a tool, a brick) sticks out past the tool centre, with no force sensor - holds the hand over a free patch of a surface whose height is known, lowers it in 0.5 mm Cartesian steps and stops when the read-back stops following the command (the tip has touched), then takes the tip offset along the approach axis from the stop height and lifts 10 mm off. Use when a part was grasped at an uncertain height (slipped, regrasped, picked from a pile) and a later step - writing, inserting, placing on a surface - needs its tip position.
+
+- **In**: `surface_z` float
+- **Out**: `tip_offset_m` float, `contact_tcp_z` float, `descended_m` float, `steps` int
+- **Calls**: connector `robot.get_ee_pose`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`
+- **Scripts**: [`tip_offset`](skills/measuring-a-held-tip-offset-by-contact-descent/scripts/tip_offset.py)
+- **Exits**:
+  - `measured`: The hand stopped following within max_descent_m; tip_offset_m is the tip's distance from the tool centre along the approach axis, and the hand is 10 mm above the touch.
+  - `no_contact`: Nothing was touched over max_descent_m (the tip is shorter than assumed, or the surface lower); the hand is at the bottom of the descent.
+  - `unreachable`: A descent step was refused.
+  - `invalid_input`: The approach axis is more than 60 deg off straight down.
 
 ### previewing-target-overlay
 
