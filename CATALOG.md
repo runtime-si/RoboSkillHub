@@ -94,6 +94,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`executing-keypoint-motion`](#executing-keypoint-motion) | plan | Plans and executes a one-step manipulation from a language instruction with MOKA's mark-based visual prompting. | any |
 | [`finding-the-longest-domino-chain`](#finding-the-longest-domino-chain) | plan | Finds the longest chain of matching dominoes a hand can lay from a start value. | any |
 | [`parsing-ldraw-build-instructions`](#parsing-ldraw-build-instructions) | plan | Reads an LDraw .ldr / .mpd build file. | any |
+| [`placing-on-receptacle-top-surface`](#placing-on-receptacle-top-surface) | plan | Finds where to set a held object down on a receptacle's top surface (a box lid, a tray, a block, a shelf). | any |
 | [`planning-a-brick-mosaic-from-an-image`](#planning-a-brick-mosaic-from-an-image) | plan | Turns an image into a one-layer LEGO mosaic on a baseplate of a given stud size. | any |
 | [`planning-a-domino-layout`](#planning-a-domino-layout) | plan | Plans a domino line along a path on the table. | any |
 | [`planning-a-flat-domino-mosaic-from-an-image`](#planning-a-flat-domino-mosaic-from-an-image) | plan | Plans a domino mosaic of a picture, every tile lying flat with its pips up. | any |
@@ -1268,6 +1269,21 @@ Reads an LDraw .ldr / .mpd build file - submodels, STEP and ROTSTEP meta command
   - `unsupported_part`: Some parts are not in the basic-brick table (slopes, Technic, minifigures, a missing sub-file, the other system's bricks); they are in `unsupported` with the line and step, and `steps` holds the rest. A plan that needs them must be changed or finished by hand.
   - `off_grid`: Some table parts are tilted, upside down, mirrored, turned by other than a multiple of 90 deg, or sit off the stud or plate grid (a half-stud jumper offset); they are in `off_grid` with the reason. Takes precedence over unsupported_part.
   - `invalid_file`: No file or text, an unreadable file, no parts at all, a submodel that includes itself, or a bad argument; `detail` says which.
+
+### placing-on-receptacle-top-surface
+
+plan · robots: any · tasks: pick-place · MIT · v0.1.0 · [`SKILL.md`](skills/placing-on-receptacle-top-surface/SKILL.md) · [upstream](https://github.com/ok-robot/ok-robot/blob/174c742b6a1866a2da8f75a89e2c544bb77ab5f9/ok-robot-manipulation/src/anygrasp_manipulation/object_handler.py)
+
+Finds where to set a held object down on a receptacle's top surface (a box lid, a tray, a block, a shelf) - OK-Robot's place heuristic. It takes the receptacle's points (segmented by text with sam3 and lifted with the depth, or given), puts the drop point at the median of its horizontal footprint over unique 1 cm cells, reads the surface height as the 95th percentile of the receptacle points within 3 cm of that point, and returns a release pose 2 cm over it (plus how far the held object's bottom hangs under the tool). No motion. Use before placing an object onto another object's top; chain into placing-with-contact-descent to set it down.
+
+- **In**: -
+- **Out**: `place_pose` Se3Pose, `surface_z` float, `footprint_center` Vec3, `n_points` int
+- **Calls**: [`geometry`](#geometry), [`sam3`](#sam3); connector `robot.get_observation`
+- **Scripts**: [`place_point`](skills/placing-on-receptacle-top-surface/scripts/place_point.py)
+- **Exits**:
+  - `place_point`: The receptacle was found with at least 30 points and 5 of them within `band` of its footprint's median; `place_pose` is over that point at the surface height + `drop_height` + `held_bottom_offset`.
+  - `receptacle_not_found`: No camera frame, no mask for the query, fewer than 30 points, or no surface round the footprint's median (an open ring, a box's hollow - use placing-into-container-obb for containers).
+  - `invalid_input`: Neither a query nor points were given (also the route of a raised error).
 
 ### planning-a-brick-mosaic-from-an-image
 

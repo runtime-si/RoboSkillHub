@@ -1,0 +1,19 @@
+{
+  "skill": "placing-on-receptacle-top-surface",
+  "inputs": {"query": "string", "held_bottom_offset": "float"},
+  "outputs": {
+    "place_pose": {"$ref": "plan.place_pose"},
+    "surface_z": {"$ref": "plan.surface_z"},
+    "footprint_center": {"$ref": "plan.footprint_center"}
+  },
+  "nodes": {
+    "plan": {
+      "type": "script",
+      "script": "scripts/place_point.py",
+      "inputs": {"query": {"$ref": "in.query"}, "held_bottom_offset": {"$ref": "in.held_bottom_offset"}}
+    }
+  },
+  "edges": [["START", "plan"], ["plan", "END"]],
+  "exit": {"router_field": "route", "success_values": ["place_point", "receptacle_not_found"]},
+  "on_error": "invalid_input"
+}

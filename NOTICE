@@ -418,6 +418,13 @@ skills/placing-an-upright-domino-beside-neighbours, adapted from predicators
 afb6f2918091f5ca372a75b9a335aea317a8a209), MIT License, Copyright (c) 2022
 Rohan Chitnis and Tom Silver; the license is
 skills/refilling-a-domino-loading-rack/LICENSE.predicators.
+skills/placing-on-receptacle-top-surface/scripts/place_point.py is adapted from
+OK-Robot (https://github.com/ok-robot/ok-robot, commit
+174c742b6a1866a2da8f75a89e2c544bb77ab5f9,
+ok-robot-manipulation/src/anygrasp_manipulation/object_handler.py), MIT License,
+Copyright (c) 2024 NYU Generalizable Robotics and AI Lab (GRAIL); the file's
+header lists the changes, and the license is
+skills/placing-on-receptacle-top-surface/LICENSE.ok-robot.
 skills/pressing-a-brick-onto-studs/scripts/press_brick.py is adapted from
 BrickSim (https://github.com/intelligent-control-lab/BrickSim,
 python/bricksim/envs/assemble_brick/expert.py, commit
