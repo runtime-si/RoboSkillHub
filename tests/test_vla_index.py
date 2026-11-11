@@ -332,6 +332,8 @@ def test_profile_gaps_name_the_policy_bundle(vla_root):
     loose = checkpoint("org/p", servable_by=["policies/gr00t (pi0.5 backend)", "openpi"])
     assert our_servers(loose) == ["policies/gr00t:pi05"]
     assert our_servers(checkpoint(servable_by=["openpi", "lerobot"])) == []
+    negative = "not directly: policies/molmoact2-yam loads the remote-code export only"
+    assert our_servers(checkpoint(servable_by=[negative])) == []
 
 
 def test_pick_place_sources_stay_the_default(capsys):

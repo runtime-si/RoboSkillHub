@@ -242,7 +242,9 @@ def load_vla_index(root: Path) -> tuple[dict, dict]:
 def our_servers(row: dict) -> list[str]:
     """Which of this hub's policy servers can run the checkpoint (``servable_by`` names them)."""
     found = set()
-    for name in (str(v).casefold() for v in row.get("servable_by") or ()):
+    for name in (str(v).casefold().strip() for v in row.get("servable_by") or ()):
+        if re.match(r"(no|not|none)\b", name):
+            continue
         if "molmoact2-yam" in name:
             found.add("policies/molmoact2-yam")
         if "policies/gr00t" in name:

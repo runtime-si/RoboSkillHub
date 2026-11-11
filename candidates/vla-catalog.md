@@ -71,18 +71,6 @@ Snapshot 2026-11-11: 381 checkpoints, 48 datasets.
 | fanqi-robo/molmoact2_insert_gear_in_gripper_yam_fft | 530fb6cf | molmoact2 | yam_i2rt | 2 | absolute joint position/14/30/20 | as_is | - | not stated on card (yes) | - |
 | dddddsds31341/Long-WAM-Sorting-Dolls-20k-Step-20000 | 6ba38420 | wam | yam_i2rt | 2 | absolute joint position + gripper (original gripper units)/14/32/30 | as_is | - | other (yes) | - |
 | fanqi-robo/pi05_insert_gear_in_gripper_expert_only | f2962292 | pi05 | yam_i2rt | 2 | absolute joint position/14/50/20 | as_is | - | apache-2.0 (yes) | - |
-| ASethi04/MolmoAct2-BimanualYAM-dual-lidar-umi-12k | d83e40ee | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | policies/molmoact2-yam | apache-2.0 (yes) | - |
-| ASethi04/MolmoAct2-BimanualYAM-long-gripper182-joint14 | d3bce515 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/24/30 | adapter | policies/molmoact2-yam | None (no) | - |
-| ASethi04/MolmoAct2-BimanualYAM-oranges | 611ac1b5 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | policies/molmoact2-yam | apache-2.0 (yes) | - |
-| ASethi04/MolmoAct2-BimanualYAM-oranges-12k | 501f9b0f | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | policies/molmoact2-yam | apache-2.0 (yes) | - |
-| ASethi04/MolmoAct2-BimanualYAM-oranges-12k-fixed | 0f0746e4 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | policies/molmoact2-yam | apache-2.0 (yes) | - |
-| ASethi04/MolmoAct2-BimanualYAM-oranges-12k-fixed-nodrop | b0fc2ae0 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | policies/molmoact2-yam | apache-2.0 (yes) | - |
-| ASethi04/MolmoAct2-BimanualYAM-oranges-12k-noaffine | 59d015d8 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | policies/molmoact2-yam | apache-2.0 (yes) | - |
-| ASethi04/MolmoAct2-BimanualYAM-oranges-12k-v2 | 9bde9a6c | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | policies/molmoact2-yam | apache-2.0 (yes) | - |
-| ASethi04/MolmoAct2-BimanualYAM-oranges-12k-v2-nodropout | 272a168d | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | policies/molmoact2-yam | apache-2.0 (yes) | - |
-| ASethi04/MolmoAct2-BimanualYAM-oranges-20k | b9e6257e | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | policies/molmoact2-yam | apache-2.0 (yes) | - |
-| ASethi04/MolmoAct2-BimanualYAM-oranges-ultrawide-12k | bc10c76f | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | policies/molmoact2-yam | apache-2.0 (yes) | - |
-| ASethi04/MolmoAct2-BimanualYAM-oranges-ultrawide-wristonly-12k | 53bccd2b | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | policies/molmoact2-yam | apache-2.0 (yes) | - |
 | Jiafei1224/2 | 9bb27605 | pi05 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/50/10 | adapter | policies/gr00t:pi05 | apache-2.0 (yes) | - |
 | Jiafei1224/pi-05-flipplate2 | 2c93840c | pi05 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/50/15 | adapter | policies/gr00t:pi05 | apache-2.0 (yes) | - |
 | Jiafei1224/pi-05-microwave | 8d4e7eeb | pi05 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/50/15 | adapter | policies/gr00t:pi05 | apache-2.0 (yes) | - |
@@ -101,29 +89,6 @@ Snapshot 2026-11-11: 381 checkpoints, 48 datasets.
 | Zasha01/yam_wire_policy_pi | 2d99114b | pi05 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/50 | adapter | policies/gr00t:pi05 | apache-2.0 (yes) | - |
 | asawareeb/GR00T-YAM-box-to-bin-119demos | b188c8f5 | gr00t | yam_i2rt | None | unknown (no readable config) | adapter | policies/gr00t:n1.7 | None (no) | - |
 | asawareeb/GR00T-YAM-box-to-bin-219demos | b18624fe | gr00t | yam_i2rt | None | unknown (no readable config) | adapter | policies/gr00t:n1.7 | None (no) | - |
-| brandonyang/MolmoAct2-BimanualYAM-vive-teleop | 89b363d4 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_base_expert | e455c6f1 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_base_expert_step12000 | 4e550554 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_base_expert_step16000 | 4f92be2c | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_base_expert_step20000 | 2cb6fe07 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_base_expert_step4000 | d23a7bf9 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_base_expert_step8000 | 8d8d2a43 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_base_fft_step12000 | 52d2a963 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_base_fft_step16000 | e318d45d | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_base_fft_step20000 | e3c6c778 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_base_fft_step4000 | e46c662d | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_base_fft_step8000 | 758efb3b | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_expert_step12000 | 867f09c2 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_expert_step16000 | 3b085858 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_expert_step20000 | 64f9bbdf | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_expert_step4000 | 27d5008a | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_expert_step8000 | de2f9a33 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_fft_step12000 | 2dc2aebf | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_fft_step16000 | 8f79c6ad | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_fft_step20000 | 7287d23d | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_fft_step4000 | 564dde26 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_fft_step8000 | e8b54fad | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
-| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_zeroshot | 8886e0c6 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | policies/molmoact2-yam | None (no) | - |
 | helen9975/pi05_telearms_v5_exp_deminf_1500 | 2715b285 | pi05 | yam_i2rt | 2 | delta/relative joint (gripper absolute)/14/50/30 | adapter | policies/gr00t:pi05 | None (no) | - |
 | helen9975/pi05_telearms_v5_exp_elo_1500 | 32a5ce6f | pi05 | yam_i2rt | 2 | delta/relative joint (gripper absolute)/14/50/30 | adapter | policies/gr00t:pi05 | None (no) | - |
 | helen9975/pi05_telearms_v5_exp_random_100 | fca850c4 | pi05 | yam_i2rt | 2 | delta/relative joint (gripper absolute)/14/50/30 | adapter | policies/gr00t:pi05 | None (no) | - |
@@ -137,17 +102,8 @@ Snapshot 2026-11-11: 381 checkpoints, 48 datasets.
 | helen9975/pi05_telearms_v5_mixed | 61be0850 | pi05 | yam_i2rt | 2 | delta/relative joint (gripper absolute)/14/50/30 | adapter | policies/gr00t:pi05 | None (no) | - |
 | helen9975/pi05_telearms_v6_lora | d9c66b85 | pi05 | yam_i2rt | 2 | delta/relative joint (gripper absolute)/14/50 | adapter | policies/gr00t:pi05 | None (no) | - |
 | helen9975/pi05_telearms_yam_clean_30hz_recovered | 7914733b | pi05 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | policies/gr00t:pi05 | None (no) | - |
-| hqfang/yam_fold_100 | 4e1f980c | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | policies/molmoact2-yam | None (no) | - |
-| hqfang/yam_fold_70 | 6d67cbf1 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | policies/molmoact2-yam | None (no) | - |
-| jinkmn/molmoact2_yam_spell_ceatec_3gpu | 54133dd2 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30 | adapter | policies/molmoact2-yam | None (no) | - |
-| jinkmn/molmoact2_yam_spell_ceatec_ft_both_brightness_1ep_3gpu | c109e109 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30 | adapter | policies/molmoact2-yam | None (no) | - |
-| jinkmn/molmoact2_yam_spell_ceatec_ft_continuous_brightness_1ep_3gpu | a9762b07 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30 | adapter | policies/molmoact2-yam | None (no) | - |
-| lerobot/MolmoAct2-BimanualYAM-LeRobot | 743af86d | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30 | adapter | policies/molmoact2-yam | None (no) | - |
-| lilkm/MolmoAct2-BimanualYAM-LeRobot | 794bfe13 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30 | adapter | policies/molmoact2-yam | None (no) | - |
 | monishluffy/yam-groot-n17-public | d6521544 | gr00t | yam_i2rt | None | unknown (no readable config) | adapter | policies/gr00t:n1.7 | None (no) | - |
-| nuffnuff/yam-pour-direct-molmoact2-m1 | fbdf4bd0 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | policies/molmoact2-yam | apache-2.0 (yes) | - |
 | nuffnuff/yam-pour-m1 | 6943e497 | pi05 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/50/15 | adapter | policies/gr00t:pi05 | apache-2.0 (yes) | - |
-| nuffnuff/yam-pour-v5-molmoact2-m1 | aa08235c | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/15 | adapter | policies/molmoact2-yam | None (no) | - |
 | sengi/rabc_pi05_matcha_yam_adv | 7c4c0fe6 | pi05 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/50 | adapter | policies/gr00t:pi05 | apache-2.0 (yes) | - |
 | TrossenRoboticsCommunity/pi05-block-transfer-lerobot | ef188f51 | pi05 | aloha | 2 | delta joints (12) + absolute grippers (2)/14/50/30 | adapter | policies/gr00t:pi05 | apache-2.0 (card) (yes) | - |
 | TrossenRobotics/groot-n17-block-transfer | 690c3bed | gr00t | aloha | 2 | joint/14/16/30 | adapter | policies/gr00t:n1.7 | apache-2.0 (card) (yes) | - |
@@ -156,10 +112,22 @@ Snapshot 2026-11-11: 381 checkpoints, 48 datasets.
 | karisora/openarm-pi05-beaker100-v2-rand-slew004-qpos-torque-noise003-a100x4-25k-20261028 | efd978a3 | pi05 | other | 2 | absolute joint/16/50/30 | adapter | policies/gr00t:pi05 | none on card (no) | - |
 | pepijn223/bimanual-so100-handover-cube_pi05 | 1b3bc873 | pi05 | so100 | 2 | absolute joint/12/50/30 | adapter | policies/gr00t:pi05 | apache-2.0 (yes) | - |
 | ASethi04/MolmoAct2-BimanualYAM-canonical-umi75-teleop25-ee20-12k | 8a17b029 | molmoact2 | yam_i2rt | 2 | EEF (2x xyz+rot6d+gripper, 20-D)/20/24 | adapter | - | None (no) | - |
+| ASethi04/MolmoAct2-BimanualYAM-dual-lidar-umi-12k | d83e40ee | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | - | apache-2.0 (yes) | - |
 | ASethi04/MolmoAct2-BimanualYAM-dual-lidar-umi-currentrel-r6d-onset-v3-12k | 4e1a2c8d | molmoact2 | yam_i2rt | 2 | EEF (2x xyz+rot6d+gripper, 20-D)/20/24 | adapter | - | apache-2.0 (yes) | - |
 | ASethi04/MolmoAct2-BimanualYAM-freshbase-raw-umi75-teleop25-ee20 | c5bc8222 | molmoact2 | yam_i2rt | 2 | EEF (2x xyz+rot6d+gripper, 20-D)/20/24 | adapter | - | None (no) | - |
 | ASethi04/MolmoAct2-BimanualYAM-freshbase-rotcontract-umi75-teleop25-ee20 | 6989d89e | molmoact2 | yam_i2rt | 2 | EEF (2x xyz+rot6d+gripper, 20-D)/20/24 | adapter | - | None (no) | - |
 | ASethi04/MolmoAct2-BimanualYAM-long-gripper182-ee20 | 4b8761be | molmoact2 | yam_i2rt | 2 | EEF (2x xyz+rot6d+gripper, 20-D)/20/24/30 | adapter | - | None (no) | - |
+| ASethi04/MolmoAct2-BimanualYAM-long-gripper182-joint14 | d3bce515 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/24/30 | adapter | - | None (no) | - |
+| ASethi04/MolmoAct2-BimanualYAM-oranges | 611ac1b5 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | - | apache-2.0 (yes) | - |
+| ASethi04/MolmoAct2-BimanualYAM-oranges-12k | 501f9b0f | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | - | apache-2.0 (yes) | - |
+| ASethi04/MolmoAct2-BimanualYAM-oranges-12k-fixed | 0f0746e4 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | - | apache-2.0 (yes) | - |
+| ASethi04/MolmoAct2-BimanualYAM-oranges-12k-fixed-nodrop | b0fc2ae0 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | - | apache-2.0 (yes) | - |
+| ASethi04/MolmoAct2-BimanualYAM-oranges-12k-noaffine | 59d015d8 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | - | apache-2.0 (yes) | - |
+| ASethi04/MolmoAct2-BimanualYAM-oranges-12k-v2 | 9bde9a6c | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | - | apache-2.0 (yes) | - |
+| ASethi04/MolmoAct2-BimanualYAM-oranges-12k-v2-nodropout | 272a168d | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | - | apache-2.0 (yes) | - |
+| ASethi04/MolmoAct2-BimanualYAM-oranges-20k | b9e6257e | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | - | apache-2.0 (yes) | - |
+| ASethi04/MolmoAct2-BimanualYAM-oranges-ultrawide-12k | bc10c76f | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | - | apache-2.0 (yes) | - |
+| ASethi04/MolmoAct2-BimanualYAM-oranges-ultrawide-wristonly-12k | 53bccd2b | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | - | apache-2.0 (yes) | - |
 | ASethi04/MolmoAct2-BimanualYAM-yam-ultrawide-teleop-ee20-measured-fk-12k | 856928c1 | molmoact2 | yam_i2rt | 2 | EEF (2x xyz+rot6d+gripper, 20-D)/20/24/30 | adapter | - | None (no) | - |
 | ASethi04/pi05-BimanualYAM-yam-ultrawide-teleop-ee20-measured-fk-12k | 498131af | pi05 | yam_i2rt | 2 | EEF (2x xyz+rot6d+gripper, 20-D)/20/24/30 | adapter | - | gemma (yes) | - |
 | AaronHuangWei/Fast-WAM-YAM-Stack-Bowls-Deploy | e8df5e3f | wam | yam_i2rt | None | unknown (no readable config) | adapter | - | other (yes) | - |
@@ -222,6 +190,7 @@ Snapshot 2026-11-11: 381 checkpoints, 48 datasets.
 | ashiq24/pi05-yam-lora | 5b571803 | pi05 | yam_i2rt | None | unknown (no readable config) | adapter | - | None (no) | - |
 | atharva-pantheon/MolmoAct2-BimanualYAM-stackcube | 27526b19 | molmoact2 | yam_i2rt | 2 | unknown (no readable config) | adapter | - | apache-2.0 (yes) | - |
 | atharva-pantheon/act-pantheon-yam-screwdriver-vn | 0a3ce10d | act | yam_i2rt | 2 | EEF (2x xyz+rot6d+gripper, 20-D)/20/30 | adapter | - | None (no) | - |
+| brandonyang/MolmoAct2-BimanualYAM-vive-teleop | 89b363d4 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | - | None (no) | - |
 | collected-ai/diffusion_yam_pick_up_box | bc4c302f | diffusion-policy | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/64/30 | adapter | - | None (no) | - |
 | crilling/act_box_filling_yam_may31 | 2ea91589 | act | yam_i2rt | 1 | absolute joint + gripper (verified: config)/7/100/30 | adapter | - | apache-2.0 (yes) | - |
 | crilling/smolvla_box_filling_yam_may31 | 408e2845 | smolvla | yam_i2rt | 1 | absolute joint + gripper (verified: config)/7/50/30 | adapter | - | apache-2.0 (yes) | - |
@@ -231,6 +200,28 @@ Snapshot 2026-11-11: 381 checkpoints, 48 datasets.
 | ewinchell07/anvil-yam-pi05-full-20k-20261011 | 7cffee29 | pi05 | yam_i2rt | None | unknown (no readable config) | adapter | - | None (no) | - |
 | ewinchell07/anvil-yam-pi05-legacy-20k-20261010 | 8e811ee9 | pi05 | yam_i2rt | None | unknown (no readable config) | adapter | - | None (no) | - |
 | ewinchell07/anvil-yam-pi05-preflight-20261010 | 56c2cd11 | pi05 | yam_i2rt | None | unknown (no readable config) | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_base_expert | e455c6f1 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_base_expert_step12000 | 4e550554 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_base_expert_step16000 | 4f92be2c | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_base_expert_step20000 | 2cb6fe07 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_base_expert_step4000 | d23a7bf9 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_base_expert_step8000 | 8d8d2a43 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_base_fft_step12000 | 52d2a963 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_base_fft_step16000 | e318d45d | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_base_fft_step20000 | e3c6c778 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_base_fft_step4000 | e46c662d | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_base_fft_step8000 | 758efb3b | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_expert_step12000 | 867f09c2 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_expert_step16000 | 3b085858 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_expert_step20000 | 64f9bbdf | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_expert_step4000 | 27d5008a | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_expert_step8000 | de2f9a33 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_fft_step12000 | 2dc2aebf | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_fft_step16000 | 8f79c6ad | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_fft_step20000 | 7287d23d | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_fft_step4000 | 564dde26 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_fft_step8000 | e8b54fad | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
+| fanqi-robo/molmoact2_insert_gear_in_gripper_yam_zeroshot | 8886e0c6 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/20 | adapter | - | None (no) | - |
 | flex-pi/flexpi-pretrain-preview | c27e885a | flexpi | yam_i2rt | 2 | unknown (no readable config)/30 | adapter | - | mit (yes) | - |
 | flex-pi/flexpi-pretrain-rgb-preview | 64fedf9f | flexpi | yam_i2rt | 2 | unknown (no readable config)/30 | adapter | - | mit (yes) | - |
 | hcisbmm/smolvla_yam-loosen-bottle | b2d5922e | smolvla | yam_i2rt | 1 | absolute joint + gripper (verified: config)/6/50/30 | adapter | - | None (no) | - |
@@ -247,6 +238,8 @@ Snapshot 2026-11-11: 381 checkpoints, 48 datasets.
 | hqfang/nov22-yam-fold_towel-ditx-vit-clip | 38eae184 | diffusion-policy | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/16 | adapter | - | apache-2.0 (yes) | - |
 | hqfang/nov22-yam-fold_towel-ditx-vit-clip-flow_matching | 47c182e7 | diffusion-policy | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/16 | adapter | - | apache-2.0 (yes) | - |
 | hqfang/nov26-yam-ma_v2_fold-ditx-vit-clip-flow_matching | ed6dd262 | diffusion-policy | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/16 | adapter | - | apache-2.0 (yes) | - |
+| hqfang/yam_fold_100 | 4e1f980c | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | - | None (no) | - |
+| hqfang/yam_fold_70 | 6d67cbf1 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | - | None (no) | - |
 | huzheyuan/pi05_yam_raiden5g_histnow | 0b7dc176 | pi05 | yam_i2rt | 2 | absolute joint + gripper (inferred)/14 | adapter | - | None (no) | - |
 | jellyho/acrft-yam-extraction | 3786c16d | unknown | yam_i2rt | None | unknown (no readable config) | adapter | - | apache-2.0 (yes) | - |
 | jellyho/pi05_yam_lego_taxi_alphaflow | 0d651a7b | pi05 | yam_i2rt | 2 | absolute joint + gripper (inferred)/14 | adapter | - | apache-2.0 (yes) | - |
@@ -254,12 +247,17 @@ Snapshot 2026-11-11: 381 checkpoints, 48 datasets.
 | jellyho/pi05_yam_lego_taxi_bc_s300_h50 | 5c93adfc | pi05 | yam_i2rt | 2 | absolute joint + gripper (inferred)/14 | adapter | - | None (no) | - |
 | jellyho/pi05_yam_lego_taxi_rlt_s300 | b371d1b9 | pi05 | yam_i2rt | 2 | absolute joint + gripper (inferred)/14 | adapter | - | None (no) | - |
 | jinkmn/molmoact2-yam-spell-ceatec-makuhari-both-brightness-1ep | 64bb00e9 | molmoact2 | yam_i2rt | None | unknown (no readable config) | adapter | - | None (no) | - |
+| jinkmn/molmoact2_yam_spell_ceatec_3gpu | 54133dd2 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30 | adapter | - | None (no) | - |
+| jinkmn/molmoact2_yam_spell_ceatec_ft_both_brightness_1ep_3gpu | c109e109 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30 | adapter | - | None (no) | - |
+| jinkmn/molmoact2_yam_spell_ceatec_ft_continuous_brightness_1ep_3gpu | a9762b07 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30 | adapter | - | None (no) | - |
 | jlee24/molmoact2-yam-touch-grab-lora-20260602 | b91e352b | molmoact2 | yam_i2rt | 1 | absolute joint + gripper (verified: config)/7/10 | adapter | - | None (no) | - |
 | jlee24/pi05-yam-touch-grab-lora-20260602 | aafd18ab | pi05 | yam_i2rt | 1 | absolute joint + gripper (verified: config)/7/50 | adapter | - | None (no) | - |
 | johannesmichalke/yam-pick-silver-pi05-v1 | 2ad7beaf | pi05 | yam_i2rt | None | unknown (no readable config) | adapter | - | None (no) | - |
 | kabilanKB/yam_put_pot_act_m3 | 7511d136 | act | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/100/30 | adapter | - | apache-2.0 (yes) | - |
 | lastgeyan/1010_yam11_selfrep_pen_rel34_pm_caug_ft_abc4pq_bs9_2n_10ep_step180000 | 819980b3 | unknown | yam_i2rt | None | unknown (no readable config) | adapter | - | None (no) | - |
 | lastgeyan/1012_yam11_selfrep_pen_rel34_nopm_caug_ft_abc4pq_bs16_2n_15ep_step046000 | 73480db3 | unknown | yam_i2rt | None | unknown (no readable config) | adapter | - | None (no) | - |
+| lerobot/MolmoAct2-BimanualYAM-LeRobot | 743af86d | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30 | adapter | - | None (no) | - |
+| lilkm/MolmoAct2-BimanualYAM-LeRobot | 794bfe13 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30 | adapter | - | None (no) | - |
 | lin881105/act_yam-toy-tape-3 | 9a24641f | act | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/100/30 | adapter | - | None (no) | - |
 | mengqz9/DeVA | 4f321201 | deva | yam_i2rt | None | unknown (no readable config) | adapter | - | mit (yes) | - |
 | michaelwaves/lerobot_yam_green_can_pi | 612c1d3a | pi05 | yam_i2rt | 1 | absolute joint + gripper (verified: config)/7/50 | adapter | - | None (no) | - |
@@ -270,6 +268,8 @@ Snapshot 2026-11-11: 381 checkpoints, 48 datasets.
 | monishluffy/pi05-yam-4cam-20k | d13dea57 | pi05 | yam_i2rt | 2 | absolute joint + gripper (inferred)/14 | adapter | - | None (no) | - |
 | npow/nanovla-bimanual-yam-3cam | 5949bfac | nanovla | yam_i2rt | 2 | unknown (no readable config)/30 | adapter | - | mit (yes) | - |
 | npow/pi05-yam-red-cap-full-7500 | a0a41110 | pi05 | yam_i2rt | 1 | absolute joint + gripper (inferred)/7 | adapter | - | apache-2.0 (yes) | - |
+| nuffnuff/yam-pour-direct-molmoact2-m1 | fbdf4bd0 | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/30 | adapter | - | apache-2.0 (yes) | - |
+| nuffnuff/yam-pour-v5-molmoact2-m1 | aa08235c | molmoact2 | yam_i2rt | 2 | absolute joint + gripper (verified: config)/14/30/15 | adapter | - | None (no) | - |
 | orchestrallabs/pi05-yam-red-cap-full-7500 | ececaedf | pi05 | yam_i2rt | 1 | absolute joint + gripper (inferred)/7 | adapter | - | apache-2.0 (yes) | - |
 | pztang/yam-abc-pickplace-safe-molmoact2-yam-m1 | 5e4fbcc4 | molmoact2 | yam_i2rt | None | unknown (no readable config) | adapter | - | None (no) | - |
 | qualia-robotics/act-yam-so101-teleop-0597d5d9 | 3666cae8 | act | yam_i2rt | 1 | absolute joint + gripper (verified: config)/7/100/30 | adapter | - | apache-2.0 (yes) | - |
