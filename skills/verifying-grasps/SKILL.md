@@ -10,7 +10,7 @@ metadata:
     stage: verify
     embodiments: [any]
     tasks: [pick-place]
-    version: 0.1.0
+    version: 1.0.0
     provenance:
       code: https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/skills/verifying-grasps
       upstream_license: Apache-2.0
@@ -34,6 +34,7 @@ gap:
     verified: The object was seen after the lift, above the surface and near the hand.
     not_held: Nothing matching was seen, or what was seen stayed on the surface or far from the hand.
     reached: The hand is close enough to the commanded grasp pose to have the object between the pads.
+    stopped_short: (verify_reach, only with approach_start) The hand stopped short of the commanded pose along the approach by more than shortfall_min_m and within the object's smallest half-extent across it - on top of the object, not beside it; shortfall_vector (observed minus commanded, along the approach) says by how much, for correcting where the object sits in the hand.
     missed: The hand stopped further from the commanded pose than the object's own smallest half-extent allows.
     held: The jaws closed on something -- the gap is above the mechanical stop.
     empty: The jaws ran to the stop, so they closed on nothing.
@@ -54,7 +55,7 @@ it", which a single check cannot.
 
 | when | script | routes |
 | --- | --- | --- |
-| after the approach, before the close | `verify_reach` | `reached` / `missed` |
+| after the approach, before the close | `verify_reach` | `reached` / `missed` (/ `stopped_short` with `approach_start`) |
 | immediately after the close | `verify_grip` | `held` / `empty` / `unknown` |
 | after a short lift | `verify_grasp` | `verified` / `not_held` |
 
@@ -65,6 +66,17 @@ than a constant because the question is whether the object can still be between
 the pads, and that is a question about the object. Cheap -- no camera, no
 motion -- and it fires before the close, when the graph can still do something
 about it.
+
+Given `approach_start` (where the descent began), it also splits the error
+along and across the approach and routes `stopped_short` when the hand is short
+along it by more than `shortfall_min_m` (3 mm) and within the tolerance across
+it: the fingers landed on top of the object. On a real YAM picking pens by the
+cap, 36 of 40 descents stopped 8-12 mm short this way and the pen was then held
+that much higher in the jaws than planned (pens task, 2026-11-10). A hard
+`missed` would refuse nearly every pick; `shortfall_vector` lets the graph
+correct where the object sits in the hand instead. Every route reports
+`error_vector`, `shortfall_m`, `shortfall_vector` and `lateral_m` (-1 without
+`approach_start`).
 
 `verify_grip` reads `robot.get_gripper` and converts through
 `robot.describe_gripper`'s `width_fit`, routing `empty` when the gap is within

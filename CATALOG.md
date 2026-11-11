@@ -1903,7 +1903,7 @@ One arm holds an object still - a top-down grasp, or its closed hand pressed dow
 
 ### inserting-a-held-peg-top-down
 
-execute · robots: any · tasks: insertion · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/inserting-a-held-peg-top-down/SKILL.md) · [upstream](composed from hub skills inserting-a-peg-with-pose-refinement (ManiSkill, Apache-2.0), searching-insertion-spiral, pressing-in-with-guarded-push (o2ac, BSD-3-Clause) and correcting-insertion-offset-from-port-opening (Apache-2.0); new code is this repository's)
+execute · robots: any · tasks: insertion · Apache-2.0 · v0.1.1 · [`SKILL.md`](skills/inserting-a-held-peg-top-down/SKILL.md) · [upstream](composed from hub skills inserting-a-peg-with-pose-refinement (ManiSkill, Apache-2.0), searching-insertion-spiral, pressing-in-with-guarded-push (o2ac, BSD-3-Clause) and correcting-insertion-offset-from-port-opening (Apache-2.0); new code is this repository's)
 
 Inserts a peg that one arm holds top-down (tip below the fingers) into a perceived hole straight down - aligns the tip over the mouth from the hand read back, refines from the wrist camera with the tip and the mouth in the same depth view until the lateral error is under half the clearance, descends with stop-on-contact, runs a bounded spiral (and, with a chamfer, a tilt-then-upright try) if blocked at the mouth, pushes to the target depth with a tracking-lag limit, releases, backs out and probes the peg's top with the closed fingers to tell a tip at depth from a peg that slid up in the grip. Use after a top-down regrasp (handing-over-a-peg-to-a-top-down-grasp gives `held`) when the hole's mouth and depth are perceived (`hole`), on an arm with no force sensor (YAM).
 
@@ -2963,7 +2963,7 @@ Compares a brick build with its target model up to the current step - LTRON's as
 
 ### verifying-grasps
 
-verify · robots: any · tasks: pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/verifying-grasps/SKILL.md) · [upstream](https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/skills/verifying-grasps)
+verify · robots: any · tasks: pick-place · Apache-2.0 · v1.0.0 · [`SKILL.md`](skills/verifying-grasps/SKILL.md) · [upstream](https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/skills/verifying-grasps)
 
 Three independent checks on one grasp attempt -- that the hand arrived where it was sent before the jaws close, that the jaw gap after the close is not the mechanical stop, and that the lifted object is visible above the surface and near the hand. Use when a grasp closed on a small or thin object and the graph must know, before carrying or inserting, whether anything is actually in the gripper.
 
@@ -2975,6 +2975,7 @@ Three independent checks on one grasp attempt -- that the hand arrived where it 
   - `verified`: The object was seen after the lift, above the surface and near the hand.
   - `not_held`: Nothing matching was seen, or what was seen stayed on the surface or far from the hand.
   - `reached`: The hand is close enough to the commanded grasp pose to have the object between the pads.
+  - `stopped_short`: (verify_reach, only with approach_start) The hand stopped short of the commanded pose along the approach by more than shortfall_min_m and within the object's smallest half-extent across it - on top of the object, not beside it; shortfall_vector (observed minus commanded, along the approach) says by how much, for correcting where the object sits in the hand.
   - `missed`: The hand stopped further from the commanded pose than the object's own smallest half-extent allows.
   - `held`: The jaws closed on something -- the gap is above the mechanical stop.
   - `empty`: The jaws ran to the stop, so they closed on nothing.

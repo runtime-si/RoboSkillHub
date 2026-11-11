@@ -19,7 +19,7 @@ metadata:
   hub:
     stage: execute
     embodiments: [any]
-    version: 0.1.0
+    version: 0.1.1
     tasks: [insertion]
     provenance:
       authors: [runtime-si]
@@ -99,6 +99,16 @@ root), and adds the parts a held, top-down peg needs:
   (the peg's frame in the tool frame: origin on the axis at mid-length),
   `tip_offset_m` (used only without a peg length), `sigma_mm` (sets the spiral's
   radius: 3 sigma + 1 mm, inside 2-6 mm; and the camera's search band).
+  **`tip_offset_m` and `T_TCP_object` must come from the grasp height as
+  measured, not as commanded.** A hand sent to grip a peg at a given depth below
+  its top can stop on top of it instead and close there: on a real YAM picking
+  pens by the cap, 36 of 40 descents stopped 8-12 mm short (pens task,
+  2026-11-10), and a pen held back by its socket can slide ~10 mm in the jaws on
+  the lift. The tip then hangs that much lower than the commanded grasp says,
+  the descent meets the face early and the station's reach check fails (15 mm
+  off) before any search. Take the offset from the hand's read-back where it
+  stopped (verifying-grasps `verify_reach` with `approach_start`:
+  `shortfall_vector`) or from a wrist-camera measure of the tip after the lift.
 - `hole`: `T_world_mouth` (z into the hole, within 30 deg of straight down),
   `diameter_m`, `depth_m`, `chamfer_m` (optional; the tilt try needs >= 0.3 mm).
 - `peg`: `length_m`, `diameter_m`, `axis_in_object` ([0, 0, 1]), `tip_end`
