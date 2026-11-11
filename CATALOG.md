@@ -216,6 +216,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`centering-a-part-with-the-gripper`](#centering-a-part-with-the-gripper) | recover | Centres a loose part between the jaws without perceiving it. | any |
 | [`checkpointing-assembly-state-for-resume`](#checkpointing-assembly-state-for-resume) | recover | Saves and restores the state of a long assembly run (a 550-piece jigsaw, a LEGO build, a domino layout) so a run… | any |
 | [`correcting-insertion-offset-from-port-opening`](#correcting-insertion-offset-from-port-opening) | recover | Re-centres a held part over a port before or after a failed insertion using cameras only. | any |
+| [`replanning-with-an-execution-critic`](#replanning-with-an-execution-critic) | recover | CLEA's critic - before the graph executes its next action, a VLM reads the task, the subgoal, what was done so far and… | any |
 | [`returning-to-a-recorded-pose`](#returning-to-a-recorded-pose) | recover | Opens the gripper and drives the arm back to a joint configuration recorded earlier in the episode, then checks from a… | any |
 | [`classifying-failure-type-vlm`](#classifying-failure-type-vlm) | judge | Classifies why a manipulation step failed from camera frames taken before, during (optional, a short video as frames)… | any |
 | [`detecting-subtask-success`](#detecting-subtask-success) | judge | Checks whether a subtask is done from the latest frame of every camera at one moment. | any |
@@ -3231,6 +3232,22 @@ Re-centres a held part over a port before or after a failed insertion using came
   - `offset_too_large`: The consensus lies more than max_port_offset (8 mm) from the estimate, or the next step would take the commanded correction past max_total (6 mm); re-perceive the port rather than correct. An opening near the bound can be measured short until the hand has stepped toward it, so the hand may have moved before this exit.
   - `no_convergence`: After max_steps (8) moves the part is still not centred in min_views views; the hand is where the last step left it.
   - `unreachable`: The hand's pose could not be read, or a step was refused or reported out of reach.
+
+### replanning-with-an-execution-critic
+
+recover · robots: any · tasks: lego, pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/replanning-with-an-execution-critic/SKILL.md) · [upstream](https://github.com/sp4595/clea-closed-loop-embodied-agent/blob/eea73b60cf09/CLEA/templates/prompts/Critic.prompt)
+
+CLEA's critic - before the graph executes its next action, a VLM reads the task, the subgoal, what was done so far and the current camera frames and says whether the proposed action is suitable now (YAML "Action Suitability" True/False plus feedback); a rejection routes a re-plan of the subgoal, repeated rejections a re-plan of the task. Routes continue, replan_subtask, replan_task or no_verdict. Use when a graph is about to commit to an action whose precondition only the camera can confirm (move on to the next brick, release, push) and should re-plan instead when the scene says otherwise; one VLM call, ~6 s.
+
+- **In**: `task` string, `subgoal` string, `proposed_action` string
+- **Out**: `feedback` string, `rejections` int
+- **Calls**: [`vlm`](#vlm); connector `robot.get_observation`
+- **Scripts**: [`critique_action`](skills/replanning-with-an-execution-critic/scripts/critique_action.py)
+- **Exits**:
+  - `continue`: The critic found the proposed action suitable now.
+  - `replan_subtask`: The critic rejected it (feedback says why and how to improve); fewer than max_rejections rejections so far for this subgoal.
+  - `replan_task`: The critic rejected it and the subgoal has now been rejected max_rejections (2) times.
+  - `no_verdict`: No camera frame with RGB, vlm.query failed, or the reply had no "Action Suitability".
 
 ### returning-to-a-recorded-pose
 
