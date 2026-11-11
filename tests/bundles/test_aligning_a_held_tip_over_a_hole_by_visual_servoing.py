@@ -14,10 +14,11 @@ spec.loader.exec_module(at)
 
 def test_hole_centre_from_face_and_deep_points():
     rng = np.random.default_rng(0)
-    xy = rng.uniform(-0.03, 0.03, size=(20000, 2))
+    xy = rng.uniform(-0.04, 0.04, size=(40000, 2))
     true_c = np.array([0.003, -0.002])
     inside = np.linalg.norm(xy - true_c, axis=1) < 0.009
-    z = np.where(inside, -0.03, 0.0)
+    off_block = np.linalg.norm(xy, axis=1) > 0.025  # the table past the holder's edge, deeper too
+    z = np.where(inside, -0.03, np.where(off_block, -0.04, 0.0))
     keep = ~(inside & (xy[:, 0] > 0.006))  # part of the hole hidden
     pts = np.c_[xy, z][keep]
     h = at.hole_centre(pts, np.zeros(2), 0.009, 0.0)

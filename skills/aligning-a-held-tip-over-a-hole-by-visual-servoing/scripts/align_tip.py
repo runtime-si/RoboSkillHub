@@ -139,18 +139,43 @@ def held_foot(
 
 
 def hole_centre(
-    pts: np.ndarray, expected_xy: np.ndarray, radius: float, face_z: float, search: float = 0.02
+    pts: np.ndarray,
+    expected_xy: np.ndarray,
+    radius: float,
+    face_z: float,
+    search: float = 0.02,
+    cell: float = 0.001,
 ) -> dict[str, Any]:
-    """Centre of the hole near ``expected_xy``: the face points around it and the deeper points in it; the centre
-    is the known-radius circle that keeps the face points out and the hole points in (least squares on the rim)."""
+    """Centre of the hole near ``expected_xy``: the face points around it, rasterised at ``cell``, and the gaps the
+    face closes around (a hole), not merely the deeper points - past the holder's edge the table is deeper too, and
+    in a station twin it pulled the centre 11-17 mm off. The gap nearest the expected spot, its area at least half
+    the hole's; its centre is the known-radius circle that keeps the face points out."""
+    from scipy import ndimage
+
     xy = pts[:, :2] - expected_xy
-    near = np.linalg.norm(xy, axis=1) < radius + search
+    half = radius + search
+    near = np.all(np.abs(xy) < half, axis=1)
     face = near & (np.abs(pts[:, 2] - face_z) < FACE_BAND)
-    deep = near & (pts[:, 2] < face_z - HOLE_DEPTH)
-    if face.sum() < MIN_POINTS or deep.sum() < MIN_POINTS // 3:
-        return {"found": False, "face": int(face.sum()), "deep": int(deep.sum())}
-    # start at the deep points' centroid, then fit the centre so the face points sit outside the radius
-    c = xy[deep].mean(axis=0)
+    if face.sum() < MIN_POINTS:
+        return {"found": False, "face": int(face.sum())}
+    n = int(np.ceil(2 * half / cell))
+    ij = np.clip(((xy[face] + half) / cell).astype(int), 0, n - 1)
+    grid = np.zeros((n, n), bool)
+    grid[ij[:, 0], ij[:, 1]] = True
+    grid = ndimage.binary_closing(grid, iterations=1)
+    gaps = ndimage.binary_fill_holes(grid) & ~grid
+    lab, k = ndimage.label(gaps)
+    best, best_d = None, np.inf
+    for comp in range(1, k + 1):
+        cells = np.argwhere(lab == comp)
+        if len(cells) * cell * cell < 0.5 * math.pi * radius * radius:
+            continue
+        c = (cells.mean(axis=0) + 0.5) * cell - half
+        if np.linalg.norm(c) < best_d:
+            best, best_d = c, float(np.linalg.norm(c))
+    if best is None:
+        return {"found": False, "face": int(face.sum()), "gaps": int(k)}
+    c = best
     f = xy[face]
     for _ in range(20):
         r = np.linalg.norm(f - c, axis=1)
@@ -161,12 +186,7 @@ def hole_centre(
             :, None
         ]
         c = c - push.mean(axis=0)
-    return {
-        "found": True,
-        "centre_xy": c + expected_xy,
-        "face": int(face.sum()),
-        "deep": int(deep.sum()),
-    }
+    return {"found": True, "centre_xy": c + expected_xy, "face": int(face.sum()), "gaps": int(k)}
 
 
 def surface_around(pts: np.ndarray, xy: np.ndarray, hole_radius: float) -> float:
