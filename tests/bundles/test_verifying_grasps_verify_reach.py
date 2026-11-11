@@ -7,7 +7,13 @@ from pathlib import Path
 
 import pytest
 
-SCRIPT = Path(__file__).resolve().parents[2] / "skills" / "verifying-grasps" / "scripts" / "verify_reach.py"
+SCRIPT = (
+    Path(__file__).resolve().parents[2]
+    / "skills"
+    / "verifying-grasps"
+    / "scripts"
+    / "verify_reach.py"
+)
 
 
 @pytest.fixture(scope="module")
@@ -31,7 +37,9 @@ def test_old_routes_without_approach(vr):
 
 
 def test_stopped_short_on_top(vr):
-    out = vr.run(None, commanded=GOAL, observed=[0.301, 0.30, 0.0905], target_obb=CAP, approach_start=START)
+    out = vr.run(
+        None, commanded=GOAL, observed=[0.301, 0.30, 0.0905], target_obb=CAP, approach_start=START
+    )
     assert out["route"] == "stopped_short" and not out["reached"]
     assert out["shortfall_m"] == pytest.approx(0.0105, abs=1e-6)
     assert out["shortfall_vector"]["z"] == pytest.approx(0.0105, abs=1e-6)
@@ -39,10 +47,14 @@ def test_stopped_short_on_top(vr):
 
 
 def test_beside_is_still_missed(vr):
-    out = vr.run(None, commanded=GOAL, observed=[0.315, 0.30, 0.085], target_obb=CAP, approach_start=START)
+    out = vr.run(
+        None, commanded=GOAL, observed=[0.315, 0.30, 0.085], target_obb=CAP, approach_start=START
+    )
     assert out["route"] == "missed" and out["lateral_m"] > 0.00925
 
 
 def test_small_shortfall_is_reached(vr):
-    out = vr.run(None, commanded=GOAL, observed=[0.30, 0.30, 0.082], target_obb=CAP, approach_start=START)
+    out = vr.run(
+        None, commanded=GOAL, observed=[0.30, 0.30, 0.082], target_obb=CAP, approach_start=START
+    )
     assert out["route"] == "reached" and out["shortfall_m"] == pytest.approx(0.002, abs=1e-6)

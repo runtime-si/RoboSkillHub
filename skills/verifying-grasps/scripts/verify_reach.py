@@ -112,9 +112,9 @@ def _split(want: dict, got: dict, start: dict | None) -> tuple[list, float, list
     if n < 1e-6:
         return e, -1.0, [0.0, 0.0, 0.0], -1.0
     d = [c / n for c in d]
-    along = sum(a * b for a, b in zip(e, d))
+    along = sum(a * b for a, b in zip(e, d, strict=True))
     vec = [along * c for c in d]
-    lateral = math.sqrt(sum((a - b) ** 2 for a, b in zip(e, vec)))
+    lateral = math.sqrt(sum((a - b) ** 2 for a, b in zip(e, vec, strict=True)))
     return e, along, vec, lateral
 
 
@@ -145,7 +145,12 @@ def run(
     want = _position(commanded)
     got = _position(observed)
     tolerance = _tolerance(target_obb, floor_m, ceiling_m)
-    none = {"error_vector": _vec([0, 0, 0]), "shortfall_m": -1.0, "shortfall_vector": _vec([0, 0, 0]), "lateral_m": -1.0}
+    none = {
+        "error_vector": _vec([0, 0, 0]),
+        "shortfall_m": -1.0,
+        "shortfall_vector": _vec([0, 0, 0]),
+        "lateral_m": -1.0,
+    }
     if want is None or got is None or tolerance < 0.0:
         reason = "no commanded pose, no observed pose, or no target box"
         logger.warning("[reach] no opinion for %s (%s)", object_name or "?", reason)
@@ -160,16 +165,25 @@ def run(
 
     error = math.dist([want[k] for k in "xyz"], [got[k] for k in "xyz"])
     e, along, along_vec, lateral = _split(want, got, _position(approach_start))
-    split = {"error_vector": _vec(e), "shortfall_m": max(0.0, -along) if lateral >= 0.0 else -1.0,
-             "shortfall_vector": _vec(along_vec), "lateral_m": lateral}
+    split = {
+        "error_vector": _vec(e),
+        "shortfall_m": max(0.0, -along) if lateral >= 0.0 else -1.0,
+        "shortfall_vector": _vec(along_vec),
+        "lateral_m": lateral,
+    }
     if lateral >= 0.0 and -along > shortfall_min_m and lateral <= tolerance:
         reason = (
             f"the hand stopped {-along * 1000:.1f} mm short of the grasp pose along the approach "
             f"({lateral * 1000:.1f} mm across it, within the {tolerance * 1000:.1f} mm "
             f"{object_name or 'the target'} allows): on top of it, not beside it"
         )
-        logger.info("[reach] stopped_short short_mm=%.1f lateral_mm=%.1f tol_mm=%.1f object=%s",
-                    -along * 1000.0, lateral * 1000.0, tolerance * 1000.0, object_name or "?")
+        logger.info(
+            "[reach] stopped_short short_mm=%.1f lateral_mm=%.1f tol_mm=%.1f object=%s",
+            -along * 1000.0,
+            lateral * 1000.0,
+            tolerance * 1000.0,
+            object_name or "?",
+        )
         return {
             "route": "stopped_short",
             "reached": False,
