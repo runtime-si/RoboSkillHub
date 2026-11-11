@@ -1,0 +1,264 @@
+"""Put a held part's tip over a hole by visual servoing on the wrist RGB-D frame: fit the held part's axis, find
+the hole's centre on the face, move the hand by the lateral offset (capped), check it moved, repeat."""
+
+from __future__ import annotations
+
+import logging
+import math
+from typing import Any, TypedDict
+
+import numpy as np
+from gap import NodeContext
+
+logger = logging.getLogger(__name__)
+
+TOL = 0.001
+"""Lateral tip-to-hole offset that counts as aligned [m]."""
+
+MAX_STEP = 0.006
+"""Largest correction per iteration [m]; a reading further off than MAX_OFFSET is a misreading."""
+
+MAX_OFFSET = 0.03
+
+MIN_FOLLOW = 0.4
+"""Fraction of a commanded correction the hand must be seen to make (read back); under it the hand is not
+following, which is what kept a real pens run's foot 6-8 mm off over three corrections."""
+
+HELD_MARGIN = 0.006
+"""Points within the part's radius plus this of the tool axis belong to the held part [m]."""
+
+FACE_BAND = 0.003
+"""Points within this of the face height are the face [m]; deeper than HOLE_DEPTH under it, a hole."""
+
+HOLE_DEPTH = 0.005
+MIN_POINTS = 60
+
+
+class Output(TypedDict):
+    route: str
+    detail: str
+    offset_x: float
+    offset_y: float
+    iterations: int
+    moved_m: float
+
+
+def _rot(q: dict[str, float]) -> np.ndarray:
+    w, x, y, z = (float(q[k]) for k in ("w", "x", "y", "z"))
+    return np.array(
+        [
+            [1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)],
+            [2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)],
+            [2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)],
+        ]
+    )
+
+
+def cloud(depth: np.ndarray, k: np.ndarray, t_base_cam: np.ndarray, stride: int = 2):
+    """(points in the base frame [N, 3], their pixel rows, cols) for every valid depth pixel."""
+    v, u = np.mgrid[0 : depth.shape[0] : stride, 0 : depth.shape[1] : stride]
+    z = depth[v, u].astype(float)
+    ok = np.isfinite(z) & (z > 0.02) & (z < 1.5)
+    v, u, z = v[ok], u[ok], z[ok]
+    p = np.stack([(u - k[0, 2]) * z / k[0, 0], (v - k[1, 2]) * z / k[1, 1], z], axis=1)
+    return p @ t_base_cam[:3, :3].T + t_base_cam[:3, 3], v, u
+
+
+def held_foot(
+    pts: np.ndarray,
+    t_base_tool: np.ndarray,
+    radius: float,
+    tip_offset: float,
+    face_z: float,
+    cam_pos: np.ndarray,
+) -> dict[str, Any]:
+    """The held part's axis (a line fitted to its visible surface, moved back by the radius) and where it crosses
+    the face plane: the foot. Points near the tool's approach axis, from the tool centre to the tip, above the face."""
+    o, a = t_base_tool[:3, 3], t_base_tool[:3, 2]
+    rel = pts - o
+    s = rel @ a
+    d = np.linalg.norm(rel - np.outer(s, a), axis=1)
+    sel = (
+        (d < radius + HELD_MARGIN)
+        & (s > 0.0)
+        & (s < tip_offset + 0.005)
+        & (pts[:, 2] > face_z + 0.004)
+    )
+    if sel.sum() < MIN_POINTS:
+        return {"found": False, "n": int(sel.sum())}
+    q = pts[sel]
+    c = q.mean(axis=0)
+    axis = np.linalg.svd(q - c, full_matrices=False)[2][0]
+    if axis @ a < 0:
+        axis = -axis
+    # the camera sees the near side: the axis lies a radius further from the camera
+    away = c - cam_pos
+    away -= axis * (away @ axis)
+    n = np.linalg.norm(away)
+    if n > 1e-9:
+        c = c + away / n * radius
+    if abs(axis[2]) < 0.3:
+        return {"found": False, "n": int(sel.sum()), "why": "axis not vertical enough"}
+    t = (face_z - c[2]) / axis[2]
+    foot = c + axis * t
+    tilt = math.degrees(math.acos(min(1.0, abs(axis[2]))))
+    return {"found": True, "n": int(sel.sum()), "foot_xy": foot[:2], "axis": axis, "tilt_deg": tilt}
+
+
+def hole_centre(
+    pts: np.ndarray, expected_xy: np.ndarray, radius: float, face_z: float, search: float = 0.02
+) -> dict[str, Any]:
+    """Centre of the hole near ``expected_xy``: the face points around it and the deeper points in it; the centre
+    is the known-radius circle that keeps the face points out and the hole points in (least squares on the rim)."""
+    xy = pts[:, :2] - expected_xy
+    near = np.linalg.norm(xy, axis=1) < radius + search
+    face = near & (np.abs(pts[:, 2] - face_z) < FACE_BAND)
+    deep = near & (pts[:, 2] < face_z - HOLE_DEPTH)
+    if face.sum() < MIN_POINTS or deep.sum() < MIN_POINTS // 3:
+        return {"found": False, "face": int(face.sum()), "deep": int(deep.sum())}
+    # start at the deep points' centroid, then fit the centre so the face points sit outside the radius
+    c = xy[deep].mean(axis=0)
+    f = xy[face]
+    for _ in range(20):
+        r = np.linalg.norm(f - c, axis=1)
+        inside = r < radius
+        if not inside.any():
+            break
+        push = ((f[inside] - c) / np.maximum(r[inside], 1e-6)[:, None]) * (radius - r[inside])[
+            :, None
+        ]
+        c = c - push.mean(axis=0)
+    return {
+        "found": True,
+        "centre_xy": c + expected_xy,
+        "face": int(face.sum()),
+        "deep": int(deep.sum()),
+    }
+
+
+def measure(
+    frame: dict[str, Any],
+    t_base_tool: np.ndarray,
+    hole_xy: np.ndarray,
+    face_z: float,
+    part_radius: float,
+    hole_radius: float,
+    tip_offset: float,
+) -> dict[str, Any]:
+    k = np.asarray(frame["intrinsics"], dtype=float)
+    tbc = np.asarray(frame["T_base_camera"], dtype=float)
+    pts, _, _ = cloud(np.asarray(frame["depth"], dtype=float), k, tbc)
+    foot = held_foot(pts, t_base_tool, part_radius, tip_offset, face_z, tbc[:3, 3])
+    hole = hole_centre(pts, np.asarray(hole_xy, dtype=float), hole_radius, face_z)
+    out = {"foot": foot, "hole": hole}
+    if foot["found"] and hole["found"]:
+        out["offset"] = np.asarray(hole["centre_xy"]) - np.asarray(foot["foot_xy"])
+    return out
+
+
+def _frame(ctx: NodeContext, camera: str | None, arm: dict[str, Any]) -> dict[str, Any] | None:
+    obs = ctx.tool("robot.get_observation")
+    cams = (
+        [c for c in (obs.get("cameras") or []) if isinstance(c, dict)]
+        if isinstance(obs, dict)
+        else []
+    )
+    if camera:
+        cams = [c for c in cams if c.get("name") == camera]
+    else:
+        cams = [
+            c for c in cams if any(s in str(c.get("name", "")) for s in ("wrist", "eye_in_hand"))
+        ]
+    for c in cams:
+        if c.get("depth") is None or c.get("intrinsics") is None or c.get("pose") is None:
+            continue
+        p = c["pose"]
+        t = np.eye(4)
+        t[:3, :3] = _rot(p["rotation"])
+        t[:3, 3] = [float(p["position"][a]) for a in "xyz"]
+        return {"depth": c["depth"], "intrinsics": c["intrinsics"], "T_base_camera": t}
+    return None
+
+
+def _tool(ctx: NodeContext, arm: dict[str, Any]) -> np.ndarray:
+    r = ctx.tool("robot.get_ee_pose", **arm)
+    p = r.get("pose", r)
+    t = np.eye(4)
+    t[:3, :3] = _rot(p["rotation"])
+    t[:3, 3] = [float(p["position"][a]) for a in "xyz"]
+    return t
+
+
+def run(
+    ctx: NodeContext,
+    hole_xy: list[float],
+    face_z: float,
+    tip_offset_m: float,
+    part_diameter_m: float,
+    hole_diameter_m: float,
+    camera: str | None = None,
+    tol_m: float = TOL,
+    max_step_m: float = MAX_STEP,
+    max_iterations: int = 6,
+    arm_id: int = 0,
+) -> Output:
+    arm: dict[str, Any] = {"arm_id": int(arm_id)} if arm_id else {}
+    out: Output = {
+        "route": "not_converging",
+        "detail": "",
+        "offset_x": 0.0,
+        "offset_y": 0.0,
+        "iterations": 0,
+        "moved_m": 0.0,
+    }
+    for i in range(int(max_iterations)):
+        out["iterations"] = i + 1
+        frame = _frame(ctx, camera, arm)
+        if frame is None:
+            out.update(
+                route="tip_not_seen", detail="no wrist camera with depth, intrinsics and pose"
+            )
+            return out
+        t_tool = _tool(ctx, arm)
+        m = measure(frame, t_tool, np.asarray(hole_xy[:2], float), float(face_z), part_diameter_m / 2,
+                    hole_diameter_m / 2, float(tip_offset_m))  # fmt: skip
+        if not m["foot"]["found"]:
+            out.update(route="tip_not_seen", detail=f"held part not found ({m['foot']})")
+            return out
+        if not m["hole"]["found"]:
+            out.update(
+                route="hole_not_seen", detail=f"no hole near the expected spot ({m['hole']})"
+            )
+            return out
+        off = m["offset"]
+        out["offset_x"], out["offset_y"] = float(off[0]), float(off[1])
+        dist = float(np.linalg.norm(off))
+        if dist < float(tol_m):
+            out.update(
+                route="aligned",
+                detail=f"tip {dist * 1e3:.1f} mm from the hole centre after {i} move(s)",
+            )
+            return out
+        if dist > MAX_OFFSET:
+            out.update(
+                route="not_converging",
+                detail=f"read {dist * 1e3:.0f} mm off: a misreading, not moved",
+            )
+            return out
+        step = off * min(1.0, float(max_step_m) / dist)
+        goal = t_tool[:3, 3] + np.array([step[0], step[1], 0.0])
+        p = ctx.tool("robot.get_ee_pose", **arm)
+        p = p.get("pose", p)
+        ctx.tool("robot.go_to_pose", pose={"position": dict(zip("xyz", map(float, goal), strict=False)), "rotation": p["rotation"]},
+                 tolerance=0.0003, **arm)  # fmt: skip
+        moved = _tool(ctx, arm)[:3, 3] - t_tool[:3, 3]
+        made = float(np.dot(moved[:2], step) / max(np.dot(step, step), 1e-12))
+        out["moved_m"] += float(np.linalg.norm(moved[:2]))
+        if made < MIN_FOLLOW:
+            out.update(route="not_converging",
+                       detail=f"asked {np.linalg.norm(step) * 1e3:.1f} mm, the hand made {made * 100:.0f} % of it")  # fmt: skip
+            return out
+    out["detail"] = (
+        out["detail"] or f"still {math.hypot(out['offset_x'], out['offset_y']) * 1e3:.1f} mm off"
+    )
+    return out
