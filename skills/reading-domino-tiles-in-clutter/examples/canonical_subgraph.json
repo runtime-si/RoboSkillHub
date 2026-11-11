@@ -1,0 +1,9 @@
+{
+  "skill": "reading-domino-tiles-in-clutter",
+  "inputs": {},
+  "outputs": {"n_tiles": {"$ref": "read.n_tiles"}, "total_pips": {"$ref": "read.total_pips"}},
+  "nodes": {"read": {"type": "script", "script": "scripts/read_tiles.py", "inputs": {"camera": "left_wrist"}}},
+  "edges": [["START", "read"], ["read", "END"]],
+  "exit": {"router_field": "route", "success_values": ["tiles_read", "ambiguous", "no_tiles"]},
+  "on_error": "no_tiles"
+}

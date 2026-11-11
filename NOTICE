@@ -869,3 +869,10 @@ robocurve/gr00t-n1.7-yam-molmoact2 and the gated nvidia/Cosmos-Reason2-2B
 backbone - are under the NVIDIA Open Model License and are downloaded from
 Hugging Face at run time; none are redistributed here. The optional stand-in
 backbone Qwen/Qwen3-VL-2B-Instruct is Apache-2.0.
+
+skills/reading-domino-tiles-in-clutter/scripts/read_tiles.py adapts the pip
+counting of pipcounter (https://github.com/jjmlovesgit/pipcounter, commit
+79cad4071f4c, pipperjones.py: the HSV mask, external contours and pip area
+filter), MIT License, Copyright (c) 2023 JJM; the file's header lists the
+changes, and the license is
+skills/reading-domino-tiles-in-clutter/LICENSE.pipcounter.
