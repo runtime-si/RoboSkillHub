@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 172 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 173 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -217,6 +217,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`centering-a-part-with-the-gripper`](#centering-a-part-with-the-gripper) | recover | Centres a loose part between the jaws without perceiving it. | any |
 | [`checkpointing-assembly-state-for-resume`](#checkpointing-assembly-state-for-resume) | recover | Saves and restores the state of a long assembly run (a 550-piece jigsaw, a LEGO build, a domino layout) so a run… | any |
 | [`correcting-insertion-offset-from-port-opening`](#correcting-insertion-offset-from-port-opening) | recover | Re-centres a held part over a port before or after a failed insertion using cameras only. | any |
+| [`recovering-from-empty-grasp-by-gripper-load`](#recovering-from-empty-grasp-by-gripper-load) | recover | Grasp at a given pose and, when the jaws close on nothing (they ran to the closed stop, and with a load-reporting… | any |
 | [`replanning-with-an-execution-critic`](#replanning-with-an-execution-critic) | recover | CLEA's critic - before the graph executes its next action, a VLM reads the task, the subgoal, what was done so far and… | any |
 | [`returning-to-a-recorded-pose`](#returning-to-a-recorded-pose) | recover | Opens the gripper and drives the arm back to a joint configuration recorded earlier in the episode, then checks from a… | any |
 | [`classifying-failure-type-vlm`](#classifying-failure-type-vlm) | judge | Classifies why a manipulation step failed from camera frames taken before, during (optional, a short video as frames)… | any |
@@ -3244,6 +3245,22 @@ Re-centres a held part over a port before or after a failed insertion using came
   - `offset_too_large`: The consensus lies more than max_port_offset (8 mm) from the estimate, or the next step would take the commanded correction past max_total (6 mm); re-perceive the port rather than correct. An opening near the bound can be measured short until the hand has stepped toward it, so the hand may have moved before this exit.
   - `no_convergence`: After max_steps (8) moves the part is still not centred in min_views views; the hand is where the last step left it.
   - `unreachable`: The hand's pose could not be read, or a step was refused or reported out of reach.
+
+### recovering-from-empty-grasp-by-gripper-load
+
+recover · robots: any · tasks: pick-place · MIT · v1.0.0 · [`SKILL.md`](skills/recovering-from-empty-grasp-by-gripper-load/SKILL.md) · [upstream](https://github.com/HyuanTan/lerobot_far/blob/f8bf405bcd2e/src/lerobot/async_inference/smart_robot_client.py)
+
+Grasp at a given pose and, when the jaws close on nothing (they ran to the closed stop, and with a load-reporting gripper the load stayed low), escalate through a fixed ladder instead of carrying air - lift and retry, rewind the approach and retry, go home and retry, then give up. Each retry can re-measure the object with a locate tool. Use when a grasp from an imprecise pose (a policy, a coarse detection, a stale estimate) sometimes closes empty and the graph should try again on its own before failing.
+
+- **In**: `grasp_pose` Se3Pose
+- **Out**: `attempts` int, `recovery` string, `detail` string, `grasp_position` Vec3
+- **Calls**: connector `robot.close_gripper`, `robot.describe_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.go_home`, `robot.go_to_pose_cartesian`, `robot.open_gripper`
+- **Scripts**: [`recover_empty_grasp`](skills/recovering-from-empty-grasp-by-gripper-load/scripts/recover_empty_grasp.py)
+- **Exits**:
+  - `held`: The first close held something - the jaw gap ended above the closed stop by more than empty_margin_m (and the load passed load_grasp_threshold when the gripper reports one).
+  - `recovered`: A retry held something; recovery names the last ladder level used (lift, rewind or home).
+  - `gave_up`: Every close ran to the closed stop, max_total_retries + 1 of them; the jaws are left open.
+  - `move_failed`: The connector refused a move of the approach or of a retry; detail says which.
 
 ### replanning-with-an-execution-critic
 
