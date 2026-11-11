@@ -534,6 +534,34 @@ class TrackBuild(_HubSkill):
                 self, "failed", phase="verify", failure_type="lego.structure_damaged",
                 evidence=evidence, outputs={"state_json": state},
             )  # fmt: skip
+        # How far every brick already tracked moved since it was tracked (a press tilting or pushing the layer
+        # below shows here first).
+        prev = {b["id"]: b for b in json.loads(state)["bricks"]} if state else {}
+        moved = {}
+        for oid, b0 in prev.items():
+            b1 = brick(oid)
+            if b1 is not None:
+                moved[oid] = (
+                    round(
+                        1e3
+                        * max(
+                            abs(
+                                b1["position"][i]
+                                - b0["position"][
+                                    i if isinstance(b0["position"], list) else "xyz"[i]
+                                ]
+                            )
+                            for i in range(3)
+                        ),
+                        3,
+                    )
+                    if isinstance(b0["position"], list)
+                    else round(
+                        1e3
+                        * max(abs(b1["position"][i] - b0["position"]["xyz"[i]]) for i in range(3)),
+                        3,
+                    )
+                )
         state_now = last["state_json"]
         if not state_now:
             state_now = track(ctx, action="query", state_json="", system="lego", ground_z=ground)[
@@ -547,6 +575,7 @@ class TrackBuild(_HubSkill):
         floating = json.loads(check["floating_json"])
         discrepancies = json.loads(check["discrepancies_json"])
         evidence.update(
+            moved_mm=moved,
             floating=floating,
             discrepancies=discrepancies,
             n_bricks=check["n_bricks"],

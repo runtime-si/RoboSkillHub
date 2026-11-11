@@ -45,6 +45,7 @@ def _hub_brief(step: dict) -> dict:
         "reason": (ev.get("reason") or "")[:240],
         "brick_rise_m": ev.get("brick_rise_m"),
         "truth_face": ev.get("truth_face"),
+        "moved_mm": ev.get("moved_mm"),
         "hand_rise_m": ev.get("hand_rise_m"),
     }
 
