@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-32 tools, 172 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 172 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -25,6 +25,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`gemini-er`](#gemini-er) | perceive | Open-vocabulary 2D detection and pointing via the Gemini Robotics-ER API. | any |
 | [`geometry`](#geometry) | perceive | Pure-math 3D geometry toolbox. | any, *tuned on* panda |
 | [`grounding-dino`](#grounding-dino) | perceive | Grounding DINO zero-shot object detection — natural-language queries to labeled 2D bounding boxes with confidence scores. | any |
+| [`llmdet`](#llmdet) | perceive | LLMDet open-vocabulary detection (CVPR 2025, Apache-2.0 code and weights). | any |
 | [`locate-anything`](#locate-anything) | perceive | NVIDIA LocateAnything-3B (non-commercial licence) run locally on a GPU. | any |
 | [`mm-grounding-dino`](#mm-grounding-dino) | perceive | MM-Grounding-DINO open-vocabulary detection (OpenMMLab's open retraining of Grounding DINO, Apache-2.0 weights) with… | any, *tuned on* yam-station-orbbec-overhead |
 | [`molmo`](#molmo) | perceive | Visual pointing and Q&A via the Molmo VLM served from a self-hosted vLLM endpoint (OpenAI-compatible API). | any |
@@ -358,6 +359,17 @@ Grounding DINO zero-shot object detection — natural-language queries to labele
 - **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
 - **Functions**:
   - `grounding-dino.detect`: Zero-shot detection from a text prompt (labeled boxes + scores).
+
+### llmdet
+
+perceive · robots: any · tasks: pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/llmdet/SKILL.md) · [upstream](https://github.com/iSEE-Laboratory/LLMDet/blob/53366243fba7/README.md)
+
+LLMDet open-vocabulary detection (CVPR 2025, Apache-2.0 code and weights) - text labels in, labelled boxes + scores out, in grounding-dino's shape, so it drops into any skill or sahi slice that takes grounding-dino / mm-grounding-dino. Runs on transformers 5.x (MM-Grounding-DINO does not). Use when a graph needs parts found by name (cube, box, pen, plug, ring) on the hub's main transformers stack.
+
+- **Weights**: `hf://iSEE-Laboratory/llmdet_large@bec37f296f05b22f6c6b39bc05a6c611239f4e31`
+- **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
+- **Functions**:
+  - `llmdet.detect`: Open-vocabulary detection with LLMDet (labelled boxes + scores, grounding-dino's shape).
 
 ### locate-anything
 
