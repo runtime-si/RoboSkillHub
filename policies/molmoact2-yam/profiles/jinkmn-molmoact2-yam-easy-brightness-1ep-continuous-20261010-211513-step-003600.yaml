@@ -1,0 +1,29 @@
+# jinkmn/molmoact2-yam-easy-brightness-1ep-continuous-20261010-211513-step-003600: generated from candidates/vla-checkpoints.json on 2026-11-11 (policies/molmoact2-yam, HF remote-code export).
+# Joint offsets and gripper map copied from the AllenAI-data YAM profiles (twin 0, real +pi/2,
+# 1 = open); not measured for this checkpoint. Not evaluated.
+profile: jinkmn-molmoact2-yam-easy-brightness-1ep-continuous-20261010-211513-step-003600
+backend: molmoact2
+checkpoint:
+  repo: jinkmn/molmoact2-yam-easy-brightness-1ep-continuous-20261010-211513-step-003600
+  revision: dac0f10015d37415f65ac701b476321e37b76e6d
+  sha256:
+    model-00001-of-00005.safetensors: 093b2e314657f2372dbbaaa15abd47219c8835b6f1ff0293f7510a0d374e7b47
+    model-00002-of-00005.safetensors: ae45e2a6111dbac5e8b6c97063342e9ecc05bd9955bc7b4244a4919dcbd171ff
+    model-00003-of-00005.safetensors: 7dc3d7563ab94f32049a6634d13d860ee1cba7ab3df8cecf693e8f124b0063cc
+    model-00004-of-00005.safetensors: f13482351a32f8890ce3031f8fe8e74d99667a6b291ff81f2ecd9d0a392b11fe
+    model-00005-of-00005.safetensors: 07e1e902f6360abfad7244358ef0416440b2effd991f848803ebaf47667ebec1
+  license: "unverified"
+cameras: [top, left_wrist, right_wrist]   # norm_stats camera_keys ['observation.images.top', 'observation.images.left', 'observation.images.right']
+state: [left.j1, left.j2, left.j3, left.j4, left.j5, left.j6, left.gripper,
+        right.j1, right.j2, right.j3, right.j4, right.j5, right.j6, right.gripper]
+joint_offset_rad:
+  left: [0, 0, 0, 0, 0, 0]
+  right: [0, 0, 0, 0, 0, 0]
+gripper: {station_open: 1.0, station_closed: 0.0, model_open: 1.0, model_closed: 0.0}
+action: {type: abs_joint, dim: 14, horizon: 30, execute_steps: 25, hz: 30}
+extra: {norm_tag: yam_dual_molmoact2, num_steps: 10, dtype: bfloat16, inference_action_mode: continuous}
+stations:
+  real:
+    joint_offset_rad:
+      left: [1.5707963267948966, 0, 0, 0, 0, 0]
+      right: [1.5707963267948966, 0, 0, 0, 0, 0]

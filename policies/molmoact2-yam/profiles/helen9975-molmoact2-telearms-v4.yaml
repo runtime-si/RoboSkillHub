@@ -1,0 +1,30 @@
+# helen9975/molmoact2_telearms_v4: generated from candidates/vla-checkpoints.json on 2026-11-11 (policies/molmoact2-yam, HF remote-code export).
+# Joint offsets and gripper map copied from the AllenAI-data YAM profiles (twin 0, real +pi/2,
+# 1 = open); not measured for this checkpoint. Not evaluated.
+profile: helen9975-molmoact2-telearms-v4
+backend: molmoact2
+checkpoint:
+  repo: helen9975/molmoact2_telearms_v4
+  revision: e72ed99804160298f3df2503c61cfa20b8a139ad
+  sha256:
+    model-00001-of-00005.safetensors: c156bee90f2ee4b9ca0241bb624c0d9f4fac66a3133f33787af7b465700a32bf
+    model-00002-of-00005.safetensors: d1a13a369dab0fcfba73284f196e200ab9baf6847ff32c5ea8d4ad04454affea
+    model-00003-of-00005.safetensors: 17f5cac8266d5a84787d664ddd214723cd796f012ef00f378dc08265518837d3
+    model-00004-of-00005.safetensors: 38cb13aabd24acffe0640ae6132c0e4e75f938bfdf7acf3109e595c55afda441
+    model-00005-of-00005.safetensors: 748f51c79ee3ad8e94bd6fd80e86ee0a86f52efc699ec5b15e577a8054d8f47e
+  license: "unverified"
+cameras: [top, left_wrist, right_wrist]   # norm_stats camera_keys ['observation.images.camera_front', 'observation.images.camera_left', 'observation.images.camera_right']
+state: [left.j1, left.j2, left.j3, left.j4, left.j5, left.j6, left.gripper,
+        right.j1, right.j2, right.j3, right.j4, right.j5, right.j6, right.gripper]
+joint_offset_rad:
+  left: [0, 0, 0, 0, 0, 0]
+  right: [0, 0, 0, 0, 0, 0]
+gripper: {station_open: 1.0, station_closed: 0.0, model_open: 1.0, model_closed: 0.0}
+action: {type: abs_joint, dim: 14, horizon: 30, execute_steps: 25, hz: 30}
+extra: {norm_tag: telearms_yam_sim, num_steps: 10, dtype: bfloat16, inference_action_mode: continuous}
+# norm_stats tags: ['telearms_yam_sim']; {'action_dim': 32} (model width; statistics are 14-D)
+stations:
+  real:
+    joint_offset_rad:
+      left: [1.5707963267948966, 0, 0, 0, 0, 0]
+      right: [1.5707963267948966, 0, 0, 0, 0, 0]

@@ -1,0 +1,27 @@
+# npow/servo-groot-yam-v3: generated from candidates/vla-checkpoints.json on 2026-11-11 (policies/gr00t --backend n1.7, Isaac-GR00T format).
+# Joint offsets and gripper map copied from the AllenAI-data YAM profiles (twin 0, real +pi/2,
+# 1 = open); not measured for this checkpoint. Not evaluated.
+profile: npow-servo-groot-yam-v3
+backend: n1.7
+checkpoint:
+  repo: npow/servo-groot-yam-v3
+  revision: 63999202670c806cdbbda6140379b3aab519629b
+  sha256:
+    model-00001-of-00003.safetensors: cbcaea5ee88f1e0f1465043920a2647c67e7de17d24adfd1c477742a6168edec
+    model-00002-of-00003.safetensors: 2c29a9d17edbe6f9496967c7d80e61b5d36cdb558acf1c7b642a2138d98133bf
+    model-00003-of-00003.safetensors: c19d2efa40ed3db1fe5de112dbceb6d128fe14d9923118a65660ea8c45a6d2bf
+  license: "apache-2.0"
+cameras: [top, left_wrist, right_wrist]
+state: [left.j1, left.j2, left.j3, left.j4, left.j5, left.j6, left.gripper,
+        right.j1, right.j2, right.j3, right.j4, right.j5, right.j6, right.gripper]
+joint_offset_rad:
+  left: [0, 0, 0, 0, 0, 0]
+  right: [0, 0, 0, 0, 0, 0]
+gripper: {station_open: 1.0, station_closed: 0.0, model_open: 1.0, model_closed: 0.0}
+action: {type: abs_joint, dim: 14, horizon: 40, execute_steps: 8, hz: 30}
+extra: {tag: new_embodiment, dtype: bfloat16, server_profile: yam-roles}   # server.py --backend n1.7 --profile yam-roles --checkpoint <repo>
+stations:
+  real:
+    joint_offset_rad:
+      left: [1.5707963267948966, 0, 0, 0, 0, 0]
+      right: [1.5707963267948966, 0, 0, 0, 0, 0]

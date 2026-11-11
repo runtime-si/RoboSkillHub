@@ -347,9 +347,119 @@ def cmd_capability(args) -> int:
     return 0 if any(c.eligible for c in choices) else 1
 
 
+def _print_vla(rows: list[dict], matched: int, *, datasets: bool = False) -> None:
+    from .vla_index import our_servers
+
+    print("VLA index only; entries are not bundles. Serving needs a policy bundle and a profile.")
+    for row in rows:
+        if datasets:
+            print(f"{row['id']}@{row['revision'][:8]}  [{row.get('embodiment')}]")
+            print(
+                f"    {row.get('episodes')} episodes; {row.get('format')}; {row.get('relevance', '')}"
+            )
+            continue
+        lic = row.get("license") or {}
+        evals = "; ".join(
+            f"{e['setting']} {e['successes']}/{e['episodes']}" for e in row.get("evaluations") or ()
+        )
+        print(
+            f"{row.get('yam_compatible'):<13} {row['id']}@{row['revision'][:8]}  "
+            f"[{row.get('family')}, {row.get('embodiment')}]"
+        )
+        print(
+            f"    served by: {', '.join(our_servers(row)) or 'none of ours'}; licence "
+            f"{lic.get('model')} ({'verified' if lic.get('verified') else 'unverified'})"
+            + (f"; evals: {evals}" if evals else "")
+        )
+    print(f"{matched} matched; showing {len(rows)} (--limit N; --json includes full metadata)")
+
+
+def cmd_vla_search(args, datasets: bool = False) -> int:
+    from .vla_index import find_vla, load_vla_index
+
+    checkpoints, dataset_index = load_vla_index(args.root or find_root())
+    data = dataset_index if datasets else checkpoints
+    matches = find_vla(
+        data["entries"],
+        args.query,
+        embodiment=getattr(args, "embodiment", None),
+        compatible=getattr(args, "compatible", None),
+        family=getattr(args, "family", None),
+    )
+    limit = args.limit if args.limit is not None else (None if args.json else 30)
+    rows = matches if limit is None else matches[:limit]
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "collection": data["collection"],
+                    "snapshot_date": data["snapshot_date"],
+                    "query": args.query,
+                    "invocable_in_hub": False,
+                    "matched_count": len(matches),
+                    "returned_count": len(rows),
+                    "entries": rows,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+    else:
+        _print_vla(rows, len(matches), datasets=datasets)
+    return 0 if matches or not args.query else 1
+
+
+def cmd_vla_page(args) -> int:
+    from .vla_index import PAGE_PATH, load_vla_index, render_page
+
+    root = args.root or find_root()
+    text = render_page(*load_vla_index(root))
+    path = root / PAGE_PATH
+    if args.write:
+        path.write_text(text, encoding="utf-8")
+        print(f"wrote {PAGE_PATH}")
+        return 0
+    if args.check:
+        current = path.read_text(encoding="utf-8") if path.exists() else ""
+        if current != text:
+            print(f"{PAGE_PATH} is stale; run roboskillhub vla page --write", file=sys.stderr)
+            return 1
+        print(f"{PAGE_PATH} is current")
+        return 0
+    print(text, end="")
+    return 0
+
+
+def cmd_vla_profiles(args) -> int:
+    from .vla_index import load_vla_index, profile_gaps, profiled_checkpoints
+
+    root = args.root or find_root()
+    checkpoints, _ = load_vla_index(root)
+    have = profiled_checkpoints(root)
+    gaps = profile_gaps(root, checkpoints["entries"])
+    for row in checkpoints["entries"]:
+        paths = have.get(row["id"].casefold())
+        if paths:
+            print(f"profiled  {row['id']}: {', '.join(map(str, paths))}")
+    for ident, dirs in gaps:
+        print(f"MISSING   {ident}: as_is and servable; add a profile under {' or '.join(dirs)}")
+    return 1 if gaps else 0
+
+
+def cmd_vla_merge(args) -> int:
+    from .vla_index import merge_files
+
+    report = merge_files(args.root or find_root(), args.files, write=args.write)
+    for line in report:
+        print(line)
+    return 0
+
+
 def cmd_sources(args) -> int:
     from .source_index import find_sources, load_source_index
 
+    if args.kind in ("vla", "vla-datasets"):
+        return cmd_vla_search(args, datasets=args.kind == "vla-datasets")
     data = load_source_index(args.root or find_root())
     matches = find_sources(
         data,
@@ -410,6 +520,21 @@ def cmd_check_sources(args) -> int:
     print(f"{len(rows)} {data['collection']} source entries: metadata valid")
     print(f"    license: {licenses}")
     print(f"    review:  {reviews}")
+    root = args.root or find_root()
+    from .vla_index import CHECKPOINTS_PATH, YAM_COMPATIBLE, counts, load_vla_index
+
+    if (root / CHECKPOINTS_PATH).exists():
+        checkpoints, datasets = load_vla_index(root)
+        ckpts = checkpoints["entries"]
+        compat = counts(ckpts, "yam_compatible")
+        verified = sum(bool((row.get("license") or {}).get("verified")) for row in ckpts)
+        print(
+            f"{len(ckpts)} vla-checkpoints, {len(datasets['entries'])} vla-datasets: metadata valid"
+        )
+        print(
+            "    yam_compatible: " + ", ".join(f"{c}: {compat.get(c, 0)}" for c in YAM_COMPATIBLE)
+        )
+        print(f"    licence verified: {verified}/{len(ckpts)}; all revisions pinned")
     print(
         "Metadata validation only; no upstream execution, license clearance or hardware validation."
     )
@@ -445,6 +570,14 @@ def _selection_args(p: argparse.ArgumentParser) -> None:
         help="comma-separated stages; rank only these (what could replace a failed skill)",
     )
     p.add_argument("--failure", help="how the run failed, in words; ranked with the query")
+
+
+def _vla_filters(p: argparse.ArgumentParser) -> None:
+    from .vla_index import YAM_COMPATIBLE
+
+    p.add_argument("--embodiment", help="VLA only: e.g. yam_i2rt (also matches other YAM names)")
+    p.add_argument("--compatible", choices=YAM_COMPATIBLE, help="VLA only: yam_compatible")
+    p.add_argument("--family", help="VLA only: exact model family, e.g. pi05")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -556,10 +689,39 @@ def build_parser() -> argparse.ArgumentParser:
         "--limit", type=_positive_limit, help="maximum results; default 30 text, all JSON"
     )
     p.add_argument("--json", action="store_true")
+    p.add_argument(
+        "--kind",
+        default="pick-place",
+        choices=("pick-place", "vla", "vla-datasets"),
+        help="which index: pick-place sources (all terms match) or the ranked VLA catalog",
+    )
+    _vla_filters(p)
     p.set_defaults(fn=cmd_sources)
     sub.add_parser("check-sources", help="validate the separate source index").set_defaults(
         fn=cmd_check_sources
     )
+
+    p = sub.add_parser("vla", help="the catalog of fine-tuned action models (not bundles)")
+    vsub = p.add_subparsers(dest="vla_action", required=True)
+    for name, datasets in (("search", False), ("datasets", True)):
+        v = vsub.add_parser(name, help=f"rank {'datasets' if datasets else 'checkpoints'}")
+        v.add_argument("query", nargs="?", default="", help="keywords; any term ranks")
+        v.add_argument("--limit", type=_positive_limit)
+        v.add_argument("--json", action="store_true")
+        _vla_filters(v)
+        v.set_defaults(fn=lambda a, d=datasets: cmd_vla_search(a, datasets=d))
+    v = vsub.add_parser("page", help="render candidates/vla-catalog.md")
+    group = v.add_mutually_exclusive_group()
+    group.add_argument("--write", action="store_true")
+    group.add_argument("--check", action="store_true", help="exit 1 when the page is stale")
+    v.set_defaults(fn=cmd_vla_page)
+    vsub.add_parser(
+        "profiles", help="as_is checkpoints our servers run, and which still lack a profile"
+    ).set_defaults(fn=cmd_vla_profiles)
+    v = vsub.add_parser("merge", help="merge survey JSON files into the catalog (dedupe by id)")
+    v.add_argument("files", nargs="+", type=Path)
+    v.add_argument("--write", action="store_true", help="write the index files and the page")
+    v.set_defaults(fn=cmd_vla_merge)
 
     p = sub.add_parser("runtime", help="inspect and invoke station-bound capabilities")
     rsub = p.add_subparsers(dest="runtime_action", required=True)

@@ -1,0 +1,29 @@
+# xuxie1031/MolmoAct2-YAM-StationeryBench-Sim: generated from candidates/vla-checkpoints.json on 2026-11-11 (policies/molmoact2-yam, HF remote-code export).
+# Joint offsets and gripper map copied from the AllenAI-data YAM profiles (twin 0, real +pi/2,
+# 1 = open); not measured for this checkpoint. Not evaluated.
+profile: xuxie1031-molmoact2-yam-stationerybench-sim
+backend: molmoact2
+checkpoint:
+  repo: xuxie1031/MolmoAct2-YAM-StationeryBench-Sim
+  revision: ab6b8b695c42f79dfbadec9775fdd28f41a2ec48
+  sha256:
+    model-00001-of-00005.safetensors: f6b7cbf75225ab5120202aa97fc900731ad340bbc5bfaf3dcd67f14dc5f56d50
+    model-00002-of-00005.safetensors: f01a0505ccab18b09f5da2eefd185a85e1b6fbf09fd7966c9f38f13e8dee5941
+    model-00003-of-00005.safetensors: 5a145cedb8d8b64d9b7dacdb53ee5ff3fa2792ebee982e332fbbc8a733ca13ab
+    model-00004-of-00005.safetensors: 902e8c272b1cda4db16b1d8bea791324a8715e2b04e5852e65c02284eebfe65a
+    model-00005-of-00005.safetensors: 47594baf2ed722a269b732fb3d4611461b7685ee0a3fc367e24fe4aa9ca90835
+  license: "apache-2.0"
+cameras: [top, left_wrist, right_wrist]   # norm_stats camera_keys ['observation.images.top', 'observation.images.left', 'observation.images.right']
+state: [left.j1, left.j2, left.j3, left.j4, left.j5, left.j6, left.gripper,
+        right.j1, right.j2, right.j3, right.j4, right.j5, right.j6, right.gripper]
+joint_offset_rad:
+  left: [0, 0, 0, 0, 0, 0]
+  right: [0, 0, 0, 0, 0, 0]
+gripper: {station_open: 1.0, station_closed: 0.0, model_open: 1.0, model_closed: 0.0}
+action: {type: abs_joint, dim: 14, horizon: 30, execute_steps: 25, hz: 30}
+extra: {norm_tag: yam_dual_molmoact2, num_steps: 10, dtype: bfloat16, inference_action_mode: continuous}
+stations:
+  real:
+    joint_offset_rad:
+      left: [1.5707963267948966, 0, 0, 0, 0, 0]
+      right: [1.5707963267948966, 0, 0, 0, 0, 0]

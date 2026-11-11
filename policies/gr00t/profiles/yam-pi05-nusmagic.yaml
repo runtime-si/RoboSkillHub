@@ -1,0 +1,34 @@
+# π0.5 fine-tuned on allenai/MolmoAct2-BimanualYAM-Dataset by NUSMAGIC (LeRobot PI05Policy, 100k steps).
+# Same LeRobot layout as helen9975/pi05-molmoact-yam (yam-pi05-molmoact2): observation.images.top / left / right
+# at 3x360x640, 14-D state, chunk 30 @ 30 Hz; same data, joint frame and gripper units. Not evaluated in the twin.
+profile: yam-pi05-nusmagic
+backend: pi05
+checkpoint:
+  repo: NUSMAGIC/pi05-MolmoAct2-YAM
+  revision: 2f28d00ac28c543626f5a4f579a3da09bee4a4ed
+  sha256: a777861c627234f9aa54a1bb7bdee29101ee6513f4773ef0a581d9c5527981e4   # model.safetensors
+  license: card apache-2.0; weights derive from lerobot/pi05_base (openpi pi05_base, PaliGemma -> Gemma terms)
+tokenizer:
+  repo: leo009/paligemma-3b-pt-224
+  revision: 39996beb6fb17c5d16a50d3ef8f7a96ad9d03986
+  sha256: 8986bb4f423f07f8c7f70d0dbe3526fb2316056c17bae71b1ea975e77a168fc6   # tokenizer.model
+cameras: [top, left_wrist, right_wrist]
+image_keys:
+  top: observation.images.top
+  left_wrist: observation.images.left
+  right_wrist: observation.images.right
+image_size: null
+state: [left.j1, left.j2, left.j3, left.j4, left.j5, left.j6, left.gripper,
+        right.j1, right.j2, right.j3, right.j4, right.j5, right.j6, right.gripper]
+# Twin: offset 0 (the station twin is in the MolmoAct2 data's frame); stations.real as yam-pi05-molmoact2, provisional.
+joint_offset_rad:
+  left: [0, 0, 0, 0, 0, 0]
+  right: [0, 0, 0, 0, 0, 0]
+gripper: {station_open: 1.0, station_closed: 0.0, model_open: 1.0, model_closed: 0.0}
+action: {type: abs_joint, dim: 14, horizon: 30, execute_steps: 25, hz: 30}
+extra: {num_steps: 10, dtype: bfloat16}
+stations:
+  real:
+    joint_offset_rad:
+      left: [1.5707963, 0, 0, 0, 0, 0]
+      right: [1.5707963, 0, 0, 0, 0, 0]

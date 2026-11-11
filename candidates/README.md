@@ -113,3 +113,39 @@ license was not confirmed in this review. ENPIRE's `place_with_orientation_v1`
 was inspected but not promoted as a recommended primitive: in the reviewed source,
 release follows the motion attempts even when lowering fails. Any future reuse
 needs explicit failure handling and a separately validated contract.
+
+## VLA checkpoints and datasets
+
+`vla-checkpoints.json` and `vla-datasets.json` catalogue fine-tuned robot action
+models (VLA checkpoints) and the datasets behind them, with the YAM station as
+the reference robot. `vla-catalog.md` is generated from them; `vla-rejected.json`
+lists survey rows a merge refused and why. Like the other files here, entries are
+not bundles: a checkpoint runs only through a policy bundle's server with a
+checked-in profile (`policies/molmoact2-yam/profiles`, `policies/gr00t/profiles`).
+
+```bash
+roboskillhub sources "bimanual yam pick" --kind vla      # ranked; any term counts
+roboskillhub vla search --embodiment yam_i2rt --compatible as_is
+roboskillhub vla datasets yam --json
+roboskillhub vla profiles        # as_is + servable by our servers, and which lack a profile
+roboskillhub vla merge survey/*.json --write              # dedupe by id, keep the most complete
+roboskillhub vla page --write    # regenerate vla-catalog.md (`--check` fails when stale)
+roboskillhub check-sources       # validates both collections too
+```
+
+Each checkpoint records `id` (Hugging Face repo), `revision` (a full 40-character
+commit; branch names are refused), `family`, `base_model`, `format`, `embodiment`,
+`arms`, `action{space,dim,horizon,hz}`, `state{dim,order}`, `cameras`,
+`training{datasets,episodes,tasks}`, `license{model,inherited,verified}`
+(`verified` is an explicit true/false), `gated`, `size_gb`, `servable_by`,
+`yam_compatible`, `task_relevance`, `notes`, `source_urls`, `checked_at`, and
+optionally `evaluations` (setting, task, episodes, successes, date, evidence).
+
+`yam_compatible`: `as_is` = the checkpoint's inputs and outputs are the station's
+(14 absolute joints for two YAM arms, top + two wrist cameras), no retraining;
+`adapter` = usable after a mapping of joints, cameras or action space;
+`finetune_base` = a base to fine-tune on station data; `no`. `as_is` says nothing
+about success: every YAM checkpoint we tried in the station twin scored 0/10 so far
+(`evaluations`). `servable_by` names the runtimes; `policies/molmoact2-yam`,
+`policies/gr00t:n1.7` and `policies/gr00t:pi05` are this hub's servers, and every
+`as_is` checkpoint one of them can run must have a profile there.

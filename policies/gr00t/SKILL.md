@@ -274,7 +274,9 @@ there to evaluate (the run had restarted at step 37 of 6000).
 ## π0.5 backend (`--backend pi05`)
 
 `pi05_backend.py` serves openpi's π0.5 through LeRobot's `PI05Policy` behind the
-same wire; `profiles/yam-pi05-molmoact2.yaml` is the VLA_SKILL_SPEC profile
+same wire; `profiles/yam-pi05-molmoact2.yaml` (and `profiles/yam-pi05-nusmagic.yaml`, the same
+layout from NUSMAGIC/pi05-MolmoAct2-YAM) is the VLA_SKILL_SPEC profile; `profiles/yam-molmoact2.yaml`
+describes the built-in N1.7 `yam-molmoact2` profile for clients (`backend: n1.7`, not a pi05 profile)
 (checkpoint + revision + sha256, tokenizer, roles -> image keys, 14-D state,
 joint offset, gripper units, 30 x 14 abs joints at 30 Hz). Same data, joint
 frame and gripper units as `yam-molmoact2`, so `gr00t.act` / `run_skill`
