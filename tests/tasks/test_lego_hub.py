@@ -390,3 +390,59 @@ def test_large_scenes_exist():
     from roboskillhub.tasks.assembly_eval.lego_scenes import SCENES
 
     assert len(SCENES["wall7"]["goal"]) == 7 and len(SCENES["pyramid6"]["goal"]) == 6
+
+
+class PushStation(Station):
+    """Closed fingertips (``TIP_REACH_M`` under the TCP) push a brick resting on stud tops down to its seat."""
+
+    def primitive(self, capability, request, rid):
+        out = super().primitive(capability, request, rid)
+        if capability == "move_pose":
+            from roboskillhub.tasks.lego_hub.skills import STUD_TOP_M, TIP_REACH_M
+
+            b = self.objects["b1"]
+            tip = self.tcp[2] - TIP_REACH_M
+            if abs(self.tcp[0] - b["position_m"][0]) < 0.004 and self.width < 0.005:
+                b["position_m"][2] = max(SEAT[2], min(b["position_m"][2], tip - STUD_TOP_M))
+        return out
+
+
+def _tip_request():
+    seat = {"position_m": list(SEAT), "quaternion_xyzw": [0, 0, 0, 1]}
+    end = {"frame_id": "world", "position_m": [SEAT[0], SEAT[1], 0.02], "quaternion_xyzw": TOP_DOWN}
+    return {
+        "object_id": "b1",
+        "alignment": {"evidence": {"plan": {"seat_pose": seat}}},
+        "press": {"press_end_tcp_pose": end, "engagement_axis": {"vector": [0, 0, -1]}},
+        "open_width_m": 0.03,
+        "retreat_height_m": 0.03,
+    }
+
+
+def test_fingertip_press_seats_a_brick_left_on_the_stud_tops(K):
+    st = PushStation(
+        {"plate": PLATE, "b1": brick([SEAT[0], SEAT[1], SEAT[2] + 0.0017])},
+        tcp=(SEAT[0], SEAT[1], 0.02),
+        holding=True,
+    )
+    r = run_task_skill(K["hub.fingertip_press"], _tip_request(), st.ctx())
+    assert r["status"] == "succeeded", r
+    assert r["outputs"]["dz_after_m"] == pytest.approx(0.0, abs=1e-6)
+    # Ends with the jaws open over the press end by the retreat height: lego.release's retreat pose.
+    assert st.width == 0.03 and st.tcp[2] == pytest.approx(0.05)
+
+
+def test_fingertip_press_fails_when_the_brick_stays_up(K):
+    st = Station(
+        {"plate": PLATE, "b1": brick([SEAT[0], SEAT[1], SEAT[2] + 0.0017])},
+        tcp=(SEAT[0], SEAT[1], 0.02),
+    )
+    r = run_task_skill(K["hub.fingertip_press"], _tip_request(), st.ctx())
+    assert r["status"] == "failed" and r["failure_type"] == "lego.misaligned"
+
+
+def test_hub_graph_routes_a_brick_on_the_stud_tops_to_the_fingertip_press(K):
+    g = lego_press_hub(fingertip_press=True)
+    assert g["nodes"]["seat"]["on"]["failed:lego.misaligned"] == "tip_press"
+    assert g["nodes"]["tip_press"]["on"]["succeeded"] == "release"
+    load_graph(g, K)

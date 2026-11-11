@@ -91,6 +91,11 @@ def main() -> None:
     ap.add_argument(
         "--through-seat", action="store_true", help="release after a failed seat too (diagnostic)"
     )
+    ap.add_argument(
+        "--fingertip-press",
+        action="store_true",
+        help="a brick left on the stud tops: release and push it down with the closed fingertips",
+    )
     ap.add_argument("--breakage", action="store_true")
     ap.add_argument("--grip-force", type=float, default=2.0)
     ap.add_argument("--force-limit", type=float, default=6.0)
@@ -128,6 +133,7 @@ def main() -> None:
         flip=args.flip,
         judge=args.judge,
         through_seat=args.through_seat,
+        fingertip_press=args.fingertip_press,
         recovery=args.recovery,
         attempts=2 if args.recovery else 1,
         bricks=bricks,

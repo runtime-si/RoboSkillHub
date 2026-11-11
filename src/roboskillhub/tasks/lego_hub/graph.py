@@ -76,6 +76,7 @@ def lego_press_hub(
     depth: bool = True,
     track: bool = True,
     through_seat: bool = False,
+    fingertip_press: bool = False,
     **press_kwargs: Any,
 ) -> dict:
     if mode not in ("report", "strict"):
@@ -139,6 +140,31 @@ def lego_press_hub(
             "on": _pass("release", mode),
         }
         g["skills"]["hub.pull_up_check"] = HUB_VERSION
+
+    if fingertip_press:
+        # A brick the gripped press left on the stud tops (lego.misaligned at the seat, the pads slid up it at
+        # a light grip): push it down with the closed fingertips, then the usual release and checks.
+        seat_on = nodes["seat"]["on"]
+        nodes["seat"]["on"] = {**seat_on, "failed:lego.misaligned": "tip_press"}
+        nodes["tip_press"] = {
+            "skill": "hub.fingertip_press",
+            "params": {
+                "object_id": "$last.select.outputs.piece",
+                "alignment": "$last.align.outputs.alignment",
+                "press": "$last.seat.outputs.press",
+                "open_width_m": "$last.select.outputs.target.grasp.release_open_width_m",
+                "retreat_height_m": "$input.release.retreat_height_m",
+            },
+            "timeout_s": 60,
+            "max_visits": nodes["seat"].get("max_visits", 10),
+            "on": {
+                "succeeded": "release",
+                "failed": seat_on["failed"],
+                "unverified": seat_on["unverified"],
+                "rejected": seat_on["rejected"],
+            },
+        }
+        g["skills"]["hub.fingertip_press"] = HUB_VERSION
 
     # verify -> depth -> track -> gate -> (verify's own edges)
     verify_on = dict(nodes["verify"]["on"])
@@ -226,7 +252,7 @@ def lego_press_hub(
 
     g["graph_id"] += f"+hub-{mode}"
     g["params"] = {**g.get("params", {}), "hub": {"mode": mode, "face": face, "flip": flip, "judge": judge, "pull_up": pull_up,
-                                                   "depth": depth, "track": track, "through_seat": through_seat}}  # fmt: skip
+                                                   "depth": depth, "track": track, "through_seat": through_seat, "fingertip_press": fingertip_press}}  # fmt: skip
     b = g["budgets"]
     g["budgets"] = {
         **b,
