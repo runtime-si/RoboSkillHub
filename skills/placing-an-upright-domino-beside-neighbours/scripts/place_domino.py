@@ -772,6 +772,7 @@ def run(
 
     # --- the pick (pick.py: MoveAbove, PreOpen, MoveToGrasp, Grasp, LiftSlightly)
     notes: list[str] = []
+    in_hand = np.zeros(3)
     if tile is not None:
         t_xy, t_facing = tile_pose(tile)
         grasp_point = np.array([*t_xy, table_z + float(grasp_height)])
@@ -830,6 +831,9 @@ def run(
             return finish("not_holding", f"grasp: {why}; the hand is open over the tile")
         hang = float(reached[2] - table_z)
         out["grasp_height"] = hang
+        # where the tile sits in the hand (its pose less where the hand closed), in the hand's
+        # frame: the pads hold it wherever they landed along its facing
+        in_hand = _matrix(pose["rotation"]).T @ np.array([*(t_xy - reached[:2]), 0.0])
         out["picked"] = True
         why = go(
             "robot.go_to_pose_cartesian", np.array([*reached[:2], transit_z]), pose["rotation"]
@@ -890,6 +894,10 @@ def run(
             + "; still holding",
         )
     rot = pose["rotation"]
+    # put the tile, not the hand, over the slot
+    shift = (_matrix(rot) @ in_hand)[:2]
+    over = np.array([*(slot_xy - shift), transit_z])
+    release = np.array([*(slot_xy - shift), release[2]])
     why = go("robot.go_to_pose_cartesian", over, rot)
     if why:
         return finish("unreachable", f"along the row to over the slot: {why}; still holding")
