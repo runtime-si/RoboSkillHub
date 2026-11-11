@@ -91,12 +91,25 @@ def held_foot(
     axis = np.linalg.svd(q - c, full_matrices=False)[2][0]
     if axis @ a < 0:
         axis = -axis
-    # the camera sees the near side: the axis lies a radius further from the camera
+    # The camera sees the near side: fit the known-radius circle to the points across the axis, started behind
+    # the visible surface (the surface's centroid alone sits inside the radius by an amount set by the arc seen).
     away = c - cam_pos
     away -= axis * (away @ axis)
     n = np.linalg.norm(away)
-    if n > 1e-9:
-        c = c + away / n * radius
+    e1 = away / n if n > 1e-9 else np.cross(axis, [0.0, 0.0, 1.0])
+    e1 /= np.linalg.norm(e1)
+    e2 = np.cross(axis, e1)
+    p2 = np.stack([(q - c) @ e1, (q - c) @ e2], axis=1)
+    m = np.array([0.5 * radius, 0.0])
+    for _ in range(30):
+        d = p2 - m
+        r = np.maximum(np.linalg.norm(d, axis=1), 1e-9)
+        jac = -d / r[:, None]
+        step = np.linalg.lstsq(jac, -(r - radius), rcond=None)[0]
+        m = m + step
+        if np.linalg.norm(step) < 1e-6:
+            break
+    c = c + m[0] * e1 + m[1] * e2
     if abs(axis[2]) < 0.3:
         return {"found": False, "n": int(sel.sum()), "why": "axis not vertical enough"}
     t = (face_z - c[2]) / axis[2]
@@ -136,6 +149,14 @@ def hole_centre(
     }
 
 
+def surface_around(pts: np.ndarray, xy: np.ndarray, hole_radius: float) -> float:
+    """Median height of the points in a ring 3-10 mm outside a hole's radius around ``xy`` (under the part, where
+    its own body does not hide the surface): the face if the tip is over the holder, the table if not."""
+    d = np.linalg.norm(pts[:, :2] - xy, axis=1)
+    ring = (d > hole_radius + 0.003) & (d < hole_radius + 0.010)
+    return float(np.median(pts[ring, 2])) if ring.sum() >= MIN_POINTS // 3 else float("nan")
+
+
 def measure(
     frame: dict[str, Any],
     t_base_tool: np.ndarray,
@@ -151,12 +172,22 @@ def measure(
     foot = held_foot(pts, t_base_tool, part_radius, tip_offset, face_z, tbc[:3, 3])
     hole = hole_centre(pts, np.asarray(hole_xy, dtype=float), hole_radius, face_z)
     out = {"foot": foot, "hole": hole}
+    if foot["found"]:
+        out["under"] = surface_around(pts, np.asarray(foot["foot_xy"]), hole_radius)
     if foot["found"] and hole["found"]:
         out["offset"] = np.asarray(hole["centre_xy"]) - np.asarray(foot["foot_xy"])
     return out
 
 
-def _frame(ctx: NodeContext, camera: str | None, arm: dict[str, Any]) -> dict[str, Any] | None:
+def _frame(
+    ctx: NodeContext, camera: str | None, arm: dict[str, Any], frame_tool: str | None = None
+) -> dict[str, Any] | None:
+    if frame_tool:
+        f = ctx.tool(frame_tool, **arm)
+        if not f or f.get("depth") is None:
+            return None
+        return {"depth": np.asarray(f["depth"], float), "intrinsics": np.asarray(f["intrinsics"], float),
+                "T_base_camera": np.asarray(f["T_base_camera"], float)}  # fmt: skip
     obs = ctx.tool("robot.get_observation")
     cams = (
         [c for c in (obs.get("cameras") or []) if isinstance(c, dict)]
@@ -197,6 +228,8 @@ def run(
     part_diameter_m: float,
     hole_diameter_m: float,
     camera: str | None = None,
+    frame_tool: str | None = None,
+    table_z: float = float("nan"),
     tol_m: float = TOL,
     max_step_m: float = MAX_STEP,
     max_iterations: int = 6,
@@ -213,7 +246,7 @@ def run(
     }
     for i in range(int(max_iterations)):
         out["iterations"] = i + 1
-        frame = _frame(ctx, camera, arm)
+        frame = _frame(ctx, camera, arm, frame_tool)
         if frame is None:
             out.update(
                 route="tip_not_seen", detail="no wrist camera with depth, intrinsics and pose"
@@ -224,6 +257,15 @@ def run(
                     hole_diameter_m / 2, float(tip_offset_m))  # fmt: skip
         if not m["foot"]["found"]:
             out.update(route="tip_not_seen", detail=f"held part not found ({m['foot']})")
+            return out
+        under = m.get("under", float("nan"))
+        if (
+            math.isfinite(float(table_z))
+            and math.isfinite(under)
+            and abs(under - table_z) < abs(under - face_z)
+        ):
+            out.update(route="not_over_holder",
+                       detail=f"the surface around the tip is at {under:.4f} m: the table ({table_z:.4f}), not the face ({face_z:.4f})")  # fmt: skip
             return out
         if not m["hole"]["found"]:
             out.update(

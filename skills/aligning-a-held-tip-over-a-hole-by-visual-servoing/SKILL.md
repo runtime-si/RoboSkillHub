@@ -44,6 +44,7 @@ gap:
     not_converging: Still over tol_m after max_iterations, a reading over 30 mm off (a misreading, not moved), or the hand made under 40 % of a commanded correction (read back).
     tip_not_seen: No wrist frame with depth, intrinsics and pose, or too few points along the tool axis.
     hole_not_seen: Too few face or deeper points around the expected hole.
+    not_over_holder: With table_z given, the surface in a ring 3-10 mm outside the hole's radius around the read tip is nearer the table's height than the face's - the believed hole is off the holder (a real pens run aimed ~20 mm off, over the table).
   canonical_scripts:
     - align_tip: scripts/align_tip.py
   examples:
@@ -59,8 +60,11 @@ gap:
 2. **Foot**: points within the part's radius + 6 mm of the tool's approach
    axis, from the tool centre to `tip_offset_m` (e.g. from
    measuring-a-held-tip-offset-by-contact-descent) and above the face. A line
-   fit (SVD), moved a radius away from the camera (it sees the near side), is
-   the axis; where it crosses `face_z` is the foot.
+   fit (SVD) gives the direction;
+   the axis: the known-radius circle fitted (Gauss-Newton) to the points
+   across the axis, since the visible arc's centroid sits inside the radius by
+   an amount set by how much of the arc is seen. Where it crosses `face_z` is
+   the foot.
 3. **Hole**: within the hole's radius + 20 mm of `hole_xy`, face points (within
    3 mm of `face_z`) and deep points (5 mm under it). Start at the deep
    points' centroid; push the centre until no face point lies inside the
@@ -88,6 +92,8 @@ check by depth that the foot went below the face.
 
 ## Limits
 
-- Not run in the station twin yet.
+- With `frame_tool`, a connector tool returning `depth`, `intrinsics` and
+  `T_base_camera` stands in for the observation's camera (the station twin's
+  observation carries no camera pose).
 - The camera sees one side of the part: a tilted part or a short visible
   length biases the axis.
