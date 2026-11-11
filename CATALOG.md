@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-31 tools, 167 skills, 4 policies, 1 recipe and 1 paper.
+32 tools, 168 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -21,6 +21,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`d405-stereo`](#d405-stereo) | perceive | Depth the way a RealSense D405 measures it, from a rendered passive IR stereo pair (18 mm baseline, no projector). | any |
 | [`depth`](#depth) | perceive | Robbyant LingBot-Depth v0.5 run locally on a GPU. | any |
 | [`dinov2`](#dinov2) | perceive | DINOv2 (facebook/dinov2-base or -small, Apache-2.0) embeddings of regions of one RGB frame. | any |
+| [`geco`](#geco) | perceive | GeCo low-shot detection and counting (MIT code; weights licence unstated. | any |
 | [`gemini-er`](#gemini-er) | perceive | Open-vocabulary 2D detection and pointing via the Gemini Robotics-ER API. | any |
 | [`geometry`](#geometry) | perceive | Pure-math 3D geometry toolbox. | any, *tuned on* panda |
 | [`grounding-dino`](#grounding-dino) | perceive | Grounding DINO zero-shot object detection — natural-language queries to labeled 2D bounding boxes with confidence scores. | any |
@@ -57,6 +58,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`calibrating-baseplate-stud-grid`](#calibrating-baseplate-stud-grid) | perceive | Estimates a LEGO or DUPLO baseplate's pose (the plate frame computing-brick-pose-from-stud-grid takes, and APEX-MR's… | any |
 | [`classifying-brick-resting-face-from-depth`](#classifying-brick-resting-face-from-depth) | perceive | Tells from depth whether a loose LEGO or DUPLO brick of known size lies studs up, upside down (resting on its stud… | any |
 | [`classifying-piece-sides-for-border-first`](#classifying-piece-sides-for-border-first) | perceive | Types a jigsaw piece's four sides flat / tab / blank from a top-down mask and calls it a corner, edge or interior piece. | any |
+| [`detecting-all-like-exemplar`](#detecting-all-like-exemplar) | perceive | Finds every instance that looks like 1-3 example boxes in a camera frame and counts them. | any |
 | [`detecting-contact-from-joint-effort`](#detecting-contact-from-joint-effort) | perceive | Feels for contact without a force sensor. | any |
 | [`estimating-cut-grid-from-pieces`](#estimating-cut-grid-from-pieces) | perceive | Estimates a jigsaw's real cut grid (cols x rows) and cell size from the piece count printed on the box, the board's… | any |
 | [`estimating-relative-rotation-and-symmetry`](#estimating-relative-rotation-and-symmetry) | perceive | How far a part is turned in the image plane between a reference view and the current view (both from the wrist camera… | any, *tuned on* yam-left-wrist-d405-renders |
@@ -288,6 +290,17 @@ DINOv2 (facebook/dinov2-base or -small, Apache-2.0) embeddings of regions of one
 - **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
 - **Functions**:
   - `dinov2.embed_regions`: DINOv2 unit embeddings of boxes or masks of one RGB frame ([mask-pooled patch tokens | CLS]).
+
+### geco
+
+perceive · robots: any · MIT · v0.1.0 · [`SKILL.md`](tools/geco/SKILL.md) · [upstream](https://github.com/jerpelhan/GeCo/blob/c0fad20/demo.py)
+
+GeCo low-shot detection and counting (MIT code; weights licence unstated - research only) - every instance like 1-3 exemplar boxes, with a count. Use when a skill needs all copies of a boxed example part (via skills/detecting-all-like-exemplar).
+
+- **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
+- **Note**: Weights GeCo.pth (2.57 GB) from the authors' Google Drive (README link); licence not stated, research use only. Set GAP_GECO_WEIGHTS.
+- **Functions**:
+  - `geco.detect_like`: Every instance like 1-3 exemplar boxes (boxes, scores, count).
 
 ### gemini-er
 
@@ -705,6 +718,20 @@ Types a jigsaw piece's four sides flat / tab / blank from a top-down mask and ca
   - `uncertain`: One piece, but a side's deviation lies near the threshold or the piece has three or four flat sides; look closer, or decide by shape matching.
   - `mismatch`: expected_sides was given and no turn of the piece makes at least min_agree (4) of its sides read as expected, or two turns agree equally (a symmetric piece); `yaw_deg` and `sides_agree` say the best; look again (re-scan, closer) rather than place it 90 or 180 degrees off.
   - `no_piece`: No usable mask (empty, under 400 px, or no square body found).
+
+### detecting-all-like-exemplar
+
+perceive · robots: any · tasks: sorting, domino, lego, jigsaw · MIT · v0.1.0 · [`SKILL.md`](skills/detecting-all-like-exemplar/SKILL.md) · [upstream](https://github.com/jerpelhan/GeCo/blob/c0fad20/demo.py)
+
+Finds every instance that looks like 1-3 example boxes in a camera frame and counts them - GeCo low-shot detection (geco.detect_like) or the hub's owlv2.detect_like - for "all the dominoes / studs / pieces like this one" without naming the part. Use when a graph has one example of a part (a box from a detector, a click, a previous step) and needs all its copies.
+
+- **In**: -
+- **Out**: `count` int, `reason` string
+- **Calls**: [`geco`](#geco), [`owlv2`](#owlv2); connector `robot.get_observation`
+- **Scripts**: [`detect_like`](skills/detecting-all-like-exemplar/scripts/detect_like.py)
+- **Exits**:
+  - `found`: At least min_count (1) boxes like the exemplars; `boxes`, `scores`, `count`.
+  - `not_found`: Fewer boxes, no RGB frame, or the backend failed; `reason` says which.
 
 ### detecting-contact-from-joint-effort
 
