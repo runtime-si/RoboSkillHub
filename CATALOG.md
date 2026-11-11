@@ -3087,7 +3087,7 @@ Compares a brick build with its target model up to the current step - LTRON's as
 
 verify · robots: any · tasks: pick-place, insertion · Apache-2.0 · v1.0.1 · [`SKILL.md`](skills/verifying-grasps/SKILL.md) · [upstream](https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/skills/verifying-grasps)
 
-Three independent checks on one grasp attempt -- that the hand arrived where it was sent before the jaws close, that the jaw gap after the close is not the mechanical stop, and that the lifted object is visible above the surface and near the hand. Given where the approach started, the reach check also tells a hand that stopped short along the approach on top of the object (stopped_short, with the shortfall - how much higher the part sits in the hand than commanded, for correcting a held tip before an insertion) from one that landed beside it (missed). Use when a grasp closed on a small or thin object and the graph must know, before carrying or inserting, whether anything is actually in the gripper.
+Three independent checks on one grasp attempt -- that the hand arrived where it was sent before the jaws close (given where the approach started, a hand stopped short on top of the object routes stopped_short with the shortfall, for correcting a held tip before an insertion; one beside it routes missed), that the jaw gap after the close is not the mechanical stop, and that the lifted object is visible above the surface and near the hand. Use when a grasp closed on a small or thin object and the graph must know, before carrying or inserting, whether anything is actually in the gripper.
 
 - **In**: `object_description` string
 - **Out**: `verified` bool, `observed_center` Vec3
