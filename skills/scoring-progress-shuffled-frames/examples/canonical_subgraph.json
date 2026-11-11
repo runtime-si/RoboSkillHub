@@ -1,0 +1,9 @@
+{
+  "skill": "scoring-progress-shuffled-frames",
+  "inputs": {"instruction": "string"},
+  "outputs": {"last_pct": {"$ref": "gvl.last_pct"}, "voc": {"$ref": "gvl.voc"}},
+  "nodes": {"gvl": {"type": "script", "script": "scripts/score_shuffled.py", "inputs": {"instruction": {"$ref": "in.instruction"}}}},
+  "edges": [["START", "gvl"], ["gvl", "END"]],
+  "exit": {"router_field": "route", "success_values": ["complete", "progress_increasing", "stalled", "regressed"]},
+  "on_error": "no_verdict"
+}

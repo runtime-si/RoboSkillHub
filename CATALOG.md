@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-32 tools, 169 skills, 4 policies, 1 recipe and 1 paper.
+32 tools, 170 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -221,6 +221,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`judging-assembly-steps-by-fused-checks`](#judging-assembly-steps-by-fused-checks) | judge | Turns the routes and numbers of the hub's per-step checks into one verdict for an assembly step. | any |
 | [`judging-attempt-success-from-frames-robojev`](#judging-attempt-success-from-frames-robojev) | judge | Decides whether a step succeeded from cameras alone with one calibrated number. | any |
 | [`judging-step-with-before-now-vlm`](#judging-step-with-before-now-vlm) | judge | Judges the current subgoal of a task from camera frames taken before the step and now. | any |
+| [`scoring-progress-shuffled-frames`](#scoring-progress-shuffled-frames) | judge | Generative Value Learning. | any |
 | [`scoring-step-progress-from-one-frame`](#scoring-step-progress-from-one-frame) | judge | Judges whether a step is done from the current camera frame alone. | any |
 
 ## Policies
@@ -3311,6 +3312,23 @@ Judges the current subgoal of a task from camera frames taken before the step an
   - `wrong_object`: The VLM chose "grasp_tool" - the hand holds or is closing on an object other than the subgoal's; `grasp_target` names the right one.
   - `wrong_destination`: The VLM chose "place_tool" - the held object is heading to or was released at another destination; `place_destination` is a freeform phrase for the right one.
   - `no_verdict`: No camera has RGB in both BEFORE and NOW, vlm.query raised, or its reply had no JSON; nothing was judged (VoLoAgent continued in this case).
+
+### scoring-progress-shuffled-frames
+
+judge · robots: any · tasks: pick-place, lego · MIT · v0.1.0 · [`SKILL.md`](skills/scoring-progress-shuffled-frames/SKILL.md) · [upstream](https://github.com/budzianowski/opengvl/blob/36a39f3edede1935d3c0f5c8ba4ca724d5c0408b/opengvl/clients/base.py)
+
+Generative Value Learning - shows a VLM the frames of a step in a shuffled order (after the start scene, rated 0 %) and asks for each frame's task-completion percentage; put back in time order, the ratings give a progress curve whose rank correlation with time (VOC) says whether the step progressed, and the last frame's rating whether it is done. Routes complete, progress_increasing, stalled, regressed or no_verdict. Use when a graph has a step's frames and wants a "still progressing / stalled / undone" monitor from the camera alone, once per step (one multi-image call, ~20 s); not as a success gate for millimetre seating (see the check below).
+
+- **In**: `instruction` string
+- **Out**: `last_pct` float, `voc` float, `reason` string
+- **Calls**: [`vlm`](#vlm)
+- **Scripts**: [`score_shuffled`](skills/scoring-progress-shuffled-frames/scripts/score_shuffled.py)
+- **Exits**:
+  - `complete`: The last frame (in time) is rated at least done_pct (90 %).
+  - `regressed`: The last frame is rated more than regress_drop_pct (20 points) under the best earlier frame.
+  - `progress_increasing`: Not complete, not regressed, and the ratings rise with time (VOC &gt;= 0.5).
+  - `stalled`: Not complete, not regressed, and the ratings do not rise with time (VOC &lt; 0.5 or undefined).
+  - `no_verdict`: Fewer than 2 frames with RGB, vlm.query failed, or the reply did not rate every frame.
 
 ### scoring-step-progress-from-one-frame
 
