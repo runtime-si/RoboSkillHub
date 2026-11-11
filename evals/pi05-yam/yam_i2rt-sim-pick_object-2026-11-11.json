@@ -5,81 +5,91 @@
   "setting": "sim",
   "tier": "camera_only",
   "suite": "pick-accept-twin-4parts",
-  "episodes": 2,
+  "episodes": 12,
   "successes": 0,
   "passed": false,
-  "date": "2026-11-10",
+  "date": "2026-11-11",
   "evidence": "~/sim-wt/pick-accept (yam-station-20261103-gsota twin, sim_grip on; brick, domino, 30 mm cube, pen at seeded poses; truth: lifted >= 30 mm and held after 2 s)",
   "capability": "pick_object",
   "capability_version": "0.1.0",
   "implementation": "policy:pi05-yam",
   "verifier": "verify_pick/1",
   "truth": "sim_truth",
-  "labelled": 2,
+  "labelled": 12,
   "false_picked": 0,
-  "claim_disagreements": 1,
+  "claim_disagreements": 4,
   "exits": {
     "picked": 0,
-    "missed": 0,
+    "missed": 1,
     "slipped": 0,
     "unreachable": 0,
-    "refused": 1,
-    "timeout": 1
+    "refused": 8,
+    "timeout": 3
   },
   "gate_failures": [
-    "2 episodes < 50",
+    "12 episodes < 50",
     "success 0.00 < 0.8"
   ],
   "per_object": {
     "brick": {
-      "n": 0,
+      "n": 3,
       "truth": 0,
       "success": 0,
       "fp": 0,
       "fp_obs": 0,
       "fp_claim": 0,
-      "agree": 0,
-      "agree_obs": 0,
-      "agree_claim": 0
+      "agree": 3,
+      "agree_obs": 3,
+      "agree_claim": 3
     },
     "domino": {
-      "n": 1,
+      "n": 3,
       "truth": 0,
       "success": 0,
       "fp": 0,
       "fp_obs": 0,
       "fp_claim": 0,
-      "agree": 1,
-      "agree_obs": 1,
-      "agree_claim": 1
+      "agree": 3,
+      "agree_obs": 3,
+      "agree_claim": 3
     },
     "cube": {
-      "n": 1,
+      "n": 3,
       "truth": 0,
       "success": 0,
       "fp": 0,
       "fp_obs": 0,
       "fp_claim": 0,
-      "agree": 1,
-      "agree_obs": 1,
-      "agree_claim": 1
+      "agree": 3,
+      "agree_obs": 3,
+      "agree_claim": 3
     },
     "pen": {
-      "n": 0,
+      "n": 3,
       "truth": 0,
       "success": 0,
       "fp": 0,
       "fp_obs": 0,
-      "fp_claim": 0,
-      "agree": 0,
-      "agree_obs": 0,
-      "agree_claim": 0
+      "fp_claim": 1,
+      "agree": 3,
+      "agree_obs": 3,
+      "agree_claim": 2
     }
   },
   "verifier_agreement": 1.0,
   "verifier_agreement_obs_only": 1.0,
   "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
     5,
-    6
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
   ]
 }
