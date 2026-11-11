@@ -833,8 +833,8 @@ perceive · robots: any · tasks: insertion, pick-place · Apache-2.0 · v0.1.0 
 
 Finds where a holder's lattice of round holes really is from one RGB-D frame (overhead or wrist), searching the prior's pose over +-1.5 pitch and +-15 deg, scoring each pose by holes matched (an open disc ringed by the holder's face) minus nodes contradicted (seen on solid face or on the table past the holder), and saying when it cannot tell - a second pose about a pitch away scoring nearly as well (ambiguous), the best pose on the window's edge, or too few holes. Use before inserting into a holder that may have been pushed or whose lattice may be fitted one row or column off, and whenever a local hole refinement (a few mm) would report "found" anyway.
 
-- **In**: `prior` Any
-- **Out**: `pose` Any, `nodes` Any, `matched` int, `visible` int, `contradicted` int, `residual_mm` float
+- **In**: -
+- **Out**: `matched` int, `visible` int, `contradicted` int, `residual_mm` float
 - **Calls**: connector `robot.get_observation`
 - **Scripts**: [`locate_lattice`](skills/locating-a-hole-lattice-by-wide-search/scripts/locate_lattice.py)
 - **Exits**:

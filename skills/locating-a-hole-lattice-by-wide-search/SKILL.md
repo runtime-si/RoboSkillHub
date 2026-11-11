@@ -21,14 +21,12 @@ metadata:
 gap:
   allowed_tools:
     - robot.get_observation
-  required_inputs:
-    prior: Any
-  # Optional inputs: camera (a CameraFrame dict: depth, intrinsics, pose or T_world_cam, rgb), camera_name,
+  # Inputs (wired from a script node; gap has no type for them): prior ({"nodes": [[x, y], ...]} or
+  # {"centre", "yaw_deg", "pitch_m", "rows", "cols"}, world frame; required). Optional: camera (a CameraFrame dict: depth, intrinsics, pose or T_world_cam, rgb), camera_name,
   # hole_d (18.7 mm), face_z (else the densest height over the lattice), search_pitch (1.5), search_yaw_deg (15),
-  # match_score (0.25), miss_score (0.05), min_matched (4), ambiguous_ratio (0.85).
+  # match_score (0.25), miss_score (= match_score), min_matched (4), ambiguous_ratio (0.85).
+  # Also returned: pose {x, y, yaw_deg}, shift, nodes [[x, y], ...], second.
   produces_outputs:
-    pose: Any
-    nodes: Any
     matched: int
     visible: int
     contradicted: int
@@ -65,10 +63,18 @@ pen's foot, and the overhead camera showed the holes a column away.
    more under it, or dark in RGB near it, are *open*.
 3. A hole centred on a cell scores (face fraction of a ring at 1.25 r) minus
    (face fraction of a disc of 0.75 r), each computed once for every cell by
-   convolution. A node matches over `match_score` (0.25); a node seen and
-   under `miss_score` (0.05) contradicts the pose (solid face, or no face
-   round it at all - the table).
-4. Every pose of the prior moved by up to 1.5 pitch (1 mm steps) and turned
+   convolution. The holder's body is the face closed over its holes (dilated
+   then eroded by a hole's radius + 3 mm); a centre outside it scores -1.
+   A node matches over `match_score` (0.25); a node in view that does not
+   match contradicts the pose (solid face, the table, or just past the
+   holder's edge, where the ring is half face and scores 0.2-0.3 like a poor
+   hole).
+4. **The border.** The lattice's next ring (each node one pitch further
+   along either lattice direction, where no node is) must hold no hole: a
+   ring cell scoring over 0.8 of the pose's own matched holes' median counts
+   against it. A lattice one row or column off puts that ring onto the real
+   outer row, so it can no longer tie with the truth in a full view.
+5. Every pose of the prior moved by up to 1.5 pitch (1 mm steps) and turned
    by up to 15 deg (1 deg) is scored as matched - contradicted; the best is
    refined to 0.25 mm / 0.5 deg. The best pose more than 0.7 pitch or 8 deg
    away is the second hypothesis.
@@ -95,10 +101,16 @@ believed; 103 frames from 30 runs, 0.1-0.5 s each on CPU):
 
 | case | result |
 |---|---|
-| wrist survey frames, both of a run located | 8 of 8 runs agree between the two frames within 3 mm |
-| prior moved by up to +-25 mm (1.2 pitch) and +-10 deg on 23 located survey / over-hole frames, 92 trials | 83 located within 2.5 mm of the reference, 7 ambiguous, 2 located 2.8-3.0 mm off, none a pitch off |
-| `probe-insert-1` round 2 (the lattice about a pitch off) | overhead frame: `ambiguous`, best shift (-22, +18) mm; 5 wrist frames over the believed hole: `not_found` (2-3 holes in view match), best shifts (-18..-21, +21..+23) mm: none `located` at the prior (the station's local refinement said found, +2.0 / -1.0 mm) |
-| all 103 frames | located 41, ambiguous 29, not_found 29, at_search_edge 4 |
+| wrist survey frames, both of a run located | 14 of 14 runs agree between the two frames within 3 mm |
+| prior moved by up to +-25 mm (1.2 pitch) and +-10 deg on 33 located reference frames, 132 trials | 124 located within 2.5 mm of the reference, 2 ambiguous, 6 located 2.6-3.5 mm off, **none a pitch off** |
+| `probe-insert-1` round 2 (the lattice about a pitch off) | overhead and 6 wrist frames: `not_found` (1-2 holes match at any pose in the window); **none `located` at the wrong prior** (the station's local refinement said found, +2.0 / -1.0 mm); round 1 (lattice right): 5 of 5 wrist frames `located`, 11 of 11 holes, shift 2-5 mm |
+| all 103 frames | located 53, not_found 44, ambiguous 6, at_search_edge 0 |
+| synthetic full top view, prior one column off / one row off and turned 5 deg | `located` on the truth within 1.5 mm (tests) |
+
+The overhead camera (2.5 mm a pixel) mostly routes `not_found`: the 18.7 mm
+holes are 7 pixels across and the holder's closed outline is too coarse to
+trust; its `located` answers before the border rule disagreed with the wrist
+surveys by a pitch. Take the lattice from a wrist survey.
 
 Close wrist views over one hole see 5-6 nodes and often route `not_found` or
 `ambiguous`: that is the point - they cannot tell a pitch apart; take the

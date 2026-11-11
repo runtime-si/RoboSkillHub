@@ -8,8 +8,13 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-SCRIPT = (Path(__file__).resolve().parents[2] / "skills" / "locating-a-hole-lattice-by-wide-search" / "scripts"
-          / "locate_lattice.py")
+SCRIPT = (
+    Path(__file__).resolve().parents[2]
+    / "skills"
+    / "locating-a-hole-lattice-by-wide-search"
+    / "scripts"
+    / "locate_lattice.py"
+)
 PITCH, R_HOLE, FACE, TABLE = 0.0207, 0.00935, -0.013, -0.033
 
 
@@ -27,7 +32,7 @@ def lattice(cx, cy):
 
 def frame(cx, cy, cam_xy=(0.40, 0.30), h=0.25, f=600.0, size=(480, 640)):
     """A camera ``h`` over the face looking straight down; the holder 72 x 92 mm round (cx, cy)."""
-    v, u = np.mgrid[0:size[0], 0:size[1]].astype(float)
+    v, u = np.mgrid[0 : size[0], 0 : size[1]].astype(float)
     T = np.eye(4)
     T[:3, :3] = np.diag([1.0, -1.0, -1.0])
     T[:3, 3] = [cam_xy[0], cam_xy[1], FACE + h]
@@ -39,10 +44,13 @@ def frame(cx, cy, cam_xy=(0.40, 0.30), h=0.25, f=600.0, size=(480, 640)):
     for hx, hy in lattice(cx, cy):
         z[np.hypot(x - hx, y - hy) < R_HOLE] = FACE - 0.024
     depth = (FACE + h) - z
-    return {"depth": depth, "intrinsics": [[f, 0, size[1] / 2], [0, f, size[0] / 2], [0, 0, 1]], "T_world_cam": T}
+    return {
+        "depth": depth,
+        "intrinsics": [[f, 0, size[1] / 2], [0, f, size[0] / 2], [0, 0, 1]],
+        "T_world_cam": T,
+    }
 
 
-@pytest.mark.xfail(reason="open: on the synthetic full view a pose one pitch away scores the same (12.1 vs 12.1); the nodes outside the holder are not counted as contradicted - to fix before merge", strict=False)
 def test_finds_a_lattice_one_pitch_off(ll):
     cam = frame(0.40, 0.30)
     out = ll.run(None, {"nodes": lattice(0.40 + PITCH, 0.30)}, camera=cam, face_z=FACE)
@@ -52,7 +60,6 @@ def test_finds_a_lattice_one_pitch_off(ll):
     assert out["matched"] >= 10
 
 
-@pytest.mark.xfail(reason="open: on the synthetic full view a pose one pitch away scores the same (12.1 vs 12.1); the nodes outside the holder are not counted as contradicted - to fix before merge", strict=False)
 def test_prior_right_is_located_in_place(ll):
     out = ll.run(None, {"nodes": lattice(0.40, 0.30)}, camera=frame(0.40, 0.30), face_z=FACE)
     assert out["route"] == "located"
@@ -71,3 +78,22 @@ def test_no_camera(ll):
             return {"cameras": []}
 
     assert ll.run(Ctx(), {"nodes": lattice(0.4, 0.3)})["route"] == "not_found"
+
+
+def test_finds_a_lattice_one_row_off_and_turned(ll):
+    N = np.asarray(lattice(0.40, 0.30 + PITCH))
+    a = np.radians(5.0)
+    R = np.array([[np.cos(a), -np.sin(a)], [np.sin(a), np.cos(a)]])
+    prior = (N - N.mean(0)) @ R.T + N.mean(0)
+    out = ll.run(None, {"nodes": prior.tolist()}, camera=frame(0.40, 0.30), face_z=FACE)
+    assert out["route"] == "located", out["detail"]
+    got = np.asarray(out["nodes"])
+    assert np.median(np.linalg.norm(got - np.asarray(lattice(0.40, 0.30)), axis=1)) < 0.0015
+
+
+def test_no_holder_border_in_view_is_not_located_wrongly(ll):
+    """Only the middle of the holder in view (a close wrist look): a pitch off cannot be told; never a wrong located."""
+    cam = frame(0.40, 0.30, h=0.06)
+    out = ll.run(None, {"nodes": lattice(0.40 + PITCH, 0.30)}, camera=cam, face_z=FACE)
+    if out["route"] == "located":
+        assert abs(out["shift"]["x"] + PITCH) < 0.0015
