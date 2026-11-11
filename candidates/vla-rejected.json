@@ -60,5 +60,211 @@
       "id must be a Hugging Face repo id owner/name",
       "revision must be a full 40-character commit (pinned)"
     ]
+  },
+  {
+    "id": "gs://openpi-assets/checkpoints/pi0_base",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "gs://openpi-assets/checkpoints/pi0_fast_base",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "gs://openpi-assets/checkpoints/pi05_base",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "gs://openpi-assets/checkpoints/pi0_droid",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "gs://openpi-assets/checkpoints/pi0_fast_droid",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "gs://openpi-assets/checkpoints/pi05_droid",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "gs://openpi-assets/checkpoints/pi05_droid_jointpos",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "gs://openpi-assets/checkpoints/pi0_droid_jointpos",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "gs://openpi-assets/checkpoints/pi0_fast_droid_jointpos",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "gs://openpi-assets/checkpoints/pi0_libero",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "gs://openpi-assets/checkpoints/pi0_fast_libero",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "gs://openpi-assets/checkpoints/pi05_libero",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "gs://openpi-assets/checkpoints/pi0_aloha_sim",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "gs://openpi-assets/checkpoints/roboarena/paligemma_diffusion_droid",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "gs://openpi-assets/checkpoints/roboarena/paligemma_fast_specialist_droid",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "modelscope:WWWWWWWWWWZ/arx-lift2-acone-pi05-tray-bimanual",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "modelscope:cpadyun/RoboDojo-goai2026-arx_x5-joint-0-pi05-flashrt-30000",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "modelscope:PhoenixW/ICE-VLA",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "modelscope:msd0158/goai2026-act-bimanual",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "modelscope:zixiaoBios/OpenVLA-oft-aloha_beat_block_hammer-V1",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "modelscope:NewGain/pi05_base_aloha_agilex_real_full",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "modelscope:ByteRainx/pi0_xtrainer_full_4tasks_checkpoints",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "modelscope:ByteRainx/pi0_dobot_towel_full",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "modelscope:estezhao/pi05_yam_test",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "TianxingChen/RoboTwin2.0",
+    "collection": "vla-datasets",
+    "errors": [
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "agibot-world/AgiBotWorld-Beta",
+    "collection": "vla-datasets",
+    "errors": [
+      "revision must be a full 40-character commit (pinned)"
+    ]
   }
 ]
