@@ -74,6 +74,26 @@ axis's downward component, is the tip offset.
 
 - The patch under the tip must be free: anything taller reads as the surface.
 - The read-back height is taken at the step where the lag crosses the
-  threshold, so the offset reads long by up to about one step plus the
+  threshold, so the offset can be off by up to about one step plus the
   servo's give at the touch (see the twin numbers).
 - A soft or springy tip (a felt pen) compresses before the hand stalls.
+
+## Station twin check (2026-11-10)
+
+Right arm holds a 100 mm, 10 mm peg top-down at 9 grip depths (peg-top-insert twin, SIM_GRIP on), hand over the
+peg's empty start spot on the table; truth is the peg's privileged pose against the tool centre.
+
+| grip depth [mm] | true offset [mm] | measured [mm] | error [mm] |
+|---|---|---|---|
+| 5 | 96.6 | 95.9 | -0.6 |
+| 10 | 91.0 | 91.3 | +0.3 |
+| 15 | 86.5 | 85.7 | -0.8 |
+| 20 | 81.2 | 81.1 | -0.1 |
+| 25 | 77.1 | 76.6 | -0.5 |
+| 30 | 71.6 | 71.0 | -0.6 |
+| 35 | 67.0 | 66.6 | -0.4 |
+| 45 | 57.1 | 56.4 | -0.7 |
+
+8 of 8 finished runs `measured` (the 40 mm run hit the harness's 20 min time limit before the descent): error
+-0.4 mm mean, 0.8 mm worst, the touch read at 0.8-1.1 mm of lag over a 0.15 mm baseline. The offset reads a
+little short (the tip presses the peg up in the jaws by a few tenths before the hand stalls).
