@@ -6,10 +6,14 @@
    places along one line (they cross mid-clip, the target under the twin in odd seeds), the third copy
    sits beside the path; 60 frames, 2 px jitter. Ground truth: the target's box. Scored: mean box IoU,
    frames after the crossing with IoU < 0.3 ("lost"), and whether the last 10 frames hold IoU >= 0.5.
-2. The labelled real clips (top148 box / cube, wrist574 plug): the hit rate at the keyframes
+2. Pen caps among look-alike caps in two real wrist clips of the pens task (21 tracks, 151 frames
+   at 7.5 fps; ground truth by homography from one labelled frame, tests/bundles/_pens_lookalike_gt.py):
+   mean IoU, IoU by quarter of the clip, identity switches (3+ frames with the tracked box's centre
+   on another cap and IoU < 0.3 with the target), lost frames.
+3. The labelled real clips (top148 box / cube, wrist574 plug): the hit rate at the keyframes
    (IoU >= iou_hit, as tools/sam2's check).
 
-    python tests/bundles/_dam4sam_eval.py RECORDINGS_DIR OUT.json
+    python tests/bundles/_dam4sam_eval.py RECORDINGS_DIR PENS_RUNS_DIR OUT.json
 """
 
 from __future__ import annotations
@@ -26,6 +30,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
 LABELS = ROOT / "tests/bundles/data/sam2_station_clips_labels.json"
+PENS = ROOT / "tests/bundles/data/pens_lookalike_tracks.json"
 
 
 def _stub() -> None:
@@ -124,6 +129,52 @@ def score_game(boxes, gt, twins, cross):
             "kept": bool(np.mean(ious[-10:]) >= 0.5 and min(ious[-10:]) > 0.3), "swapped": swapped}  # fmt: skip
 
 
+def _centre_in(b, g, shrink=0.15) -> bool:
+    if b is None or g is None:
+        return False
+    cx, cy = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2
+    dx, dy = (g[2] - g[0]) * shrink, (g[3] - g[1]) * shrink
+    return g[0] + dx <= cx <= g[2] - dx and g[1] + dy <= cy <= g[3] - dy
+
+
+def run_pens(pens: Path, trackers):
+    """Each labelled cap of tests/bundles/data/pens_lookalike_tracks.json as the target in turn."""
+    lab = json.loads(PENS.read_text())
+    res = {}
+    for clip, spec in lab["clips"].items():
+        frames = read_clip(pens / spec["video"], lab["first_frame"], 301)[:: lab["stride"]]
+        frames = frames[: spec["n_frames"]]
+        gts = spec["boxes"]
+        for tname, fn in trackers.items():
+            rows = []
+            for cap, gt in gts.items():
+                boxes = fn(frames, gt[0])
+                ious, sw, lost = [], [], []
+                for i in range(1, len(frames)):
+                    if gt[i] is None:
+                        continue
+                    u = iou(boxes[i], gt[i])
+                    other = any(_centre_in(boxes[i], g[i]) for c, g in gts.items() if c != cap)
+                    ious.append(u)
+                    sw.append(u < 0.3 and other)
+                    lost.append(u < 0.3 and not other)
+                run, switched = 0, False
+                for x in sw:
+                    run = run + 1 if x else 0
+                    switched |= run >= 3
+                rows.append({"cap": cap, "miou": float(np.mean(ious)), "switch_frames": float(np.mean(sw)),
+                             "lost_frames": float(np.mean(lost)), "switched": switched,
+                             "iou_q": [float(np.mean(q)) for q in np.array_split(ious, 4)]})  # fmt: skip
+            agg = {"tracks": len(rows), "miou": float(np.mean([r["miou"] for r in rows])),
+                   "id_switch_tracks": int(sum(r["switched"] for r in rows)),
+                   "switch_frames": float(np.mean([r["switch_frames"] for r in rows])),
+                   "lost_frames": float(np.mean([r["lost_frames"] for r in rows])),
+                   "iou_by_quarter": [float(np.mean([r["iou_q"][k] for r in rows])) for k in range(4)]}  # fmt: skip
+            res[f"{clip}/{tname}"] = {"agg": agg, "tracks": rows}
+            print(f"pens {clip} {tname}: {agg}", flush=True)
+    return res
+
+
 def run_clips(rec: Path, trackers):
     lab = json.loads(LABELS.read_text())
     res = {}
@@ -152,7 +203,7 @@ def run_clips(rec: Path, trackers):
 
 
 def main() -> None:
-    rec, out = Path(sys.argv[1]), Path(sys.argv[2])
+    rec, pens, out = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
     _stub()
     dam = _load("dam4sam_tools", ROOT / "tools/dam4sam/tools.py")
     sam2 = _load("sam2_tools", ROOT / "tools/sam2/tools.py")
@@ -170,6 +221,8 @@ def main() -> None:
     parts = {"cube": lab["top148"]["objects"]["cube"]["keys"]["0"],
              "box": lab["top148"]["objects"]["box"]["keys"]["0"]}  # fmt: skip
     res: dict = {"games": {}, "clips": {}}
+    res["pens"] = run_pens(pens, trackers)
+    out.write_text(json.dumps(res, indent=1))
     for pname, pbox in parts.items():
         for tname, fn in trackers.items():
             rows = []
