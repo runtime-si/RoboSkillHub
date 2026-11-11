@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "snapshot_date": "2026-11-11",
+  "collection": "vla-datasets",
+  "scope": "Robot demonstration datasets behind the catalogued checkpoints or usable for station fine-tunes. Pinned revisions; not downloaded by the hub.",
+  "entries": [
+    {
+      "id": "allenai/MolmoAct2-BimanualYAM-Dataset",
+      "revision": "e9f21ae15074330839f2ac25ed4b49d76dfa1f9c",
+      "embodiment": "yam_i2rt",
+      "episodes": 5145,
+      "tasks": [
+        "block manipulation",
+        "box packing",
+        "table bussing"
+      ],
+      "format": "LeRobot (124 per-session repos; top + left/right wrist 640x360, 14-D abs joints, 30 Hz)",
+      "license": {
+        "model": "Apache-2.0",
+        "verified": true
+      },
+      "size_gb": null,
+      "relevance": "training data of every seeded YAM checkpoint; same joint frame and gripper units",
+      "source_urls": [
+        "https://huggingface.co/datasets/allenai/MolmoAct2-BimanualYAM-Dataset"
+      ]
+    },
+    {
+      "id": "allenai/19012026-block-13",
+      "revision": "dc6a332d227ad3c6e7a3f9debd12178dd8b92c6a",
+      "embodiment": "yam_i2rt",
+      "episodes": null,
+      "tasks": [
+        "spell out words with letter blocks"
+      ],
+      "format": "LeRobot",
+      "license": {
+        "model": "Apache-2.0",
+        "verified": true
+      },
+      "size_gb": null,
+      "relevance": "held-out session used for the open-loop MSE of MolmoAct2 / pi05 (PR #211, RESULTS.md)",
+      "source_urls": [
+        "https://huggingface.co/datasets/allenai/19012026-block-13"
+      ]
+    }
+  ]
+}

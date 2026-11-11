@@ -1,0 +1,477 @@
+{
+  "schema_version": 1,
+  "snapshot_date": "2026-11-11",
+  "collection": "vla-checkpoints",
+  "scope": "Fine-tuned robot action models (VLA checkpoints) considered for the bimanual YAM station; pinned Hugging Face revisions, I/O, licences, serving path and our evaluations. Not executable bundles.",
+  "entries": [
+    {
+      "id": "allenai/MolmoAct2-BimanualYAM",
+      "revision": "8dcbed66f2380e4393189c303ea72488eb9e63c2",
+      "family": "molmoact2",
+      "base_model": "allenai/MolmoAct2 (Molmo2-ER + flow-matching action expert)",
+      "format": "transformers (trust_remote_code), safetensors x5, norm_stats.json",
+      "embodiment": "yam_i2rt",
+      "arms": 2,
+      "action": {
+        "space": "abs_joint",
+        "dim": 14,
+        "horizon": 30,
+        "hz": 30
+      },
+      "state": {
+        "dim": 14,
+        "order": [
+          "left.j1..j6",
+          "left.gripper",
+          "right.j1..j6",
+          "right.gripper"
+        ]
+      },
+      "cameras": [
+        "top",
+        "left_wrist",
+        "right_wrist"
+      ],
+      "training": {
+        "datasets": [
+          "allenai/MolmoAct2-BimanualYAM-Dataset"
+        ],
+        "episodes": 5145,
+        "tasks": [
+          "block manipulation",
+          "box packing",
+          "table bussing"
+        ]
+      },
+      "license": {
+        "model": "Apache-2.0",
+        "inherited": "Ai2 Responsible Use Guidelines; HF card has no license field (github.com/allenai/molmoact2 README section 7)",
+        "verified": true
+      },
+      "gated": false,
+      "size_gb": 21.78,
+      "servable_by": [
+        "policies/molmoact2-yam",
+        "allenai/molmoact2 examples/yam/host_server_yam.py"
+      ],
+      "yam_compatible": "as_is",
+      "task_relevance": "bimanual YAM tabletop pick/place, packing, bussing; the reference YAM checkpoint",
+      "notes": "Profile policies/molmoact2-yam/profiles/yam-molmoact2-native.yaml (norm_tag yam_dual_molmoact2, camera order top/left/right, 640x360). Open loop on allenai/19012026-block-13 ep0: MSE 0.0045 vs hold-still 0.0086. Twin gap = cameras and scene look, not the mapping.",
+      "source_urls": [
+        "https://huggingface.co/allenai/MolmoAct2-BimanualYAM",
+        "https://github.com/runtime-si/RoboSkillHub/pull/212"
+      ],
+      "checked_at": "2026-11-11",
+      "evaluations": [
+        {
+          "setting": "twin closed loop, top view cropped to 640x360",
+          "task": "cube-in-box (Pick up the grey block and put it in the blue box), station twin, cube +-30 mm / random yaw, 20 s",
+          "episodes": 10,
+          "successes": 0,
+          "date": "2026-11-10",
+          "evidence": "~/sim-wt/mma2-eval/RESULTS.md (A2, 2026-11-10); https://github.com/runtime-si/RoboSkillHub/pull/212",
+          "notes": "no jaw closes; nearest TCP-cube median 74 mm (min 17); other adapter variants 0/2-0/5 each"
+        }
+      ]
+    },
+    {
+      "id": "helen9975/pi05-molmoact-yam",
+      "revision": "6b50a13e959a6e4668d94df083056b6c6753f6bc",
+      "family": "pi05",
+      "base_model": "lerobot/pi05_base",
+      "format": "LeRobot 0.7 PI05Policy (PyTorch safetensors + pre/post-processors)",
+      "embodiment": "yam_i2rt",
+      "arms": 2,
+      "action": {
+        "space": "abs_joint",
+        "dim": 14,
+        "horizon": 30,
+        "hz": 30
+      },
+      "state": {
+        "dim": 14,
+        "order": [
+          "left.j1..j6",
+          "left.gripper",
+          "right.j1..j6",
+          "right.gripper"
+        ]
+      },
+      "cameras": [
+        "top",
+        "left_wrist",
+        "right_wrist"
+      ],
+      "training": {
+        "datasets": [
+          "allenai/MolmoAct2-BimanualYAM-Dataset"
+        ],
+        "episodes": 5145,
+        "tasks": [
+          "block manipulation",
+          "box packing",
+          "table bussing"
+        ]
+      },
+      "license": {
+        "model": "Apache-2.0 (card)",
+        "inherited": "inherits Gemma terms through PaliGemma (pi05_base)",
+        "verified": true
+      },
+      "gated": false,
+      "size_gb": 9.35,
+      "servable_by": [
+        "policies/gr00t:pi05",
+        "lerobot>=0.7 PI05Policy"
+      ],
+      "yam_compatible": "as_is",
+      "task_relevance": "bimanual YAM tabletop pick/place on the MolmoAct2 YAM data",
+      "notes": "200k steps (tag step-100000 also published). Profile policies/gr00t/profiles/yam-pi05-molmoact2.yaml. Open loop on allenai/19012026-block-13 ep0: MSE 0.0037 (PR #211) / 0.0048 (RESULTS.md) vs hold-still 0.0086; 140 ms/chunk, 8.9 GB.",
+      "source_urls": [
+        "https://huggingface.co/helen9975/pi05-molmoact-yam",
+        "https://github.com/runtime-si/RoboSkillHub/pull/211"
+      ],
+      "checked_at": "2026-11-11",
+      "evaluations": [
+        {
+          "setting": "twin closed loop, raw 640x480 top view",
+          "task": "cube-in-box (Pick up the grey block and put it in the blue box), station twin, cube +-30 mm / random yaw, 20 s",
+          "episodes": 10,
+          "successes": 0,
+          "date": "2026-11-10",
+          "evidence": "~/sim-wt/mma2-eval/RESULTS.md (A2, 2026-11-10)",
+          "notes": "no jaw closes; nearest TCP-cube median 250 mm (min 184)"
+        },
+        {
+          "setting": "twin closed loop, top view cropped to 640x360",
+          "task": "cube-in-box (Pick up the grey block and put it in the blue box), station twin, cube +-30 mm / random yaw, 20 s",
+          "episodes": 10,
+          "successes": 0,
+          "date": "2026-11-10",
+          "evidence": "~/sim-wt/mma2-eval/RESULTS.md (A2, 2026-11-10)",
+          "notes": "no jaw closes; nearest TCP-cube median 276 mm (min 207)"
+        }
+      ]
+    },
+    {
+      "id": "NUSMAGIC/pi05-MolmoAct2-YAM",
+      "revision": "2f28d00ac28c543626f5a4f579a3da09bee4a4ed",
+      "family": "pi05",
+      "base_model": "lerobot/pi05_base",
+      "format": "LeRobot PI05Policy (PyTorch safetensors + pre/post-processors)",
+      "embodiment": "yam_i2rt",
+      "arms": 2,
+      "action": {
+        "space": "abs_joint",
+        "dim": 14,
+        "horizon": 30,
+        "hz": 30
+      },
+      "state": {
+        "dim": 14,
+        "order": [
+          "left.j1..j6",
+          "left.gripper",
+          "right.j1..j6",
+          "right.gripper"
+        ]
+      },
+      "cameras": [
+        "top",
+        "left_wrist",
+        "right_wrist"
+      ],
+      "training": {
+        "datasets": [
+          "allenai/MolmoAct2-BimanualYAM-Dataset"
+        ],
+        "episodes": 5145,
+        "tasks": [
+          "block manipulation",
+          "box packing",
+          "table bussing"
+        ]
+      },
+      "license": {
+        "model": "Apache-2.0 (card)",
+        "inherited": "inherits Gemma terms through PaliGemma (pi05_base)",
+        "verified": true
+      },
+      "gated": false,
+      "size_gb": 9.35,
+      "servable_by": [
+        "policies/gr00t:pi05",
+        "lerobot>=0.7 PI05Policy"
+      ],
+      "yam_compatible": "as_is",
+      "task_relevance": "bimanual YAM tabletop pick/place on the MolmoAct2 YAM data",
+      "notes": "100k steps; same layout as helen9975/pi05-molmoact-yam (observation.images.top/left/right 3x360x640, state 14, chunk 30 @ 30 Hz). Card reports an open-loop smoke on 2 held-out episodes. Not evaluated by us.",
+      "source_urls": [
+        "https://huggingface.co/NUSMAGIC/pi05-MolmoAct2-YAM"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "robocurve/pi0.5-yam",
+      "revision": "ee17bb361e95eeba57853a2840480f5a1fc81a84",
+      "family": "pi05",
+      "base_model": "openpi pi05_base",
+      "format": "openpi JAX/orbax checkpoint + assets/yam-bimanual-merged/norm_stats.json",
+      "embodiment": "yam_i2rt",
+      "arms": 2,
+      "action": {
+        "space": "abs_joint",
+        "dim": 14,
+        "horizon": 16,
+        "hz": 30
+      },
+      "state": {
+        "dim": 14,
+        "order": [
+          "left.j1..j6",
+          "left.gripper",
+          "right.j1..j6",
+          "right.gripper"
+        ]
+      },
+      "cameras": [
+        "top",
+        "left_wrist",
+        "right_wrist"
+      ],
+      "training": {
+        "datasets": [
+          "allenai/MolmoAct2-BimanualYAM-Dataset"
+        ],
+        "episodes": 5145,
+        "tasks": [
+          "block manipulation",
+          "box packing",
+          "table bussing"
+        ]
+      },
+      "license": {
+        "model": "Gemma (card)",
+        "inherited": "inherits Gemma terms through PaliGemma (pi05_base)",
+        "verified": true
+      },
+      "gated": false,
+      "size_gb": 12.44,
+      "servable_by": [
+        "openpi with a yam_pi05 training config (not in openpi main)"
+      ],
+      "yam_compatible": "as_is",
+      "task_relevance": "bimanual YAM tabletop pick/place on the MolmoAct2 YAM data",
+      "notes": "Full fine-tune, 20k steps @ batch 512 on 8x B200; held-out val allenai/19012026-block-13. Needs the unpublished yam_pi05 openpi config or a LeRobot conversion before our pi05 server can run it.",
+      "source_urls": [
+        "https://huggingface.co/robocurve/pi0.5-yam",
+        "https://github.com/runtime-si/RoboSkillHub/pull/211"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "jeqcho/pi05-yam-bimanual",
+      "revision": "36fa301733ab79947fa462da115796d328bb6205",
+      "family": "pi05",
+      "base_model": "physical-intelligence/pi05-base (openpi)",
+      "format": "openpi JAX/orbax checkpoint + norm_stats.json",
+      "embodiment": "yam_i2rt",
+      "arms": 2,
+      "action": {
+        "space": "abs_joint",
+        "dim": 14,
+        "horizon": 16,
+        "hz": 30
+      },
+      "state": {
+        "dim": 14,
+        "order": [
+          "left.j1..j6",
+          "left.gripper",
+          "right.j1..j6",
+          "right.gripper"
+        ]
+      },
+      "cameras": [
+        "top",
+        "left_wrist",
+        "right_wrist"
+      ],
+      "training": {
+        "datasets": [
+          "allenai/MolmoAct2-BimanualYAM-Dataset"
+        ],
+        "episodes": 5145,
+        "tasks": [
+          "block manipulation",
+          "box packing",
+          "table bussing"
+        ]
+      },
+      "license": {
+        "model": "Apache-2.0 (card)",
+        "inherited": "inherits Gemma terms through PaliGemma (pi05_base)",
+        "verified": true
+      },
+      "gated": false,
+      "size_gb": 44.69,
+      "servable_by": [
+        "openpi with a yam_pi05 training config (not in openpi main)"
+      ],
+      "yam_compatible": "as_is",
+      "task_relevance": "bimanual YAM tabletop pick/place on the MolmoAct2 YAM data",
+      "notes": "~19.3k steps @ batch 512; held-out block val mean_mse 0.00259. 44.7 GB because optimizer/train state is included.",
+      "source_urls": [
+        "https://huggingface.co/jeqcho/pi05-yam-bimanual",
+        "https://github.com/runtime-si/RoboSkillHub/pull/211"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "robocurve/gr00t-n1.7-yam-molmoact2",
+      "revision": "f04fe258e6a5d84c939547cd49043fbc3b1e8985",
+      "family": "gr00t-n1.7",
+      "base_model": "nvidia/GR00T-N1.7-3B",
+      "format": "Isaac-GR00T N1.7 (safetensors x2, experiment_cfg, tag new_embodiment)",
+      "embodiment": "yam_i2rt",
+      "arms": 2,
+      "action": {
+        "space": "abs_joint",
+        "dim": 14,
+        "horizon": 16,
+        "hz": 30
+      },
+      "state": {
+        "dim": 14,
+        "order": [
+          "left.j1..j6",
+          "left.gripper",
+          "right.j1..j6",
+          "right.gripper"
+        ]
+      },
+      "cameras": [
+        "top",
+        "left_wrist",
+        "right_wrist"
+      ],
+      "training": {
+        "datasets": [
+          "allenai/MolmoAct2-BimanualYAM-Dataset"
+        ],
+        "episodes": 5145,
+        "tasks": [
+          "block manipulation",
+          "box packing",
+          "table bussing"
+        ]
+      },
+      "license": {
+        "model": "NVIDIA Open Model License (card: license other, nvidia-license)",
+        "inherited": "NVIDIA Open Model License from GR00T-N1.7-3B; backbone nvidia/Cosmos-Reason2-2B is gated",
+        "verified": true
+      },
+      "gated": false,
+      "size_gb": 6.92,
+      "servable_by": [
+        "policies/gr00t:n1.7",
+        "Isaac-GR00T Gr00tPolicy"
+      ],
+      "yam_compatible": "as_is",
+      "task_relevance": "bimanual YAM tabletop pick/place on the MolmoAct2 YAM data",
+      "notes": "Server profile yam-molmoact2 in policies/gr00t/server.py; 64 ms/chunk, 6.0 GB on RTX PRO 6000. Raises and retracts both arms in the twin; never closes a jaw.",
+      "source_urls": [
+        "https://huggingface.co/robocurve/gr00t-n1.7-yam-molmoact2",
+        "https://github.com/runtime-si/RoboSkillHub/pull/173"
+      ],
+      "checked_at": "2026-11-11",
+      "evaluations": [
+        {
+          "setting": "twin closed loop, no marks",
+          "task": "cube-in-box (Pick up the grey block and put it in the blue box), station twin, cube +-30 mm / random yaw, 20 s",
+          "episodes": 10,
+          "successes": 0,
+          "date": "2026-11-10",
+          "evidence": "https://github.com/runtime-si/RoboSkillHub/pull/173",
+          "notes": "jaw closed 0; nearest TCP-cube median 343 mm"
+        },
+        {
+          "setting": "twin closed loop, grasp/release marks",
+          "task": "cube-in-box (Pick up the grey block and put it in the blue box), station twin, cube +-30 mm / random yaw, 20 s",
+          "episodes": 10,
+          "successes": 0,
+          "date": "2026-11-10",
+          "evidence": "https://github.com/runtime-si/RoboSkillHub/pull/173",
+          "notes": "jaw closed 0; median 359 mm"
+        },
+        {
+          "setting": "twin closed loop, marks + text",
+          "task": "cube-in-box (Pick up the grey block and put it in the blue box), station twin, cube +-30 mm / random yaw, 20 s",
+          "episodes": 10,
+          "successes": 0,
+          "date": "2026-11-10",
+          "evidence": "https://github.com/runtime-si/RoboSkillHub/pull/173",
+          "notes": "jaw closed 0; median 357 mm"
+        }
+      ]
+    },
+    {
+      "id": "agents2agents/Pi0.5-BimanualYAM-Jetson-Thor",
+      "revision": "5962a4b477d34595d7be848c53d826e4d35521c1",
+      "family": "pi05",
+      "base_model": "openpi pi05 YAM fine-tune (TensorRT export)",
+      "format": "TensorRT engines + plugins for Jetson AGX Thor (engines/*.plan, plugins/*.so)",
+      "embodiment": "yam_i2rt",
+      "arms": 2,
+      "action": {
+        "space": "abs_joint",
+        "dim": 14,
+        "horizon": 16,
+        "hz": 30
+      },
+      "state": {
+        "dim": 14,
+        "order": [
+          "left.j1..j6",
+          "left.gripper",
+          "right.j1..j6",
+          "right.gripper"
+        ]
+      },
+      "cameras": [
+        "top",
+        "left_wrist",
+        "right_wrist"
+      ],
+      "training": {
+        "datasets": [
+          "allenai/MolmoAct2-BimanualYAM-Dataset"
+        ],
+        "episodes": 5145,
+        "tasks": [
+          "block manipulation",
+          "box packing",
+          "table bussing"
+        ]
+      },
+      "license": {
+        "model": "Gemma (card); Apache-2.0 runtime code; CUTLASS licence for plugins",
+        "inherited": "Gemma terms + Gemma prohibited use policy (files in repo)",
+        "verified": true
+      },
+      "gated": false,
+      "size_gb": 6.17,
+      "servable_by": [
+        "agents2agents TensorRT runtime on Jetson AGX Thor only"
+      ],
+      "yam_compatible": "as_is",
+      "task_relevance": "bimanual YAM tabletop pick/place on the MolmoAct2 YAM data",
+      "notes": "16 x 14 actions, 10 diffusion steps, 100 Hz Ruckig controller on the device. Engines are bound to Thor; not loadable on our x86 GPU servers.",
+      "source_urls": [
+        "https://huggingface.co/agents2agents/Pi0.5-BimanualYAM-Jetson-Thor",
+        "https://github.com/runtime-si/RoboSkillHub/pull/211"
+      ],
+      "checked_at": "2026-11-11"
+    }
+  ]
+}

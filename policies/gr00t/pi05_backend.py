@@ -41,7 +41,13 @@ TOKENIZER_FILES = [
 
 
 def profile_names() -> list[str]:
-    return sorted(p.stem for p in PROFILES_DIR.glob("*.yaml"))
+    import yaml
+
+    return sorted(
+        p.stem
+        for p in PROFILES_DIR.glob("*.yaml")
+        if (yaml.safe_load(p.read_text()) or {}).get("backend", "pi05") == "pi05"
+    )
 
 
 def load_profile(name: str, station: str | None = None) -> dict[str, Any]:

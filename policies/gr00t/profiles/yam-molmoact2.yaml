@@ -1,0 +1,29 @@
+# robocurve/gr00t-n1.7-yam-molmoact2 on the bimanual YAM station: the client-side description of server.py's
+# built-in `--backend n1.7 --profile yam-molmoact2` (modality keys live in server.py PROFILES; this file is what
+# roboskillhub.vla.load_profile and the VLA catalog read). Same data, joint frame and gripper units as
+# allenai/MolmoAct2-BimanualYAM. Twin closed loop 0/10 in each of 3 conditions (#173).
+profile: yam-molmoact2
+backend: n1.7
+checkpoint:
+  repo: robocurve/gr00t-n1.7-yam-molmoact2
+  revision: f04fe258e6a5d84c939547cd49043fbc3b1e8985
+  sha256:
+    model-00001-of-00002.safetensors: 02f6a84a3f0d7bca93fa8e34f7aea45821b399644d9cf3acbbd2acb3384af223
+    model-00002-of-00002.safetensors: 31877b103e488accb59ca0c98918298ebc0fcf4271e957b3013fb548509bf67d
+  license: NVIDIA Open Model License (base nvidia/GR00T-N1.7-3B; backbone nvidia/Cosmos-Reason2-2B gated)
+cameras: [top, left_wrist, right_wrist]          # base_view, left_wrist_view, right_wrist_view
+state: [left.j1, left.j2, left.j3, left.j4, left.j5, left.j6, left.gripper,
+        right.j1, right.j2, right.j3, right.j4, right.j5, right.j6, right.gripper]
+# station = model + offset (#173 GAP_GR00T_JOINT_OFFSET): the twin none, the real station +pi/2 on each base joint.
+joint_offset_rad:
+  left: [0, 0, 0, 0, 0, 0]
+  right: [0, 0, 0, 0, 0, 0]
+gripper: {station_open: 1.0, station_closed: 0.0, model_open: 1.0, model_closed: 0.0}
+# 16 x 14 absolute joints at 30 Hz; gr00t.run_skill executes the first 8 rows of each chunk.
+action: {type: abs_joint, dim: 14, horizon: 16, execute_steps: 8, hz: 30}
+extra: {tag: new_embodiment, dtype: bfloat16}
+stations:
+  real:
+    joint_offset_rad:
+      left: [1.5707963267948966, 0, 0, 0, 0, 0]
+      right: [1.5707963267948966, 0, 0, 0, 0, 0]
