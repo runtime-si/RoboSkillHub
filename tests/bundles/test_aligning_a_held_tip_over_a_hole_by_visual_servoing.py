@@ -46,3 +46,25 @@ def test_surface_around_reads_table_when_off_the_holder():
     pts = np.c_[xy, np.where(on_holder, 0.0, -0.04)]
     assert abs(at.surface_around(pts, np.array([-0.02, 0.0]), 0.009) + 0.04) < 1e-6
     assert abs(at.surface_around(pts, np.array([0.03, 0.0]), 0.004)) < 1e-6
+
+
+def test_foot_of_a_tilted_cylinder():
+    t = np.eye(4)
+    t[:3, :3] = np.diag([1.0, -1.0, -1.0])
+    t[:3, 3] = [0.0, 0.0, 0.12]
+    tilt = np.radians(10.0)
+    axis = np.array([np.sin(tilt), 0.0, -np.cos(tilt)])
+    top = np.array([0.0, 0.0, 0.12])
+    e1 = np.array([np.cos(tilt), 0.0, np.sin(tilt)])
+    e2 = np.array([0.0, 1.0, 0.0])
+    r = 0.008
+    pts = np.array(
+        [
+            top + axis * s + r * (np.cos(a) * e1 + np.sin(a) * e2)
+            for s in np.linspace(0.01, 0.11, 80)
+            for a in np.linspace(-1.2, 1.2, 30)
+        ]
+    )
+    foot_true = top + axis * (0.12 / np.cos(tilt))
+    foot = at.held_foot(pts, t, r, 0.12, 0.0, np.array([0.4, 0.0, 0.3]))
+    assert foot["found"] and np.linalg.norm(foot["foot_xy"] - foot_true[:2]) < 0.0015

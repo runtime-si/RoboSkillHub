@@ -31,6 +31,9 @@ FACE_BAND = 0.003
 """Points within this of the face height are the face [m]; deeper than HOLE_DEPTH under it, a hole."""
 
 HOLE_DEPTH = 0.005
+TILT_CONE = math.tan(math.radians(15.0))
+"""The first selection widens along the tool axis by this per metre, so a part tilted up to ~15 deg in the grasp
+keeps its lower end (a twin peg held 10 deg off lost it to a plain cylinder and read 8-15 mm off)."""
 MIN_POINTS = 60
 
 
@@ -75,17 +78,34 @@ def held_foot(
     """The held part's axis (a line fitted to its visible surface, moved back by the radius) and where it crosses
     the face plane: the foot. Points near the tool's approach axis, from the tool centre to the tip, above the face."""
     o, a = t_base_tool[:3, 3], t_base_tool[:3, 2]
+    above = pts[:, 2] > face_z + 0.004
+    # A cone around the tool axis (a part tilted in the grasp leans out of a plain cylinder), then the points
+    # around the axis fitted to them, twice: the part's lower end is then kept however it leans.
     rel = pts - o
     s = rel @ a
     d = np.linalg.norm(rel - np.outer(s, a), axis=1)
     sel = (
-        (d < radius + HELD_MARGIN)
+        (d < radius + HELD_MARGIN + np.maximum(s, 0.0) * TILT_CONE)
         & (s > 0.0)
         & (s < tip_offset + 0.005)
-        & (pts[:, 2] > face_z + 0.004)
+        & above
     )
     if sel.sum() < MIN_POINTS:
         return {"found": False, "n": int(sel.sum())}
+    for _ in range(2):
+        q = pts[sel]
+        c = q.mean(axis=0)
+        axis = np.linalg.svd(q - c, full_matrices=False)[2][0]
+        if axis @ a < 0:
+            axis = -axis
+        rel = pts - c
+        s2 = rel @ axis
+        d2 = np.linalg.norm(rel - np.outer(s2, axis), axis=1)
+        s_tool = (pts - o) @ axis
+        nxt = (d2 < radius + 0.004) & (s_tool > 0.0) & (s_tool < tip_offset + 0.01) & above
+        if nxt.sum() < MIN_POINTS:
+            break
+        sel = nxt
     q = pts[sel]
     c = q.mean(axis=0)
     axis = np.linalg.svd(q - c, full_matrices=False)[2][0]
