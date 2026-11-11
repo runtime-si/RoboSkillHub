@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-30 tools, 163 skills, 4 policies, 1 recipe and 1 paper.
+30 tools, 164 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -179,6 +179,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`tipping-over-a-surface-edge`](#tipping-over-a-surface-edge) | execute | Turn a body over on the surface it rests on instead of carrying it. | any, *tuned on* yam_i2rt, 2 arms, **sim only** |
 | [`transporting-objects`](#transporting-objects) | execute | Move the currently-held object to a destination and release. | any, *tuned on* panda |
 | [`triggering-a-domino-chain-by-push`](#triggering-a-domino-chain-by-push) | execute | Topples the first domino of a standing line so the chain runs. | any |
+| [`turning-a-flat-piece-by-pushing`](#turning-a-flat-piece-by-pushing) | execute | Turns a flat part lying on the table (a jigsaw piece) to a target yaw without gripping it. | any |
 | [`turning-by-wrist-ratchet`](#turning-by-wrist-ratchet) | execute | Tightens or loosens a screw lid or cap by wrist ratchet. | any |
 | [`wiping-a-region`](#wiping-a-region) | execute | Wipes a flat region of a surface with back-and-forth strokes. | any |
 | [`auditing-a-domino-line-for-fallen-or-tilted-tiles`](#auditing-a-domino-line-for-fallen-or-tilted-tiles) | verify | Checks a standing domino line or curve from one overhead depth frame, with no reference image, against its planned slots. | any |
@@ -2626,6 +2627,22 @@ Topples the first domino of a standing line so the chain runs - closes the hand 
   - `blocked`: The descent behind the tile stopped high (something stands where the hand comes down; lifted back), or the stroke was held - it timed out or ended more than 5 mm short of its end - before the blade reached the tipping travel (a tile that does not give, or the arm at a limit); the hand backed off and rose.
   - `unverified`: The stroke ran, but no camera saw the slot whole and unoccluded after the push; `pushed` says whether the blade reached the tipping travel.
   - `unreachable`: Nothing was pushed - the contact height is outside its band, the stroke would reach the next tile (the line is too tight to push the first tile alone) or the hand would come down on the tile behind, the stroke's start or end failed the IK preview for both wrist solutions, or a move before the stroke was refused.
+
+### turning-a-flat-piece-by-pushing
+
+execute · robots: any · tasks: jigsaw, reorientation · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/turning-a-flat-piece-by-pushing/SKILL.md)
+
+Turns a flat part lying on the table (a jigsaw piece) to a target yaw without gripping it - the closed fingertips push one of its body corners tangentially in steps of at most 10 degrees, and after every push the wrist camera looks straight down, takes everything 1 mm over the table as the piece and fits the piece's known mask over rotations to measure its yaw; stops within 5 degrees or after 12 pushes. Use when a piece must be picked already at its slot's yaw because a held turn loses it (an edge grip of a 2 mm piece does not hold against turning), before the pick.
+
+- **In**: `piece_mask` Mask, `metres_per_pixel` float, `position` Vec3, `target_yaw_deg` float
+- **Out**: `yaw_deg` float, `error_deg` float, `pushes` int
+- **Calls**: connector `robot.close_gripper`, `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`
+- **Scripts**: [`push_turn`](skills/turning-a-flat-piece-by-pushing/scripts/push_turn.py)
+- **Exits**:
+  - `turned`: The measured yaw is within 5 deg of the target; position is the piece's measured centre.
+  - `not_turned`: Still more than 5 deg off after 12 pushes; yaw_deg and history say where it is.
+  - `not_seen`: No wrist camera with depth, an empty mask, or the piece is not under the camera.
+  - `unreachable`: A push move was refused.
 
 ### turning-by-wrist-ratchet
 

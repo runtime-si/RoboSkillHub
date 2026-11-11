@@ -1,0 +1,11 @@
+{
+  "skill": "turning-a-flat-piece-by-pushing",
+  "inputs": {"piece_mask": "Mask", "metres_per_pixel": "float", "position": "Vec3", "target_yaw_deg": "float"},
+  "outputs": {"yaw_deg": {"$ref": "push.yaw_deg"}, "error_deg": {"$ref": "push.error_deg"}, "pushes": {"$ref": "push.pushes"}},
+  "nodes": {"push": {"type": "script", "script": "scripts/push_turn.py", "inputs": {
+    "piece_mask": {"$ref": "in.piece_mask"}, "metres_per_pixel": {"$ref": "in.metres_per_pixel"},
+    "position": {"$ref": "in.position"}, "target_yaw_deg": {"$ref": "in.target_yaw_deg"}}}},
+  "edges": [["START", "push"], ["push", "END"]],
+  "exit": {"router_field": "route", "success_values": ["turned", "not_turned"]},
+  "on_error": "not_seen"
+}
