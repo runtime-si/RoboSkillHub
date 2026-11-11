@@ -350,6 +350,15 @@ def run(ctx: NodeContext, index: int, start_dx: float, start_dy: float, start_ya
         ctx, turn_deg=turn, grasp_z=grasp_z, grip_width_m=gw, **kw
     )
     if mode == "mat":
+        tw = ctx.tool("check.piece_pose")
+        _log(
+            "twist_on_mat",
+            route=rot_out["route"],
+            yaw_after=round(_wrap(tw["yaw_deg"]), 2),
+            yaw_err=round(_wrap(tw["yaw_deg"]), 2),
+            tilt=round(tw["tilt_deg"], 2),
+            dz_mm=round((tw["position"]["z"] - slot["z"]) * 1e3, 2),
+        )
         here = _pose(ctx.tool("robot.get_ee_pose"))
         ctx.tool(
             "robot.go_to_pose_cartesian",
