@@ -66,6 +66,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`inspecting-a-held-object-with-the-other-wrist-camera`](#inspecting-a-held-object-with-the-other-wrist-camera) | perceive | Shows a face of an object one arm holds to the other arm's wrist camera. | any, 2 arms |
 | [`localizing-a-piece-in-a-reference-image`](#localizing-a-piece-in-a-reference-image) | perceive | Finds which grid cell of a jigsaw's box picture one piece belongs to, and how far the piece is turned, from a close-up… | any |
 | [`measuring-a-held-piece-from-the-wrist-camera`](#measuring-a-held-piece-from-the-wrist-camera) | perceive | Measures where a flat held part (a jigsaw piece) sits in the gripper. | any |
+| [`measuring-a-held-tip-offset-by-contact-descent`](#measuring-a-held-tip-offset-by-contact-descent) | perceive | Finds how far the tip of a held part (a pen, a peg, a tool, a brick) sticks out past the tool centre, with no force… | any |
 | [`observing-object-poses`](#observing-object-poses) | perceive | Reads independently observed object positions, and orientations where the backend provides them, from the configured… | yam_i2rt |
 | [`perceiving-deformable-linear-objects`](#perceiving-deformable-linear-objects) | perceive | Read a cable's ordered 3D centreline from one RGB-D frame and keep it current across a task. | any |
 | [`perceiving-functional-features`](#perceiving-functional-features) | perceive | Locates a language-described functional part of a rigid object or fixture from calibrated RGB-D and fits a typed loop… | any |
@@ -196,7 +197,6 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`detecting-disturbed-pieces-by-snapshot-diff`](#detecting-disturbed-pieces-by-snapshot-diff) | verify | Checks whether anything already placed was knocked since the last verified step. | any |
 | [`detecting-in-hand-slip-and-twist-from-the-wrist-camera`](#detecting-in-hand-slip-and-twist-from-the-wrist-camera) | verify | Watches the held part in the wrist camera, which rides rigid with the fingers, and says whether it slips, twists or… | any |
 | [`flagging-odd-one-out-parts-by-mutual-scoring`](#flagging-odd-one-out-parts-by-mutual-scoring) | verify | Finds the part that differs from its siblings in one frame. | any |
-| [`measuring-a-held-tip-offset-by-contact-descent`](#measuring-a-held-tip-offset-by-contact-descent) | verify | Finds how far the tip of a held part (a pen, a peg, a tool, a brick) sticks out past the tool centre, with no force… | any |
 | [`previewing-target-overlay`](#previewing-target-overlay) | verify | Checks a target gripper pose before the arm moves. | any |
 | [`registering-assembled-board-to-reference`](#registering-assembled-board-to-reference) | verify | Aligns a top-down view of the part-built jigsaw (overhead frame, rectified view or wrist mosaic) to the box picture… | any |
 | [`simulating-a-domino-layout-before-building`](#simulating-a-domino-layout-before-building) | verify | Checks a planned domino line or curve in a rigid-body simulation before the arm builds it. | any |
@@ -840,6 +840,22 @@ Measures where a flat held part (a jigsaw piece) sits in the gripper - x, y, yaw
   - `measured`: The fit is sharp (spread of near-best poses under 1.5 mm and 4 deg); tcp_piece {x, y, z, yaw_deg} gives the body centre (z its bottom) and the piece frame's yaw in the tool frame, world_pose the same in the world, sigma the spread.
   - `ambiguous`: A fit was found but too little of the piece is visible to pin it down (spread over 1.5 mm or 4 deg); the pose is returned with its spread.
   - `not_seen`: No wrist camera with depth, an empty mask, or under 60 depth points at a piece-top height under the jaws (nothing held, or out of view).
+
+### measuring-a-held-tip-offset-by-contact-descent
+
+perceive · robots: any · tasks: insertion, pick-place, tool-use · Apache-2.0 · v0.1.1 · [`SKILL.md`](skills/measuring-a-held-tip-offset-by-contact-descent/SKILL.md)
+
+Finds how far the tip of a held part (a pen, a peg, a tool, a brick) sticks out past the tool centre, with no force sensor - holds the hand over a free patch of a surface whose height is known, lowers it in 0.5 mm Cartesian steps and stops when the read-back stops following the command (the tip has touched), then takes the tip offset along the approach axis from the stop height and lifts 10 mm off. Use when a part was grasped at an uncertain height (slipped, regrasped, picked from a pile) and a later step - writing, inserting, placing on a surface - needs its tip position.
+
+- **In**: `surface_z` float
+- **Out**: `tip_offset_m` float, `contact_tcp_z` float, `descended_m` float, `steps` int
+- **Calls**: connector `robot.get_ee_pose`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`
+- **Scripts**: [`tip_offset`](skills/measuring-a-held-tip-offset-by-contact-descent/scripts/tip_offset.py)
+- **Exits**:
+  - `measured`: The hand stopped following within max_descent_m; tip_offset_m is the tip's distance from the tool centre along the approach axis, and the hand is 10 mm above the touch.
+  - `no_contact`: Nothing was touched over max_descent_m (the tip is shorter than assumed, or the surface lower); the hand is at the bottom of the descent.
+  - `unreachable`: A descent step was refused.
+  - `invalid_input`: The approach axis is more than 60 deg off straight down.
 
 ### observing-object-poses
 
@@ -2896,22 +2912,6 @@ Finds the part that differs from its siblings in one frame - a fallen or turned 
   - `all_consistent`: Every part passed every test; detail gives the highest z.
   - `too_few_parts`: Under min_parts (4) parts were given or segmented, or no RGB frame.
 
-### measuring-a-held-tip-offset-by-contact-descent
-
-verify · robots: any · tasks: insertion, pick-place, tool-use · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/measuring-a-held-tip-offset-by-contact-descent/SKILL.md)
-
-Finds how far the tip of a held part (a pen, a peg, a tool, a brick) sticks out past the tool centre, with no force sensor - holds the hand over a free patch of a surface whose height is known, lowers it in 0.5 mm Cartesian steps and stops when the read-back stops following the command (the tip has touched), then takes the tip offset along the approach axis from the stop height and lifts 10 mm off. Use when a part was grasped at an uncertain height (slipped, regrasped, picked from a pile) and a later step - writing, inserting, placing on a surface - needs its tip position.
-
-- **In**: `surface_z` float
-- **Out**: `tip_offset_m` float, `contact_tcp_z` float, `descended_m` float, `steps` int
-- **Calls**: connector `robot.get_ee_pose`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`
-- **Scripts**: [`tip_offset`](skills/measuring-a-held-tip-offset-by-contact-descent/scripts/tip_offset.py)
-- **Exits**:
-  - `measured`: The hand stopped following within max_descent_m; tip_offset_m is the tip's distance from the tool centre along the approach axis, and the hand is 10 mm above the touch.
-  - `no_contact`: Nothing was touched over max_descent_m (the tip is shorter than assumed, or the surface lower); the hand is at the bottom of the descent.
-  - `unreachable`: A descent step was refused.
-  - `invalid_input`: The approach axis is more than 60 deg off straight down.
-
 ### previewing-target-overlay
 
 verify · robots: any · tasks: pick-place, cable-routing, insertion · MIT · v0.1.0 · [`SKILL.md`](skills/previewing-target-overlay/SKILL.md) · [upstream](https://github.com/penn-pal-lab/maestro/blob/e60d326233a238ddc496bf7a08acb7a278e9e66d/maestro/api.py)
@@ -3085,9 +3085,9 @@ Compares a brick build with its target model up to the current step - LTRON's as
 
 ### verifying-grasps
 
-verify · robots: any · tasks: pick-place · Apache-2.0 · v1.0.0 · [`SKILL.md`](skills/verifying-grasps/SKILL.md) · [upstream](https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/skills/verifying-grasps)
+verify · robots: any · tasks: pick-place, insertion · Apache-2.0 · v1.0.1 · [`SKILL.md`](skills/verifying-grasps/SKILL.md) · [upstream](https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/skills/verifying-grasps)
 
-Three independent checks on one grasp attempt -- that the hand arrived where it was sent before the jaws close, that the jaw gap after the close is not the mechanical stop, and that the lifted object is visible above the surface and near the hand. Use when a grasp closed on a small or thin object and the graph must know, before carrying or inserting, whether anything is actually in the gripper.
+Three independent checks on one grasp attempt -- that the hand arrived where it was sent before the jaws close (given where the approach started, a hand stopped short on top of the object routes stopped_short with the shortfall, for correcting a held tip before an insertion; one beside it routes missed), that the jaw gap after the close is not the mechanical stop, and that the lifted object is visible above the surface and near the hand. Use when a grasp closed on a small or thin object and the graph must know, before carrying or inserting, whether anything is actually in the gripper.
 
 - **In**: `object_description` string
 - **Out**: `verified` bool, `observed_center` Vec3

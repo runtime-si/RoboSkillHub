@@ -15,9 +15,9 @@ metadata:
   category: manipulation
   tags: [contact, guarded-move, calibration, tool-tip, proprioception, pens]
   hub:
-    stage: verify
+    stage: perceive
     embodiments: [any]
-    version: 0.1.0
+    version: 0.1.1
     tasks: [insertion, pick-place, tool-use]
     provenance:
       authors: [runtime-si]
