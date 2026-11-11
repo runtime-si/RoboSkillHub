@@ -1,0 +1,26 @@
+{
+  "skill": "segmenting-small-parts-from-a-few-reference-photos",
+  "inputs": {"references": "list"},
+  "outputs": {
+    "instances": {"$ref": "label.instances"},
+    "counts": {"$ref": "label.counts"},
+    "bank": {"$ref": "label.bank"}
+  },
+  "nodes": {
+    "label": {
+      "type": "script",
+      "script": "scripts/label_parts.py",
+      "inputs": {
+        "references": {"$ref": "in.references"},
+        "prompt": "small plastic part",
+        "camera": "top"
+      }
+    }
+  },
+  "edges": [["START", "label"], ["label", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["instances_found", "none_found", "bank_empty"]
+  },
+  "on_error": "none_found"
+}

@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-30 tools, 166 skills, 4 policies, 1 recipe and 1 paper.
+31 tools, 167 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -20,6 +20,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`curve`](#curve) | perceive | Ordered centrelines of deformable linear objects. | any |
 | [`d405-stereo`](#d405-stereo) | perceive | Depth the way a RealSense D405 measures it, from a rendered passive IR stereo pair (18 mm baseline, no projector). | any |
 | [`depth`](#depth) | perceive | Robbyant LingBot-Depth v0.5 run locally on a GPU. | any |
+| [`dinov2`](#dinov2) | perceive | DINOv2 (facebook/dinov2-base or -small, Apache-2.0) embeddings of regions of one RGB frame. | any |
 | [`gemini-er`](#gemini-er) | perceive | Open-vocabulary 2D detection and pointing via the Gemini Robotics-ER API. | any |
 | [`geometry`](#geometry) | perceive | Pure-math 3D geometry toolbox. | any, *tuned on* panda |
 | [`grounding-dino`](#grounding-dino) | perceive | Grounding DINO zero-shot object detection — natural-language queries to labeled 2D bounding boxes with confidence scores. | any |
@@ -79,6 +80,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`registering-held-objects`](#registering-held-objects) | perceive | Reobserves a grasped rigid object from the wrist cameras, estimates its functional feature in the TCP frame, and fits… | any |
 | [`scanning-the-board-into-a-wrist-mosaic`](#scanning-the-board-into-a-wrist-mosaic) | perceive | Scans a table region (the jigsaw board, a staging area) with the wrist camera from straight above and blends the… | any |
 | [`segmenting-and-picking-pieces-classical`](#segmenting-and-picking-pieces-classical) | perceive | Finds the loose jigsaw pieces lying on a staging mat in one top-down RGB(-D) frame without a learned model. | any |
+| [`segmenting-small-parts-from-a-few-reference-photos`](#segmenting-small-parts-from-a-few-reference-photos) | perceive | Labels the parts in a frame. | any |
 | [`simulating-d405-stereo-depth`](#simulating-d405-stereo-depth) | perceive | Replaces a simulated camera's perfect depth with D405-like passive stereo depth computed from the camera's two… | any |
 | [`tracking-build-state`](#tracking-build-state) | perceive | Keeps a world model of the LEGO or DUPLO bricks placed so far and their stud connections. | any |
 | [`tracking-identical-parts-by-id`](#tracking-identical-parts-by-id) | perceive | Keeps a stable id for each of many look-alike parts (dominoes, same-colour bricks, jigsaw pieces, cubes) across… | any |
@@ -275,6 +277,17 @@ Robbyant LingBot-Depth v0.5 run locally on a GPU -- fills the holes of a sensor 
 - **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
 - **Functions**:
   - `depth.refine`: Fill (default) or denoise an RGB-D frame's depth; same-size metric depth, validity and filled masks.
+
+### dinov2
+
+perceive · robots: any · tasks: domino, lego, jigsaw · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/dinov2/SKILL.md) · [upstream](https://huggingface.co/facebook/dinov2-base/tree/f9e44c814b77203eaa57a6bdbbd535f21ede1415)
+
+DINOv2 (facebook/dinov2-base or -small, Apache-2.0) embeddings of regions of one RGB frame - boxes or masks - as unit vectors (the patch tokens pooled under the mask, and the CLS token of the masked crop). Two regions' dot product says how alike they look, across frames and cameras. Use when a workflow must recognise a part by comparing it with a few labelled examples (which brick, which tile side), or match parts across views; skills/segmenting-small-parts-from-a-few-reference-photos keeps a memory bank of them.
+
+- **Weights**: `hf://facebook/dinov2-base@f9e44c814b77203eaa57a6bdbbd535f21ede1415`
+- **Runs**: in its own environment over `stdio-msgpack`, needs a GPU
+- **Functions**:
+  - `dinov2.embed_regions`: DINOv2 unit embeddings of boxes or masks of one RGB frame ([mask-pooled patch tokens | CLS]).
 
 ### gemini-er
 
@@ -1035,6 +1048,21 @@ Finds the loose jigsaw pieces lying on a staging mat in one top-down RGB(-D) fra
   - `segmented`: At least one piece was found and none touches anything; `pieces` lists them, piece_mask / pick_point are the best pickable one (clearest of its surroundings, then the widest inscribed circle).
   - `touching_pieces`: Pieces were found but some touch or lie on one another (split by the watershed or by height; their records say touching, neighbours, layer), or a blob did not split into piece-sized parts (`clusters`, with the source's drag point and direction); piece_mask / pick_point still name the best pickable piece when n_pickable &gt; 0. Singulate the rest, e.g. singulating-by-pushing toward `free_spot`.
   - `nothing_found`: No piece-sized blob on the mat (empty, or only foreign objects and specks).
+
+### segmenting-small-parts-from-a-few-reference-photos
+
+perceive · robots: any · tasks: domino, lego, jigsaw · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/segmenting-small-parts-from-a-few-reference-photos/SKILL.md) · [upstream](https://github.com/miquel-espinosa/no-time-to-train/tree/e93a181837bd)
+
+Labels the parts in a frame - which brick, which domino side, which piece - from a handful of labelled reference photos, with no training. A memory bank of DINOv2 features pooled under the references' masks (tools/dinov2) is matched against the frame's part masks (given, or from sam3 with a generic prompt), each mask labelled by its best class (mean of its top-3 cosines to that class's references) when it clears a score and a margin gate; parts not in the bank stay unlabelled. After No-Time-to-Train's reference-based instance segmentation. Use when a task has its own parts (a kit's brick types, a tile's face) and a few photos of them, and a detector's text prompts or one exemplar cannot tell them apart.
+
+- **In**: -
+- **Out**: `n_proposals` int, `detail` string
+- **Calls**: [`dinov2`](#dinov2), [`sam3`](#sam3); connector `robot.get_observation`
+- **Scripts**: [`label`](skills/segmenting-small-parts-from-a-few-reference-photos/scripts/label_parts.py)
+- **Exits**:
+  - `instances_found`: At least one proposal got a label (best class score &gt;= min_score 0.45, margin to the second &gt;= min_margin); instances lists them with box, score, margin and per-class scores, counts per label.
+  - `none_found`: No proposal cleared the gates, none was 20+ px, or there was no RGB frame.
+  - `bank_empty`: No usable reference (each needs label, mask or box, and an image) and no bank given.
 
 ### simulating-d405-stereo-depth
 

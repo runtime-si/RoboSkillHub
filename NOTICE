@@ -876,3 +876,10 @@ counting of pipcounter (https://github.com/jjmlovesgit/pipcounter, commit
 filter), MIT License, Copyright (c) 2023 JJM; the file's header lists the
 changes, and the license is
 skills/reading-domino-tiles-in-clutter/LICENSE.pipcounter.
+skills/segmenting-small-parts-from-a-few-reference-photos re-implements the
+approach of No-Time-to-Train (https://github.com/miquel-espinosa/no-time-to-train,
+commit e93a181837bd, Apache License 2.0): a memory bank of DINOv2 features
+pooled under reference masks, matched against mask proposals. None of its
+code is used. tools/dinov2 downloads facebook/dinov2-base and
+facebook/dinov2-small (Apache-2.0 model cards) from Hugging Face; none are
+redistributed here.
