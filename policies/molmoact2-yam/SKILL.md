@@ -31,8 +31,8 @@ metadata:
     notes: >-
       Station frame and units on the wire; profiles/yam-molmoact2-native.yaml maps them to the
       checkpoint's (model joint = station joint - joint_offset_rad; linear gripper map). Twin
-      offset 0, real station +pi/2 on each base joint (--station real); gripper identity
-      (model 1 open, 0 closed). Both PROVISIONAL until the twin calibration confirms them.
+      offset 0 and gripper identity (model 1 open, 0 closed) measured in the twin; real station
+      +pi/2 on each base joint (--station real) still PROVISIONAL. Twin cube-in-box 0/10.
       Chunk 30 rows at 30 Hz, execute 25. All three views required; marks ignored.
     version: 0.1.0
     weights:
@@ -112,8 +112,8 @@ the offset (`--station real`), or the offset is applied twice.
 | checkpoint | allenai/MolmoAct2-BimanualYAM @ 8dcbed66, 5 shard sha256 | HF API (LFS oids); checked on load (`--verify-sha256 cache` = HF blob names, `full` = hash) |
 | cameras | top, left_wrist, right_wrist | norm_stats.json camera_keys top / left / right; model card |
 | state | left j1-6, left gripper, right j1-6, right gripper | norm_stats names `left_joint_0.pos` .. `right_gripper.pos` |
-| joint_offset_rad | twin 0; `stations.real` +pi/2 on both base joints | #173 (molmo-yam-joint-mapping.json); **provisional, A2 measures in the twin** |
-| gripper | station 1 open / 0 closed -> model 1 open / 0 closed | norm_stats gripper range 0..1, sample frame 0 (jaws open at rest) reads 0.99; **provisional, A2 measures** |
+| joint_offset_rad | twin 0; `stations.real` +pi/2 on both base joints | twin 0 measured (rest pose held within 0.05 rad; +pi/2 is pulled back 0.46-0.63 rad in the first chunk); real +pi/2 from #173 (molmo-yam-joint-mapping.json), **still provisional** |
+| gripper | station 1 open / 0 closed -> model 1 open / 0 closed | measured: data actions 0.007..0.993, 0.99 at rest; twin open jaws fed as 1 are held at 0.99, fed as 0 are driven back to 0.96; a grasp attempt commands 0.02 |
 | action | abs_joint, 14, horizon 30, execute 25, 30 Hz | norm_stats action_horizon 30, control_mode absolute joint pose |
 | extra | norm_tag yam_dual_molmoact2, num_steps 10, bfloat16, continuous | model card |
 
@@ -156,8 +156,16 @@ keeps up. Repeated calls with the same seed are bit-identical; the parity holds 
 
 ## Open
 
-- Joint offset and gripper mapping: provisional (see the profile); A2's twin calibration replaces them.
-- No twin rollout yet in this bundle: the `pick_object` acceptance (>= 50 twin episodes) runs in D's harness.
+- Real-station joint offset (+pi/2 base) unverified; the twin cannot check the real arm's zero.
+- Twin closed loop (A2, official server, cube-in-box, 10 seeds, 600 rows, top view cropped to the
+  640x360 table band): 0/10, no jaw closes, nearest TCP to cube median 74 mm (min 17). Raw 640x480
+  top view, left/right swap, +pi/2 base, wrist views turned 180 deg, zoomed top view, wrist camera
+  tilted +-35 deg: all 0 (one grasp attempt, missed). π0.5 (policies/gr00t pi05) on the same block: 0/10 raw and cropped
+  (nearest TCP median 250 / 276 mm).
+  Open loop on AllenAI's own frames (19012026-block-13 ep0, 102 chunks) the model tracks the demo:
+  MSE 0.0045 vs hold-still 0.0086 (π0.5 0.0048). So the gap is the twin's cameras (wrist mount sees
+  the fingertips at the top and the floor; AllenAI's sees them at the bottom over the table) and scene
+  look - fix the twin wrist mount, then fine-tune on station data.
 - The real station executor (`robot.stream_joints`) is E's; nothing here moves an arm.
 
 ## License

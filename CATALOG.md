@@ -3238,7 +3238,7 @@ AllenAI MolmoAct2-BimanualYAM as a vla-yam/1 policy server for the bimanual YAM 
 - **Calls**: [`gr00t`](#gr00t)
 - **Trained on**: action `joint_position_absolute` ×14 at 30 Hz; state 14 (left_joints_6, left_opening, right_joints_6, right_opening); cameras `top`, `left_wrist`, `right_wrist`
 - **Weights**: `hf://allenai/MolmoAct2-BimanualYAM@8dcbed66f2380e4393189c303ea72488eb9e63c2`
-- **Note**: Station frame and units on the wire; profiles/yam-molmoact2-native.yaml maps them to the checkpoint's (model joint = station joint - joint_offset_rad; linear gripper map). Twin offset 0, real station +pi/2 on each base joint (--station real); gripper identity (model 1 open, 0 closed). Both PROVISIONAL until the twin calibration confirms them. Chunk 30 rows at 30 Hz, execute 25. All three views required; marks ignored.
+- **Note**: Station frame and units on the wire; profiles/yam-molmoact2-native.yaml maps them to the checkpoint's (model joint = station joint - joint_offset_rad; linear gripper map). Twin offset 0 and gripper identity (model 1 open, 0 closed) measured in the twin; real station +pi/2 on each base joint (--station real) still PROVISIONAL. Twin cube-in-box 0/10. Chunk 30 rows at 30 Hz, execute 25. All three views required; marks ignored.
 - **Exits**:
   - `chunk_ready`: The server returned a [30, 14] chunk in the station frame (execute the first execute_steps rows, then ask again).
   - `refused`: The request was malformed or incomplete (a view missing, joints not 14 finite numbers, empty instruction, bad frame or num_steps); HTTP 400, nothing to execute.
