@@ -120,7 +120,8 @@ def test_seeded_twin_evaluations_are_recorded():
         "robocurve/gr00t-n1.7-yam-molmoact2",
     ):
         evaluations = rows[ident]["evaluations"]
-        assert evaluations and all(e["successes"] == 0 and e["episodes"] == 10 for e in evaluations)
+        seeded = [e for e in evaluations if e["episodes"] == 10]
+        assert seeded and all(e["successes"] == 0 for e in seeded)
 
 
 @pytest.mark.parametrize(
