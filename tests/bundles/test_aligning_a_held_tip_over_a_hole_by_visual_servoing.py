@@ -69,3 +69,17 @@ def test_foot_of_a_tilted_cylinder():
     foot_true = top + axis * (0.12 / np.cos(tilt))
     foot = at.held_foot(pts, t, r, 0.12, 0.0, np.array([0.4, 0.0, 0.3]))
     assert foot["found"] and np.linalg.norm(foot["foot_xy"] - foot_true[:2]) < 0.0015
+
+
+def test_shadow_without_points_is_not_a_hole():
+    rng = np.random.default_rng(2)
+    xy = rng.uniform(-0.04, 0.04, size=(40000, 2))
+    true_c = np.array([0.006, 0.0])
+    inside = np.linalg.norm(xy - true_c, axis=1) < 0.009
+    shadow = (
+        np.linalg.norm(xy - [-0.012, 0.0], axis=1) < 0.007
+    )  # the part hides the face here: no points
+    z = np.where(inside, -0.03, 0.0)
+    keep = ~shadow
+    h = at.hole_centre(np.c_[xy, z][keep], np.array([-0.01, 0.0]), 0.009, 0.0)
+    assert h["found"] and np.linalg.norm(h["centre_xy"] - true_c) < 0.0015

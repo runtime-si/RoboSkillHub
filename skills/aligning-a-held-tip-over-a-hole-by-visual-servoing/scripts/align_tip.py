@@ -163,7 +163,15 @@ def hole_centre(
     grid = np.zeros((n, n), bool)
     grid[ij[:, 0], ij[:, 1]] = True
     grid = ndimage.binary_closing(grid, iterations=1)
-    gaps = ndimage.binary_fill_holes(grid) & ~grid
+    # A gap counts only where the camera saw into it (points under the face): the held part's own shadow on the
+    # face is a gap the face closes around too, with no points in it, and in a station twin it read as a hole
+    # right under the tip.
+    deep = near & (pts[:, 2] < face_z - HOLE_DEPTH)
+    dij = np.clip(((xy[deep] + half) / cell).astype(int), 0, n - 1)
+    seen = np.zeros((n, n), bool)
+    seen[dij[:, 0], dij[:, 1]] = True
+    seen = ndimage.binary_dilation(seen, iterations=1)
+    gaps = ndimage.binary_fill_holes(grid) & ~grid & seen
     lab, k = ndimage.label(gaps)
     best, best_d = None, np.inf
     for comp in range(1, k + 1):
