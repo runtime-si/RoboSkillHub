@@ -300,3 +300,39 @@ The other trials stopped earlier: one at the side check (`mismatch`), one at the
 
 The ways forward are a different hold (suction or a top pad, which a real jigsaw robot uses) or turning by
 pushing with no grip. Both are new manipulation skills, not fixes to the chain.
+
+
+## Update, round 11 (2026-11-10)
+
+**Two-finger twist on the mat, 16 trials, twist only** ([`twist_on_mat_check.py`](twist_on_mat_check.py)).
+
+- **Setup.** A bare piece is placed at a known yaw and pinched across its 21 mm width, blade tips 0.3 mm
+  over the mat. It is held at 0.5 mm, and `rotating-a-held-piece-within-wrist-limits` turns it to yaw 0 in
+  10 degree steps (`carry_lift_m=0.0005`, `max_step_deg=10`), with the pad torsion fix on.
+- **Truth** is the piece's yaw after the twist.
+
+| squeeze | trials | within 10 deg of the target | yaw error | what the piece did |
+|---|---|---|---|---|
+| 3 mm | 8 | 0 | 11-180 deg (about 120 typically) | turned 120-134 deg whatever was asked, sometimes the other way; stayed flat, moved 1.7-4.8 mm |
+| 8 mm | 8 | 2 (-3.5, -7.9 deg) | 3.5-163 deg | 6 of 8 again turned 84-137 deg; one tilted 5 deg |
+| **all** | **16** | **2** | | |
+
+The hand turned exactly as asked every time; the piece did not follow it. Squeezed by two edges and turned
+on the mat, it rotates in the jaws to a pose of its own (about 130 degrees off in most trials).
+
+**So the on-mat twist is not a usable turn**, and the e2e rerun "picked at the final yaw" was not made: no
+method gets the piece to that yaw yet.
+
+**Completion stays 0 / 20** since the fixes (baseline 0 / 8).
+
+**Small chain bug:** a scan reply without a height map raised `KeyError: 'height_map'` in one trial (a re-scan
+path). The orchestrator should treat it as a failed scan.
+
+**What is left:**
+
+- **A top hold.** A suction cup or a pad on the piece's top, as real jigsaw robots use, needs a new end
+  effector in the twin.
+- **Push-to-turn with closed-loop re-measurement.** Push the piece's corner with the closed tips, re-measure
+  its yaw from a wrist view after each push, and repeat. A new skill.
+- **The real arm.** It may hold edge-gripped pieces better than the twin (the twin's contacts are soft,
+  `SIM_GRIP.md`); a quick real test of one held turn would settle whether this is a twin artefact.
