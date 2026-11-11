@@ -1,0 +1,9 @@
+{
+  "skill": "replanning-with-an-execution-critic",
+  "inputs": {"task": "string", "subgoal": "string", "proposed_action": "string"},
+  "outputs": {"feedback": {"$ref": "critic.feedback"}},
+  "nodes": {"critic": {"type": "script", "script": "scripts/critique_action.py", "inputs": {"task": {"$ref": "in.task"}, "subgoal": {"$ref": "in.subgoal"}, "proposed_action": {"$ref": "in.proposed_action"}}}},
+  "edges": [["START", "critic"], ["critic", "END"]],
+  "exit": {"router_field": "route", "success_values": ["continue", "replan_subtask", "replan_task"]},
+  "on_error": "no_verdict"
+}

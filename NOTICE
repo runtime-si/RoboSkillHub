@@ -899,3 +899,8 @@ configs/prompt_phrases/default.yaml, opengvl/clients/base.py,
 opengvl/mapper/regex_mapper.py, opengvl/metrics/voc.py), MIT License, Copyright (c)
 2025 Pawel Budzianowski, Gracjan Goral, Emilia Wisnios; the file's header lists the
 changes, and the license is skills/scoring-progress-shuffled-frames/LICENSE.opengvl.
+skills/replanning-with-an-execution-critic/scripts/critique_action.py is adapted from
+CLEA (https://github.com/sp4595/clea-closed-loop-embodied-agent, commit eea73b60cf09:
+CLEA/templates/prompts/Critic.prompt, CLEA/Modules/Critic.py), Apache-2.0; the file's
+header lists the changes, and the license is
+skills/replanning-with-an-execution-critic/LICENSE.clea.
