@@ -1,0 +1,29 @@
+# jinkmn/molmoact2-yam-spell-ceatec-easy-ft-continuous-gpu2-20261008-232437-step-008000: generated from candidates/vla-checkpoints.json on 2026-11-11 (policies/molmoact2-yam, HF remote-code export).
+# Joint offsets and gripper map copied from the AllenAI-data YAM profiles (twin 0, real +pi/2,
+# 1 = open); not measured for this checkpoint. Not evaluated.
+profile: jinkmn-molmoact2-yam-spell-ceatec-easy-ft-continuous-gpu2-20261008-232437-step-008000
+backend: molmoact2
+checkpoint:
+  repo: jinkmn/molmoact2-yam-spell-ceatec-easy-ft-continuous-gpu2-20261008-232437-step-008000
+  revision: 3cd120078b4ff727660f3c87d5d29ba213d27c92
+  sha256:
+    model-00001-of-00005.safetensors: 8ebcfc64a5a92ee60a527a1e7647d0f0ca02c52864e09f1dbca7695efe135625
+    model-00002-of-00005.safetensors: 403a14ded5de27d70c45227794ebb4e037b7e551946da1f63df4fd4be9b750b1
+    model-00003-of-00005.safetensors: 53b566e055fd9a129c5c6590826e447873c60d45d10ed24adbd96ddf8438bdfa
+    model-00004-of-00005.safetensors: 77fd02d7d87f60126f417de5f499d030c2e8c3fe08a5924c60d6fbe1775936cc
+    model-00005-of-00005.safetensors: 7923ef27a083cc4735e79b952a7d6ae32d1c4d4967c3ba475c96063b05b4e20b
+  license: "unverified"
+cameras: [top, left_wrist, right_wrist]   # norm_stats camera_keys ['observation.images.top', 'observation.images.left', 'observation.images.right']
+state: [left.j1, left.j2, left.j3, left.j4, left.j5, left.j6, left.gripper,
+        right.j1, right.j2, right.j3, right.j4, right.j5, right.j6, right.gripper]
+joint_offset_rad:
+  left: [0, 0, 0, 0, 0, 0]
+  right: [0, 0, 0, 0, 0, 0]
+gripper: {station_open: 1.0, station_closed: 0.0, model_open: 1.0, model_closed: 0.0}
+action: {type: abs_joint, dim: 14, horizon: 30, execute_steps: 25, hz: 30}
+extra: {norm_tag: yam_dual_molmoact2, num_steps: 10, dtype: bfloat16, inference_action_mode: continuous}
+stations:
+  real:
+    joint_offset_rad:
+      left: [1.5707963267948966, 0, 0, 0, 0, 0]
+      right: [1.5707963267948966, 0, 0, 0, 0, 0]

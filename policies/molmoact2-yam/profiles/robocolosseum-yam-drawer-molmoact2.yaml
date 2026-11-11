@@ -1,0 +1,30 @@
+# RoboColosseum/yam-drawer-molmoact2: generated from candidates/vla-checkpoints.json on 2026-11-11 (policies/molmoact2-yam, HF remote-code export).
+# Joint offsets and gripper map copied from the AllenAI-data YAM profiles (twin 0, real +pi/2,
+# 1 = open); not measured for this checkpoint. Not evaluated.
+profile: robocolosseum-yam-drawer-molmoact2
+backend: molmoact2
+checkpoint:
+  repo: RoboColosseum/yam-drawer-molmoact2
+  revision: 8946de60b9f97511b5e438a1c37fa2ee17e61b35
+  sha256:
+    model-00001-of-00005.safetensors: 60ae145b6dfa007516128d9f0b16a2c3e1b9f3c8f1e3c3391fa33086abb76733
+    model-00002-of-00005.safetensors: 3b9a4ad1e3120fcabc8a587f2b301564e597bff67940dddc806136b64df69945
+    model-00003-of-00005.safetensors: 68878769f7e10187c25041d560263c03ac0208eef23fab811e7424a685bdc40f
+    model-00004-of-00005.safetensors: 8b96f2f1693cc42f188f237ca092cf5fb6154169e36072ee8a6d88abf54715dd
+    model-00005-of-00005.safetensors: 2298e8e45e322a904e68abae8bfc1e16f5a2c3398eba809c2543b2fa33465d71
+  license: "unverified"
+cameras: [top, left_wrist, right_wrist]   # norm_stats camera_keys ['observation.images.top', 'observation.images.left', 'observation.images.right']
+state: [left.j1, left.j2, left.j3, left.j4, left.j5, left.j6, left.gripper,
+        right.j1, right.j2, right.j3, right.j4, right.j5, right.j6, right.gripper]
+joint_offset_rad:
+  left: [0, 0, 0, 0, 0, 0]
+  right: [0, 0, 0, 0, 0, 0]
+gripper: {station_open: 1.0, station_closed: 0.0, model_open: 1.0, model_closed: 0.0}
+action: {type: abs_joint, dim: 14, horizon: 30, execute_steps: 25, hz: 30}
+extra: {norm_tag: yam, num_steps: 10, dtype: bfloat16, inference_action_mode: continuous}
+# norm_stats tags: ['yam']; {'action_dim': 32} (model width; statistics are 14-D)
+stations:
+  real:
+    joint_offset_rad:
+      left: [1.5707963267948966, 0, 0, 0, 0, 0]
+      right: [1.5707963267948966, 0, 0, 0, 0, 0]

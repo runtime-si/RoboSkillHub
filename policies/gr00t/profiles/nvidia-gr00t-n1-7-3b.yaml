@@ -1,0 +1,26 @@
+# nvidia/GR00T-N1.7-3B: generated from candidates/vla-checkpoints.json on 2026-11-11 (policies/gr00t --backend n1.7, Isaac-GR00T format).
+# Joint offsets and gripper map copied from the AllenAI-data YAM profiles (twin 0, real +pi/2,
+# 1 = open); not measured for this checkpoint. Not evaluated.
+profile: nvidia-gr00t-n1-7-3b
+backend: n1.7
+checkpoint:
+  repo: nvidia/GR00T-N1.7-3B
+  revision: 373d34e2723d928870157d07dc216a19a624b5bb
+  sha256:
+    model-00001-of-00002.safetensors: 8a1a1d8a33c99103c7c80c136073c5bb8bfe9ca8f7a970c93c033ea89742906d
+    model-00002-of-00002.safetensors: c3f61940deb2007ba1ad7743013b57f0f8462356151db9655175d7aca2d40661
+  license: "NVIDIA Open Model License"
+cameras: [top, left_wrist, right_wrist]
+state: [left.j1, left.j2, left.j3, left.j4, left.j5, left.j6, left.gripper,
+        right.j1, right.j2, right.j3, right.j4, right.j5, right.j6, right.gripper]
+joint_offset_rad:
+  left: [0, 0, 0, 0, 0, 0]
+  right: [0, 0, 0, 0, 0, 0]
+gripper: {station_open: 1.0, station_closed: 0.0, model_open: 1.0, model_closed: 0.0}
+action: {type: abs_joint, dim: 14, horizon: 40, execute_steps: 8, hz: 30}
+extra: {tag: new_embodiment, dtype: bfloat16, server_profile: xdof}   # server.py --backend n1.7 --profile xdof --checkpoint <repo>
+stations:
+  real:
+    joint_offset_rad:
+      left: [1.5707963267948966, 0, 0, 0, 0, 0]
+      right: [1.5707963267948966, 0, 0, 0, 0, 0]

@@ -1,0 +1,64 @@
+[
+  {
+    "id": "gs://openpi-assets/checkpoints/pi0_aloha_towel",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "gs://openpi-assets/checkpoints/pi0_aloha_tupperware",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "gs://openpi-assets/checkpoints/pi0_aloha_pen_uncap",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "google-deepmind/gemini-robotics-sdk (Gemini Robotics On-Device)",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "moojink/openvla-oft (ALOHA)",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "juruobenruo/DexVLA",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  },
+  {
+    "id": "github:NVlabs/industreallib",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name"
+    ]
+  },
+  {
+    "id": "github:clvrai/furniture-bench",
+    "collection": "vla-checkpoints",
+    "errors": [
+      "id must be a Hugging Face repo id owner/name",
+      "revision must be a full 40-character commit (pinned)"
+    ]
+  }
+]

@@ -1,0 +1,33 @@
+# nuffnuff/yam-pour-direct-intervene-i2-pi05-m1: generated from candidates/vla-checkpoints.json on 2026-11-11 (policies/gr00t --backend pi05, LeRobot PI05Policy).
+# Joint offsets and gripper map copied from the AllenAI-data YAM profiles (twin 0, real +pi/2,
+# 1 = open); not measured for this checkpoint. Not evaluated.
+profile: nuffnuff-yam-pour-direct-intervene-i2-pi05-m1
+backend: pi05
+checkpoint:
+  repo: nuffnuff/yam-pour-direct-intervene-i2-pi05-m1
+  revision: 6114f6f03f93d65d283c18c33712cd57aeb46358
+  sha256: 995cd525b6010deef12a3b80d923dc8421dbd1e1745037258af3136ad29b25f5   # model.safetensors
+  license: "apache-2.0"
+tokenizer:
+  repo: leo009/paligemma-3b-pt-224
+  revision: 39996beb6fb17c5d16a50d3ef8f7a96ad9d03986
+  sha256: 8986bb4f423f07f8c7f70d0dbe3526fb2316056c17bae71b1ea975e77a168fc6   # tokenizer.model
+cameras: [top, left_wrist, right_wrist]
+image_keys:
+  top: observation.images.head
+  left_wrist: observation.images.wrist_left
+  right_wrist: observation.images.wrist_right
+image_size: null
+state: [left.j1, left.j2, left.j3, left.j4, left.j5, left.j6, left.gripper,
+        right.j1, right.j2, right.j3, right.j4, right.j5, right.j6, right.gripper]
+joint_offset_rad:
+  left: [0, 0, 0, 0, 0, 0]
+  right: [0, 0, 0, 0, 0, 0]
+gripper: {station_open: 1.0, station_closed: 0.0, model_open: 1.0, model_closed: 0.0}
+action: {type: abs_joint, dim: 14, horizon: 50, execute_steps: 50, hz: 30}
+extra: {num_steps: 10, dtype: bfloat16}
+stations:
+  real:
+    joint_offset_rad:
+      left: [1.5707963, 0, 0, 0, 0, 0]
+      right: [1.5707963, 0, 0, 0, 0, 0]

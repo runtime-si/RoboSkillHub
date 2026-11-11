@@ -23,7 +23,8 @@
       "relevance": "training data of every seeded YAM checkpoint; same joint frame and gripper units",
       "source_urls": [
         "https://huggingface.co/datasets/allenai/MolmoAct2-BimanualYAM-Dataset"
-      ]
+      ],
+      "cameras": []
     },
     {
       "id": "allenai/19012026-block-13",
@@ -42,7 +43,1246 @@
       "relevance": "held-out session used for the open-loop MSE of MolmoAct2 / pi05 (PR #211, RESULTS.md)",
       "source_urls": [
         "https://huggingface.co/datasets/allenai/19012026-block-13"
-      ]
+      ],
+      "cameras": []
+    },
+    {
+      "id": "fanqi-robo/insert_gear_in_gripper",
+      "revision": "acdc9ac82e45db2c421c242e41ef8ef0fe549b31",
+      "embodiment": "yam_i2rt",
+      "episodes": 50,
+      "frames": 27228,
+      "fps": 20,
+      "tasks": [
+        "Insert a gear into the parallel gripper"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 1.52,
+      "relevance": {
+        "score_0_5": 5,
+        "why": "our robot, small-part insertion; drop-in for YAM fine-tunes"
+      },
+      "notes": "Merged from villekuosmanen/insert_gear_in_gripper_1..3; RoboCandyWrapper telemetry sidecars.",
+      "source_urls": [
+        "https://huggingface.co/datasets/fanqi-robo/insert_gear_in_gripper",
+        "https://huggingface.co/datasets/fanqi-robo/insert_gear_in_gripper/blob/acdc9ac82e45db2c421c242e41ef8ef0fe549b31/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "bimanual i2rt YAM (lerobot/bimanual_yam), 14-D abs joint, cams top/left_wrist/right_wrist 720p [robot_type=lerobot/bimanual_yam]",
+      "cameras": []
+    },
+    {
+      "id": "XDOF/ABC-130k",
+      "revision": "d4c79f5aecb902f3157e6139661cb1b0b2a36689",
+      "embodiment": "yam_i2rt",
+      "episodes": null,
+      "frames": null,
+      "fps": null,
+      "tasks": [
+        "130k-episode multi-task YAM mixture"
+      ],
+      "format": "see card",
+      "license": "apache-2.0",
+      "gated": true,
+      "size_gb": 23333.9,
+      "relevance": {
+        "score_0_5": 4,
+        "why": "largest public YAM corpus; gated (auto-approve)"
+      },
+      "notes": "100k+ files; gated=auto. Episode/task breakdown not read (README empty in fetch).",
+      "source_urls": [
+        "https://huggingface.co/datasets/XDOF/ABC-130k"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "bimanual YAM (XDOF) - pretraining mixture for Long-WAM-YAM",
+      "cameras": []
+    },
+    {
+      "id": "hud-evals/AssembleBench",
+      "revision": "016fefea753687e5a8b1de8d94ddec3dca97b6be",
+      "embodiment": "franka",
+      "episodes": 1355,
+      "frames": 444651,
+      "fps": 15,
+      "tasks": [
+        "14 NIST ATB-1 tasks: round/square pegs, gears, nuts"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 3.6,
+      "relevance": {
+        "score_0_5": 4,
+        "why": "contact-rich peg/gear insertion at scale"
+      },
+      "notes": "Training set behind hud-evals pi05 AssembleBench checkpoints.",
+      "source_urls": [
+        "https://huggingface.co/datasets/hud-evals/AssembleBench",
+        "https://huggingface.co/datasets/hud-evals/AssembleBench/blob/016fefea753687e5a8b1de8d94ddec3dca97b6be/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "DROID Franka + Robotiq 2F-85, Isaac Lab Arena sim, 8-D joint+gripper, 3 cams",
+      "cameras": []
+    },
+    {
+      "id": "robot-lev/reassemble",
+      "revision": "37d242d3532fb17b6f749a26dad6d7aaacf810cd",
+      "embodiment": "franka",
+      "episodes": 149,
+      "frames": 1433406,
+      "fps": 30,
+      "tasks": [
+        "NIST board assembly/disassembly (69 task labels)"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "cc-by-4.0",
+      "gated": false,
+      "size_gb": 86.33,
+      "relevance": {
+        "score_0_5": 4,
+        "why": "real contact-rich insertion with force/torque + event cam"
+      },
+      "notes": "LeRobot v3 port of TU Wien REASSEMBLE (DOI 10.48436/0ewrv-8cb44).",
+      "source_urls": [
+        "https://huggingface.co/datasets/robot-lev/reassemble",
+        "https://huggingface.co/datasets/robot-lev/reassemble/blob/37d242d3532fb17b6f749a26dad6d7aaacf810cd/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "Franka + F/T + event camera (real), 9-D action [robot_type=franka]",
+      "cameras": []
+    },
+    {
+      "id": "Samisaliveagain/piper-hexagonal-bolt-insertion-100-demos-v1",
+      "revision": "1ec623d82a1f70c70f1d769c38334799d122db77",
+      "embodiment": "piper",
+      "episodes": 100,
+      "frames": 104172,
+      "fps": 30,
+      "tasks": [
+        "Pick up the hexagonal bolt and place it in the matching opening"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "not stated",
+      "gated": false,
+      "size_gb": 1.27,
+      "relevance": {
+        "score_0_5": 4,
+        "why": "shape-matched insertion, real teleop, clean card"
+      },
+      "notes": "~58 min of data.",
+      "source_urls": [
+        "https://huggingface.co/datasets/Samisaliveagain/piper-hexagonal-bolt-insertion-100-demos-v1",
+        "https://huggingface.co/datasets/Samisaliveagain/piper-hexagonal-bolt-insertion-100-demos-v1/blob/1ec623d82a1f70c70f1d769c38334799d122db77/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "AgileX Piper single arm, 7-D joint, overhead + angled cams [robot_type=piper_follower]",
+      "cameras": []
+    },
+    {
+      "id": "RDLwicked/gim_arm_pin_insertion_teleop_3cam_joint",
+      "revision": "0f29cb73f68bb3177590d7e1c86f65035af54ec8",
+      "embodiment": "other",
+      "episodes": 175,
+      "frames": 159347,
+      "fps": 30,
+      "tasks": [
+        "pick up the pin and insert it into the hole"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 3.32,
+      "relevance": {
+        "score_0_5": 4,
+        "why": "real pin insertion, 175 long episodes"
+      },
+      "notes": "Sibling: socket_plug, industrial_assembly.",
+      "source_urls": [
+        "https://huggingface.co/datasets/RDLwicked/gim_arm_pin_insertion_teleop_3cam_joint",
+        "https://huggingface.co/datasets/RDLwicked/gim_arm_pin_insertion_teleop_3cam_joint/blob/0f29cb73f68bb3177590d7e1c86f65035af54ec8/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "GIM XL 6-DoF single arm, 3x RealSense D405 720p [robot_type=gim_arm_xl_single_arm]",
+      "cameras": []
+    },
+    {
+      "id": "danielsanjosepro/lego_stack_f10_v4",
+      "revision": "447ec02012bc6d9a8fea85f13322cf8d92910fe4",
+      "embodiment": "franka",
+      "episodes": 30,
+      "frames": 5246,
+      "fps": 10,
+      "tasks": [
+        "LEGO stacking with force"
+      ],
+      "format": "LeRobot v2.1",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 0.06,
+      "relevance": {
+        "score_0_5": 4,
+        "why": "LEGO press-fit with F/T"
+      },
+      "notes": "Small (30 eps).",
+      "source_urls": [
+        "https://huggingface.co/datasets/danielsanjosepro/lego_stack_f10_v4",
+        "https://huggingface.co/datasets/danielsanjosepro/lego_stack_f10_v4/blob/447ec02012bc6d9a8fea85f13322cf8d92910fe4/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "Franka + external wrench, EE xyz+rpy+gripper",
+      "cameras": []
+    },
+    {
+      "id": "ZebTaylor/panthera-four-gear-assembly-real-20hz",
+      "revision": "0c27a75215466b7dd4d4a6c8683c3f30d2911ef4",
+      "embodiment": "other",
+      "episodes": 59,
+      "frames": 91508,
+      "fps": 20,
+      "tasks": [
+        "put the four gears in the carrier and put a pin in each gear"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "not stated",
+      "gated": false,
+      "size_gb": 27.96,
+      "relevance": {
+        "score_0_5": 4,
+        "why": "bimanual 14-D gear+pin assembly, YAM-like layout"
+      },
+      "notes": "No license field. Companion: panthera-single-bolt-insertion-real-20hz.",
+      "source_urls": [
+        "https://huggingface.co/datasets/ZebTaylor/panthera-four-gear-assembly-real-20hz",
+        "https://huggingface.co/datasets/ZebTaylor/panthera-four-gear-assembly-real-20hz/blob/0c27a75215466b7dd4d4a6c8683c3f30d2911ef4/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "Panthera HT bimanual (6 joints + gripper per arm), 20 Hz [robot_type=panthera_ht_bimanual_real]",
+      "cameras": []
+    },
+    {
+      "id": "DreamMachines/arena2036_insertion_2op_224x224",
+      "revision": "279ba9d9daacc8d3f4d10d560113ea1b7786085a",
+      "embodiment": "other",
+      "episodes": 178,
+      "frames": 324648,
+      "fps": 50,
+      "tasks": [
+        "ARENA2036 insertion (2 operators)"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "not stated",
+      "gated": false,
+      "size_gb": 2.27,
+      "relevance": {
+        "score_0_5": 4,
+        "why": "bimanual 6+1 insertion, 178 eps, YAM-class layout"
+      },
+      "notes": "No license field on card.",
+      "source_urls": [
+        "https://huggingface.co/datasets/DreamMachines/arena2036_insertion_2op_224x224",
+        "https://huggingface.co/datasets/DreamMachines/arena2036_insertion_2op_224x224/blob/279ba9d9daacc8d3f4d10d560113ea1b7786085a/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "Dream Machines DK1 bimanual (bi_dk1_follower), 14-D joint (gripper first per arm), 50 Hz, 224 px [robot_type=bi_dk1_follower]",
+      "cameras": []
+    },
+    {
+      "id": "isaiahbjork/rehearse-nist-round8-insert-v1",
+      "revision": "fbb6b2ccda2d6ba65fe51fb4e3c5525e3b14c467",
+      "embodiment": "franka",
+      "episodes": 1050,
+      "frames": 441808,
+      "fps": 15,
+      "tasks": [
+        "8 mm round peg from kit tray into NIST board #1 (0.2 mm clearance)"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "cc-by-4.0",
+      "gated": false,
+      "size_gb": 1.56,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "scripted precise peg insertion, sim"
+      },
+      "notes": "Simulation only.",
+      "source_urls": [
+        "https://huggingface.co/datasets/isaiahbjork/rehearse-nist-round8-insert-v1",
+        "https://huggingface.co/datasets/isaiahbjork/rehearse-nist-round8-insert-v1/blob/fbb6b2ccda2d6ba65fe51fb4e3c5525e3b14c467/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "Franka Panda sim (Newton/mujoco_warp), 9-D joints, wrench [robot_type=franka_panda_sim]",
+      "cameras": []
+    },
+    {
+      "id": "RDLwicked/gim_arm_industrial_assembly_teleop_3cam_joint",
+      "revision": "0ab60d82903fa7bf655aee39f91cb72874dc959a",
+      "embodiment": "other",
+      "episodes": 272,
+      "frames": 147066,
+      "fps": 30,
+      "tasks": [
+        "assemble the industrial parts"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 2.9,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "part assembly"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/RDLwicked/gim_arm_industrial_assembly_teleop_3cam_joint",
+        "https://huggingface.co/datasets/RDLwicked/gim_arm_industrial_assembly_teleop_3cam_joint/blob/0ab60d82903fa7bf655aee39f91cb72874dc959a/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "GIM XL 6-DoF single arm, 3 cams [robot_type=gim_arm_xl_single_arm]",
+      "cameras": []
+    },
+    {
+      "id": "danielsanjosepro/lego-stacking-ft",
+      "revision": "53bc5069d0709ca62e709b3dfaba29359d0ddc32",
+      "embodiment": "franka",
+      "episodes": 19,
+      "frames": 5589,
+      "fps": 15,
+      "tasks": [
+        "LEGO stacking"
+      ],
+      "format": "LeRobot v2.1",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 0.08,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "LEGO press-fit"
+      },
+      "notes": "19 eps.",
+      "source_urls": [
+        "https://huggingface.co/datasets/danielsanjosepro/lego-stacking-ft",
+        "https://huggingface.co/datasets/danielsanjosepro/lego-stacking-ft/blob/53bc5069d0709ca62e709b3dfaba29359d0ddc32/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "Franka + F/T [robot_type=franka]",
+      "cameras": []
+    },
+    {
+      "id": "funXedu/so101_lego_brick",
+      "revision": "8353c0544c1ffbf8782f88c44b24575f7405bd75",
+      "embodiment": "so100",
+      "episodes": 86,
+      "frames": 94192,
+      "fps": 30.0,
+      "tasks": [
+        "LEGO brick pick/place"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 2.37,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "LEGO handling"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/funXedu/so101_lego_brick",
+        "https://huggingface.co/datasets/funXedu/so101_lego_brick/blob/8353c0544c1ffbf8782f88c44b24575f7405bd75/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "SO-101 [robot_type=so101_follower]",
+      "cameras": []
+    },
+    {
+      "id": "arpitg1304/stack_lego",
+      "revision": "67ca1898b39f1b06e7d68c0d96acdc4c2dd8dd08",
+      "embodiment": "so100",
+      "episodes": 52,
+      "frames": 16462,
+      "fps": 30,
+      "tasks": [
+        "stack LEGO"
+      ],
+      "format": "LeRobot v2.1",
+      "license": "not stated",
+      "gated": false,
+      "size_gb": 0.07,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "LEGO stacking"
+      },
+      "notes": "No license field.",
+      "source_urls": [
+        "https://huggingface.co/datasets/arpitg1304/stack_lego",
+        "https://huggingface.co/datasets/arpitg1304/stack_lego/blob/67ca1898b39f1b06e7d68c0d96acdc4c2dd8dd08/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "SO-101 [robot_type=so101_follower]",
+      "cameras": []
+    },
+    {
+      "id": "dddddsds31341/sorting-dolls-lerobot",
+      "revision": "ffca92aece12b85daac426b1b0474065e1ecf165",
+      "embodiment": "yam_i2rt",
+      "episodes": 100,
+      "frames": 168126,
+      "fps": 30,
+      "tasks": [
+        "Arrange five Russian dolls upright in a row by size"
+      ],
+      "format": "LeRobot v2.1",
+      "license": "not stated",
+      "gated": false,
+      "size_gb": 1.65,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "upright placement in an ordered row (domino-like)"
+      },
+      "notes": "No license field.",
+      "source_urls": [
+        "https://huggingface.co/datasets/dddddsds31341/sorting-dolls-lerobot",
+        "https://huggingface.co/datasets/dddddsds31341/sorting-dolls-lerobot/blob/ffca92aece12b85daac426b1b0474065e1ecf165/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "bimanual, ALOHA-style 14-D naming (robot_type mobile_aloha); used with Long-WAM-YAM [robot_type=mobile_aloha]",
+      "cameras": []
+    },
+    {
+      "id": "rocochallenge2025/rocochallenge2026_Industrial_Assembly",
+      "revision": "dc03b003f94d184b2b20465ed986456ee1bf2a3c",
+      "embodiment": "other",
+      "episodes": 200,
+      "frames": 121454,
+      "fps": 10,
+      "tasks": [
+        "task-board assembly: 9 parts in fixed order"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "mit",
+      "gated": false,
+      "size_gb": 1.2,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "bimanual kitting/assembly sim"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/rocochallenge2025/rocochallenge2026_Industrial_Assembly",
+        "https://huggingface.co/datasets/rocochallenge2025/rocochallenge2026_Industrial_Assembly/blob/dc03b003f94d184b2b20465ed986456ee1bf2a3c/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "vega_1u bimanual sim (Isaac Sim 5.1), 14-D EE action [robot_type=vega_1u]",
+      "cameras": []
+    },
+    {
+      "id": "rpwang/bimanual_assembly_insert_force_lerobot_mix854",
+      "revision": "a8bd60ece5e0371a30ebfec04a4eddd3b279c15e",
+      "embodiment": "other",
+      "episodes": 854,
+      "frames": 265129,
+      "fps": 30,
+      "tasks": [
+        "bimanual assembly insert with force"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 7.95,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "bimanual force-aware insertion"
+      },
+      "notes": "Robot not documented.",
+      "source_urls": [
+        "https://huggingface.co/datasets/rpwang/bimanual_assembly_insert_force_lerobot_mix854",
+        "https://huggingface.co/datasets/rpwang/bimanual_assembly_insert_force_lerobot_mix854/blob/a8bd60ece5e0371a30ebfec04a4eddd3b279c15e/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "bimanual (unknown), 44-D action incl. force, ego + 2 wrist",
+      "cameras": []
+    },
+    {
+      "id": "ethanCSL/openarm_plugbattery_lerobot_real_v00",
+      "revision": "24eb901651f35bbab3ff7c375ce2dcd05abb1c16",
+      "embodiment": "other",
+      "episodes": 50,
+      "frames": 38178,
+      "fps": 30,
+      "tasks": [
+        "plug battery"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 1.06,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "bimanual insertion"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/ethanCSL/openarm_plugbattery_lerobot_real_v00",
+        "https://huggingface.co/datasets/ethanCSL/openarm_plugbattery_lerobot_real_v00/blob/24eb901651f35bbab3ff7c375ce2dcd05abb1c16/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "OpenArm bimanual 16-D [robot_type=openarm_umeow]",
+      "cameras": []
+    },
+    {
+      "id": "lucazanett/plug_adaptive_3",
+      "revision": "ba45205bcf81c95b55481bddafccbd5b924df31d",
+      "embodiment": "other",
+      "episodes": 80,
+      "frames": 68258,
+      "fps": 50,
+      "tasks": [
+        "plug insertion with adaptive stiffness"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 1.11,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "compliance-labelled insertion"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/lucazanett/plug_adaptive_3",
+        "https://huggingface.co/datasets/lucazanett/plug_adaptive_3/blob/ba45205bcf81c95b55481bddafccbd5b924df31d/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "custom impedance manipulator, EE 6D + stiffness, 50 Hz [robot_type=custom_manipulator]",
+      "cameras": []
+    },
+    {
+      "id": "pravsels/cable_clip_remote_v2",
+      "revision": "d152ff52b7f04bae51a647dec76bfb1cd2b6bcc4",
+      "embodiment": "so100",
+      "episodes": 50,
+      "frames": 27647,
+      "fps": 20,
+      "tasks": [
+        "cable_clip"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "not stated",
+      "gated": false,
+      "size_gb": 1.23,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "cable manipulation"
+      },
+      "notes": "No license field.",
+      "source_urls": [
+        "https://huggingface.co/datasets/pravsels/cable_clip_remote_v2",
+        "https://huggingface.co/datasets/pravsels/cable_clip_remote_v2/blob/d152ff52b7f04bae51a647dec76bfb1cd2b6bcc4/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "SO-101, 20 Hz [robot_type=so-101]",
+      "cameras": []
+    },
+    {
+      "id": "IPEC-COMMUNITY/furniture_bench_dataset_lerobot",
+      "revision": "00ce24057a680b7e8f10aab3e6203edf21499384",
+      "embodiment": "franka",
+      "episodes": 5100,
+      "frames": 3948057,
+      "fps": 10,
+      "tasks": [
+        "9 furniture assembly tasks (screw/insert)"
+      ],
+      "format": "LeRobot v2.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 19.64,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "assembly at scale (5100 eps)"
+      },
+      "notes": "OXE subset.",
+      "source_urls": [
+        "https://huggingface.co/datasets/IPEC-COMMUNITY/furniture_bench_dataset_lerobot",
+        "https://huggingface.co/datasets/IPEC-COMMUNITY/furniture_bench_dataset_lerobot/blob/00ce24057a680b7e8f10aab3e6203edf21499384/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "Franka (FurnitureBench), 10 Hz [robot_type=franka]",
+      "cameras": []
+    },
+    {
+      "id": "TrossenRoboticsCommunity/aloha_static_peg_insertion",
+      "revision": "246790bf94e54c04bdf65da1c92b026e5eec318f",
+      "embodiment": "aloha",
+      "episodes": null,
+      "frames": null,
+      "fps": null,
+      "tasks": [
+        "bimanual peg insertion"
+      ],
+      "format": "see card",
+      "license": "not stated",
+      "gated": false,
+      "size_gb": 1.52,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "bimanual 14-D insertion"
+      },
+      "notes": "meta not v3 readable in fetch; no license field.",
+      "source_urls": [
+        "https://huggingface.co/datasets/TrossenRoboticsCommunity/aloha_static_peg_insertion"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "Trossen ALOHA stationary bimanual",
+      "cameras": []
+    },
+    {
+      "id": "physical-intelligence/aloha_pen_uncap_diverse",
+      "revision": "e82d8b40b8ac66c0b40273dd80a077dfc40b732e",
+      "embodiment": "aloha",
+      "episodes": 123,
+      "frames": 36900,
+      "fps": 50,
+      "tasks": [
+        "uncap pen (BiPlay subset)"
+      ],
+      "format": "LeRobot v2.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 144.22,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "pen handling, bimanual 14-D"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/physical-intelligence/aloha_pen_uncap_diverse",
+        "https://huggingface.co/datasets/physical-intelligence/aloha_pen_uncap_diverse/blob/e82d8b40b8ac66c0b40273dd80a077dfc40b732e/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "ALOHA bimanual 14-D, 50 Hz, 4 cams [robot_type=aloha]",
+      "cameras": []
+    },
+    {
+      "id": "SalZa2004/so101_insert_gear_in_gripper",
+      "revision": "632f32a86b88873fa7b4c00b06162bd84c372839",
+      "embodiment": "so100",
+      "episodes": 60,
+      "frames": 39174,
+      "fps": 30,
+      "tasks": [
+        "insert gear in gripper"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 4.86,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "same task as fanqi YAM set, single arm"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/SalZa2004/so101_insert_gear_in_gripper",
+        "https://huggingface.co/datasets/SalZa2004/so101_insert_gear_in_gripper/blob/632f32a86b88873fa7b4c00b06162bd84c372839/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "SO-101 + depth [robot_type=so-101]",
+      "cameras": []
+    },
+    {
+      "id": "Artefacts/shape-sorting-so101-30fps",
+      "revision": "3738b5e6ddff56d873353362302a64a78b48309c",
+      "embodiment": "so100",
+      "episodes": 1389,
+      "frames": 271859,
+      "fps": 30,
+      "tasks": [
+        "shape sorting (insert shapes into holes)"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 19.11,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "shape-in-hole insertion, large (1389 eps)"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/Artefacts/shape-sorting-so101-30fps",
+        "https://huggingface.co/datasets/Artefacts/shape-sorting-so101-30fps/blob/3738b5e6ddff56d873353362302a64a78b48309c/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "SO-101 [robot_type=so101]",
+      "cameras": []
+    },
+    {
+      "id": "TomasAnderegg/so101_pill_sorting_v3",
+      "revision": "1d5758b230b42598449cf3731f745482d560b03b",
+      "embodiment": "so100",
+      "episodes": 300,
+      "frames": 242137,
+      "fps": 30,
+      "tasks": [
+        "sort pills by colour (12 variants)"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 1.11,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "small-part sorting"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/TomasAnderegg/so101_pill_sorting_v3",
+        "https://huggingface.co/datasets/TomasAnderegg/so101_pill_sorting_v3/blob/1d5758b230b42598449cf3731f745482d560b03b/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "SO-101 [robot_type=so_follower]",
+      "cameras": []
+    },
+    {
+      "id": "ataabdulrhman/ur_markers_v2_train",
+      "revision": "b8c1e87099d9fa9b7aa703c61528d3f833fc0d6a",
+      "embodiment": "other",
+      "episodes": 37,
+      "frames": 22509,
+      "fps": 30,
+      "tasks": [
+        "marker task"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 0.59,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "bimanual marker manipulation"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/ataabdulrhman/ur_markers_v2_train",
+        "https://huggingface.co/datasets/ataabdulrhman/ur_markers_v2_train/blob/b8c1e87099d9fa9b7aa703c61528d3f833fc0d6a/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "bimanual UR7e (ur7e_bimanual_scale), 14-D joint, 30 Hz [robot_type=ur7e_bimanual_scale]",
+      "cameras": []
+    },
+    {
+      "id": "ZebTaylor/panthera-single-bolt-insertion-real-20hz",
+      "revision": "b217be1892349eaa777049b12c40bf26f711d80c",
+      "embodiment": "other",
+      "episodes": 105,
+      "frames": 20057,
+      "fps": 20,
+      "tasks": [
+        "bolt/pin insertion portion of gear-carrier assembly"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "not stated",
+      "gated": false,
+      "size_gb": 6.12,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "real bolt insertion, bimanual layout"
+      },
+      "notes": "Partial-task demos; no license field.",
+      "source_urls": [
+        "https://huggingface.co/datasets/ZebTaylor/panthera-single-bolt-insertion-real-20hz",
+        "https://huggingface.co/datasets/ZebTaylor/panthera-single-bolt-insertion-real-20hz/blob/b217be1892349eaa777049b12c40bf26f711d80c/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "Panthera HT bimanual (left arm used), 14-D, 20 Hz [robot_type=panthera_ht_bimanual_real]",
+      "cameras": []
+    },
+    {
+      "id": "TrossenRoboticsCommunity/trossen_ai_stationary_peg_insertion",
+      "revision": "e546a349577714a9c5156c17293ac42a89eda21a",
+      "embodiment": "aloha",
+      "episodes": 51,
+      "frames": 30395,
+      "fps": 30,
+      "tasks": [
+        "bimanual peg insertion"
+      ],
+      "format": "LeRobot v2.1",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 1.17,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "bimanual peg insertion, 51 eps"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/TrossenRoboticsCommunity/trossen_ai_stationary_peg_insertion",
+        "https://huggingface.co/datasets/TrossenRoboticsCommunity/trossen_ai_stationary_peg_insertion/blob/e546a349577714a9c5156c17293ac42a89eda21a/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "Trossen AI stationary bimanual, 14-D (7 per arm incl. gripper), 30 Hz [robot_type=trossen_ai_stationary]",
+      "cameras": []
+    },
+    {
+      "id": "bkuster/jsi_franka_peg_in_hole_v12",
+      "revision": "5a49c733ea56634f5244f25afdcdbf99609b7929",
+      "embodiment": "franka",
+      "episodes": 2308,
+      "frames": 106364,
+      "fps": 15,
+      "tasks": [
+        "peg in hole, 30 variants"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 1.53,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "many peg-in-hole episodes (2308)"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/bkuster/jsi_franka_peg_in_hole_v12",
+        "https://huggingface.co/datasets/bkuster/jsi_franka_peg_in_hole_v12/blob/5a49c733ea56634f5244f25afdcdbf99609b7929/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "Franka (robotblockset), tool-relative Cartesian, 15 Hz [robot_type=robotblockset_robot]",
+      "cameras": []
+    },
+    {
+      "id": "Syqnal/kitting_connector",
+      "revision": "92e9005092f8313ca747dba6e4856db80535d2ec",
+      "embodiment": "other",
+      "episodes": 175,
+      "frames": 45020,
+      "fps": 15,
+      "tasks": [
+        "kitting connectors (3 tasks)"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 0.96,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "kitting"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/Syqnal/kitting_connector",
+        "https://huggingface.co/datasets/Syqnal/kitting_connector/blob/92e9005092f8313ca747dba6e4856db80535d2ec/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "SO-10x, 15 Hz [robot_type=so_follower]",
+      "cameras": []
+    },
+    {
+      "id": "moonjongsul/manufacturing_kitting_dataset",
+      "revision": "6fc4df49485c1912866a249e7ceb49569b3780a9",
+      "embodiment": "franka",
+      "episodes": 183,
+      "frames": 57171,
+      "fps": 30,
+      "tasks": [
+        "manufacturing kitting (2 tasks)"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "not stated",
+      "gated": false,
+      "size_gb": 3.16,
+      "relevance": {
+        "score_0_5": 3,
+        "why": "kitting"
+      },
+      "notes": "No license field.",
+      "source_urls": [
+        "https://huggingface.co/datasets/moonjongsul/manufacturing_kitting_dataset",
+        "https://huggingface.co/datasets/moonjongsul/manufacturing_kitting_dataset/blob/6fc4df49485c1912866a249e7ceb49569b3780a9/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "Franka FR3, EE 10-D, 30 Hz, 4 cams [robot_type=franka_fr3]",
+      "cameras": []
+    },
+    {
+      "id": "lerobot/koch_pick_place_5_lego",
+      "revision": "af1f4ff76be9fa752424b176125119744a6ef3f6",
+      "embodiment": "so100",
+      "episodes": 50,
+      "frames": 37972,
+      "fps": 30,
+      "tasks": [
+        "pick and place 5 LEGO"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 4.23,
+      "relevance": {
+        "score_0_5": 2,
+        "why": "LEGO pick-place"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/lerobot/koch_pick_place_5_lego",
+        "https://huggingface.co/datasets/lerobot/koch_pick_place_5_lego/blob/af1f4ff76be9fa752424b176125119744a6ef3f6/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "Koch v1.1 [robot_type=unknown]",
+      "cameras": []
+    },
+    {
+      "id": "Voxel51/sharpa-assemble-gears-410ep",
+      "revision": "9f2a17532646dff720a9d4330152c8a743e99873",
+      "embodiment": "other",
+      "episodes": 410,
+      "frames": 302020,
+      "fps": 30,
+      "tasks": [
+        "Gear Assembly on Base"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "cc-by-4.0",
+      "gated": false,
+      "size_gb": 19.43,
+      "relevance": {
+        "score_0_5": 2,
+        "why": "gear assembly but dexterous hands"
+      },
+      "notes": "FiftyOne format.",
+      "source_urls": [
+        "https://huggingface.co/datasets/Voxel51/sharpa-assemble-gears-410ep",
+        "https://huggingface.co/datasets/Voxel51/sharpa-assemble-gears-410ep/blob/9f2a17532646dff720a9d4330152c8a743e99873/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "SharpaDex bimanual dexterous hands (65-D), tactile [robot_type=robot]",
+      "cameras": []
+    },
+    {
+      "id": "IPEC-COMMUNITY/berkeley_cable_routing_lerobot",
+      "revision": "2ce23db5a4da14ce88d5678b8d384f5c376625b8",
+      "embodiment": "franka",
+      "episodes": 1482,
+      "frames": 38240,
+      "fps": 10,
+      "tasks": [
+        "route cable through clips"
+      ],
+      "format": "LeRobot v2.1",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 0.3,
+      "relevance": {
+        "score_0_5": 2,
+        "why": "cable routing"
+      },
+      "notes": "OXE subset.",
+      "source_urls": [
+        "https://huggingface.co/datasets/IPEC-COMMUNITY/berkeley_cable_routing_lerobot",
+        "https://huggingface.co/datasets/IPEC-COMMUNITY/berkeley_cable_routing_lerobot/blob/2ce23db5a4da14ce88d5678b8d384f5c376625b8/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "Franka (OXE berkeley_cable_routing), 10 Hz [robot_type=franka]",
+      "cameras": []
+    },
+    {
+      "id": "lerobot/aloha_sim_insertion_human",
+      "revision": "cc571a3c661df81b566dbfde3d5c1e85fcdf7884",
+      "embodiment": "aloha",
+      "episodes": 50,
+      "frames": 25000,
+      "fps": 50,
+      "tasks": [
+        "peg into socket"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "mit",
+      "gated": false,
+      "size_gb": 4.32,
+      "relevance": {
+        "score_0_5": 2,
+        "why": "canonical sim insertion"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/lerobot/aloha_sim_insertion_human",
+        "https://huggingface.co/datasets/lerobot/aloha_sim_insertion_human/blob/cc571a3c661df81b566dbfde3d5c1e85fcdf7884/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "ALOHA sim bimanual 14-D, 50 Hz [robot_type=aloha]",
+      "cameras": []
+    },
+    {
+      "id": "lerobot/svla_so100_sorting",
+      "revision": "13870ca969084d8ce4d8a0391b06cead78e804ba",
+      "embodiment": "so100",
+      "episodes": 52,
+      "frames": 35713,
+      "fps": 30,
+      "tasks": [
+        "sorting"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 2.5,
+      "relevance": {
+        "score_0_5": 2,
+        "why": "sorting"
+      },
+      "notes": "SmolVLA paper data.",
+      "source_urls": [
+        "https://huggingface.co/datasets/lerobot/svla_so100_sorting",
+        "https://huggingface.co/datasets/lerobot/svla_so100_sorting/blob/13870ca969084d8ce4d8a0391b06cead78e804ba/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "SO-100 [robot_type=so100]",
+      "cameras": []
+    },
+    {
+      "id": "lerobot/svla_so100_stacking",
+      "revision": "933bcc61148b1b560d1a13753b47eac54a085561",
+      "embodiment": "so100",
+      "episodes": 56,
+      "frames": 22956,
+      "fps": 30,
+      "tasks": [
+        "stacking"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 1.77,
+      "relevance": {
+        "score_0_5": 2,
+        "why": "stacking"
+      },
+      "notes": "SmolVLA paper data.",
+      "source_urls": [
+        "https://huggingface.co/datasets/lerobot/svla_so100_stacking",
+        "https://huggingface.co/datasets/lerobot/svla_so100_stacking/blob/933bcc61148b1b560d1a13753b47eac54a085561/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "SO-100 [robot_type=so100]",
+      "cameras": []
+    },
+    {
+      "id": "lerobot/svla_so101_pickplace",
+      "revision": "f641879e22172be7e8161d5e6c1503c2d2feb657",
+      "embodiment": "so100",
+      "episodes": 50,
+      "frames": 11939,
+      "fps": 30,
+      "tasks": [
+        "pick-place"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 0.26,
+      "relevance": {
+        "score_0_5": 2,
+        "why": "pick-place"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/lerobot/svla_so101_pickplace",
+        "https://huggingface.co/datasets/lerobot/svla_so101_pickplace/blob/f641879e22172be7e8161d5e6c1503c2d2feb657/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "SO-101 [robot_type=so100_follower]",
+      "cameras": []
+    },
+    {
+      "id": "jyang-ca/so101_test_domino",
+      "revision": "703945641b6cade15c92eec55bb5bac935f07b0b",
+      "embodiment": "so100",
+      "episodes": 50,
+      "frames": 18041,
+      "fps": 30,
+      "tasks": [
+        "domino (test set)"
+      ],
+      "format": "LeRobot v2.1",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 0.45,
+      "relevance": {
+        "score_0_5": 2,
+        "why": "only real-arm domino-named dataset found"
+      },
+      "notes": "Task text not verified.",
+      "source_urls": [
+        "https://huggingface.co/datasets/jyang-ca/so101_test_domino",
+        "https://huggingface.co/datasets/jyang-ca/so101_test_domino/blob/703945641b6cade15c92eec55bb5bac935f07b0b/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "SO-101 [robot_type=so101]",
+      "cameras": []
+    },
+    {
+      "id": "Grigorij/Domino_sum",
+      "revision": "54d0d0c47c9e1c75cdf472f514e22ec40ef0d187",
+      "embodiment": "so100",
+      "episodes": 49,
+      "frames": 64960,
+      "fps": 30,
+      "tasks": [
+        "Domino_sum (2 tasks)"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 0.92,
+      "relevance": {
+        "score_0_5": 2,
+        "why": "domino tiles"
+      },
+      "notes": "Task text not verified.",
+      "source_urls": [
+        "https://huggingface.co/datasets/Grigorij/Domino_sum",
+        "https://huggingface.co/datasets/Grigorij/Domino_sum/blob/54d0d0c47c9e1c75cdf472f514e22ec40ef0d187/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "SO-101 [robot_type=so_follower]",
+      "cameras": []
+    },
+    {
+      "id": "chomeed/peg_insertion_full_unprivileged_lerobot",
+      "revision": "3808ad59b40e57706dfdb1cbb76da7a6fab93aa5",
+      "embodiment": "other",
+      "episodes": 100,
+      "frames": 2120,
+      "fps": 30,
+      "tasks": [
+        "peg insertion"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 0.01,
+      "relevance": {
+        "score_0_5": 2,
+        "why": "sim insertion, 100 eps"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/chomeed/peg_insertion_full_unprivileged_lerobot",
+        "https://huggingface.co/datasets/chomeed/peg_insertion_full_unprivileged_lerobot/blob/3808ad59b40e57706dfdb1cbb76da7a6fab93aa5/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "sim fingertip-pose peg insertion (Factory-style)",
+      "cameras": []
+    },
+    {
+      "id": "Jlbrockett/sponge_marker_cup_cube",
+      "revision": "a40d8f5a91d46a859a448d34230e7eefaca4d1df",
+      "embodiment": "other",
+      "episodes": 250,
+      "frames": 154563,
+      "fps": 30,
+      "tasks": [
+        "sponge/marker/cup/cube pick-place"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "not stated",
+      "gated": false,
+      "size_gb": 1.7,
+      "relevance": {
+        "score_0_5": 2,
+        "why": "marker pick-place"
+      },
+      "notes": "No license field.",
+      "source_urls": [
+        "https://huggingface.co/datasets/Jlbrockett/sponge_marker_cup_cube",
+        "https://huggingface.co/datasets/Jlbrockett/sponge_marker_cup_cube/blob/a40d8f5a91d46a859a448d34230e7eefaca4d1df/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "SO-10x [robot_type=so_follower]",
+      "cameras": []
+    },
+    {
+      "id": "LightwheelAI/iros2026-ikea-assembly",
+      "revision": "fdd09a66ef773f3159df02d6c1151694e048b1c9",
+      "embodiment": "other",
+      "episodes": null,
+      "frames": null,
+      "fps": null,
+      "tasks": [
+        "AssembleTableTask (300 demos)"
+      ],
+      "format": "see card",
+      "license": "cc-by-4.0",
+      "gated": false,
+      "size_gb": 175.7,
+      "relevance": {
+        "score_0_5": 2,
+        "why": "assembly sim"
+      },
+      "notes": "README says private before release.",
+      "source_urls": [
+        "https://huggingface.co/datasets/LightwheelAI/iros2026-ikea-assembly"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "sim (IROS 2026 challenge), HDF5",
+      "cameras": []
+    },
+    {
+      "id": "H-EmbodVis/DOMINO",
+      "revision": "8da54aa2e08b5b4d691ba79822c92f669144de83",
+      "embodiment": "aloha",
+      "episodes": null,
+      "frames": null,
+      "fps": null,
+      "tasks": [
+        "35 dynamic-manipulation tasks"
+      ],
+      "format": "see card",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 770.73,
+      "relevance": {
+        "score_0_5": 1,
+        "why": "NOT dominoes - name collision"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/H-EmbodVis/DOMINO"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "ALOHA-AgileX sim (RoboTwin 2.0)",
+      "cameras": []
+    },
+    {
+      "id": "armnet/busybox_push_green_button",
+      "revision": "aceecaafdec7cb43ba05fe805835df724b0611e4",
+      "embodiment": "so100",
+      "episodes": 39,
+      "frames": 4836,
+      "fps": 20,
+      "tasks": [
+        "busybox push green button"
+      ],
+      "format": "LeRobot v3.0",
+      "license": "apache-2.0",
+      "gated": false,
+      "size_gb": 0.59,
+      "relevance": {
+        "score_0_5": 1,
+        "why": "listed only because fanqi card references it"
+      },
+      "notes": "",
+      "source_urls": [
+        "https://huggingface.co/datasets/armnet/busybox_push_green_button",
+        "https://huggingface.co/datasets/armnet/busybox_push_green_button/blob/aceecaafdec7cb43ba05fe805835df724b0611e4/meta/info.json"
+      ],
+      "checked_at": "2026-11-11T06:54:38Z",
+      "embodiment_detail": "SO-101, 20 Hz [robot_type=so-101]",
+      "cameras": []
     }
   ]
 }
