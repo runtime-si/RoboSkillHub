@@ -1,16 +1,16 @@
 ---
 name: verifying-grasps
-description: Three independent checks on one grasp attempt -- that the hand arrived where it was sent before the jaws close, that the jaw gap after the close is not the mechanical stop, and that the lifted object is visible above the surface and near the hand. Use when a grasp closed on a small or thin object and the graph must know, before carrying or inserting, whether anything is actually in the gripper.
+description: Three independent checks on one grasp attempt -- that the hand arrived where it was sent before the jaws close, that the jaw gap after the close is not the mechanical stop, and that the lifted object is visible above the surface and near the hand. Given where the approach started, the reach check also tells a hand that stopped short along the approach on top of the object (stopped_short, with the shortfall - how much higher the part sits in the hand than commanded, for correcting a held tip before an insertion) from one that landed beside it (missed). Use when a grasp closed on a small or thin object and the graph must know, before carrying or inserting, whether anything is actually in the gripper.
 license: Apache-2.0
 compatibility: requires gap>=0.1
 metadata:
   category: verification
-  tags: [grasp, verification, rgb-d, wrist-camera]
+  tags: [grasp, verification, rgb-d, wrist-camera, reach, proprioception]
   hub:
     stage: verify
     embodiments: [any]
-    tasks: [pick-place]
-    version: 1.0.0
+    tasks: [pick-place, insertion]
+    version: 1.0.1
     provenance:
       code: https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/skills/verifying-grasps
       upstream_license: Apache-2.0
