@@ -8,7 +8,7 @@ description: Put one named rigid object into a named container from the cameras
 license: Apache-2.0
 metadata:
   hub:
-    version: 0.1.0
+    version: 0.1.1
     embodiments: [any]
     tuned_on: [panda]
     tasks: [pick-place]
@@ -34,10 +34,10 @@ recipe:
     perceive_container: {found: grasp, not_found: abort}
     grasp: {grasped: confirm, failed: regrasp}
     confirm:
-      {verified: carry, held: carry, reached: carry, unknown: carry, not_held: regrasp, missed: regrasp, empty: regrasp}
+      {verified: carry, held: carry, reached: carry, unknown: carry, not_held: regrasp, missed: regrasp, stopped_short: regrasp, empty: regrasp}
     regrasp: {grasped: reconfirm, failed: abort}
     reconfirm:
-      {verified: carry, held: carry, reached: carry, unknown: carry, not_held: abort, missed: abort, empty: abort}
+      {verified: carry, held: carry, reached: carry, unknown: carry, not_held: abort, missed: abort, stopped_short: abort, empty: abort}
     carry: {placed: done, blocked: abort}
 ---
 

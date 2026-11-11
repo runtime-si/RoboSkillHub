@@ -35,6 +35,16 @@ again, spending seconds instead of a full carry-and-release of nothing. On a
 scene with many goals and one unreachable object, that is the difference
 between nothing and whatever the rest are worth.
 
+**Stopped short is a measurement, not only a failure.** Given where the
+descent started (``approach_start``), the error is split along the approach
+line and across it. A hand that stopped on top of the object -- fingers landing
+on a pen's cap, 8-12 mm above the grasp on 36 of 40 descents on a real YAM
+(pens task, 2026-11-10) -- is short along the approach and close across it.
+The object is then still between the pads, only higher in them than planned,
+and the graph needs the shortfall to correct where it believes the object sits
+in the hand, not a reject: ``stopped_short`` returns it as a vector. Without
+``approach_start`` the routes are the old two.
+
 **Falling back open.** With no box, or an unreadable pose, this reports
 ``reached`` rather than inventing a tolerance: a missing input is not evidence
 of a missed grasp.
@@ -58,6 +68,10 @@ class Output(TypedDict):
     error_m: float
     tolerance_m: float
     reason: str
+    error_vector: dict
+    shortfall_m: float
+    shortfall_vector: dict
+    lateral_m: float
 
 
 def _position(pose: Any) -> dict[str, float] | None:
@@ -83,6 +97,27 @@ def _tolerance(target_obb: OrientedBoundingBox | None, floor_m: float, ceiling_m
     return max(floor_m, min(ceiling_m, smallest))
 
 
+def _vec(v) -> dict[str, float]:
+    return {k: float(v[i]) for i, k in enumerate("xyz")}
+
+
+def _split(want: dict, got: dict, start: dict | None) -> tuple[list, float, list, float]:
+    """The error (observed - commanded), its part along the approach (start -> commanded; negative = short of
+    the goal) as a length and a vector, and the length of the rest. Without a start: no split (-1)."""
+    e = [got[k] - want[k] for k in "xyz"]
+    if start is None:
+        return e, -1.0, [0.0, 0.0, 0.0], -1.0
+    d = [want[k] - start[k] for k in "xyz"]
+    n = math.sqrt(sum(c * c for c in d))
+    if n < 1e-6:
+        return e, -1.0, [0.0, 0.0, 0.0], -1.0
+    d = [c / n for c in d]
+    along = sum(a * b for a, b in zip(e, d))
+    vec = [along * c for c in d]
+    lateral = math.sqrt(sum((a - b) ** 2 for a, b in zip(e, vec)))
+    return e, along, vec, lateral
+
+
 def run(
     ctx: NodeContext,
     commanded: Se3Pose | None = None,
@@ -91,6 +126,8 @@ def run(
     object_name: str = "",
     floor_m: float = 0.003,
     ceiling_m: float = 0.020,
+    approach_start: Any = None,
+    shortfall_min_m: float = 0.003,
 ) -> Output:
     """Route ``missed`` when the hand is too far from where it was sent to hold anything.
 
@@ -108,6 +145,7 @@ def run(
     want = _position(commanded)
     got = _position(observed)
     tolerance = _tolerance(target_obb, floor_m, ceiling_m)
+    none = {"error_vector": _vec([0, 0, 0]), "shortfall_m": -1.0, "shortfall_vector": _vec([0, 0, 0]), "lateral_m": -1.0}
     if want is None or got is None or tolerance < 0.0:
         reason = "no commanded pose, no observed pose, or no target box"
         logger.warning("[reach] no opinion for %s (%s)", object_name or "?", reason)
@@ -117,9 +155,29 @@ def run(
             "error_m": -1.0,
             "tolerance_m": -1.0,
             "reason": reason,
+            **none,
         }
 
     error = math.dist([want[k] for k in "xyz"], [got[k] for k in "xyz"])
+    e, along, along_vec, lateral = _split(want, got, _position(approach_start))
+    split = {"error_vector": _vec(e), "shortfall_m": max(0.0, -along) if lateral >= 0.0 else -1.0,
+             "shortfall_vector": _vec(along_vec), "lateral_m": lateral}
+    if lateral >= 0.0 and -along > shortfall_min_m and lateral <= tolerance:
+        reason = (
+            f"the hand stopped {-along * 1000:.1f} mm short of the grasp pose along the approach "
+            f"({lateral * 1000:.1f} mm across it, within the {tolerance * 1000:.1f} mm "
+            f"{object_name or 'the target'} allows): on top of it, not beside it"
+        )
+        logger.info("[reach] stopped_short short_mm=%.1f lateral_mm=%.1f tol_mm=%.1f object=%s",
+                    -along * 1000.0, lateral * 1000.0, tolerance * 1000.0, object_name or "?")
+        return {
+            "route": "stopped_short",
+            "reached": False,
+            "error_m": error,
+            "tolerance_m": tolerance,
+            "reason": reason,
+            **split,
+        }
     if error > tolerance:
         # Both numbers, because the ratio is what says whether the tolerance is
         # wrong or the motion is.
@@ -140,6 +198,7 @@ def run(
             "error_m": error,
             "tolerance_m": tolerance,
             "reason": reason,
+            **split,
         }
     logger.info(
         "[reach] reached err_mm=%.1f tol_mm=%.1f object=%s",
@@ -153,4 +212,5 @@ def run(
         "error_m": error,
         "tolerance_m": tolerance,
         "reason": "",
+        **split,
     }
