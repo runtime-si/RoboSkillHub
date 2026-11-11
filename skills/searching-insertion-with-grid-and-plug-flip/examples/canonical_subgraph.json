@@ -1,0 +1,18 @@
+{
+  "skill": "searching-insertion-with-grid-and-plug-flip",
+  "inputs": {},
+  "outputs": {
+    "depth": {"$ref": "search.depth"},
+    "flipped": {"$ref": "search.flipped"}
+  },
+  "nodes": {
+    "search": {
+      "type": "script",
+      "script": "scripts/grid_search.py",
+      "inputs": {"grid_half_m": 0.0045, "grid_step_m": 0.0015, "allow_flip": true}
+    }
+  },
+  "edges": [["START", "search"], ["search", "END"]],
+  "exit": {"router_field": "route", "success_values": ["inserted", "flipped_and_inserted"]},
+  "on_error": "jammed"
+}
