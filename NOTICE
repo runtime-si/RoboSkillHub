@@ -883,3 +883,8 @@ pooled under reference masks, matched against mask proposals. None of its
 code is used. tools/dinov2 downloads facebook/dinov2-base and
 facebook/dinov2-small (Apache-2.0 model cards) from Hugging Face; none are
 redistributed here.
+tools/geco/ vendors the GeCo inference code (https://github.com/jerpelhan/GeCo, commit c0fad20: models/,
+utils/box_ops.py, utils/data.py resize_and_pad, segment_anything/), MIT License, Copyright (c) 2024 jerpelhan
+(tools/geco/LICENSE.GeCo); its segment_anything copy is Apache-2.0, Copyright (c) Meta Platforms
+(tools/geco/LICENSE.segment_anything). tools/geco/tools.py adapts demo.py's inference. The GeCo.pth weights
+state no licence and are not redistributed.

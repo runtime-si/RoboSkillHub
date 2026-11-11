@@ -1,0 +1,9 @@
+{
+  "skill": "detecting-all-like-exemplar",
+  "inputs": {},
+  "outputs": {"count": {"$ref": "detect.count"}, "reason": {"$ref": "detect.reason"}},
+  "nodes": {"detect": {"type": "script", "script": "scripts/detect_like.py", "inputs": {"exemplar_boxes": [[480, 300, 498, 314]], "camera": "top"}}},
+  "edges": [["START", "detect"], ["detect", "END"]],
+  "exit": {"router_field": "route", "success_values": ["found"]},
+  "on_error": "not_found"
+}
