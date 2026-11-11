@@ -888,3 +888,7 @@ utils/box_ops.py, utils/data.py resize_and_pad, segment_anything/), MIT License,
 (tools/geco/LICENSE.GeCo); its segment_anything copy is Apache-2.0, Copyright (c) Meta Platforms
 (tools/geco/LICENSE.segment_anything). tools/geco/tools.py adapts demo.py's inference. The GeCo.pth weights
 state no licence and are not redistributed.
+skills/inspecting-a-held-object-with-the-other-wrist-camera/scripts/inspect_held.py is
+adapted from RoboTwin (https://github.com/robotwin-Platform/RoboTwin, envs/scan_object.py),
+MIT, Copyright (c) 2025 Tianxing Chen; the file's header says what was kept and changed.
+Licence: skills/inspecting-a-held-object-with-the-other-wrist-camera/LICENSE.robotwin.

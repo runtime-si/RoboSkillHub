@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-32 tools, 168 skills, 4 policies, 1 recipe and 1 paper.
+32 tools, 169 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -63,6 +63,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`estimating-cut-grid-from-pieces`](#estimating-cut-grid-from-pieces) | perceive | Estimates a jigsaw's real cut grid (cols x rows) and cell size from the piece count printed on the box, the board's… | any |
 | [`estimating-relative-rotation-and-symmetry`](#estimating-relative-rotation-and-symmetry) | perceive | How far a part is turned in the image plane between a reference view and the current view (both from the wrist camera… | any, *tuned on* yam-left-wrist-d405-renders |
 | [`framing-a-target-by-mask-edge-steering`](#framing-a-target-by-mask-edge-steering) | perceive | Moves the wrist camera until a named target lies wholly inside its image with a margin. | any |
+| [`inspecting-a-held-object-with-the-other-wrist-camera`](#inspecting-a-held-object-with-the-other-wrist-camera) | perceive | Shows a face of an object one arm holds to the other arm's wrist camera. | any, 2 arms |
 | [`localizing-a-piece-in-a-reference-image`](#localizing-a-piece-in-a-reference-image) | perceive | Finds which grid cell of a jigsaw's box picture one piece belongs to, and how far the piece is turned, from a close-up… | any |
 | [`measuring-a-held-piece-from-the-wrist-camera`](#measuring-a-held-piece-from-the-wrist-camera) | perceive | Measures where a flat held part (a jigsaw piece) sits in the gripper. | any |
 | [`observing-object-poses`](#observing-object-poses) | perceive | Reads independently observed object positions, and orientations where the backend provides them, from the configured… | yam_i2rt |
@@ -793,6 +794,22 @@ Moves the wrist camera until a named target lies wholly inside its image with a 
   - `not_seen`: There is no wrist camera, the segmenter failed or found no mask scoring min_score in the first frame, or the target was lost after a step and not found again back at the last view that saw it (the hand is left there); `detail` says which.
   - `step_limit`: max_moves steps were taken and the mask still comes within the margin of an edge; `edges` names them. The hand stays at the last view.
   - `unreachable`: A step was refused (raised or routed) or ended more than reach_tolerance off at full and at half length, or the next step would bring the tool centre within 50 mm of the target or back the camera past max_range; `detail` says which.
+
+### inspecting-a-held-object-with-the-other-wrist-camera
+
+perceive · robots: any, 2 arms · tasks: inspection, bimanual · MIT · v0.1.0 · [`SKILL.md`](skills/inspecting-a-held-object-with-the-other-wrist-camera/SKILL.md) · [upstream](https://github.com/RoboTwin-Platform/RoboTwin/blob/main/envs/scan_object.py)
+
+Shows a face of an object one arm holds to the other arm's wrist camera - the holding arm carries the object to an inspection point (keeping its rotation), the camera arm comes to a stand-off along a viewing axis looking back at the object, and the framing is checked from the arms' own readings (object centre 0-7 cm ahead of the camera, within 2.5 cm of its optical ray). Use when a bimanual station must read a label or code, or look at a face the overhead camera cannot see (the underside, the side facing the table), with the held object's box from a perception skill and both arms addressable by arm_id.
+
+- **In**: `object_obb` OrientedBoundingBox, `inspection_position` Vec3, `view_axis` Vec3
+- **Out**: `range_m` float, `lateral_m` float, `camera_pose` Se3Pose, `object_position` Vec3
+- **Calls**: connector `robot.get_ee_pose`, `robot.get_gripper`, `robot.go_to_pose`
+- **Scripts**: [`inspect_held`](skills/inspecting-a-held-object-with-the-other-wrist-camera/scripts/inspect_held.py)
+- **Exits**:
+  - `inspected`: Both arms arrived; the object's centre (the box centre carried with the holding hand) lies range_m (0 &lt; range_m &lt; max_range) ahead of the camera along its optical axis and lateral_m (&lt; lateral_tolerance) off that ray. Take the wrist frame now; the arms stay put.
+  - `target_not_in_view`: The arms arrived but the framing test failed (range or lateral offset out of band), or the holding hand's jaws read at the stop at the start (it holds nothing); `detail` has the numbers.
+  - `arms_too_close`: The camera arm's planned tool centre is closer than min_tcp_distance to the holding hand's; the camera arm did not move (the holding arm is at the inspection point). Retry with a longer standoff or another view_axis.
+  - `unreachable`: The holding arm could not reach the inspection point, or the camera arm its stand-off (refused or ended over reach_tolerance away); also when holder_arm equals camera_arm or the connector reports no separate second arm.
 
 ### localizing-a-piece-in-a-reference-image
 
