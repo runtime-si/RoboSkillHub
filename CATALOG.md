@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-32 tools, 170 skills, 4 policies, 1 recipe and 1 paper.
+32 tools, 171 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -65,6 +65,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`framing-a-target-by-mask-edge-steering`](#framing-a-target-by-mask-edge-steering) | perceive | Moves the wrist camera until a named target lies wholly inside its image with a margin. | any |
 | [`inspecting-a-held-object-with-the-other-wrist-camera`](#inspecting-a-held-object-with-the-other-wrist-camera) | perceive | Shows a face of an object one arm holds to the other arm's wrist camera. | any, 2 arms |
 | [`localizing-a-piece-in-a-reference-image`](#localizing-a-piece-in-a-reference-image) | perceive | Finds which grid cell of a jigsaw's box picture one piece belongs to, and how far the piece is turned, from a close-up… | any |
+| [`locating-a-hole-lattice-by-wide-search`](#locating-a-hole-lattice-by-wide-search) | perceive | Finds where a holder's lattice of round holes really is from one RGB-D frame (overhead or wrist), searching the… | any |
 | [`measuring-a-held-piece-from-the-wrist-camera`](#measuring-a-held-piece-from-the-wrist-camera) | perceive | Measures where a flat held part (a jigsaw piece) sits in the gripper. | any |
 | [`measuring-a-held-tip-offset-by-contact-descent`](#measuring-a-held-tip-offset-by-contact-descent) | perceive | Finds how far the tip of a held part (a pen, a peg, a tool, a brick) sticks out past the tool centre, with no force… | any |
 | [`observing-object-poses`](#observing-object-poses) | perceive | Reads independently observed object positions, and orientations where the backend provides them, from the configured… | yam_i2rt |
@@ -825,6 +826,22 @@ Finds which grid cell of a jigsaw's box picture one piece belongs to, and how fa
   - `located`: The best cell's score is at least min_score (0.45) and beats every other cell by min_margin (0.04; 0.10 when the scale was guessed from the mask area); col, row and angle_deg are the answer.
   - `ambiguous`: The best cell does not stand out (repetitive or flat art); `candidates` ranks the cells for a shape check. A low-texture piece always lands here, with the flat cells of its colour as candidates.
   - `not_found`: The best score is under min_score, a flat piece matches no flat cell, or the input could not be used (empty mask, no scale, no placement inside the picture).
+
+### locating-a-hole-lattice-by-wide-search
+
+perceive · robots: any · tasks: insertion, pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/locating-a-hole-lattice-by-wide-search/SKILL.md)
+
+Finds where a holder's lattice of round holes really is from one RGB-D frame (overhead or wrist), searching the prior's pose over +-1.5 pitch and +-15 deg, scoring each pose by holes matched (an open disc ringed by the holder's face) minus nodes contradicted (seen on solid face or on the table past the holder), and saying when it cannot tell - a second pose about a pitch away scoring nearly as well (ambiguous), the best pose on the window's edge, or too few holes. Use before inserting into a holder that may have been pushed or whose lattice may be fitted one row or column off, and whenever a local hole refinement (a few mm) would report "found" anyway.
+
+- **In**: -
+- **Out**: `matched` int, `visible` int, `contradicted` int, `residual_mm` float
+- **Calls**: connector `robot.get_observation`
+- **Scripts**: [`locate_lattice`](skills/locating-a-hole-lattice-by-wide-search/scripts/locate_lattice.py)
+- **Exits**:
+  - `located`: The best pose matches at least min_matched holes, lies inside the search window, and no pose about a pitch (or 8 deg) away scores within ambiguous_ratio of it; nodes are the lattice's hole centres there.
+  - `ambiguous`: A second pose about a pitch away scores within ambiguous_ratio of the best (second holds it) - typically a view that shows too little of the holder's border to tell which row or column is which.
+  - `at_search_edge`: The best pose lies on the window's border - the holder may be further than search_pitch pitches or search_yaw_deg away.
+  - `not_found`: Fewer than min_matched holes match anywhere in the window (no holder face in view, or no frame).
 
 ### measuring-a-held-piece-from-the-wrist-camera
 

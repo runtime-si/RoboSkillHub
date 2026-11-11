@@ -1,0 +1,19 @@
+{
+  "skill": "locating-a-hole-lattice-by-wide-search",
+  "inputs": {"prior": "Any"},
+  "outputs": {
+    "pose": {"$ref": "locate.pose"},
+    "nodes": {"$ref": "locate.nodes"},
+    "matched": {"$ref": "locate.matched"}
+  },
+  "nodes": {
+    "locate": {
+      "type": "script",
+      "script": "scripts/locate_lattice.py",
+      "inputs": {"prior": {"$ref": "in.prior"}}
+    }
+  },
+  "edges": [["START", "locate"], ["locate", "END"]],
+  "exit": {"router_field": "route", "success_values": ["located"]},
+  "on_error": "not_found"
+}
