@@ -63,7 +63,11 @@ def _objects(split_dir: Path):
     for si, s in enumerate(d["scenes"]):
         img = np.asarray(Image.open(split_dir / s["image"]).convert("RGB"))
         masks = np.load(split_dir / s["masks"])["masks"]
-        objs = [o for o in s["objects"] if o["area"] >= 20]
+        objs = []
+        for j, o in enumerate(s["objects"]):
+            o = dict(o, inst=j if len(masks) == len(s["objects"]) else o["inst"])
+            if o["area"] >= 20 and o["inst"] < len(masks):
+                objs.append(o)
         yield si, s.get("view", ""), img, masks, objs
 
 
@@ -122,7 +126,7 @@ def main() -> None:
         os.environ["GAP_DINOV2_MODEL"] = model
         dino._runtime = None
         t0 = time.time()
-        refs = embed_split(data / "train", dino, owl_rt, owl, max_frames=160)
+        refs = embed_split(data / "train", dino, owl_rt, owl, max_frames=80)
         queries = embed_split(data / "render", dino, owl_rt, owl)
         print(f"{model}: {len(refs)} refs, {len(queries)} queries, {time.time() - t0:.0f}s",
               flush=True)  # fmt: skip

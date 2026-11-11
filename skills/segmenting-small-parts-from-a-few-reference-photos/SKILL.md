@@ -101,7 +101,30 @@ CPU unit tests (`tests/bundles/test_segmenting_small_parts_from_a_few_reference_
 patch colours, the classify rule and its gates, the skill end to end with
 FakeContext (references, a reused bank, sam3 proposals, the three exits).
 
-Live (`tests/bundles/_few_shot_parts_eval.py`): RESULTS
+Live (`tests/bundles/_few_shot_parts_eval.py`, 2026-11-11, GCP RTX PRO 6000,
+transformers 5.19.0): references are K parts per class drawn from 80
+training renders (MuJoCo-composited LEGO / DUPLO / domino scenes on real
+backgrounds, other seeds); queries are the 482 parts of the 100 held-out
+renders (403 overhead at ~1 m, 79 wrist), each given its ground-truth mask
+(dinov2-base) or box (OWLv2 base exemplar embedding, the hub's
+`owlv2.detect_like` vector, of the OWLv2 box matching it), labelled by this
+skill's top-3 rule with the gates off. Accuracy, mean of 5 reference draws:
+
+| task | K | dinov2-base | owlv2 exemplar |
+|---|---|---|---|
+| 15 subtypes (lego_brick_2x4, domino_face_down, ...) | 1 | 0.40 | 0.26 |
+| | 3 | 0.54 | 0.34 |
+| | 5 | 0.56 | 0.39 |
+| | 10 | 0.61 | 0.43 |
+| kind (lego / duplo / domino) | 1 | 0.59 | 0.53 |
+| | 5 | 0.72 | 0.72 |
+| | 10 | 0.80 | 0.72 |
+
+Parts under 150 px (10-15 px across) at K = 10: subtypes 0.57 against
+0.34. 5-shot subtypes by view: overhead 0.60 against 0.41, wrist 0.37
+against 0.32 (references are mostly overhead parts: give wrist references
+for wrist queries). The kind task at K = 3-5 is a tie; the gain is in
+telling a kit's parts apart.
 
 ## Limits
 

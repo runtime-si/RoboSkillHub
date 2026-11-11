@@ -22,9 +22,8 @@ TOP_K = 3
 (fewer when the class has fewer): one look-alike reference cannot carry a class alone."""
 
 MIN_SCORE = 0.45
-"""Lowest class score [cosine of the tools/dinov2 vectors] for a proposal to get a label. On the
-held-out renders (SKILL.md) correct labels scored a median 0.73, wrong ones 0.58; below 0.45 is
-something not in the bank."""
+"""Lowest class score [cosine of the tools/dinov2 vectors] for a proposal to get a label; set by hand,
+not tuned (the live check in SKILL.md scores with the gates off)."""
 
 MIN_MARGIN = 0.0
 """Lowest gap between the best and second class score; raise it to trade recall for precision
