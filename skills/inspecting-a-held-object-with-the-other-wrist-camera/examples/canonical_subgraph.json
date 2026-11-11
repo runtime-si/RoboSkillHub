@@ -1,0 +1,31 @@
+{
+  "skill": "inspecting-a-held-object-with-the-other-wrist-camera",
+  "inputs": {
+    "object_obb": "OrientedBoundingBox",
+    "inspection_position": "Vec3",
+    "view_axis": "Vec3"
+  },
+  "outputs": {
+    "range_m": {"$ref": "inspect.range_m"},
+    "camera_pose": {"$ref": "inspect.camera_pose"}
+  },
+  "nodes": {
+    "inspect": {
+      "type": "script",
+      "script": "scripts/inspect_held.py",
+      "inputs": {
+        "object_obb": {"$ref": "in.object_obb"},
+        "inspection_position": {"$ref": "in.inspection_position"},
+        "view_axis": {"$ref": "in.view_axis"},
+        "holder_arm": 0,
+        "camera_arm": 1
+      }
+    }
+  },
+  "edges": [["START", "inspect"], ["inspect", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["inspected", "target_not_in_view", "arms_too_close"]
+  },
+  "on_error": "unreachable"
+}
