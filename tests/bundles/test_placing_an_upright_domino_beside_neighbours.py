@@ -348,7 +348,8 @@ def test_free_wrist_roll_is_finished_on_the_last_joint(script):
     world = World(tiles=[Tile(*STAGED)], free_roll=True)
     out = _place(script, world, k=0, slot=slot(0.30, 0.30, 120.0), neighbours=[])
     assert out["route"] == "placed", out["detail"]
-    assert len(world.named("robot.move_to_joints")) == 2
+    # the turn at the pick in one move, the held one at the lead-in in steps of 15 deg at most
+    assert len(world.named("robot.move_to_joints")) >= 3
     assert abs(out["jaw_error_deg"]) <= 4.0
     assert out["wrist_turn_deg"] != 0.0
 
