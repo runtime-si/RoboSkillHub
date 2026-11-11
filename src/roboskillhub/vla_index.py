@@ -138,8 +138,8 @@ def _license(row: dict, where: str, *, required: tuple[str, ...]) -> list[str]:
             errors.append(f"{where}: license.{key} is required")
     if "verified" in record and not isinstance(record["verified"], bool):
         errors.append(f"{where}: license.verified must be true or false")
-    if "model" in record and not _text(record["model"]):
-        errors.append(f"{where}: license.model must be a nonempty string")
+    if record.get("model") is not None and not _text(record["model"]):
+        errors.append(f"{where}: license.model must be a nonempty string or null")
     return errors
 
 
@@ -178,13 +178,13 @@ def validate_checkpoints(data: object) -> list[str]:
         errors += _license(row, where, required=("model", "verified"))
         if "yam_compatible" in row and row["yam_compatible"] not in YAM_COMPATIBLE:
             errors.append(f"{where}: yam_compatible must be one of {', '.join(YAM_COMPATIBLE)}")
-        for key in ("family", "format", "embodiment"):
+        for key in ("family", "embodiment"):
             if key in row and not _text(row[key]):
                 errors.append(f"{where}: {key} must be a nonempty string")
         if "gated" in row and not isinstance(row["gated"], bool):
             errors.append(f"{where}: gated must be true or false")
-        if "arms" in row and (type(row["arms"]) is not int or row["arms"] < 1):
-            errors.append(f"{where}: arms must be a positive integer")
+        if row.get("arms") is not None and (type(row["arms"]) is not int or row["arms"] < 1):
+            errors.append(f"{where}: arms must be a positive integer or null")
         for key in ("cameras", "servable_by"):
             if key in row and (
                 not isinstance(row[key], list) or not all(_text(v) for v in row[key])
@@ -194,8 +194,12 @@ def validate_checkpoints(data: object) -> list[str]:
             if key in row and not isinstance(row[key], dict):
                 errors.append(f"{where}: {key} must be an object")
         action = row.get("action")
-        if isinstance(action, dict) and not _text(action.get("space")):
-            errors.append(f"{where}: action.space must be a nonempty string")
+        if (
+            isinstance(action, dict)
+            and action.get("space") is not None
+            and not _text(action["space"])
+        ):
+            errors.append(f"{where}: action.space must be a nonempty string or null")
         if "checked_at" in row and not _iso_date(row["checked_at"]):
             errors.append(f"{where}: checked_at must be an ISO date")
         if "evaluations" in row:
@@ -398,9 +402,94 @@ def _rows(data: object) -> list[dict]:
     return []
 
 
+_FAMILIES = (
+    (r"molmoact\s*2", "molmoact2"),
+    (r"molmoact", "molmoact"),
+    (r"(pi|π)\s*0?\.?5|pi05", "pi05"),
+    (r"(pi|π)[\s_-]*0(?![\d.])", "pi0"),
+    (r"gr00t|groot", "gr00t"),
+    (r"smol\s*vla", "smolvla"),
+    (r"x-?vla", "xvla"),
+    (r"openvla", "openvla"),
+    (r"octo\b", "octo"),
+    (r"rdt", "rdt"),
+    (r"diffusion", "diffusion-policy"),
+    (r"\bact\b", "act"),
+    (r"wam\b|world.action", "wam"),
+    (r"lingbot", "lingbot-vla"),
+    (r"wall-?oss", "wall-oss"),
+    (r"galaxea", "galaxea-g0"),
+    (r"cosmos", "cosmos-policy"),
+)
+_EMBODIMENTS = (
+    (r"(^|[^a-z])yam([^a-z]|$)", "yam_i2rt"),
+    (r"aloha|trossen", "aloha"),
+    (r"so-?10[01]|koch", "so100"),
+    (r"franka|panda|droid", "franka"),
+    (r"piper", "piper"),
+    (r"ur5|ur10", "ur"),
+    (r"widowx|bridge", "widowx"),
+    (r"galaxea|r1 ", "galaxea"),
+    (r"unitree|g1\b|h1\b", "unitree"),
+    (r"cross|multi|generalist|base", "cross_embodiment"),
+)
+_COMPAT = (
+    (r"^as_is$|^direct", "as_is"),
+    (r"fine-?tune|finetune", "finetune_base"),
+    (r"adapter|retarget|map", "adapter"),
+    (r"^no\b|reference|none", "no"),
+)
+
+
+def _canonical(value: object, table: tuple, default: str) -> str:
+    text = str(value or "").casefold()
+    for pattern, name in table:
+        if re.search(pattern, text):
+            return name
+    return default
+
+
 def _normalize(row: dict) -> dict:
-    """Spellings the Hub API uses: ``gated: "auto"|"manual"`` is gated, sizes may be strings."""
+    """Survey spellings -> the schema. Free-text family / embodiment / compatibility are mapped to
+    canonical values and the original kept in ``*_detail``; ``gated: "auto"|"manual"`` is gated."""
     row = dict(row)
+    for key, table, default in (
+        ("family", _FAMILIES, None),
+        ("embodiment", _EMBODIMENTS, "other"),
+    ):
+        value = row.get(key)
+        if isinstance(value, str) and value not in {name for _p, name in table}:
+            canonical = _canonical(value, table, default or "")
+            if not canonical:
+                canonical = re.sub(r"[^a-z0-9.]+", "-", value.casefold().split("(")[0]).strip("-")
+            row.setdefault(f"{key}_detail", value)
+            row[key] = canonical or "unknown"
+    compat = row.get("yam_compatible")
+    if isinstance(compat, str) and compat not in YAM_COMPATIBLE:
+        row.setdefault("yam_compatible_detail", compat)
+        text = compat.casefold()
+        if text.startswith("direct") and re.search(r"fine-?tune", text):
+            row["yam_compatible"] = "finetune_base"
+        else:
+            row["yam_compatible"] = _canonical(compat, _COMPAT, "no")
+    servable = row.get("servable_by")
+    if isinstance(servable, str):
+        text = servable.strip()
+        row["servable_by"] = [] if re.fullmatch(r"(?i)(no|none|-|)", text) else [text]
+    arms = row.get("arms")
+    if isinstance(arms, str):
+        numbers = [int(n) for n in re.findall(r"\d+", arms)]
+        row.setdefault("arms_detail", arms)
+        row["arms"] = max(numbers) if numbers and max(numbers) > 0 else None
+    cameras = row.get("cameras")
+    if isinstance(cameras, list):
+        row["cameras"] = [
+            " ".join(str(v) for v in c.values() if v) if isinstance(c, dict) else str(c)
+            for c in cameras
+            if c
+        ]
+    elif cameras is None:
+        row["cameras"] = []
     if isinstance(row.get("gated"), str):
         row["gated"] = row["gated"].strip().casefold() not in ("", "false", "no", "none")
     if isinstance(row.get("size_gb"), str):

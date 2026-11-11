@@ -137,7 +137,7 @@ def test_seeded_twin_evaluations_are_recorded():
         ({"id": "not a repo"}, "id must be a Hugging Face repo id"),
         ({"source_urls": []}, "source_urls must be a nonempty list"),
         ({"gated": "auto"}, "gated must be true or false"),
-        ({"action": {"dim": 14}}, "action.space must be a nonempty string"),
+        ({"action": {"space": ""}}, "action.space must be a nonempty string"),
         (
             {
                 "evaluations": [
@@ -277,6 +277,47 @@ def test_merge_files_validates_rejects_and_regenerates(vla_root):
     rejected = json.loads((vla_root / REJECTED_PATH).read_text())
     assert [item["id"] for item in rejected] == ["org/unpinned"]
     assert "org/new-model" in (vla_root / PAGE_PATH).read_text()
+
+
+def test_merge_maps_survey_spellings_and_keeps_the_originals(vla_root):
+    survey = vla_root / "bases.json"
+    survey.write_text(
+        json.dumps(
+            [
+                checkpoint(
+                    "org/a",
+                    family="MolmoAct2",
+                    embodiment="i2rt YAM",
+                    yam_compatible="needs_adapter",
+                    servable_by="no",
+                    arms="1-2",
+                    cameras=[{"name": "left", "resolution": "312x416"}],
+                    license={"model": None, "verified": False},
+                ),
+                checkpoint(
+                    "org/b", family="pi0.5", yam_compatible="direct (best YAM fine-tune start)"
+                ),
+                checkpoint(
+                    "org/c",
+                    family="Long-WAM (world-action model)",
+                    embodiment="Franka Panda",
+                    yam_compatible="reference (sim baseline)",
+                ),
+            ]
+        )
+    )
+    merge_files(vla_root, [survey], write=True)
+    rows = {row["id"]: row for row in load_vla_index(vla_root)[0]["entries"]}
+    a, b, c = rows["org/a"], rows["org/b"], rows["org/c"]
+    assert (a["family"], a["embodiment"], a["yam_compatible"]) == (
+        "molmoact2",
+        "yam_i2rt",
+        "adapter",
+    )
+    assert a["yam_compatible_detail"] == "needs_adapter" and a["embodiment_detail"] == "i2rt YAM"
+    assert a["servable_by"] == [] and a["arms"] == 2 and a["cameras"] == ["left 312x416"]
+    assert (b["family"], b["yam_compatible"]) == ("pi05", "finetune_base")
+    assert (c["family"], c["embodiment"], c["yam_compatible"]) == ("wam", "franka", "no")
 
 
 def test_profile_gaps_name_the_policy_bundle(vla_root):
