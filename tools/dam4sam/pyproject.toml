@@ -1,0 +1,33 @@
+[project]
+name = "dam4sam-tool-bundle"
+version = "0.1.0.dev0"
+description = "DAM4SAM: SAM 2.1 mask tracking with a distractor-aware memory, for parts among look-alikes. Runs out-of-process via gap_core.rpc.server (needs GPU)."
+readme = "SKILL.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+
+dependencies = [
+  "graph-as-policy-core",
+  "numpy",
+  "opencv-python-headless",
+  "torch>=2.5",
+  "torchvision>=0.20",
+  "huggingface-hub",
+  "hydra-core>=1.3.2",
+  "iopath>=0.1.10",
+  # The DAM4SAM fork of SAM 2 (package `sam2`: add_to_drm, return_all_masks).
+  "SAM-2 @ git+https://github.com/jovanavidenovic/DAM4SAM.git@aad389b85c224bd408da8923e8fcb96410cf7e30",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.uv.sources]
+graph-as-policy-core = { git = "https://github.com/graph-robots/graph-as-policy.git", rev = "09e45f8de27bc1a29629382ed7c2b9b4b384b3d6", subdirectory = "gap-core" }

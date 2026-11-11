@@ -899,3 +899,10 @@ configs/prompt_phrases/default.yaml, opengvl/clients/base.py,
 opengvl/mapper/regex_mapper.py, opengvl/metrics/voc.py), MIT License, Copyright (c)
 2025 Pawel Budzianowski, Gracjan Goral, Emilia Wisnios; the file's header lists the
 changes, and the license is skills/scoring-progress-shuffled-frames/LICENSE.opengvl.
+tools/dam4sam/tools.py adapts DAM4SAMTracker of DAM4SAM
+(https://github.com/jovanavidenovic/DAM4SAM, commit aad389b85c22:
+dam4sam_tracker.py), Apache License 2.0; the file's header lists the
+changes and the license is tools/dam4sam/LICENSE.dam4sam. The bundle installs
+the fork's sam2 package from that commit and downloads Meta's
+sam2.1_hiera_base_plus.pt (Apache-2.0) from Hugging Face; none are
+redistributed here.
