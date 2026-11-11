@@ -1,0 +1,52 @@
+{
+  "skill": "picking-an-object-with-a-learned-policy",
+  "inputs": {
+    "object_ref": "dict"
+  },
+  "outputs": {
+    "held_object": {
+      "$ref": "pick.held_object"
+    },
+    "evidence": {
+      "$ref": "pick.evidence"
+    },
+    "reason": {
+      "$ref": "pick.reason"
+    }
+  },
+  "nodes": {
+    "pick": {
+      "type": "script",
+      "script": "scripts/pick_with_policy.py",
+      "inputs": {
+        "object_ref": {
+          "$ref": "in.object_ref"
+        },
+        "profile": "yam-molmoact2-native",
+        "arm": "auto"
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "pick"
+    ],
+    [
+      "pick",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "picked",
+      "missed",
+      "slipped",
+      "unreachable",
+      "refused",
+      "timeout"
+    ]
+  },
+  "on_error": "refused"
+}

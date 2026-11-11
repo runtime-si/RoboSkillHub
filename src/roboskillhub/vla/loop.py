@@ -18,8 +18,9 @@ Routes: ``stopped`` | ``max_steps`` | ``refused`` (the executor refused a chunk:
 
 policies/gr00t's ``gr00t.run_skill`` (#173) still runs its own loop: the station twin harness loads that
 bundle's tools.py into an environment without roboskillhub installed, and its executors (per-arm
-``execute_trajectory``, ``move_to_joints``) and success-check specs have no counterpart here yet. Moving it
-onto ``run_policy`` means a ``gr00t-wam/1`` ``PolicyClient`` plus a twin re-run, not a drop-in swap.
+``execute_trajectory``, ``move_to_joints``) and success-check specs have no counterpart here yet. The
+``gr00t-wam/1`` / ``vla-yam/1`` client is :class:`~roboskillhub.vla.client.VlaYamClient`; moving
+``run_skill`` onto ``run_policy`` still needs a twin re-run, not a drop-in swap.
 """
 
 from __future__ import annotations

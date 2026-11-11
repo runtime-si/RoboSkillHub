@@ -82799,7 +82799,7 @@
    }
   },
   {
-   "id": "molmoact2-yam",
+   "id": "molmoact2",
    "name": "MolmoAct2 (incl. MolmoAct2-BimanualYAM)",
    "repository_url": "https://github.com/allenai/molmoact2",
    "source_revision": "6070080a20321b4f498ab30f28e1d09ac465edb7",

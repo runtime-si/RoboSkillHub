@@ -603,9 +603,13 @@ def make_backend(args: argparse.Namespace) -> Any:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         import pi05_backend
 
-        name = args.profile if args.profile in pi05_backend.profile_names() else pi05_backend.DEFAULT_PROFILE
+        name = (
+            args.profile
+            if args.profile in pi05_backend.profile_names()
+            else pi05_backend.DEFAULT_PROFILE
+        )
         return pi05_backend.Pi05Backend(
-            pi05_backend.load_profile(name),
+            pi05_backend.load_profile(name, args.station),
             checkpoint=args.checkpoint,
             revision=args.revision,
             device=args.device,
@@ -779,19 +783,30 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     p.add_argument("--backend", default="n1.7", choices=["n1.7", "gr00t2", "pi05", "fake"])
-    pi05_profiles = sorted(f.stem for f in (Path(__file__).resolve().parent / "profiles").glob("*.yaml"))
+    pi05_profiles = sorted(
+        f.stem for f in (Path(__file__).resolve().parent / "profiles").glob("*.yaml")
+    )
     p.add_argument(
         "--profile",
         default="yam-molmoact2",
         choices=sorted(PROFILES) + pi05_profiles,
         help="GR00T profile, or a profiles/*.yaml for --backend pi05 (default yam-pi05-molmoact2)",
     )
-    p.add_argument("--tokenizer", default="", help="pi05: local PaliGemma tokenizer dir (default: the profile's)")
+    p.add_argument(
+        "--tokenizer",
+        default="",
+        help="pi05: local PaliGemma tokenizer dir (default: the profile's)",
+    )
     p.add_argument(
         "--wire-frame",
         default="policy",
         choices=["policy", "station"],
         help="pi05: joints on the wire in the policy frame (#173 clients) or the station frame (profile offset)",
+    )
+    p.add_argument(
+        "--station",
+        default=None,
+        help="pi05: a key of the profile's stations: (e.g. real) merged over the top level (the twin)",
     )
     p.add_argument("--checkpoint", default="", help="HF repo or local dir (default: the profile's)")
     p.add_argument("--revision", default=None, help="HF commit (default: the pinned one)")

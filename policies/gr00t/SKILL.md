@@ -279,7 +279,10 @@ same wire; `profiles/yam-pi05-molmoact2.yaml` is the VLA_SKILL_SPEC profile
 joint offset, gripper units, 30 x 14 abs joints at 30 Hz). Same data, joint
 frame and gripper units as `yam-molmoact2`, so `gr00t.act` / `run_skill`
 work unchanged (`--wire-frame station` applies the profile's offset in the
-server instead, for clients that send the station frame).
+server instead, for clients that send the station frame; the top level is the
+twin's offset 0, `--station real` adds pi/2 on each base joint from
+`stations.real`, as in molmoact2-yam's profile). `roboskillhub.vla.VlaYamClient`
+maps frames on the client and talks to either wire.
 
 ```bash
 uv venv --python 3.12 && uv pip install "lerobot[pi,dataset]==0.7.0"   # torch 2.15+cu132, transformers 5.22.2

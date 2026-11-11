@@ -27,12 +27,26 @@ HERE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(HERE))
 import server as srv  # noqa: E402
 
-TASK = "Place cups and plate in dishwasher rack, dispose of food waste, and organize remaining items."
+TASK = (
+    "Place cups and plate in dishwasher rack, dispose of food waste, and organize remaining items."
+)
 STATE = np.array(
-    [-0.06656748056411743, 0.014686808921396732, 0.016594186425209045, -0.08602273464202881,
-     -0.014686808921396732, 0.13904783129692078, 0.9922363758087158, 0.19512474536895752,
-     0.010872052982449532, 0.010872052982449532, -0.06771191209554672, -0.07305257022380829,
-     -0.08945601433515549, 0.9888537526130676],
+    [
+        -0.06656748056411743,
+        0.014686808921396732,
+        0.016594186425209045,
+        -0.08602273464202881,
+        -0.014686808921396732,
+        0.13904783129692078,
+        0.9922363758087158,
+        0.19512474536895752,
+        0.010872052982449532,
+        0.010872052982449532,
+        -0.06771191209554672,
+        -0.07305257022380829,
+        -0.08945601433515549,
+        0.9888537526130676,
+    ],
     dtype=np.float32,
 )
 
@@ -43,14 +57,21 @@ def sample_images(prof):
 
     ck = prof["checkpoint"]
     return {
-        role: np.asarray(Image.open(hf_hub_download(ck["repo"], f"assets/sample_{name}_rgb.png",
-                                                   revision=ck["revision"])).convert("RGB"))
-        for role, name in zip(srv.ROLES, ("top", "left", "right"))
+        role: np.asarray(
+            Image.open(
+                hf_hub_download(
+                    ck["repo"], f"assets/sample_{name}_rgb.png", revision=ck["revision"]
+                )
+            ).convert("RGB")
+        )
+        for role, name in zip(srv.ROLES, ("top", "left", "right"), strict=True)
     }
 
 
 def post(url, body):
-    req = urllib.request.Request(url, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+    req = urllib.request.Request(
+        url, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"}
+    )
     with urllib.request.urlopen(req, timeout=120) as r:
         return json.loads(r.read())
 
@@ -58,19 +79,32 @@ def post(url, body):
 def npy(a):
     import base64
 
-    return {"npy": base64.b64encode(np.ascontiguousarray(a).tobytes()).decode(), "shape": list(a.shape), "dtype": "uint8"}
+    return {
+        "npy": base64.b64encode(np.ascontiguousarray(a).tobytes()).decode(),
+        "shape": list(a.shape),
+        "dtype": "uint8",
+    }
 
 
 def stats(ms):
     ms = np.asarray(ms)
-    return {"n": len(ms), "mean": round(float(ms.mean()), 1), "p50": round(float(np.median(ms)), 1),
-            "p90": round(float(np.percentile(ms, 90)), 1), "max": round(float(ms.max()), 1)}
+    return {
+        "n": len(ms),
+        "mean": round(float(ms.mean()), 1),
+        "p50": round(float(np.median(ms)), 1),
+        "p90": round(float(np.percentile(ms, 90)), 1),
+        "max": round(float(ms.max()), 1),
+    }
 
 
 def diff(a, b):
     d = np.abs(np.asarray(a, np.float64) - np.asarray(b, np.float64))
-    return {"max_abs": float(d.max()), "mean_abs": float(d.mean()),
-            "max_abs_joints": float(np.delete(d, [6, 13], axis=1).max()), "max_abs_grip": float(d[:, [6, 13]].max())}
+    return {
+        "max_abs": float(d.max()),
+        "mean_abs": float(d.mean()),
+        "max_abs_joints": float(np.delete(d, [6, 13], axis=1).max()),
+        "max_abs_grip": float(d[:, [6, 13]].max()),
+    }
 
 
 def main():
@@ -93,7 +127,9 @@ def main():
 
     torch.cuda.reset_peak_memory_stats()
     t0 = time.time()
-    backend = srv.MolmoAct2Backend(prof, dtype=args.dtype, cuda_graph=args.cuda_graph, verify="full")
+    backend = srv.MolmoAct2Backend(
+        prof, dtype=args.dtype, cuda_graph=args.cuda_graph, verify="full"
+    )
     res["load_s_incl_full_sha256"] = round(time.time() - t0, 1)
     res["sha256_verified"] = backend.verified
     res["mem_after_load_mb"] = round(torch.cuda.memory_allocated() / 2**20)
@@ -104,7 +140,11 @@ def main():
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{httpd.server_address[1]}"
     res["info"] = json.loads(urllib.request.urlopen(url + "/info").read())
-    body = {"instruction": TASK, "images": {r: npy(a) for r, a in imgs.items()}, "joints": STATE.tolist()}
+    body = {
+        "instruction": TASK,
+        "images": {r: npy(a) for r, a in imgs.items()},
+        "joints": STATE.tolist(),
+    }
     wall, server_ms, infer_ms = [], [], []
     for _ in range(args.n):
         t = time.perf_counter()
@@ -112,14 +152,20 @@ def main():
         wall.append((time.perf_counter() - t) * 1e3)
         server_ms.append(r["dt_ms"])
         infer_ms.append(r["timing_ms"]["inference"])
-    res["http_chunk_ms"] = {"client_wall": stats(wall), "server_total": stats(server_ms), "inference": stats(infer_ms)}
+    res["http_chunk_ms"] = {
+        "client_wall": stats(wall),
+        "server_total": stats(server_ms),
+        "inference": stats(infer_ms),
+    }
     res["reply_keys"] = sorted(r)
     res["actions_shape"] = np.asarray(r["actions"]).shape
     res["peak_mem_mb"] = round(torch.cuda.max_memory_allocated() / 2**20)
     res["reserved_mem_mb"] = round(torch.cuda.memory_reserved() / 2**20)
     httpd.shutdown()
 
-    req = srv.g.ActRequest.from_wire({"instruction": TASK, "images": imgs, "joints": STATE.tolist()})
+    req = srv.g.ActRequest.from_wire(
+        {"instruction": TASK, "images": imgs, "joints": STATE.tolist()}
+    )
 
     def ours(seed, autocast=True):
         backend.autocast = autocast
@@ -142,13 +188,25 @@ def main():
         spec.loader.exec_module(off)
         off._patch_modeling_for_bf16 = lambda d: None
         t0 = time.time()
-        pol = off.Policy(prof["checkpoint"]["repo"], "cuda", getattr(torch, args.dtype), enable_cuda_graph=args.cuda_graph)
+        pol = off.Policy(
+            prof["checkpoint"]["repo"],
+            "cuda",
+            getattr(torch, args.dtype),
+            enable_cuda_graph=args.cuda_graph,
+        )
         res["official_load_s"] = round(time.time() - t0, 1)
 
         def theirs(seed):
             torch.manual_seed(seed)
-            return pol.predict(imgs["top"], imgs["left_wrist"], imgs["right_wrist"], TASK, STATE,
-                               num_steps=10, enable_cuda_graph=args.cuda_graph)
+            return pol.predict(
+                imgs["top"],
+                imgs["left_wrist"],
+                imgs["right_wrist"],
+                TASK,
+                STATE,
+                num_steps=10,
+                enable_cuda_graph=args.cuda_graph,
+            )
 
         theirs(0)  # warm
         o0, o1 = theirs(0), theirs(1)
@@ -164,7 +222,9 @@ def main():
         res["ours_seed1_vs_official_seed1"] = diff(a1, o1)
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-    Path(args.out).write_text(json.dumps(res, indent=1, default=lambda o: list(o) if isinstance(o, tuple) else str(o)))
+    Path(args.out).write_text(
+        json.dumps(res, indent=1, default=lambda o: list(o) if isinstance(o, tuple) else str(o))
+    )
     print(json.dumps(res, indent=1, default=str))
 
 

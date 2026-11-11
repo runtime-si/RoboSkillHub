@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-30 tools, 162 skills, 4 policies, 1 recipe and 1 paper.
+30 tools, 163 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -143,6 +143,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`moving-both-arms-together`](#moving-both-arms-together) | execute | Moves both hands to their target poses as one coordinated motion. | any, 2 arms |
 | [`moving-through-waypoints`](#moving-through-waypoints) | execute | Moves the measured tool pose through a bounded list of waypoints on the configured YAM or Isaac workcell adapter… | yam_i2rt |
 | [`moving-to-pose`](#moving-to-pose) | execute | Moves the measured tool pose through the configured YAM or Isaac workcell adapter. | yam_i2rt |
+| [`picking-an-object-with-a-learned-policy`](#picking-an-object-with-a-learned-policy) | execute | Implements the pick_object capability with a learned bimanual YAM action model behind a vla-yam/1 server… | yam_i2rt, 2 arms |
 | [`picking-and-placing-two-objects`](#picking-and-placing-two-objects) | execute | Picks two objects with two arms, one each, and places both. | any, 2 arms |
 | [`picking-flat-pieces-by-suction-cup`](#picking-flat-pieces-by-suction-cup) | execute | Picks a flat piece (jigsaw piece, tile, card, thin plate) by its top face with a small suction cup. | any |
 | [`picking-upright-dominoes-from-a-loading-rack`](#picking-upright-dominoes-from-a-loading-rack) | execute | Takes the next domino out of a slotted loading rack, where tiles stand one per slot at a known pitch, instead of… | any |
@@ -2032,6 +2033,24 @@ Moves the measured tool pose through the configured YAM or Isaac workcell adapte
   - `failed`: The attempted operation or tracking update did not meet its required condition.
   - `unverified`: Available evidence is insufficient to establish the requested physical postcondition.
   - `rejected`: The request, station configuration or required backend capability is not accepted.
+
+### picking-an-object-with-a-learned-policy
+
+execute · robots: yam_i2rt, 2 arms · tasks: pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/picking-an-object-with-a-learned-policy/SKILL.md)
+
+Implements the pick_object capability with a learned bimanual YAM action model behind a vla-yam/1 server (policies/molmoact2-yam, or policies/gr00t with the pi05 or n1.7 backend) - builds an instruction (and a grasp mark when the object is a point) from object_ref, runs roboskillhub.vla.run_policy (profile frame mapping, safe chunk executor) until the measured jaw closes and the policy lifts, then lets the shared verify_pick verifier decide the exit from the jaw opening, the scene diff at the object's spot and, when an object-position tool is wired, the lift. Routes picked, missed, slipped, unreachable, refused or timeout. Use when a graph wants a pick_object implementation that is a learned policy (to compare with program and hub grasps under the same verifier, or where no grasp program exists) and a policy server is running on a GPU host. Not a success signal on its own and not for the real arms before the profile's stations.real offset and gripper map are confirmed in the twin.
+
+- **In**: `object_ref` string
+- **Out**: `held_object` string, `reason` string
+- **Calls**: connector `robot.close_gripper`, `robot.get_observation`, `robot.open_gripper`, `robot.stream_dual`
+- **Scripts**: [`pick_with_policy`](skills/picking-an-object-with-a-learned-policy/scripts/pick_with_policy.py)
+- **Exits**:
+  - `picked`: verify_pick says the object is held - at least two independent checks agree (jaw stopped on it, its spot emptied, it followed the hand) and none says empty.
+  - `missed`: verify_pick found nothing held - the jaw closed fully or never closed, the spot did not change - or too few checks to tell (uncertain in the evidence).
+  - `slipped`: The jaw stopped on the object but the lift or a later reading lost it.
+  - `unreachable`: Reported by the verifier only on a claim with no physical attempt; this implementation does not plan reach, so it does not claim it.
+  - `refused`: Nothing was attempted - the server, the profile or the observation was unavailable, the server runs a different profile, a precondition failed (jaw not open, the object's point outside the top view), or the executor refused the first chunk.
+  - `timeout`: The attempt ran past timeout_s.
 
 ### picking-and-placing-two-objects
 

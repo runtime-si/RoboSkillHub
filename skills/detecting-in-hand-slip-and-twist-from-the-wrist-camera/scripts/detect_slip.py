@@ -224,7 +224,9 @@ def _rotvec(r: np.ndarray) -> np.ndarray:
     a = math.acos(max(-1.0, min(1.0, (np.trace(r) - 1) / 2)))
     if a < 1e-9:
         return np.zeros(3)
-    return np.array([r[2, 1] - r[1, 2], r[0, 2] - r[2, 0], r[1, 0] - r[0, 1]]) / (2 * math.sin(a)) * a
+    return (
+        np.array([r[2, 1] - r[1, 2], r[0, 2] - r[2, 0], r[1, 0] - r[0, 1]]) / (2 * math.sin(a)) * a
+    )
 
 
 GATE_M = 0.004
@@ -383,7 +385,10 @@ def run(
                 continue
             prior = r["pose"]
             # a reading counts once two frames in a row agree: one noisy fit is not a slip
-            held = {key: min(abs(r[key]), abs(last.get(key, 0.0))) * math.copysign(1.0, r[key]) for key in worst}
+            held = {
+                key: min(abs(r[key]), abs(last.get(key, 0.0))) * math.copysign(1.0, r[key])
+                for key in worst
+            }
             last = r
         else:
             r = held = compare(ref, cur, axis_cam, near, far)

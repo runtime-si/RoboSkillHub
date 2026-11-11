@@ -5,9 +5,12 @@ from __future__ import annotations
 
 MODEL_REPO = "allenai/MolmoAct2-BimanualYAM"
 MODEL_REVISION = "8dcbed66f2380e4393189c303ea72488eb9e63c2"
-_FILES = ("config.json", "norm_stats.json", "modeling_molmoact2.py", "model.safetensors.index.json") + tuple(
-    f"model-{i:05d}-of-00005.safetensors" for i in range(1, 6)
-)
+_FILES = (
+    "config.json",
+    "norm_stats.json",
+    "modeling_molmoact2.py",
+    "model.safetensors.index.json",
+) + tuple(f"model-{i:05d}-of-00005.safetensors" for i in range(1, 6))
 
 
 def weights_cached() -> bool | None:
