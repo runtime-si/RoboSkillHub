@@ -892,3 +892,10 @@ skills/inspecting-a-held-object-with-the-other-wrist-camera/scripts/inspect_held
 adapted from RoboTwin (https://github.com/robotwin-Platform/RoboTwin, envs/scan_object.py),
 MIT, Copyright (c) 2025 Tianxing Chen; the file's header says what was kept and changed.
 Licence: skills/inspecting-a-held-object-with-the-other-wrist-camera/LICENSE.robotwin.
+skills/scoring-progress-shuffled-frames/scripts/score_shuffled.py is adapted from
+OpenGVL (https://github.com/budzianowski/opengvl, commit
+36a39f3edede1935d3c0f5c8ba4ca724d5c0408b: opengvl/utils/prompts.py,
+configs/prompt_phrases/default.yaml, opengvl/clients/base.py,
+opengvl/mapper/regex_mapper.py, opengvl/metrics/voc.py), MIT License, Copyright (c)
+2025 Pawel Budzianowski, Gracjan Goral, Emilia Wisnios; the file's header lists the
+changes, and the license is skills/scoring-progress-shuffled-frames/LICENSE.opengvl.
