@@ -27,6 +27,8 @@ gap:
     - robot.get_ee_pose
     - robot.go_to_pose
     - robot.go_to_pose_cartesian
+    - robot.get_observation
+    - gemini-er.point
   required_inputs:
     hole_mouth: Vec3
     tip_offset_m: float
@@ -89,10 +91,11 @@ and the hole exits `not_in_view`, and the holding arm does not descend blind on 
 
 ## Open
 
-- The per-view measurement is a parameter, `offset_tool` (default `vision.tip_hole_offset`), and no hub tool
-  provides it yet. It is not in `allowed_tools`, so a station connector has to supply it. A candidate
-  implementation is `gemini-er.point` on the camera arm's frame (tip point, hole-mouth point), with the pixel
-  difference scaled by range / fx.
+- The per-view measurement: `offset_source="point"` uses `gemini-er.point` on the camera arm's frame
+  (`camera_name` in robot.get_observation: rgb, intrinsics, pose). The tip and hole-mouth pixels are
+  back-projected onto the vertical plane through the mouth across the line of sight. Its accuracy is not
+  measured: the twin harness does not render the wrist camera. `offset_source="tool"` calls a connector's
+  `offset_tool` (default `vision.tip_hole_offset`, not a hub tool).
 - Twin check (sim_check peg harness, square 18.2 mm hole, 16.5 mm x 115 mm peg, offsets 4-11 mm): pending.
   The first runs ended `unreachable` at the second view: the camera arm's servo replied `timeout`. The skill
   now judges arrival by the hand's reading. The camera stood 182 mm from the holding hand's tool centre, and

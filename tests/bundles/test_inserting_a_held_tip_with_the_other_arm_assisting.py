@@ -136,3 +136,46 @@ def test_example_declares_every_route():
         "arms_too_close",
         "unreachable",
     }
+
+
+def test_pointing_source_back_projects_tip_and_hole(script):
+    """A pinhole camera at each view: gemini-er.point returns the true tip and mouth pixels."""
+    st = Station()
+    k = np.array([[400.0, 0, 320], [0, 400.0, 240], [0, 0, 1]])
+    base = st.ctx()
+    tools = dict(base._responses)
+    calls = []
+
+    def observation():
+        p = st.pos[0]
+        r = script._rot(st.rot[0])
+        return {
+            "cameras": [
+                {
+                    "name": "left_wrist",
+                    "rgb": np.zeros((480, 640, 3), np.uint8),
+                    "intrinsics": k.tolist(),
+                    "pose": {"position": dict(zip("xyz", p, strict=True)), "rotation": st.rot[0]},
+                    "_r": r,
+                }
+            ]
+        }
+
+    def point(image, query, max_points=1):
+        cam = observation()["cameras"][0]
+        w = st.tip() if "tip" in query else HOLE
+        pc = cam["_r"].T @ (w - st.pos[0])
+        calls.append(query)
+        return {
+            "found": True,
+            "pixel_x": k[0, 0] * pc[0] / pc[2] + k[0, 2],
+            "pixel_y": k[1, 1] * pc[1] / pc[2] + k[1, 2],
+        }
+
+    ctx = FakeContext({**tools, "robot.get_observation": observation, "gemini-er.point": point})
+    out = script.run(
+        ctx, hole_mouth=_mouth((0.005, -0.004)), tip_offset_m=TIP, offset_source="point"
+    )
+    assert out["route"] == "inserted", out
+    assert out["correction_m"] == pytest.approx(float(np.hypot(0.005, 0.004)), abs=2e-4)
+    assert len(calls) >= 4

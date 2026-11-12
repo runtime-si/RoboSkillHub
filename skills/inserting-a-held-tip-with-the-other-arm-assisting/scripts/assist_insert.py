@@ -89,6 +89,70 @@ def _quat(r: np.ndarray) -> dict[str, float]:
     return {"w": q[0], "x": q[1], "y": q[2], "z": q[3]}
 
 
+def _rot(q: dict[str, float]) -> np.ndarray:
+    w, x, y, z = (float(q[k]) for k in ("w", "x", "y", "z"))
+    return np.array(
+        [
+            [1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)],
+            [2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)],
+            [2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)],
+        ]
+    )
+
+
+def pixel_on_plane(
+    cam: dict[str, Any], u: float, v: float, point: np.ndarray, normal: np.ndarray
+) -> np.ndarray | None:
+    """World point where the ray through pixel (u, v) of ``cam`` (``intrinsics`` 3x3, ``pose`` world camera
+    pose, optical z forward) meets the plane through ``point`` with ``normal``."""
+    k = np.asarray(cam["intrinsics"], float).reshape(3, 3)
+    pose = cam["pose"]
+    r = _rot(pose.get("rotation") or pose.get("orientation"))
+    o = _xyz(pose)
+    ray = r @ np.array([(u - k[0, 2]) / k[0, 0], (v - k[1, 2]) / k[1, 1], 1.0])
+    den = float(ray @ normal)
+    if abs(den) < 1e-9:
+        return None
+    s = float((point - o) @ normal) / den
+    return o + s * ray if s > 0 else None
+
+
+def offset_by_pointing(
+    ctx: NodeContext,
+    camera_name: str,
+    tip_query: str,
+    hole_query: str,
+    mouth: np.ndarray,
+    view: np.ndarray,
+    horizontal: np.ndarray,
+) -> dict[str, Any]:
+    """The per-view reading from the camera arm's frame: gemini-er.point at the tip and at the hole's mouth,
+    both back-projected onto the vertical plane through the mouth across the line of sight."""
+    cams = ctx.tool("robot.get_observation").get("cameras") or []
+    if isinstance(cams, dict):
+        cams = [dict(c, name=n) for n, c in cams.items()]
+    cam = next((c for c in cams if c.get("name") == camera_name), None)
+    if (
+        cam is None
+        or cam.get("rgb") is None
+        or cam.get("intrinsics") is None
+        or cam.get("pose") is None
+    ):
+        return {"visible": False, "reason": f"no {camera_name} frame with rgb, intrinsics and pose"}
+    pts = []
+    for q in (tip_query, hole_query):
+        r = ctx.tool(
+            "gemini-er.point", image=np.asarray(cam["rgb"], dtype=np.uint8), query=q, max_points=1
+        )
+        if not r.get("found"):
+            return {"visible": False, "reason": f"gemini-er found no {q!r}"}
+        p = pixel_on_plane(cam, float(r["pixel_x"]), float(r["pixel_y"]), mouth, view)
+        if p is None:
+            return {"visible": False, "reason": f"{q!r} ray misses the plane through the mouth"}
+        pts.append(p)
+    return {"visible": True, "lateral_m": float(horizontal @ (pts[0] - pts[1]))}
+
+
 def looking_along(view: np.ndarray) -> dict[str, float]:
     """Tool rotation whose +z (the wrist camera's optical axis) points along ``view``, x kept level
     (inspecting-a-held-object-with-the-other-wrist-camera)."""
@@ -122,6 +186,10 @@ def run(
     camera_arm: int = 0,
     assist: bool = True,
     offset_tool: str = "vision.tip_hole_offset",
+    offset_source: str = "tool",
+    camera_name: str = "left_wrist",
+    tip_query: str = "the bottom tip of the pen held in the gripper",
+    hole_query: str = "the centre of the opening of the square hole under the pen",
     standoff: float = STANDOFF,
     elevation_deg: float = ELEVATION_DEG,
     min_separation: float = MIN_SEPARATION,
@@ -135,7 +203,8 @@ def run(
     """``hole_mouth``: the hole's mouth centre (world, estimate). ``tip_offset_m``: tip below the holding hand's
     tool centre along its approach (tool z down). ``offset_tool`` (per view, called with ``arm_id`` of the
     camera arm and ``image_horizontal``, a world unit vector): ``{"visible": bool, "lateral_m": float}``, the
-    tip's offset from the hole's axis along that axis, read in the camera's image."""
+    tip's offset from the hole's axis along that axis, read in the camera's image. ``offset_source="point"``
+    reads it instead from ``camera_name``'s frame in robot.get_observation with gemini-er.point."""
     out: Output = {
         "route": "unreachable",
         "detail": "",
@@ -211,7 +280,10 @@ def run(
                 h = np.cross(
                     [0.0, 0.0, 1.0], -d
                 )  # image-horizontal: level, across the line of sight
-                r = ctx.tool(offset_tool, arm_id=int(camera_arm), image_horizontal=_vec(h))
+                if offset_source == "point":
+                    r = offset_by_pointing(ctx, camera_name, tip_query, hole_query, mouth, d, h)
+                else:
+                    r = ctx.tool(offset_tool, arm_id=int(camera_arm), image_horizontal=_vec(h))
                 if not r.get("visible", False):
                     move(camera_arm, _xyz(cam0), cam0["rotation"])
                     out["min_tcp_separation_m"] = min(seps)
