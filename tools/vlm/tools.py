@@ -29,6 +29,11 @@ a different provider/model than the agent.
   ``GAP_VLM_PROJECT_ID`` (else ``GOOGLE_CLOUD_PROJECT``) +
   ``GAP_VLM_REGION`` (else ``GOOGLE_CLOUD_REGION`` else
   ``GOOGLE_CLOUD_LOCATION`` else ``"global"``).
+- ``azure`` — Azure OpenAI's v1 endpoint through the Responses API
+  (``input_image`` data URLs, no temperature: reasoning deployments reject
+  it). Config: ``AZURE_OPENAI_ENDPOINT`` (``https://<res>.../openai/v1``),
+  ``AZURE_OPENAI_API_KEY``, ``AZURE_OPENAI_DEPLOYMENT`` (the model name), each
+  overridable with ``GAP_VLM_BASE_URL`` / ``GAP_VLM_API_KEY`` / ``GAP_VLM_MODEL``.
 
 Generation config: perception callers (the pairwise tournament, the
 yes/no verify gate) are binary judgments that depend on deterministic
@@ -245,6 +250,74 @@ def _query_openrouter(prompt: str, images: list[np.ndarray], model: str | None) 
 
 
 # ---------------------------------------------------------------------------
+# Provider: azure (Azure OpenAI v1 endpoint, Responses API)
+# ---------------------------------------------------------------------------
+
+
+def _output_text(body: dict) -> str:
+    """Concatenate the ``output_text`` parts of a Responses API reply (the raw
+    JSON has no top-level ``output_text``; the SDK builds it the same way)."""
+    parts = [
+        c.get("text", "")
+        for item in body.get("output", [])
+        if item.get("type") == "message"
+        for c in item.get("content", [])
+        if c.get("type") == "output_text"
+    ]
+    return "".join(parts)
+
+
+def _query_azure(prompt: str, images: list[np.ndarray], model: str | None) -> str:
+    base_url = _envstr("GAP_VLM_BASE_URL") or _envstr("AZURE_OPENAI_ENDPOINT")
+    api_key = _envstr("GAP_VLM_API_KEY") or _envstr("AZURE_OPENAI_API_KEY")
+    # the deployment name is the model on Azure; GAP_LLM_MODEL usually names another provider's model
+    model = (model or "").strip() or _envstr("GAP_VLM_MODEL") or _envstr("AZURE_OPENAI_DEPLOYMENT")
+    if not (base_url and api_key and model):
+        raise ToolError(
+            "vlm",
+            "azure provider needs AZURE_OPENAI_ENDPOINT (the .../openai/v1 base URL), "
+            "AZURE_OPENAI_API_KEY and AZURE_OPENAI_DEPLOYMENT (or GAP_VLM_BASE_URL / "
+            "GAP_VLM_API_KEY / GAP_VLM_MODEL)",
+        )
+    url = f"{base_url.rstrip('/')}/responses"
+    content: list[dict] = [{"type": "input_text", "text": prompt}]
+    for arr in images:
+        content.append(
+            {"type": "input_image", "image_url": f"data:image/png;base64,{_png_b64(arr)}"}
+        )
+    # reasoning deployments reject temperature; max_output_tokens counts reasoning tokens too
+    payload = {
+        "model": model,
+        "input": [{"role": "user", "content": content}],
+        "max_output_tokens": _max_tokens(),
+    }
+    headers = {"api-key": api_key, "Authorization": f"Bearer {api_key}"}
+
+    last_exc: Exception | None = None
+    with _http_client() as client:
+        for attempt in range(_MAX_RETRIES):
+            try:
+                resp = client.post(url, json=payload, headers=headers)
+                resp.raise_for_status()
+                return _output_text(resp.json())
+            except Exception as exc:
+                last_exc = exc
+                logger.warning(
+                    "VLM azure request failed (attempt %d/%d, url=%s): %s",
+                    attempt + 1,
+                    _MAX_RETRIES,
+                    url,
+                    exc,
+                )
+                if attempt < _MAX_RETRIES - 1:
+                    time.sleep(_BACKOFF_S * (2**attempt))
+    raise ToolError(
+        "vlm",
+        f"azure backend unavailable after {_MAX_RETRIES} attempts: url={url}, error={last_exc}",
+    )
+
+
+# ---------------------------------------------------------------------------
 # Provider: vertex (google-genai; Gemini models only)
 # ---------------------------------------------------------------------------
 
@@ -326,6 +399,7 @@ def _query_vertex(prompt: str, images: list[np.ndarray], model: str | None) -> s
 _PROVIDERS = {
     "openrouter": _query_openrouter,
     "vertex": _query_vertex,
+    "azure": _query_azure,
 }
 
 
