@@ -149,3 +149,37 @@ about success: every YAM checkpoint we tried in the station twin scored 0/10 so 
 (`evaluations`). `servable_by` names the runtimes; `policies/molmoact2-yam`,
 `policies/gr00t:n1.7` and `policies/gr00t:pi05` are this hub's servers, and every
 `as_is` checkpoint one of them can run must have a profile there.
+
+## Fine-tuned models outside robot action
+
+`finetuned-models.json` catalogues fine-tuned models with public weights that are
+not robot action models: instruction-tuned language models, text classifiers,
+vision and multimodal models, speech and audio models, embedders, rerankers and a
+reward model. None is a bundle: an entry is a pinned, described starting point for
+a tool bundle that would serve the model. Robot action checkpoints stay in
+`vla-checkpoints.json`.
+
+```bash
+roboskillhub sources "语音识别" --kind models       # ranked; any term counts, English or Chinese
+roboskillhub sources "rerank retrieval" --kind models --json
+roboskillhub check-sources       # validates this collection too
+```
+
+Each entry records `id` (Hugging Face repo), `revision` (a full 40-character
+commit), `name`, `domain`, `category`, `task`, `pipeline_tag` (the Hub's task tag,
+or null), `base_model`, `method`, `form`, `weight_type`, `params`, `weight_files`
+(the `.safetensors` / `.bin` / `.ckpt` files at that revision), `size_gb` (every
+file in the repo at that revision, so what a full snapshot downloads), `license`,
+`card_license` (the card's licence tag, null when it has none), `gated`, `notes`,
+`evidence`, `source_urls` and `checked_at`. The descriptive fields are in Chinese,
+as surveyed.
+
+`form`: `full` = the repo holds complete weights; `adapter` = a LoRA or a
+conditioning network that does nothing without its base model (`base_model` and
+`notes` say which, and how to combine them).
+
+`license` repeats what the card, or the licence it links, states, plus any
+base-model terms the survey noted. It is not a clearance: the collection includes
+non-commercial weights (`cc-by-nc-sa-4.0`, the NVIDIA SegFormer licence), custom
+terms (OpenRAIL variants, the Skywork community licence), models that inherit
+Llama terms, and one repo that states no licence at all.
