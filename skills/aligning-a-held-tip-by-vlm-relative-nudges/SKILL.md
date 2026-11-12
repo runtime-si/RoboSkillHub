@@ -60,10 +60,9 @@ gap:
    answer reverses the last direction on that axis. The hand moves by
    `robot.go_to_pose` at the same height and rotation.
 
-`backend="azure"` asks Azure OpenAI's v1 endpoint through the Responses API
-(`AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`):
-`vlm.query` pointed at that endpoint is refused with 400 (its chat payload
-sets temperature and max_tokens, which the reasoning deployment rejects).
+`provider` and `model` go to `vlm.query` (tools/vlm >= 0.2.0): `azure`
+(Responses API, `AZURE_OPENAI_*` env; the deployment is the model) or
+`vertex` / `openrouter` with a `gemini-*` model.
 
 ## Evaluation (2026-11-11)
 

@@ -110,7 +110,9 @@ def servo(
         if a is None:
             refused += 1
             if refused >= MAX_REFUSALS:
-                out.update(route="no_verdict", detail=f"{refused} answers in a row without a direction")
+                out.update(
+                    route="no_verdict", detail=f"{refused} answers in a row without a direction"
+                )
                 return out
             continue
         refused = 0
@@ -141,36 +143,6 @@ def servo(
     return out
 
 
-def azure_ask(usage: dict[str, int] | None = None) -> Callable[[list[np.ndarray], str], str]:
-    """Azure OpenAI on its v1 endpoint through the Responses API (``AZURE_OPENAI_ENDPOINT``, ``_API_KEY``,
-    ``_DEPLOYMENT``). The hub's vlm.query chat-completions payload (temperature 0, max_tokens) is refused with
-    400 by a reasoning deployment whose name does not start with gpt-5, hence this path. Token counts are summed
-    into ``usage``."""
-    import base64
-    import io
-    import os
-
-    from openai import OpenAI
-
-    client = OpenAI(base_url=os.environ["AZURE_OPENAI_ENDPOINT"], api_key=os.environ["AZURE_OPENAI_API_KEY"])
-    deployment = os.environ["AZURE_OPENAI_DEPLOYMENT"]
-    usage = usage if usage is not None else {}
-
-    def ask(frames: list[np.ndarray], prompt: str) -> str:
-        content: list[dict[str, str]] = [{"type": "input_text", "text": prompt}]
-        for f in frames:
-            buf = io.BytesIO()
-            Image.fromarray(np.asarray(f, np.uint8)).save(buf, format="PNG")
-            url = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
-            content.append({"type": "input_image", "image_url": url})
-        r = client.responses.create(model=deployment, input=[{"role": "user", "content": content}])
-        usage["input"] = usage.get("input", 0) + r.usage.input_tokens
-        usage["output"] = usage.get("output", 0) + r.usage.output_tokens
-        return r.output_text or ""
-
-    return ask
-
-
 def _rot(q: dict[str, float]) -> np.ndarray:
     w, x, y, z = (float(q[k]) for k in ("w", "x", "y", "z"))
     return np.array([[1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)],
@@ -190,8 +162,8 @@ def run(
     tip_offset_m: float,
     cameras: list[str] | None = None,
     ask_tool: str = "vlm.query",
+    provider: str | None = None,
     model: str | None = None,
-    backend: str = "tool",
     start_step_m: float = START_STEP,
     min_step_m: float = MIN_STEP,
     max_steps: int = 16,
@@ -207,11 +179,19 @@ def run(
 
     def look() -> list[np.ndarray] | None:
         obs = ctx.tool("robot.get_observation")
-        cams = [c for c in (obs.get("cameras") or []) if isinstance(c, dict)] if isinstance(obs, dict) else []
+        cams = (
+            [c for c in (obs.get("cameras") or []) if isinstance(c, dict)]
+            if isinstance(obs, dict)
+            else []
+        )
         if names:
             cams = [c for c in cams if c.get("name") in names]
         else:
-            cams = [c for c in cams if any(s in str(c.get("name", "")) for s in ("wrist", "eye_in_hand"))][:1]
+            cams = [
+                c
+                for c in cams
+                if any(s in str(c.get("name", "")) for s in ("wrist", "eye_in_hand"))
+            ][:1]
         p, frames = tip(), []
         for c in cams:
             if c.get("rgb") is None or c.get("intrinsics") is None or c.get("pose") is None:
@@ -222,19 +202,24 @@ def run(
             frames.append(overlay(np.asarray(c["rgb"]), (k @ cc[:3])[:2] / cc[2], jac))
         return frames
 
-    def tool_ask(frames: list[np.ndarray], prompt: str) -> str:
+    def ask(frames: list[np.ndarray], prompt: str) -> str:
         kw: dict[str, Any] = {"prompt": prompt, "images": frames}
+        if provider:
+            kw["provider"] = provider
         if model:
             kw["model"] = model
         r = ctx.tool(ask_tool, **kw)
         return r.get("text", "") if isinstance(r, dict) else str(r)
 
-    ask = azure_ask() if backend == "azure" else tool_ask
-
     def move(dx: float, dy: float) -> None:
         r = ctx.tool("robot.get_ee_pose", **arm)
         p = r.get("pose", r)
         goal = {a: float(p["position"][a]) + d for a, d in zip("xyz", (dx, dy, 0.0), strict=True)}
-        ctx.tool("robot.go_to_pose", pose={"position": goal, "rotation": p["rotation"]}, tolerance=0.0003, **arm)
+        ctx.tool(
+            "robot.go_to_pose",
+            pose={"position": goal, "rotation": p["rotation"]},
+            tolerance=0.0003,
+            **arm,
+        )
 
     return servo(look, ask, move, start_step_m, min_step_m, max_steps)

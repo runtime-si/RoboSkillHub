@@ -42,14 +42,54 @@ def test_perfect_answers_converge_under_a_millimetre():
 
 
 def test_refusals_give_no_verdict():
-    r = nt.servo(lambda: [np.zeros((4, 4, 3), np.uint8)], lambda f, p: "unsure", lambda dx, dy: None)
+    r = nt.servo(
+        lambda: [np.zeros((4, 4, 3), np.uint8)], lambda f, p: "unsure", lambda dx, dy: None
+    )
     assert r["route"] == "no_verdict" and r["steps"] == 0
 
 
 def test_one_way_answers_stop_at_the_travel_cap():
     moved = []
-    r = nt.servo(lambda: [np.zeros((4, 4, 3), np.uint8)], lambda f, p: "-x", lambda dx, dy: moved.append(dx))
+    r = nt.servo(
+        lambda: [np.zeros((4, 4, 3), np.uint8)], lambda f, p: "-x", lambda dx, dy: moved.append(dx)
+    )
     assert r["route"] == "not_converging" and abs(sum(moved)) <= 0.015
+
+
+def test_run_asks_vlm_query_with_the_provider():
+    pose = {
+        "position": {"x": 0.3, "y": 0.0, "z": 0.2},
+        "rotation": {"w": 0.0, "x": 1.0, "y": 0.0, "z": 0.0},
+    }
+    cam_pose = {
+        "position": {"x": 0.3, "y": 0.0, "z": 0.3},
+        "rotation": {"w": 0.0, "x": 1.0, "y": 0.0, "z": 0.0},
+    }
+    k = [[400.0, 0, 32], [0, 400, 24], [0, 0, 1]]
+    calls = []
+
+    class Ctx:
+        def tool(self, name, **kw):
+            if name == "robot.get_ee_pose":
+                return {"pose": pose}
+            if name == "robot.get_observation":
+                cam = {
+                    "name": "right_wrist",
+                    "rgb": np.zeros((48, 64, 3), np.uint8),
+                    "intrinsics": k,
+                    "pose": cam_pose,
+                }
+                return {"cameras": [cam]}
+            if name == "vlm.query":
+                calls.append(kw)
+                return {"text": "centred"}
+            raise AssertionError(name)
+
+    r = nt.run(Ctx(), tip_offset_m=0.1, provider="azure")
+    assert r["route"] == "centred" and r["calls"] == 2
+    assert (
+        calls[0]["provider"] == "azure" and len(calls[0]["images"]) == 1 and "model" not in calls[0]
+    )
 
 
 def test_arrows_follow_the_base_axes():
