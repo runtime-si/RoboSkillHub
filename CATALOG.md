@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 173 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 174 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -146,6 +146,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`handing-over-between-arms`](#handing-over-between-arms) | execute | Hands the object one arm holds to the other arm. | any, 2 arms |
 | [`holding-steady-while-other-arm-acts`](#holding-steady-while-other-arm-acts) | execute | One arm holds an object still. | any, 2 arms |
 | [`inserting-a-held-peg-top-down`](#inserting-a-held-peg-top-down) | execute | Inserts a peg that one arm holds top-down (tip below the fingers) into a perceived hole straight down. | any |
+| [`inserting-a-held-tip-with-the-other-arm-assisting`](#inserting-a-held-tip-with-the-other-arm-assisting) | execute | Inserts the tip of an object one arm holds (a pen, a peg) into a close-fitting hole with the other arm's wrist camera… | any, 2 arms |
 | [`inserting-a-peg-with-pose-refinement`](#inserting-a-peg-with-pose-refinement) | execute | Inserts a held peg into a perceived hole in three stages. | any |
 | [`inserting-mid-air-between-two-held-parts`](#inserting-mid-air-between-two-held-parts) | execute | Inserts the part one arm holds into (or presses it onto) the part the other arm holds, both in the air. | any, 2 arms |
 | [`lifting-with-both-arms`](#lifting-with-both-arms) | execute | Lifts an elongated object (a bar, a tray, a pot by its handles) with both arms. | any, 2 arms |
@@ -2071,6 +2072,23 @@ Inserts a peg that one arm holds top-down (tip below the fingers) into a perceiv
   - `slipped_in_grip`: The hand reached the target depth but the probe found the peg's top more than slip_tolerance higher than expected - the peg slid up the fingers and the tip is short (tip_depth); the hand is open and backed out.
   - `unverified`: The hand reached the depth but the top probe could not tell - no peg length, release or probe turned off, the probe start out of reach, or no top within 12 mm of where it should be (the peg fell over, or went further than the hand); open and backed out unless release is false.
   - `unreachable`: A move was refused or out of reach by the IK preview, the hand's pose could not be read, the hole's axis is more than 30 deg off straight down, or a sibling skill is not installed (raised; on_error).
+
+### inserting-a-held-tip-with-the-other-arm-assisting
+
+execute · robots: any, 2 arms · tasks: insertion, bimanual · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/inserting-a-held-tip-with-the-other-arm-assisting/SKILL.md)
+
+Inserts the tip of an object one arm holds (a pen, a peg) into a close-fitting hole with the other arm's wrist camera as a side-view assistant. The holding arm hovers the tip over the estimated mouth, the other arm takes two side views 90 deg apart from 0.2 m (tool centres kept &gt;= 0.15 m apart), the tip-to-hole offsets along the two image-horizontal axes give both lateral axes, the holding arm corrects (bounded), the camera arm goes back, the holding arm descends, and a hand that stops short means the tip is on the face. Use when a top-down estimate of the hole is off by up to about a pitch, and a side view can see the gap under the tip.
+
+- **In**: `hole_mouth` Vec3, `tip_offset_m` float
+- **Out**: `measured_offset_m` float, `correction_m` float, `min_tcp_separation_m` float, `shortfall_m` float
+- **Calls**: connector `robot.get_ee_pose`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`
+- **Scripts**: [`assist_insert`](skills/inserting-a-held-tip-with-the-other-arm-assisting/scripts/assist_insert.py)
+- **Exits**:
+  - `inserted`: The hand reached the commanded depth (insert_depth under the mouth), within face_stop. With assist, after at most `rounds` view rounds and corrections.
+  - `tip_on_face`: The hand stopped over face_stop short of the commanded depth; the tip rests on the face, the hand holds there.
+  - `not_in_view`: A side view did not see the tip or the hole, or the views asked for more than max_correction in total; the camera arm went back and the holding arm hovers over the hole.
+  - `arms_too_close`: A view pose would put the tool centres under min_separation apart; the camera arm went back.
+  - `unreachable`: The holding arm could not reach the hover over the mouth or the correction, or the camera arm could not reach a view; also same arm / no second arm.
 
 ### inserting-a-peg-with-pose-refinement
 
