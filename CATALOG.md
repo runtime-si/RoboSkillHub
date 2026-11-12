@@ -523,9 +523,9 @@ Google DeepMind TAPNext++ run locally on a GPU -- follows chosen pixels (a cable
 
 ### vlm
 
-perceive · robots: any · MIT · v0.1.1 · [`SKILL.md`](tools/vlm/SKILL.md) · [upstream](https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/tools/vlm)
+perceive · robots: any · MIT · v0.2.0 · [`SKILL.md`](tools/vlm/SKILL.md) · [upstream](https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/tools/vlm)
 
-Free-form and yes/no visual question answering against a hosted vision-language model (OpenRouter API by default; Vertex AI Gemini selectable by config). Use when a workflow needs scene descriptions, semantic checks ("is the drawer open?"), or LLM-judged verification of a camera frame — no GPU required.
+Free-form and yes/no visual question answering against a hosted vision-language model (OpenRouter API by default; Vertex AI Gemini or Azure OpenAI selectable by config). Use when a workflow needs scene descriptions, semantic checks ("is the drawer open?"), or LLM-judged verification of a camera frame — no GPU required.
 
 - **Runs**: in its own environment over `stdio-msgpack`
 - **Functions**:

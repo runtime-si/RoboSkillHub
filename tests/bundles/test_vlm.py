@@ -58,6 +58,9 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch):
         "GAP_LLM_PROVIDER",
         "GAP_LLM_MODEL",
         "OPENROUTER_API_KEY",
+        "AZURE_OPENAI_ENDPOINT",
+        "AZURE_OPENAI_API_KEY",
+        "AZURE_OPENAI_DEPLOYMENT",
     ):
         monkeypatch.delenv(var, raising=False)
 
@@ -349,3 +352,63 @@ def test_query_yes_no_appends_explicit_instruction(vlm, monkeypatch):
     assert text_block["type"] == "text"
     assert text_block["text"].startswith("Is this a cream cheese box?")
     assert "YES or NO first" in text_block["text"]
+
+
+def _mock_azure(vlm, monkeypatch, reply: str):
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(request.url)
+        captured["api_key"] = request.headers.get("api-key")
+        captured["payload"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={
+                "output": [
+                    {"type": "reasoning", "summary": []},
+                    {"type": "message", "content": [{"type": "output_text", "text": reply}]},
+                ]
+            },
+        )
+
+    monkeypatch.setattr(
+        vlm, "_http_client", lambda: httpx.Client(transport=httpx.MockTransport(handler))
+    )
+    return captured
+
+
+def test_azure_responses_api_without_temperature(vlm, image, monkeypatch):
+    monkeypatch.setenv("GAP_VLM_PROVIDER", "azure")
+    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://res.services.ai.azure.com/openai/v1/")
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "az-key")
+    monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT", "forskillhub")
+    monkeypatch.setenv("GAP_LLM_MODEL", "gemini-3-flash-preview")
+    captured = _mock_azure(vlm, monkeypatch, reply="a pen over a hole")
+
+    out = vlm.query(prompt="what is shown?", image=image)
+
+    assert out == {"text": "a pen over a hole"}
+    assert captured["url"] == "https://res.services.ai.azure.com/openai/v1/responses"
+    assert captured["api_key"] == "az-key"
+    payload = captured["payload"]
+    assert payload["model"] == "forskillhub"
+    assert "temperature" not in payload and "max_tokens" not in payload
+    assert payload["max_output_tokens"] == 4096
+    content = payload["input"][0]["content"]
+    assert content[0] == {"type": "input_text", "text": "what is shown?"}
+    assert content[1]["type"] == "input_image"
+    assert content[1]["image_url"].startswith("data:image/png;base64,")
+
+
+def test_azure_yes_no_and_missing_config(vlm, image, monkeypatch):
+    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://res.services.ai.azure.com/openai/v1")
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "az-key")
+    monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT", "forskillhub")
+    _mock_azure(vlm, monkeypatch, reply="Yes, the pen is over the hole.")
+    assert (
+        vlm.query_yes_no(prompt="over the hole?", image=image, provider="azure")["answer"] is True
+    )
+
+    monkeypatch.delenv("AZURE_OPENAI_DEPLOYMENT")
+    with pytest.raises(ToolError, match="AZURE_OPENAI_DEPLOYMENT"):
+        vlm.query(prompt="x", image=image, provider="azure")
