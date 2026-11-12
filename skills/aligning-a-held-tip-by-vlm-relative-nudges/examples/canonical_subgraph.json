@@ -1,0 +1,15 @@
+{
+  "skill": "aligning-a-held-tip-by-vlm-relative-nudges",
+  "inputs": {"tip_offset_m": "float"},
+  "outputs": {"moved_x": {"$ref": "nudge.moved_x"}, "moved_y": {"$ref": "nudge.moved_y"}},
+  "nodes": {
+    "nudge": {
+      "type": "script",
+      "script": "scripts/nudge_tip.py",
+      "inputs": {"tip_offset_m": {"$ref": "in.tip_offset_m"}}
+    }
+  },
+  "edges": [["START", "nudge"], ["nudge", "END"]],
+  "exit": {"router_field": "route", "success_values": ["centred"]},
+  "on_error": "no_verdict"
+}
