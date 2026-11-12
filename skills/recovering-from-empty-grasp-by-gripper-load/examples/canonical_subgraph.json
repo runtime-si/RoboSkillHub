@@ -1,0 +1,20 @@
+{
+  "skill": "recovering-from-empty-grasp-by-gripper-load",
+  "inputs": {"grasp_pose": "Se3Pose"},
+  "outputs": {
+    "attempts": {"$ref": "recover.attempts"},
+    "recovery": {"$ref": "recover.recovery"},
+    "widths_m": {"$ref": "recover.widths_m"},
+    "grasp_position": {"$ref": "recover.grasp_position"}
+  },
+  "nodes": {
+    "recover": {
+      "type": "script",
+      "script": "scripts/recover_empty_grasp.py",
+      "inputs": {"grasp_pose": {"$ref": "in.grasp_pose"}, "max_total_retries": 3}
+    }
+  },
+  "edges": [["START", "recover"], ["recover", "END"]],
+  "exit": {"router_field": "route", "success_values": ["held", "recovered", "gave_up", "move_failed"]},
+  "on_error": "move_failed"
+}
