@@ -60,15 +60,37 @@ gap:
    answer reverses the last direction on that axis. The hand moves by
    `robot.go_to_pose` at the same height and rotation.
 
-## Evaluation (2026-11-11, see the PR)
+`backend="azure"` asks Azure OpenAI's v1 endpoint through the Responses API
+(`AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`):
+`vlm.query` pointed at that endpoint is refused with 400 (its chat payload
+sets temperature and max_tokens, which the reasoning deployment rejects).
+
+## Evaluation (2026-11-11)
 
 Synthetic wrist close-ups (16.5 mm peg over an 18.2 mm square hole in a 3x3
-lattice, D405 intrinsics, camera moving with the hand), random 2-10 mm
-start offsets, Gemini 3.x flash: see the PR body for the numbers. On real
-probe-insert-1 frames the model's answers are not checked against truth.
+lattice, D405 intrinsics, camera moving with the hand, CPU ray cast), the
+same 10 random 2-10 mm start offsets (median 7 mm):
+
+| model | final offset median / mean / max | < 1 mm | centred | calls | wall per case |
+|---|---|---|---|---|---|
+| Azure `forskillhub` (GPT, reasoning) | 0.99 / 3.23 / 24.1 mm | 5/10 | 9/10 | 8.0 | 77 s |
+| Gemini 3.5 flash | 1.67 / 2.00 / 4.6 mm | 2/10 | 2/10 | 14.6 | 243 s |
+| Gemini 3.8 flash | 2.38 / 2.43 / 3.4 mm | 0/10 | 0/10 | 16.0 | 563 s |
+| geometric #230 (depth) | 0/10 aligned, all hole_not_seen | | | | |
+
+Azure used about 4.1k input and 1.9k output (1.85k reasoning) tokens per
+case. Of its 9 `centred` exits, 4 were under the 0.85 mm radial play. One
+run kept answering -x and walked 24 mm off; `max_travel` (15 mm) now stops
+that as `not_converging`.
+
+On 13 real probe-insert-1 wrist frames, the answer's sign agreed with the
+pens task's logged in_hole_check delta on 11/13 (Azure) and 4/12 (Gemini
+3.8 flash, 1 unsure). That logged delta is itself in doubt, so this is not
+a truth check.
 
 ## Limits
 
 - The model judges a 0.5-1 mm offset of a tip it sees from above beside a
   hole it partly hides; that is where the answers become noise.
-- One model call per step (5-15 s each with Gemini flash).
+- One model call per step (about 10 s each for Azure and Gemini flash).
+- "centred" is said too early: half of Azure's centred exits were still 1-1.8 mm off.

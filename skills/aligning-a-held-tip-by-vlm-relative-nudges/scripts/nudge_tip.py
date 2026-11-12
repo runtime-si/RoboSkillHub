@@ -6,7 +6,8 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Callable, TypedDict
+from collections.abc import Callable
+from typing import Any, TypedDict
 
 import numpy as np
 from gap import NodeContext
@@ -89,6 +90,7 @@ def servo(
     start_step: float = START_STEP,
     min_step: float = MIN_STEP,
     max_steps: int = 16,
+    max_travel: float = 0.015,
 ) -> Output:
     """The loop without the robot: ``look`` gives the annotated frames, ``ask`` the model's text, ``move`` a base
     (dx, dy) of the hand."""
@@ -127,12 +129,46 @@ def servo(
             out.update(route="centred", detail=f"both steps down to {min_step * 1e3:.1f} mm")
             return out
         dx, dy = (sign * step["x"], 0.0) if axis == "x" else (0.0, sign * step["y"])
+        if np.hypot(out["moved_x"] + dx, out["moved_y"] + dy) > max_travel:
+            out.update(route="not_converging",
+                       detail=f"the answers would take the tip over {max_travel * 1e3:.0f} mm from its start")  # fmt: skip
+            return out
         move(dx, dy)
         out["steps"] += 1
         out["moved_x"] += dx
         out["moved_y"] += dy
     out["detail"] = f"no verdict of centred within {max_steps} model calls"
     return out
+
+
+def azure_ask(usage: dict[str, int] | None = None) -> Callable[[list[np.ndarray], str], str]:
+    """Azure OpenAI on its v1 endpoint through the Responses API (``AZURE_OPENAI_ENDPOINT``, ``_API_KEY``,
+    ``_DEPLOYMENT``). The hub's vlm.query chat-completions payload (temperature 0, max_tokens) is refused with
+    400 by a reasoning deployment whose name does not start with gpt-5, hence this path. Token counts are summed
+    into ``usage``."""
+    import base64
+    import io
+    import os
+
+    from openai import OpenAI
+
+    client = OpenAI(base_url=os.environ["AZURE_OPENAI_ENDPOINT"], api_key=os.environ["AZURE_OPENAI_API_KEY"])
+    deployment = os.environ["AZURE_OPENAI_DEPLOYMENT"]
+    usage = usage if usage is not None else {}
+
+    def ask(frames: list[np.ndarray], prompt: str) -> str:
+        content: list[dict[str, str]] = [{"type": "input_text", "text": prompt}]
+        for f in frames:
+            buf = io.BytesIO()
+            Image.fromarray(np.asarray(f, np.uint8)).save(buf, format="PNG")
+            url = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+            content.append({"type": "input_image", "image_url": url})
+        r = client.responses.create(model=deployment, input=[{"role": "user", "content": content}])
+        usage["input"] = usage.get("input", 0) + r.usage.input_tokens
+        usage["output"] = usage.get("output", 0) + r.usage.output_tokens
+        return r.output_text or ""
+
+    return ask
 
 
 def _rot(q: dict[str, float]) -> np.ndarray:
@@ -155,6 +191,7 @@ def run(
     cameras: list[str] | None = None,
     ask_tool: str = "vlm.query",
     model: str | None = None,
+    backend: str = "tool",
     start_step_m: float = START_STEP,
     min_step_m: float = MIN_STEP,
     max_steps: int = 16,
@@ -185,12 +222,14 @@ def run(
             frames.append(overlay(np.asarray(c["rgb"]), (k @ cc[:3])[:2] / cc[2], jac))
         return frames
 
-    def ask(frames: list[np.ndarray], prompt: str) -> str:
+    def tool_ask(frames: list[np.ndarray], prompt: str) -> str:
         kw: dict[str, Any] = {"prompt": prompt, "images": frames}
         if model:
             kw["model"] = model
         r = ctx.tool(ask_tool, **kw)
         return r.get("text", "") if isinstance(r, dict) else str(r)
+
+    ask = azure_ask() if backend == "azure" else tool_ask
 
     def move(dx: float, dy: float) -> None:
         r = ctx.tool("robot.get_ee_pose", **arm)

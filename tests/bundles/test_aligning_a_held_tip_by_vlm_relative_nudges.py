@@ -46,6 +46,12 @@ def test_refusals_give_no_verdict():
     assert r["route"] == "no_verdict" and r["steps"] == 0
 
 
+def test_one_way_answers_stop_at_the_travel_cap():
+    moved = []
+    r = nt.servo(lambda: [np.zeros((4, 4, 3), np.uint8)], lambda f, p: "-x", lambda dx, dy: moved.append(dx))
+    assert r["route"] == "not_converging" and abs(sum(moved)) <= 0.015
+
+
 def test_arrows_follow_the_base_axes():
     k = np.array([[400.0, 0, 320], [0, 400, 240], [0, 0, 1]])
     t = np.eye(4)
