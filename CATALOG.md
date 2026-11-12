@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 173 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 173 skills, 4 policies, 2 recipes and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -3487,6 +3487,7 @@ Run the openpi π0.5 LIBERO checkpoint (pi05_libero) as a closed-loop VLA policy
 
 ## Recipes
 
+- [`inserting-a-held-pen-into-a-lattice-hole`](recipes/inserting-a-held-pen-into-a-lattice-hole/RECIPE.md): Put a held pen, peg or rod into one hole of a holder with a lattice of holes, a millimetre of play, from the cameras… Uses [`aligning-a-held-tip-by-vlm-relative-nudges`](#aligning-a-held-tip-by-vlm-relative-nudges), [`aligning-a-held-tip-over-a-hole-by-visual-servoing`](#aligning-a-held-tip-over-a-hole-by-visual-servoing), [`inserting-a-held-peg-top-down`](#inserting-a-held-peg-top-down), [`inserting-a-held-tip-with-the-other-arm-assisting`](#inserting-a-held-tip-with-the-other-arm-assisting), [`locating-a-hole-lattice-by-wide-search`](#locating-a-hole-lattice-by-wide-search), [`moving-to-pose`](#moving-to-pose), [`verifying-insertion-by-probe-push`](#verifying-insertion-by-probe-push), [`verifying-placement`](#verifying-placement).
 - [`pick-place-camera-only`](recipes/pick-place-camera-only/RECIPE.md): Put one named rigid object into a named container from the cameras alone. Uses [`grasping-short-axis`](#grasping-short-axis), [`grasping-with-planner`](#grasping-with-planner), [`perceiving-objects`](#perceiving-objects), [`transporting-objects`](#transporting-objects), [`verifying-grasps`](#verifying-grasps).
 
 ## Papers
