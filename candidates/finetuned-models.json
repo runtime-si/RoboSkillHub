@@ -1,0 +1,1078 @@
+{
+  "schema_version": 1,
+  "collection": "finetuned-models",
+  "scope": "Fine-tuned models with public weights that are not robot action models: instruction-tuned language models, text understanding, vision and multimodal, speech and audio, retrieval and scoring. Pinned Hugging Face revisions, weight files and the licence each card states. Not executable bundles; robot action checkpoints are in vla-checkpoints.json.",
+  "snapshot_date": "2026-11-11",
+  "entries": [
+    {
+      "id": "Qwen/Qwen2.5-7B-Instruct",
+      "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+      "name": "Qwen2.5-7B-Instruct",
+      "domain": "大语言模型",
+      "category": "通用对话 / 中文指令",
+      "task": "输入中英等语言的指令，输出问答、写作、摘要或 JSON 等结构化文本。",
+      "pipeline_tag": "text-generation",
+      "base_model": "Qwen/Qwen2.5-7B",
+      "method": "指令微调 / 后训练（模型卡未逐项细述算法）",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "7.61B",
+      "weight_files": [
+        "model-00001-of-00004.safetensors",
+        "model-00002-of-00004.safetensors",
+        "model-00003-of-00004.safetensors",
+        "model-00004-of-00004.safetensors"
+      ],
+      "size_gb": 15.24,
+      "license": "apache-2.0",
+      "card_license": "apache-2.0",
+      "gated": false,
+      "notes": "需使用仓库聊天模板；默认配置上下文 32K，长上下文需额外配置。",
+      "evidence": "官方模型卡明确本仓库为 instruction-tuned 7B；metadata base_model 指向 Qwen2.5-7B。",
+      "source_urls": [
+        "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+      "name": "Qwen2.5-Coder-7B-Instruct",
+      "domain": "大语言模型",
+      "category": "代码生成与修复",
+      "task": "输入编程需求或有问题的代码，生成代码、解释逻辑或给出修复。",
+      "pipeline_tag": "text-generation",
+      "base_model": "Qwen/Qwen2.5-Coder-7B",
+      "method": "代码指令微调 / 后训练",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "7.61B",
+      "weight_files": [
+        "model-00001-of-00004.safetensors",
+        "model-00002-of-00004.safetensors",
+        "model-00003-of-00004.safetensors",
+        "model-00004-of-00004.safetensors"
+      ],
+      "size_gb": 15.24,
+      "license": "apache-2.0",
+      "card_license": "apache-2.0",
+      "gated": false,
+      "notes": "使用 Instruct 聊天模板；区别于用于续写的 Coder 基础模型。",
+      "evidence": "官方模型卡描述代码生成、代码推理和代码修复；metadata 标明基础模型并写明 post-training。",
+      "source_urls": [
+        "https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "Qwen/Qwen2.5-Math-7B-Instruct",
+      "revision": "ef9926d75ab1d54532f6a30dd5e760355eb9aa4d",
+      "name": "Qwen2.5-Math-7B-Instruct",
+      "domain": "大语言模型",
+      "category": "数学解题",
+      "task": "输入中英文数学题，输出逐步推理与答案；也可生成配合程序工具的解题步骤。",
+      "pipeline_tag": "text-generation",
+      "base_model": "Qwen/Qwen2.5-Math-7B",
+      "method": "数学指令微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "7B 级",
+      "weight_files": [
+        "model-00001-of-00004.safetensors",
+        "model-00002-of-00004.safetensors",
+        "model-00003-of-00004.safetensors",
+        "model-00004-of-00004.safetensors"
+      ],
+      "size_gb": 15.24,
+      "license": "apache-2.0",
+      "card_license": "apache-2.0",
+      "gated": false,
+      "notes": "针对数学任务；工具集成推理需要外部程序执行环境。",
+      "evidence": "官方模型卡将其列为 instruction-tuned 模型，明确支持 CoT、TIR 和中英文数学问题。",
+      "source_urls": [
+        "https://huggingface.co/Qwen/Qwen2.5-Math-7B-Instruct"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+      "revision": "916b56a44061fd5cd7d6a8fb632557ed4f724f60",
+      "name": "DeepSeek-R1-Distill-Qwen-7B",
+      "domain": "大语言模型",
+      "category": "推理 / 数学 / 代码",
+      "task": "输入需要多步推理的问题，输出较长的推理过程及最终答案。",
+      "pipeline_tag": "text-generation",
+      "base_model": "Qwen/Qwen2.5-Math-7B",
+      "method": "推理蒸馏：用 DeepSeek-R1 生成样本微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "7B 级",
+      "weight_files": [
+        "model-00001-of-000002.safetensors",
+        "model-00002-of-000002.safetensors"
+      ],
+      "size_gb": 15.24,
+      "license": "mit",
+      "card_license": "mit",
+      "gated": false,
+      "notes": "必须配套此仓库的配置和 tokenizer；蒸馏模型不等于完整 DeepSeek-R1。",
+      "evidence": "官方模型表列明基础模型 Qwen2.5-Math-7B；说明使用 DeepSeek-R1 整理的 800k 样本微调。",
+      "source_urls": [
+        "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "HuggingFaceH4/zephyr-7b-beta",
+      "revision": "892b3d7a7b1cf10c7a701c60881cd93df615734c",
+      "name": "Zephyr-7B-beta",
+      "domain": "大语言模型",
+      "category": "通用对话 / 偏好对齐",
+      "task": "输入多轮英文对话或指令，输出助手回复。",
+      "pipeline_tag": "text-generation",
+      "base_model": "mistralai/Mistral-7B-v0.1",
+      "method": "UltraChat 监督微调 + UltraFeedback DPO",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "7B",
+      "weight_files": [
+        "model-00001-of-00008.safetensors",
+        "model-00002-of-00008.safetensors",
+        "model-00003-of-00008.safetensors",
+        "model-00004-of-00008.safetensors",
+        "model-00005-of-00008.safetensors",
+        "model-00006-of-00008.safetensors",
+        "model-00007-of-00008.safetensors",
+        "model-00008-of-00008.safetensors",
+        "pytorch_model-00001-of-00008.bin",
+        "pytorch_model-00002-of-00008.bin",
+        "pytorch_model-00003-of-00008.bin",
+        "pytorch_model-00004-of-00008.bin",
+        "pytorch_model-00005-of-00008.bin",
+        "pytorch_model-00006-of-00008.bin",
+        "pytorch_model-00007-of-00008.bin",
+        "pytorch_model-00008-of-00008.bin"
+      ],
+      "size_gb": 28.97,
+      "license": "mit",
+      "card_license": "mit",
+      "gated": false,
+      "notes": "主要面向英语；可作为研究 SFT 与 DPO 的公开实例。",
+      "evidence": "模型卡明确先在 UltraChat 上微调，再用 DPOTrainer 在 UltraFeedback 上对齐。",
+      "source_urls": [
+        "https://huggingface.co/HuggingFaceH4/zephyr-7b-beta"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "defog/sqlcoder-7b-2",
+      "revision": "7e5b6f7981c0aa7d143f6bec6fa26625bdfcbe66",
+      "name": "SQLCoder-7B-2",
+      "domain": "大语言模型",
+      "category": "自然语言转 SQL",
+      "task": "输入自然语言查询问题和数据库表结构，输出 SQL 查询语句。",
+      "pipeline_tag": "text-generation",
+      "base_model": "CodeLlama-7B",
+      "method": "SQL 任务微调（卡片未细述算法）",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "7B",
+      "weight_files": [
+        "model-00001-of-00003.safetensors",
+        "model-00002-of-00003.safetensors",
+        "model-00003-of-00003.safetensors",
+        "training_args.bin"
+      ],
+      "size_gb": 18.27,
+      "license": "cc-by-sa-4.0",
+      "card_license": "cc-by-sa-4.0",
+      "gated": false,
+      "notes": "定位为只读数据分析；按模型卡使用包含 schema 的提示模板。",
+      "evidence": "官方模型卡明确 Finetuned from model: CodeLlama-7B，任务为 natural language to SQL。",
+      "source_urls": [
+        "https://huggingface.co/defog/sqlcoder-7b-2"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "medalpaca/medalpaca-7b",
+      "revision": "fbb41b75d5a46ba405d496db1083a6f1d3df72a2",
+      "name": "MedAlpaca-7B",
+      "domain": "大语言模型",
+      "category": "医学问答与对话",
+      "task": "输入医学知识问题和可选上下文，输出医学问答或对话回复。",
+      "pipeline_tag": "text-generation",
+      "base_model": "LLaMA-7B（第一代）",
+      "method": "医学问答数据微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "7B",
+      "weight_files": [
+        "model-00001-of-00003.safetensors",
+        "model-00002-of-00003.safetensors",
+        "model-00003-of-00003.safetensors",
+        "pytorch_model-00001-of-00003.bin",
+        "pytorch_model-00002-of-00003.bin",
+        "pytorch_model-00003-of-00003.bin",
+        "training_args.bin"
+      ],
+      "size_gb": 53.91,
+      "license": "cc",
+      "card_license": "cc",
+      "gated": false,
+      "notes": "发布者限定为研究工具；许可标签仅写 cc，具体条款需另行核实。",
+      "evidence": "官方模型卡明确基于 LLaMA 的 7B 模型，为医学领域任务微调；列出问答训练数据来源。",
+      "source_urls": [
+        "https://huggingface.co/medalpaca/medalpaca-7b"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "hfl/chinese-alpaca-2-lora-7b",
+      "revision": "08d31460d651dade993e6ba14c51f22b2298ddd8",
+      "name": "Chinese-Alpaca-2-LoRA-7B",
+      "domain": "大语言模型",
+      "category": "中文对话 / 指令",
+      "task": "输入中文或英文指令与对话，输出面向中文场景的助手回复。",
+      "pipeline_tag": null,
+      "base_model": "中文 LLaMA-2（训练底座）；合并用原始 Llama-2-7b-hf",
+      "method": "中文扩展与指令微调；LoRA",
+      "form": "adapter",
+      "weight_type": "LoRA + 完整 embedding/lm-head",
+      "params": "底座 7B；适配器参数量未列",
+      "weight_files": [
+        "adapter_model.bin"
+      ],
+      "size_gb": 1.23,
+      "license": "Apache-2.0（LoRA 仓库标注）；同时遵守 Llama 2 许可",
+      "card_license": "apache-2.0",
+      "gated": false,
+      "notes": "不能独立运行；按发布者流程与原始 Llama-2-7b-hf 合并，并使用配套词表。",
+      "evidence": "官方卡片将 Alpaca-2 列为 instruction/chat 模型；明确这是 LoRA，需与原始 Llama-2-7b-hf 合并。",
+      "source_urls": [
+        "https://huggingface.co/hfl/chinese-alpaca-2-lora-7b",
+        "https://github.com/ymcui/Chinese-LLaMA-Alpaca-2"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "meetkai/functionary-small-v3.2",
+      "revision": "f13dd71d48e2592da2e5768792ed1567885dced0",
+      "name": "Functionary-small-v3.2",
+      "domain": "大语言模型",
+      "category": "工具调用 / Agent",
+      "task": "输入用户需求和函数 JSON Schema，输出工具选择与参数，并可根据工具返回结果生成回答。",
+      "pipeline_tag": null,
+      "base_model": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+      "method": "工具调用专用后训练（卡片未细述算法）",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "8B 级",
+      "weight_files": [
+        "model-00001-of-00004.safetensors",
+        "model-00002-of-00004.safetensors",
+        "model-00003-of-00004.safetensors",
+        "model-00004-of-00004.safetensors"
+      ],
+      "size_gb": 16.08,
+      "license": "mit",
+      "card_license": "mit",
+      "gated": false,
+      "notes": "该公开仓库已弃用，不再维护，保留旧快照供参考；工具实际执行由外部程序负责，需配套模板与解析代码。",
+      "evidence": "官方模型卡明确基于 Llama-3.1-8B-Instruct，支持并行工具选择、工具结果分析和 JSON 调用解析。",
+      "source_urls": [
+        "https://huggingface.co/meetkai/functionary-small-v3.2",
+        "https://github.com/MeetKai/functionary"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "allenai/Llama-3.1-Tulu-3-8B",
+      "revision": "666943798adbde0b1aff34626007e26986a3c107",
+      "name": "Llama-3.1-Tülu-3-8B",
+      "domain": "大语言模型",
+      "category": "指令遵循 / 推理对齐",
+      "task": "输入通用问题、数学题或带格式限制的指令，输出符合指令的回答。",
+      "pipeline_tag": "text-generation",
+      "base_model": "Llama-3.1-8B；直接上一阶段为 Tulu-3-8B-DPO",
+      "method": "SFT → DPO → RLVR（可验证奖励强化学习）",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "8B",
+      "weight_files": [
+        "model-00001-of-00004.safetensors",
+        "model-00002-of-00004.safetensors",
+        "model-00003-of-00004.safetensors",
+        "model-00004-of-00004.safetensors"
+      ],
+      "size_gb": 16.07,
+      "license": "llama3.1",
+      "card_license": "llama3.1",
+      "gated": false,
+      "notes": "同时公开 SFT、DPO 中间阶段权重；模型卡另列训练数据衍生条款。",
+      "evidence": "官方模型卡流程表逐项列出 Llama-3.1 基础、SFT、DPO、最终 RLVR 权重链接。",
+      "source_urls": [
+        "https://huggingface.co/allenai/Llama-3.1-Tulu-3-8B"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "distilbert/distilbert-base-uncased-finetuned-sst-2-english",
+      "revision": "714eb0fa89d2f80546fda750413ed43d93601a13",
+      "name": "DistilBERT SST-2",
+      "domain": "文本理解与生成",
+      "category": "英文情感分析",
+      "task": "输入英文句子，输出正面／负面情感标签及分数。",
+      "pipeline_tag": "text-classification",
+      "base_model": "DistilBERT-base-uncased",
+      "method": "在 SST-2 上进行监督分类微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "约 67M",
+      "weight_files": [
+        "model.safetensors",
+        "pytorch_model.bin"
+      ],
+      "size_gb": 1.34,
+      "license": "apache-2.0",
+      "card_license": "apache-2.0",
+      "gated": false,
+      "notes": "面向英文二分类情感任务。",
+      "evidence": "模型卡明确为 DistilBERT 的 SST-2 fine-tune checkpoint；API 文件列表包含 model.safetensors。",
+      "source_urls": [
+        "https://huggingface.co/distilbert/distilbert-base-uncased-finetuned-sst-2-english"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "dslim/bert-base-NER",
+      "revision": "d1a3e8f13f8c3566299d95fcfc9a8d2382a9affc",
+      "name": "BERT-base NER",
+      "domain": "文本理解与生成",
+      "category": "命名实体识别",
+      "task": "输入英文文本，标出人名、组织、地点和其他命名实体。",
+      "pipeline_tag": "token-classification",
+      "base_model": "bert-base-cased",
+      "method": "在英文 CoNLL-2003 上进行实体标签微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "约 108M",
+      "weight_files": [
+        "model.safetensors",
+        "pytorch_model.bin"
+      ],
+      "size_gb": 2.16,
+      "license": "mit",
+      "card_license": "mit",
+      "gated": false,
+      "notes": "输出 token 级标签，可能需要合并子词实体。",
+      "evidence": "模型卡明确基础模型为 bert-base-cased，并在 CoNLL-2003 微调；存在 model.safetensors。",
+      "source_urls": [
+        "https://huggingface.co/dslim/bert-base-NER"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "deepset/roberta-base-squad2",
+      "revision": "adc3b06f79f797d1c575d5479d6f5efe54a9e3b4",
+      "name": "RoBERTa SQuAD2",
+      "domain": "文本理解与生成",
+      "category": "抽取式阅读理解",
+      "task": "输入一段英文材料和问题，从材料中抽取答案，支持无答案判断。",
+      "pipeline_tag": "question-answering",
+      "base_model": "FacebookAI/roberta-base",
+      "method": "在 SQuAD 2.0 上进行问答微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "约 124M",
+      "weight_files": [
+        "model.safetensors",
+        "pytorch_model.bin"
+      ],
+      "size_gb": 2.49,
+      "license": "cc-by-4.0",
+      "card_license": "cc-by-4.0",
+      "gated": false,
+      "notes": "答案从给定文本抽取，不是开放式聊天模型。",
+      "evidence": "模型卡明确 SQuAD2.0 微调及 Extractive QA；存在 model.safetensors。",
+      "source_urls": [
+        "https://huggingface.co/deepset/roberta-base-squad2"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "facebook/bart-large-cnn",
+      "revision": "37f520fa929c961707657b28798b30c003dd100b",
+      "name": "BART CNN/DailyMail",
+      "domain": "文本理解与生成",
+      "category": "英文摘要生成",
+      "task": "输入英文新闻或文章，生成较短摘要。",
+      "pipeline_tag": "summarization",
+      "base_model": "facebook/bart-large",
+      "method": "使用 CNN/DailyMail 文本—摘要配对数据微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "约 406M",
+      "weight_files": [
+        "model.safetensors",
+        "pytorch_model.bin"
+      ],
+      "size_gb": 8.54,
+      "license": "mit",
+      "card_license": "mit",
+      "gated": false,
+      "notes": "主要训练域为英文新闻摘要。",
+      "evidence": "模型卡标题及正文明确 CNN/DailyMail fine-tuning；存在 model.safetensors。",
+      "source_urls": [
+        "https://huggingface.co/facebook/bart-large-cnn"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "facebook/bart-large-mnli",
+      "revision": "d7645e127eaf1aefc7862fd59a17a5aa8558b8ce",
+      "name": "BART MNLI",
+      "domain": "文本理解与生成",
+      "category": "自然语言推断／零样本分类",
+      "task": "判断文本间蕴含、矛盾或中立；也可输入文本与候选类别进行零样本分类。",
+      "pipeline_tag": "zero-shot-classification",
+      "base_model": "facebook/bart-large",
+      "method": "在 MultiNLI 上进行自然语言推断微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "约 407M",
+      "weight_files": [
+        "model.safetensors",
+        "pytorch_model.bin"
+      ],
+      "size_gb": 6.93,
+      "license": "mit",
+      "card_license": "mit",
+      "gated": false,
+      "notes": "零样本分类通过候选标签构造假设句实现。",
+      "evidence": "模型卡明确为 BART-large 经 MNLI 训练的 checkpoint；存在 model.safetensors。",
+      "source_urls": [
+        "https://huggingface.co/facebook/bart-large-mnli"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "ProsusAI/finbert",
+      "revision": "0bc2ac10dda6929bcb1f77ccc43c7ec5c424f031",
+      "name": "FinBERT",
+      "domain": "文本理解与生成",
+      "category": "金融文本情感分析",
+      "task": "输入英文金融新闻或句子，输出正面、负面或中立情感。",
+      "pipeline_tag": "text-classification",
+      "base_model": "BERT-base（金融领域继续预训练）",
+      "method": "金融语料领域适配后，在 Financial PhraseBank 上进行分类微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "约 109M",
+      "weight_files": [
+        "model.safetensors",
+        "pytorch_model.bin"
+      ],
+      "size_gb": 1.75,
+      "license": "cc-by-nc-sa-4.0",
+      "card_license": "cc-by-nc-sa-4.0",
+      "gated": false,
+      "notes": "当前模型卡权重许可证为 CC BY-NC-SA 4.0，含非商业限制。",
+      "evidence": "模型卡说明金融领域训练与 Financial PhraseBank 微调；存在 model.safetensors。",
+      "source_urls": [
+        "https://huggingface.co/ProsusAI/finbert"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "SamLowe/roberta-base-go_emotions",
+      "revision": "d75048347613a25d77de8cf6412eaae9fa7b26be",
+      "name": "RoBERTa GoEmotions",
+      "domain": "文本理解与生成",
+      "category": "细粒度多标签情绪识别",
+      "task": "输入英文文本，输出 28 个标签的概率，可同时对应多种情绪。",
+      "pipeline_tag": "text-classification",
+      "base_model": "roberta-base",
+      "method": "在 GoEmotions 上进行多标签分类微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "约 125M",
+      "weight_files": [
+        "model.safetensors",
+        "pytorch_model.bin"
+      ],
+      "size_gb": 1.0,
+      "license": "mit",
+      "card_license": "mit",
+      "gated": false,
+      "notes": "28 标签包含中性；与简单正负面二分类不同。",
+      "evidence": "模型卡说明从 roberta-base 加载并训练 3 个 epoch，使用多标签分类目标；存在 model.safetensors。",
+      "source_urls": [
+        "https://huggingface.co/SamLowe/roberta-base-go_emotions"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "uer/roberta-base-finetuned-chinanews-chinese",
+      "revision": "638100ab2773a8c3d0afceb9387eb88fe707fbe1",
+      "name": "Chinese RoBERTa Chinanews",
+      "domain": "文本理解与生成",
+      "category": "中文新闻主题分类",
+      "task": "输入中文新闻文本，输出政治、经济、文化等训练标签对应的主题类别。",
+      "pipeline_tag": "text-classification",
+      "base_model": "uer/chinese_roberta_L-12_H-768",
+      "method": "在 Chinanews 上监督微调 3 个 epoch",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "模型卡未列明",
+      "weight_files": [
+        "pytorch_model.bin"
+      ],
+      "size_gb": 1.23,
+      "license": "未标注",
+      "card_license": null,
+      "gated": false,
+      "notes": "模型卡未标注许可证；使用范围需另行确认。",
+      "evidence": "模型卡 Training procedure 明确基础模型和微调过程；存在 pytorch_model.bin。",
+      "source_urls": [
+        "https://huggingface.co/uer/roberta-base-finetuned-chinanews-chinese"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "dreamlike-art/dreamlike-diffusion-1.0",
+      "revision": "9fb5a6463bf79d81152e715e8d2a8b988f96c790",
+      "name": "Dreamlike Diffusion 1.0",
+      "domain": "视觉与多模态",
+      "category": "艺术风格文生图",
+      "task": "输入文字提示词，生成偏艺术插画风格的图片。",
+      "pipeline_tag": "text-to-image",
+      "base_model": "Stable Diffusion 1.5",
+      "method": "在高质量艺术图像上微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "未列统一口径",
+      "weight_files": [
+        "dreamlike-diffusion-1.0.ckpt",
+        "dreamlike-diffusion-1.0.safetensors",
+        "text_encoder/model.safetensors",
+        "text_encoder/pytorch_model.bin",
+        "unet/diffusion_pytorch_model.bin",
+        "unet/diffusion_pytorch_model.safetensors",
+        "vae/diffusion_pytorch_model.bin",
+        "vae/diffusion_pytorch_model.safetensors"
+      ],
+      "size_gb": 8.54,
+      "license": "修改版 CreativeML OpenRAIL-M",
+      "card_license": "other",
+      "gated": false,
+      "notes": "自定义限制：盈利或接受捐赠的网站/应用托管使用需联系作者；输出商用另有团队人数条件。",
+      "evidence": "模型卡标题明确 SD 1.5 fine tuned on high quality art；HF API 存在 dreamlike-diffusion-1.0.safetensors、.ckpt 和 Diffusers 分组件文件。",
+      "source_urls": [
+        "https://huggingface.co/dreamlike-art/dreamlike-diffusion-1.0"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "lllyasviel/control_v11p_sd15_canny",
+      "revision": "115a470d547982438f70198e353a921996e2e819",
+      "name": "ControlNet v1.1 Canny",
+      "domain": "视觉与多模态",
+      "category": "边缘约束图像生成",
+      "task": "输入 Canny 边缘图和文字，生成保留轮廓布局的图像。",
+      "pipeline_tag": "image-to-image",
+      "base_model": "Stable Diffusion 1.5",
+      "method": "为预训练扩散模型训练额外的条件控制网络",
+      "form": "adapter",
+      "weight_type": "条件网络权重（须配基础模型）",
+      "params": "361M（条件网络）",
+      "weight_files": [
+        "diffusion_pytorch_model.bin",
+        "diffusion_pytorch_model.fp16.bin",
+        "diffusion_pytorch_model.fp16.safetensors",
+        "diffusion_pytorch_model.safetensors"
+      ],
+      "size_gb": 4.34,
+      "license": "OpenRAIL（模型卡标注）",
+      "card_license": "openrail",
+      "gated": false,
+      "notes": "不是独立文生图模型，加载 ControlNetModel 后还需配套 SD 1.5；这属于基础模型适配。",
+      "evidence": "模型卡标注 base_model 为 runwayml/stable-diffusion-v1-5，明确 checkpoint 为 Canny 条件 ControlNet；HF API 存在 diffusion_pytorch_model.safetensors。",
+      "source_urls": [
+        "https://huggingface.co/lllyasviel/control_v11p_sd15_canny"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "timbrooks/instruct-pix2pix",
+      "revision": "31519b5cb02a7fd89b906d88731cd4d6a7bbf88d",
+      "name": "InstructPix2Pix",
+      "domain": "视觉与多模态",
+      "category": "指令式图像编辑",
+      "task": "输入原图及“把白天改成夜晚”等文字指令，输出编辑后的图像。",
+      "pipeline_tag": "image-to-image",
+      "base_model": "Stable Diffusion 1.5",
+      "method": "用合成的图像编辑配对数据微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "未列统一口径",
+      "weight_files": [
+        "instruct-pix2pix-00-22000.ckpt",
+        "instruct-pix2pix-00-22000.safetensors",
+        "safety_checker/model.fp16.safetensors",
+        "safety_checker/model.safetensors",
+        "safety_checker/pytorch_model.bin",
+        "safety_checker/pytorch_model.fp16.bin",
+        "text_encoder/model.fp16.safetensors",
+        "text_encoder/model.safetensors",
+        "text_encoder/pytorch_model.bin",
+        "text_encoder/pytorch_model.fp16.bin",
+        "unet/diffusion_pytorch_model.bin",
+        "unet/diffusion_pytorch_model.fp16.bin",
+        "unet/diffusion_pytorch_model.fp16.safetensors",
+        "unet/diffusion_pytorch_model.safetensors",
+        "vae/diffusion_pytorch_model.bin",
+        "vae/diffusion_pytorch_model.fp16.bin",
+        "vae/diffusion_pytorch_model.fp16.safetensors",
+        "vae/diffusion_pytorch_model.safetensors"
+      ],
+      "size_gb": 31.85,
+      "license": "MIT（仓库标注；基础模型条款另查）",
+      "card_license": "mit",
+      "gated": false,
+      "notes": "提供独立 checkpoint 与 Diffusers 格式；微调关系由作者 GitHub 训练说明确认。",
+      "evidence": "作者仓库 Training InstructPix2Pix 明确从 SD v1.5 checkpoint 微调；HF API 存在 instruct-pix2pix-00-22000.safetensors 和 .ckpt。",
+      "source_urls": [
+        "https://huggingface.co/timbrooks/instruct-pix2pix",
+        "https://github.com/timothybrooks/instruct-pix2pix#training-instructpix2pix"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "nielsr/detr-resnet-50_finetuned_cppe5",
+      "revision": "835deeaaabab63dc5323e29644e316381c4b40e2",
+      "name": "DETR ResNet-50 PPE",
+      "domain": "视觉与多模态",
+      "category": "防护装备目标检测",
+      "task": "输入照片，输出口罩、手套、护目镜、面罩、防护服的位置框和类别。",
+      "pipeline_tag": "object-detection",
+      "base_model": "facebook/detr-resnet-50",
+      "method": "监督式目标检测微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "41.6M",
+      "weight_files": [
+        "model.safetensors",
+        "training_args.bin"
+      ],
+      "size_gb": 0.17,
+      "license": "Apache-2.0",
+      "card_license": "apache-2.0",
+      "gated": false,
+      "notes": "用途由 config.json 的 5 类标签确认；模型卡未完整填写数据集说明，效果需自行验证。",
+      "evidence": "模型卡明确为 facebook/detr-resnet-50 的 fine-tuned version；config.json 的 id2label 为 Coverall、Face_Shield、Gloves、Goggles、Mask；HF API 存在 model.safetensors。",
+      "source_urls": [
+        "https://huggingface.co/nielsr/detr-resnet-50_finetuned_cppe5",
+        "https://huggingface.co/nielsr/detr-resnet-50_finetuned_cppe5/blob/main/config.json"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "nvidia/segformer-b0-finetuned-ade-512-512",
+      "revision": "489d5cd81a0b59fab9b7ea758d3548ebe99677da",
+      "name": "SegFormer B0 ADE20K",
+      "domain": "视觉与多模态",
+      "category": "图像语义分割",
+      "task": "输入场景图片，为各像素预测墙、道路、家具等语义类别。",
+      "pipeline_tag": "image-segmentation",
+      "base_model": "ImageNet-1k 预训练 MiT-B0 / SegFormer 编码器",
+      "method": "添加分割头后，在 ADE20K 上联合微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "3.75M",
+      "weight_files": [
+        "model.safetensors",
+        "pytorch_model.bin"
+      ],
+      "size_gb": 0.05,
+      "license": "NVIDIA Source Code License for SegFormer",
+      "card_license": "other",
+      "gated": false,
+      "notes": "模型卡链接的许可证限定非商业研究或评估用途。",
+      "evidence": "模型卡明确编码器先在 ImageNet-1k 预训练，加 decode head 后一起微调；checkpoint 明确 ADE20K、512×512；HF API 存在 model.safetensors。",
+      "source_urls": [
+        "https://huggingface.co/nvidia/segformer-b0-finetuned-ade-512-512",
+        "https://github.com/NVlabs/SegFormer/blob/master/LICENSE"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "google/vit-base-patch16-224",
+      "revision": "3f49326eb077187dfe1c2a2bb15fbd74e6ab91e3",
+      "name": "ViT Base / ImageNet-1k",
+      "domain": "视觉与多模态",
+      "category": "图像分类",
+      "task": "输入一张图片，输出 ImageNet 的 1000 个类别之一及其得分。",
+      "pipeline_tag": "image-classification",
+      "base_model": "ImageNet-21k 预训练 ViT-Base/16",
+      "method": "在 ImageNet-1k 上监督微调（224×224）",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "86.6M",
+      "weight_files": [
+        "model.safetensors",
+        "pytorch_model.bin"
+      ],
+      "size_gb": 1.39,
+      "license": "Apache-2.0",
+      "card_license": "apache-2.0",
+      "gated": false,
+      "notes": "这是已经带 1000 类分类头的微调版；名称虽无 finetuned，模型卡明确训练阶段。",
+      "evidence": "模型卡说明先在 ImageNet-21k 预训练、再于 ImageNet 2012 微调；HF API 存在 model.safetensors 和 pytorch_model.bin。",
+      "source_urls": [
+        "https://huggingface.co/google/vit-base-patch16-224"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "microsoft/trocr-base-handwritten",
+      "revision": "eaacaf452b06415df8f10bb6fad3a4c11e609406",
+      "name": "TrOCR Base Handwritten",
+      "domain": "视觉与多模态",
+      "category": "手写文字识别（OCR）",
+      "task": "输入一行手写文字的图像，输出识别出的文本。",
+      "pipeline_tag": "image-to-text",
+      "base_model": "预训练 TrOCR（BEiT 图像编码器 + RoBERTa 文本解码器）",
+      "method": "在 IAM 手写数据集上微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "333M",
+      "weight_files": [
+        "model.safetensors",
+        "pytorch_model.bin"
+      ],
+      "size_gb": 2.67,
+      "license": "MIT",
+      "card_license": "mit",
+      "gated": false,
+      "notes": "面向单行文本图像；不是开箱即用的整页版面 OCR。",
+      "evidence": "模型卡标题和正文明确 fine-tuned on IAM，说明 BEiT/RoBERTa 初始化；HF API 存在 model.safetensors。",
+      "source_urls": [
+        "https://huggingface.co/microsoft/trocr-base-handwritten"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "naver-clova-ix/donut-base-finetuned-docvqa",
+      "revision": "b19d2e332684b0e2d35d9144ce34047767335cf8",
+      "name": "Donut Base DocVQA",
+      "domain": "视觉与多模态",
+      "category": "文档图像问答",
+      "task": "输入扫描文档图片和问题，输出文档中的答案文本。",
+      "pipeline_tag": "document-question-answering",
+      "base_model": "Donut Base（Swin Transformer + BART）",
+      "method": "在 DocVQA 数据集上微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "未核实",
+      "weight_files": [
+        "pytorch_model.bin"
+      ],
+      "size_gb": 0.81,
+      "license": "MIT",
+      "card_license": "mit",
+      "gated": false,
+      "notes": "OCR-free 的文档问答模型，适合从文档图像提取问题对应的内容。",
+      "evidence": "模型卡明确 Donut model fine-tuned on DocVQA；HF API 存在 pytorch_model.bin。",
+      "source_urls": [
+        "https://huggingface.co/naver-clova-ix/donut-base-finetuned-docvqa"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "llava-hf/llava-1.5-7b-hf",
+      "revision": "b234b804b114d9e37bb655e11cbbb5f5e971b7a9",
+      "name": "LLaVA 1.5 7B",
+      "domain": "视觉与多模态",
+      "category": "看图对话与视觉问答",
+      "task": "输入图片和自然语言问题，输出图像描述、问答或解释。",
+      "pipeline_tag": "image-text-to-text",
+      "base_model": "LLaMA/Vicuna 语言模型 + CLIP ViT-L/14-336 视觉编码器",
+      "method": "多模态指令微调",
+      "form": "full",
+      "weight_type": "完整权重（Transformers 转换版）",
+      "params": "7.06B（HF 权重统计）",
+      "weight_files": [
+        "model-00001-of-00003.safetensors",
+        "model-00002-of-00003.safetensors",
+        "model-00003-of-00003.safetensors"
+      ],
+      "size_gb": 14.13,
+      "license": "Llama 2 Community License",
+      "card_license": "llama2",
+      "gated": false,
+      "notes": "原作者模型 liuhaotian/llava-v1.5-7b 的 HF 格式版本；主要面向多模态研究。",
+      "evidence": "模型卡明确 fine-tuning LLaMA/Vicuna on GPT-generated multimodal instruction-following data；原作者 config 明确 CLIP 视觉塔；HF API 存在 3 个 safetensors 分片。",
+      "source_urls": [
+        "https://huggingface.co/llava-hf/llava-1.5-7b-hf",
+        "https://huggingface.co/liuhaotian/llava-v1.5-7b",
+        "https://huggingface.co/liuhaotian/llava-v1.5-7b/blob/main/config.json"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn",
+      "revision": "99ccb2737be22b8bb50dcfcc39ad4d567fb90cfd",
+      "name": "Wav2Vec2 XLSR-53 中文 ASR",
+      "domain": "语音与音频",
+      "category": "中文语音识别",
+      "task": "输入中文语音，输出中文转写文本。",
+      "pipeline_tag": "automatic-speech-recognition",
+      "base_model": "facebook/wav2vec2-large-xlsr-53",
+      "method": "Common Voice 6.1、CSS10、ST-CMDS 中文语音监督微调（CTC）",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "未在模型卡明确列出",
+      "weight_files": [
+        "pytorch_model.bin"
+      ],
+      "size_gb": 2.55,
+      "license": "Apache-2.0",
+      "card_license": "apache-2.0",
+      "gated": false,
+      "notes": "音频需重采样为 16 kHz；公开下载，无 gated 标记。",
+      "evidence": "模型卡明确说明从 facebook/wav2vec2-large-xlsr-53 在中文数据上 fine-tune；示例加载 Wav2Vec2ForCTC。HF API 确认存在 pytorch_model.bin。",
+      "source_urls": [
+        "https://huggingface.co/jonatasgrosman/wav2vec2-large-xlsr-53-chinese-zh-cn"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim",
+      "revision": "6eba34a2485ea31cb03600241787c3a5edab8626",
+      "name": "audEERING Wav2Vec2 情感回归",
+      "domain": "语音与音频",
+      "category": "语音情感识别",
+      "task": "输入语音，预测唤醒度、支配度和愉悦度三个连续情感分数。",
+      "pipeline_tag": "audio-classification",
+      "base_model": "Wav2Vec2-Large-Robust（先由 24 层裁剪至 12 层）",
+      "method": "在 MSP-Podcast v1.7 上进行情感回归微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "约 165M（HF 权重元数据）",
+      "weight_files": [
+        "model.safetensors",
+        "pytorch_model.bin"
+      ],
+      "size_gb": 1.32,
+      "license": "CC-BY-NC-SA-4.0",
+      "card_license": "cc-by-nc-sa-4.0",
+      "gated": false,
+      "notes": "模型卡明确限定研究用途；输出是约 0–1 的维度分数，不是离散情绪标签。",
+      "evidence": "模型卡明确给出基础模型、先裁剪再 fine-tune 的流程与三个输出维度。HF API 确认 model.safetensors、pytorch_model.bin，gated=false。",
+      "source_urls": [
+        "https://huggingface.co/audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "microsoft/wavlm-base-plus-sv",
+      "revision": "feb593a6c23c1cc3d9510425c29b0a14d2b07b1e",
+      "name": "WavLM-Base-Plus-SV",
+      "domain": "语音与音频",
+      "category": "说话人验证",
+      "task": "将语音转为说话人向量，比较两段录音是否来自同一说话人。",
+      "pipeline_tag": null,
+      "base_model": "WavLM-Base-Plus",
+      "method": "VoxCeleb1 微调；X-Vector 头与 Additive Margin Softmax 损失",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "未在模型卡明确列出",
+      "weight_files": [
+        "pytorch_model.bin"
+      ],
+      "size_gb": 0.4,
+      "license": "CC-BY-SA-3.0（模型卡所链接的许可证）",
+      "card_license": null,
+      "gated": false,
+      "notes": "16 kHz 输入；相似度阈值需按目标数据校准。",
+      "evidence": "模型卡 Fine-tuning details 明确说明 VoxCeleb1 和损失函数；HF API 确认 pytorch_model.bin，gated=false。许可证链接 https://github.com/microsoft/UniSpeech/blob/main/LICENSE 当前为 Attribution-ShareAlike 3.0 Unported。",
+      "source_urls": [
+        "https://huggingface.co/microsoft/wavlm-base-plus-sv"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "MIT/ast-finetuned-audioset-10-10-0.4593",
+      "revision": "f826b80d28226b62986cc218e5cec390b1096902",
+      "name": "AST AudioSet",
+      "domain": "语音与音频",
+      "category": "声音事件分类",
+      "task": "输入音频，输出狗叫、警报、音乐等 AudioSet 声音类别的预测分数。",
+      "pipeline_tag": "audio-classification",
+      "base_model": "ImageNet 预训练 DeiT-Base-Distilled，适配为 AST",
+      "method": "在 AudioSet 上监督微调；该 checkpoint 使用权重平均",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "86.6M",
+      "weight_files": [
+        "model.safetensors",
+        "pytorch_model.bin"
+      ],
+      "size_gb": 0.69,
+      "license": "BSD-3-Clause",
+      "card_license": "bsd-3-clause",
+      "gated": false,
+      "notes": "527 类声音事件；按模型处理器生成音频频谱特征。",
+      "evidence": "HF 卡明确标注 fine-tuned on AudioSet；原作者 https://github.com/YuanGongND/ast 的模型表列出 10/10 stride、Weight Averaging 的 0.459 checkpoint，源码使用 ImageNet 预训练 DeiT base384。HF API 确认 model.safetensors 与 pytorch_model.bin，gated=false。",
+      "source_urls": [
+        "https://huggingface.co/MIT/ast-finetuned-audioset-10-10-0.4593"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "sentence-transformers/all-MiniLM-L6-v2",
+      "revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+      "name": "all-MiniLM-L6-v2",
+      "domain": "检索与评分",
+      "category": "英文语义检索与聚类",
+      "task": "把句子或短段落转换为 384 维向量，用于相似度计算、检索与聚类。",
+      "pipeline_tag": "sentence-similarity",
+      "base_model": "nreimers/MiniLM-L6-H384-uncased",
+      "method": "在超过 10 亿句对上进行对比学习微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "约 22.7M（HF 权重元数据）",
+      "weight_files": [
+        "model.safetensors",
+        "openvino/openvino_model.bin",
+        "openvino/openvino_model_qint8_quantized.bin",
+        "pytorch_model.bin"
+      ],
+      "size_gb": 0.98,
+      "license": "Apache-2.0",
+      "card_license": "apache-2.0",
+      "gated": false,
+      "notes": "主要面向英文；Sentence Transformers 默认超过 256 word pieces 会截断。",
+      "evidence": "模型卡 Background / Training 明确给出基础模型、10 亿句对和对比损失微调。HF API 确认 model.safetensors、pytorch_model.bin，gated=false。",
+      "source_urls": [
+        "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "intfloat/multilingual-e5-large-instruct",
+      "revision": "274baa43b0e13e37fafa6428dbc7938e62e5c439",
+      "name": "Multilingual E5 Large Instruct",
+      "domain": "检索与评分",
+      "category": "多语言语义检索",
+      "task": "把带任务指令的查询和文档转换为向量，用于中文等多语言检索。",
+      "pipeline_tag": "feature-extraction",
+      "base_model": "XLM-RoBERTa-Large",
+      "method": "10 亿弱监督句对对比预训练后，再用 E5-Mistral 论文数据进行微调",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "约 560M（HF 权重元数据）",
+      "weight_files": [
+        "model.safetensors"
+      ],
+      "size_gb": 3.4,
+      "license": "MIT",
+      "card_license": "mit",
+      "gated": false,
+      "notes": "查询需要任务指令；文档不需要；最多 512 tokens，低资源语言效果可能下降。",
+      "evidence": "模型卡 Training Details 明确记录 Initialization、contrastive pre-training 和第二阶段 fine-tuning。HF API 确认 model.safetensors，gated=false。",
+      "source_urls": [
+        "https://huggingface.co/intfloat/multilingual-e5-large-instruct"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "BAAI/bge-reranker-v2-m3",
+      "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+      "name": "BGE Reranker v2 M3",
+      "domain": "检索与评分",
+      "category": "多语言检索重排",
+      "task": "输入查询与候选文档对，输出相关性分数，重新排序初步检索结果。",
+      "pipeline_tag": "text-classification",
+      "base_model": "BAAI/bge-m3",
+      "method": "基于 BGE-M3 的重排任务训练（卡片未单独细分该版本优化流程）",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "约 568M（HF 权重元数据）",
+      "weight_files": [
+        "model.safetensors"
+      ],
+      "size_gb": 2.29,
+      "license": "Apache-2.0",
+      "card_license": "apache-2.0",
+      "gated": false,
+      "notes": "输出相关性分数，不输出用于建向量索引的 embedding。",
+      "evidence": "模型卡 Model List 将此模型的 base model 明确列为 bge-m3，Usage 提供查询/文档打分代码。HF API 确认 model.safetensors，gated=false。",
+      "source_urls": [
+        "https://huggingface.co/BAAI/bge-reranker-v2-m3"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "cross-encoder/ms-marco-MiniLM-L6-v2",
+      "revision": "233902d25c440f23af6f7d6e94d2946bac0bee0a",
+      "name": "MS MARCO MiniLM-L6 Cross-Encoder",
+      "domain": "检索与评分",
+      "category": "英文检索重排",
+      "task": "输入英文查询与候选段落，输出相关性得分，用于搜索结果重排。",
+      "pipeline_tag": "text-ranking",
+      "base_model": "MiniLM-L6（精确初始化 checkpoint 未明确）",
+      "method": "MS MARCO Passage Ranking 任务训练（发布者卡未细分训练流程）",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "约 22.7M（HF 权重元数据）",
+      "weight_files": [
+        "model.safetensors",
+        "openvino/openvino_model.bin",
+        "openvino/openvino_model_qint8_quantized.bin",
+        "pytorch_model.bin"
+      ],
+      "size_gb": 0.89,
+      "license": "Apache-2.0",
+      "card_license": "apache-2.0",
+      "gated": false,
+      "notes": "6 层重排模型；卡片 base_model 元数据指向 L12，未完整说明具体训练链条。",
+      "evidence": "模型卡声明训练于 MS MARCO Passage Ranking，base_model 元数据是 cross-encoder/ms-marco-MiniLM-L12-v2；config 确认 6 层。HF API 确认 model.safetensors 和 pytorch_model.bin，gated=false。",
+      "source_urls": [
+        "https://huggingface.co/cross-encoder/ms-marco-MiniLM-L6-v2"
+      ],
+      "checked_at": "2026-11-11"
+    },
+    {
+      "id": "Skywork/Skywork-Reward-Llama-3.1-8B-v0.2",
+      "revision": "d4117fbfd81b72f41b96341238baa1e3e90a4ce1",
+      "name": "Skywork Reward Llama 3.1 8B v0.2",
+      "domain": "检索与评分",
+      "category": "回答质量评分／奖励模型",
+      "task": "输入用户问题和候选回答，输出奖励分数，用于答案筛选或偏好训练。",
+      "pipeline_tag": "text-classification",
+      "base_model": "meta-llama/Llama-3.1-8B-Instruct",
+      "method": "Skywork 高质量偏好对监督训练；v0.2 使用去污染数据版本",
+      "form": "full",
+      "weight_type": "完整权重",
+      "params": "8B 级（基础模型规格）",
+      "weight_files": [
+        "model-00001-of-00004.safetensors",
+        "model-00002-of-00004.safetensors",
+        "model-00003-of-00004.safetensors",
+        "model-00004-of-00004.safetensors"
+      ],
+      "size_gb": 15.02,
+      "license": "Skywork Community License；同时核对 Llama 基模条款",
+      "card_license": null,
+      "gated": false,
+      "notes": "作为评分器使用；模型卡称支持按社区许可商用，具体条件见许可原文。",
+      "evidence": "模型卡明确基于 Llama-3.1-8B-Instruct 构建奖励模型，并说明 v0.2 使用移除污染样本的数据；许可章节指向 Skywork Community License。HF API 确认 4 个 safetensors 分片，gated=false。",
+      "source_urls": [
+        "https://huggingface.co/Skywork/Skywork-Reward-Llama-3.1-8B-v0.2"
+      ],
+      "checked_at": "2026-11-11"
+    }
+  ]
+}

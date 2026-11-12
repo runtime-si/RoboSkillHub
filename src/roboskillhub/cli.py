@@ -455,11 +455,54 @@ def cmd_vla_merge(args) -> int:
     return 0
 
 
+def cmd_models_search(args) -> int:
+    from .model_index import find_models, load_model_index
+
+    data = load_model_index(args.root or find_root())
+    matches = find_models(data["entries"], args.query)
+    limit = args.limit if args.limit is not None else (None if args.json else 30)
+    rows = matches if limit is None else matches[:limit]
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "collection": data["collection"],
+                    "snapshot_date": data["snapshot_date"],
+                    "query": args.query,
+                    "invocable_in_hub": False,
+                    "matched_count": len(matches),
+                    "returned_count": len(rows),
+                    "entries": rows,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+    else:
+        print(
+            "Model index only; entries are not bundles. Using one needs a tool bundle that serves it."
+        )
+        for row in rows:
+            size = f"; {row['size_gb']} GB" if row.get("size_gb") is not None else ""
+            print(
+                f"{row['form']:<8} {row['id']}@{row['revision'][:8]}  "
+                f"[{row['domain']}: {row['category']}]"
+            )
+            print(f"    {row['task']}")
+            print(f"    base: {row['base_model']}; licence: {row['license']}{size}")
+        print(
+            f"{len(matches)} matched; showing {len(rows)} (--limit N; --json includes full metadata)"
+        )
+    return 0 if matches or not args.query else 1
+
+
 def cmd_sources(args) -> int:
     from .source_index import find_sources, load_source_index
 
     if args.kind in ("vla", "vla-datasets"):
         return cmd_vla_search(args, datasets=args.kind == "vla-datasets")
+    if args.kind == "models":
+        return cmd_models_search(args)
     data = load_source_index(args.root or find_root())
     matches = find_sources(
         data,
@@ -535,6 +578,15 @@ def cmd_check_sources(args) -> int:
             "    yam_compatible: " + ", ".join(f"{c}: {compat.get(c, 0)}" for c in YAM_COMPATIBLE)
         )
         print(f"    licence verified: {verified}/{len(ckpts)}; all revisions pinned")
+    from .model_index import MODELS_PATH, load_model_index
+
+    if (root / MODELS_PATH).exists():
+        models = load_model_index(root)["entries"]
+        tagged = sum(row["card_license"] is not None for row in models)
+        print(f"{len(models)} finetuned-models: metadata valid")
+        for key in ("domain", "form"):
+            print(f"    {key}: " + ", ".join(f"{k}: {v}" for k, v in counts(models, key).items()))
+        print(f"    card licence tag: {tagged}/{len(models)}; all revisions pinned")
     print(
         "Metadata validation only; no upstream execution, license clearance or hardware validation."
     )
@@ -692,8 +744,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--kind",
         default="pick-place",
-        choices=("pick-place", "vla", "vla-datasets"),
-        help="which index: pick-place sources (all terms match) or the ranked VLA catalog",
+        choices=("pick-place", "vla", "vla-datasets", "models"),
+        help="which index: pick-place sources (all terms match), the ranked VLA catalog, or"
+        " models = fine-tuned models that are not robot action models (ranked, any term)",
     )
     _vla_filters(p)
     p.set_defaults(fn=cmd_sources)
