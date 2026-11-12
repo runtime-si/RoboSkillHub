@@ -1,23 +1,50 @@
 {
   "skill": "inserting-a-held-tip-with-the-other-arm-assisting",
-  "inputs": {"hole_mouth": "Vec3", "tip_offset_m": "float"},
-  "outputs": {"shortfall_m": {"$ref": "insert.shortfall_m"}},
+  "inputs": {
+    "hole_mouth": "Vec3",
+    "tip_offset_m": "float"
+  },
+  "outputs": {
+    "shortfall_m": {
+      "$ref": "insert.shortfall_m"
+    }
+  },
   "nodes": {
     "insert": {
       "type": "script",
       "script": "scripts/assist_insert.py",
       "inputs": {
-        "hole_mouth": {"$ref": "in.hole_mouth"},
-        "tip_offset_m": {"$ref": "in.tip_offset_m"},
+        "hole_mouth": {
+          "$ref": "in.hole_mouth"
+        },
+        "tip_offset_m": {
+          "$ref": "in.tip_offset_m"
+        },
         "holder_arm": 1,
         "camera_arm": 0
       }
     }
   },
-  "edges": [["START", "insert"], ["insert", "END"]],
+  "edges": [
+    [
+      "START",
+      "insert"
+    ],
+    [
+      "insert",
+      "END"
+    ]
+  ],
   "exit": {
     "router_field": "route",
-    "success_values": ["inserted", "tip_on_face", "not_in_view", "arms_too_close"]
+    "success_values": [
+      "inserted",
+      "tip_on_face",
+      "not_seated",
+      "tilted_in_hand",
+      "not_in_view",
+      "arms_too_close"
+    ]
   },
   "on_error": "unreachable"
 }

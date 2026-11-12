@@ -37,8 +37,12 @@ gap:
     correction_m: float
     min_tcp_separation_m: float
     shortfall_m: float
+    tilt_deg: float
+    tip_depth_m: float
   exit_conditions:
-    inserted: The hand reached the commanded depth (insert_depth under the mouth), within face_stop. With assist, after at most `rounds` view rounds and corrections.
+    inserted: The hand reached the commanded depth (insert_depth under the mouth), within face_stop; with assist, the camera arm's view after the plunge also puts the tip at least min_seated_depth under the face.
+    not_seated: The hand reached depth but the confirming view puts the tip under min_seated_depth in (a tilted or wedged part), or no confirming view was taken; the hand holds there.
+    tilted_in_hand: The side views put the held part's lean over max_tilt_deg before the plunge; the holding arm hovers over the hole (regrasp or straighten).
     tip_on_face: The hand stopped over face_stop short of the commanded depth; the tip rests on the face, the hand holds there.
     not_in_view: A side view did not see the tip or the hole, or the views asked for more than max_correction in total; the camera arm went back and the holding arm hovers over the hole.
     arms_too_close: A view pose would put the tool centres under min_separation apart; the camera arm went back.
@@ -77,8 +81,13 @@ and the hole exits `not_in_view`, and the holding arm does not descend blind on 
 3. `vision.tip_hole_offset` gives, per view, the tip's offset from the hole's axis along the view's
    image-horizontal axis. Two views give the xy offset; the holding arm moves by the opposite of it.
    It takes up to `rounds` rounds, stops under `tolerance`, and never goes past `max_correction` in total.
-4. The camera arm goes back to where it started. The holding arm descends to `insert_depth` under the mouth,
+4. Before the plunge, the views' `tilt_deg` readings (the held part's lean in each image) are combined; a
+   lean over `max_tilt_deg` exits `tilted_in_hand`.
+5. The camera arm goes back to where it started. The holding arm descends to `insert_depth` under the mouth,
    and ends `tip_on_face` when the hand stops more than `face_stop` short.
+6. With assist: the camera arm returns to its first view, and `offset_tool(..., measure="depth")` gives the
+   tip's depth under the face (from the held part's visible length above it). Under `min_seated_depth` the
+   skill exits `not_seated`: the hand's depth alone called a 7.8 deg tilted pen "inserted" at 4.8 mm.
 
 ## Reuse
 

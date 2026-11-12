@@ -40,6 +40,14 @@ TOLERANCE = 0.0008
 ROUNDS = 2
 """View rounds (each: two views and one correction)."""
 
+MAX_TILT_DEG = 4.0
+"""Held part leaning more than this in the side views (combined): the plunge would wedge it [deg]
+(a 7.8 deg lean ended 4.8 mm in with the hand at full depth in the twin)."""
+
+MIN_SEATED_DEPTH = 0.010
+"""After the plunge the camera arm's view must put the tip at least this far under the face [m]: the hand's
+depth alone said 20 mm for a tilted pen 4.8 mm in."""
+
 INSERT_DEPTH = 0.020
 """Tip below the mouth at the end of the descent [m]."""
 
@@ -57,6 +65,8 @@ class Output(TypedDict):
     correction_m: float
     min_tcp_separation_m: float
     shortfall_m: float
+    tilt_deg: float
+    tip_depth_m: float
 
 
 def _pose(reply: Any) -> dict[str, Any]:
@@ -199,6 +209,8 @@ def run(
     rounds: int = ROUNDS,
     insert_depth: float = INSERT_DEPTH,
     face_stop: float = FACE_STOP,
+    max_tilt_deg: float = MAX_TILT_DEG,
+    min_seated_depth: float = MIN_SEATED_DEPTH,
 ) -> Output:
     """``hole_mouth``: the hole's mouth centre (world, estimate). ``tip_offset_m``: tip below the holding hand's
     tool centre along its approach (tool z down). ``offset_tool`` (per view, called with ``arm_id`` of the
@@ -212,6 +224,8 @@ def run(
         "correction_m": 0.0,
         "min_tcp_separation_m": -1.0,
         "shortfall_m": 0.0,
+        "tilt_deg": -1.0,
+        "tip_depth_m": -1.0,
     }
 
     def arm(a: int) -> dict[str, int]:
@@ -258,7 +272,7 @@ def run(
         aim = mouth + np.array([0.0, 0.0, hover_gap / 2])
         total = np.zeros(3)
         for _ in range(int(rounds)):
-            hs, readings = [], []
+            hs, readings, tilts = [], [], []
             for d in dirs:
                 cam = aim + standoff * (math.cos(el) * d + np.array([0.0, 0.0, math.sin(el)]))
                 sep = float(np.linalg.norm(cam - _xyz(here(holder_arm))))
@@ -293,6 +307,18 @@ def run(
                     )
                 hs.append(h)
                 readings.append(float(r["lateral_m"]))
+                if r.get("tilt_deg") is not None:
+                    tilts.append(float(r["tilt_deg"]))
+            if len(tilts) == len(hs):
+                out["tilt_deg"] = float(np.hypot(*tilts))
+                if out["tilt_deg"] > max_tilt_deg:
+                    move(camera_arm, _xyz(cam0), cam0["rotation"])
+                    out["min_tcp_separation_m"] = min(seps)
+                    return finish(
+                        "tilted_in_hand",
+                        f"held part leans {out['tilt_deg']:.1f} deg in the side views (max {max_tilt_deg:.0f}): "
+                        "regrasp or straighten before inserting",
+                    )
             e = solve_offset(hs, readings)
             if out["measured_offset_m"] < 0:
                 out["measured_offset_m"] = float(np.linalg.norm(e))
@@ -320,7 +346,38 @@ def run(
     out["shortfall_m"] = short
     if short > face_stop:
         return finish("tip_on_face", f"hand stopped {short * 1e3:.1f} mm over the commanded depth")
+    if assist and offset_source != "point":
+        el = math.radians(elevation_deg)
+        dirs = view_directions(mouth, _xyz(here(camera_arm)))
+        aim = mouth + np.array([0.0, 0.0, hover_gap / 2])
+        cam0 = here(camera_arm)
+        # The hand's depth is not the tip's: confirm from the camera arm's first view.
+        d = dirs[0]
+        cam = aim + standoff * (math.cos(el) * d + np.array([0.0, 0.0, math.sin(el)]))
+        sep = float(np.linalg.norm(cam - _xyz(here(holder_arm))))
+        seps.append(sep)
+        out["min_tcp_separation_m"] = min(seps)
+        r: dict[str, Any] = {}
+        if sep >= min_separation and not move(camera_arm, cam, looking_along(aim - cam)):
+            r = ctx.tool(
+                offset_tool,
+                arm_id=int(camera_arm),
+                image_horizontal=_vec(np.cross([0.0, 0.0, 1.0], -d)),
+                measure="depth",
+            )
+        move(camera_arm, _xyz(cam0), cam0["rotation"])
+        if r.get("visible") and r.get("tip_depth_m") is not None:
+            out["tip_depth_m"] = float(r["tip_depth_m"])
+            if out["tip_depth_m"] < min_seated_depth:
+                return finish(
+                    "not_seated",
+                    f"hand at depth but the view puts the tip {out['tip_depth_m'] * 1e3:.1f} mm in "
+                    f"(min {min_seated_depth * 1e3:.0f}): tilted or wedged",
+                )
+        else:
+            return finish("not_seated", "hand at depth, no confirming view of the tip's depth")
     return finish(
         "inserted",
-        f"descended to {insert_depth * 1e3:.0f} mm under the mouth (short {short * 1e3:.1f} mm)",
+        f"descended to {insert_depth * 1e3:.0f} mm under the mouth (short {short * 1e3:.1f} mm)"
+        + (f"; view: tip {out['tip_depth_m'] * 1e3:.1f} mm in" if out["tip_depth_m"] >= 0 else ""),
     )
