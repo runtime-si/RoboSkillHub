@@ -22,8 +22,17 @@ from scipy.spatial import cKDTree
 
 HERE = Path(__file__).resolve().parent
 BODIES = ["base", "link1", "link2", "link3", "link4", "link5", "gripper", "tip_left", "tip_right"]
-URDF_LINK = {"base": "base_link", "link1": "link_1", "link2": "link_2", "link3": "link_3", "link4": "link_4",
-             "link5": "link_5", "gripper": "link_6", "tip_left": "tip_left", "tip_right": "tip_right"}
+URDF_LINK = {
+    "base": "base_link",
+    "link1": "link_1",
+    "link2": "link_2",
+    "link3": "link_3",
+    "link4": "link_4",
+    "link5": "link_5",
+    "gripper": "link_6",
+    "tip_left": "tip_left",
+    "tip_right": "tip_right",
+}
 
 
 def body_meshes(model: mujoco.MjModel, prefix: str) -> dict[str, trimesh.Trimesh]:
@@ -36,11 +45,17 @@ def body_meshes(model: mujoco.MjModel, prefix: str) -> dict[str, trimesh.Trimesh
             if model.geom_bodyid[g] != bid or model.geom_type[g] != mujoco.mjtGeom.mjGEOM_MESH:
                 continue
             m = model.geom_dataid[g]
-            v = model.mesh_vert[model.mesh_vertadr[m]:model.mesh_vertadr[m] + model.mesh_vertnum[m]].astype(float)
-            f = model.mesh_face[model.mesh_faceadr[m]:model.mesh_faceadr[m] + model.mesh_facenum[m]]
+            v = model.mesh_vert[
+                model.mesh_vertadr[m] : model.mesh_vertadr[m] + model.mesh_vertnum[m]
+            ].astype(float)
+            f = model.mesh_face[
+                model.mesh_faceadr[m] : model.mesh_faceadr[m] + model.mesh_facenum[m]
+            ]
             R = np.zeros(9)
             mujoco.mju_quat2Mat(R, model.geom_quat[g])
-            parts.append(trimesh.Trimesh(v @ R.reshape(3, 3).T + model.geom_pos[g], f, process=True))
+            parts.append(
+                trimesh.Trimesh(v @ R.reshape(3, 3).T + model.geom_pos[g], f, process=True)
+            )
         out[b] = trimesh.util.concatenate(parts)
     return out
 
@@ -50,7 +65,14 @@ def fill_voxels(mesh: trimesh.Trimesh, pitch: float):
     return vox, vox.points
 
 
-def fit(mesh: trimesh.Trimesh, margin: float, coverage: float, max_spheres: int, pitch: float, seed: int = 0):
+def fit(
+    mesh: trimesh.Trimesh,
+    margin: float,
+    coverage: float,
+    max_spheres: int,
+    pitch: float,
+    seed: int = 0,
+):
     surf, _ = trimesh.sample.sample_surface_even(mesh, 6000, seed=seed)
     surf = np.vstack([surf, mesh.vertices])
     tree = cKDTree(surf)
@@ -58,7 +80,9 @@ def fit(mesh: trimesh.Trimesh, margin: float, coverage: float, max_spheres: int,
     r_in = tree.query(interior)[0]
     radii = r_in + margin
     centre_tree = cKDTree(surf)
-    covers = [np.array(centre_tree.query_ball_point(c, r)) for c, r in zip(interior, radii)]
+    covers = [
+        np.array(centre_tree.query_ball_point(c, r)) for c, r in zip(interior, radii, strict=True)
+    ]
     uncovered = np.ones(len(surf), bool)
     chosen = []
     while len(chosen) < max_spheres and uncovered.mean() > 1 - coverage:
@@ -96,20 +120,43 @@ def main():
     ap.add_argument("--margin", type=float, default=0.015)
     ap.add_argument("--coverage", type=float, default=0.995)
     ap.add_argument("--max-spheres", type=int, default=16)
+    ap.add_argument(
+        "--link-max",
+        action="append",
+        default=["link3=32"],
+        metavar="BODY=N",
+        help="per-body sphere cap overriding --max-spheres",
+    )
     ap.add_argument("--pitch", type=float, default=0.004)
     a = ap.parse_args()
     model = mujoco.MjModel.from_xml_path(str(Path(a.mjcf).expanduser()))
     meshes = body_meshes(model, "left_")
+    caps = {k: int(v) for k, v in (x.split("=") for x in a.link_max)}
     links, report = {}, {}
     for b, m in meshes.items():
-        sp = fit(m, a.margin, a.coverage, a.max_spheres, a.pitch)
+        sp = fit(m, a.margin, a.coverage, caps.get(b, a.max_spheres), a.pitch)
         cov, prot = evaluate(m, sp, a.pitch)
         links[b] = [{"center": [round(x, 5) for x in c], "radius": round(r, 5)} for c, r in sp]
-        report[b] = {"n_spheres": len(sp), "vertex_coverage": round(cov, 4), "max_protrusion_m": round(prot, 4),
-                     "n_vertices": int(len(m.vertices))}
+        report[b] = {
+            "n_spheres": len(sp),
+            "vertex_coverage": round(cov, 4),
+            "max_protrusion_m": round(prot, 4),
+            "n_vertices": int(len(m.vertices)),
+        }
         print(b, report[b], flush=True)
-    (HERE / "fit_report.json").write_text(json.dumps(
-        {"margin_m": a.margin, "target_coverage": a.coverage, "pitch_m": a.pitch, "links": report}, indent=1))
+    (HERE / "fit_report.json").write_text(
+        json.dumps(
+            {
+                "margin_m": a.margin,
+                "max_spheres": a.max_spheres,
+                "link_max": caps,
+                "target_coverage": a.coverage,
+                "pitch_m": a.pitch,
+                "links": report,
+            },
+            indent=1,
+        )
+    )
     (HERE / "_spheres_raw.json").write_text(json.dumps(links, indent=1))
 
 

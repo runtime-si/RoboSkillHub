@@ -725,6 +725,134 @@
      -0.076
     ],
     "radius": 0.01995
+   },
+   {
+    "center": [
+     0.0,
+     0.016,
+     -0.076
+    ],
+    "radius": 0.01978
+   },
+   {
+    "center": [
+     0.064,
+     0.0,
+     -0.064
+    ],
+    "radius": 0.01863
+   },
+   {
+    "center": [
+     0.056,
+     -0.096,
+     -0.032
+    ],
+    "radius": 0.03746
+   },
+   {
+    "center": [
+     0.088,
+     -0.016,
+     -0.012
+    ],
+    "radius": 0.01701
+   },
+   {
+    "center": [
+     0.06,
+     0.0,
+     0.004
+    ],
+    "radius": 0.01942
+   },
+   {
+    "center": [
+     0.032,
+     0.02,
+     -0.064
+    ],
+    "radius": 0.01767
+   },
+   {
+    "center": [
+     0.004,
+     -0.016,
+     0.004
+    ],
+    "radius": 0.01977
+   },
+   {
+    "center": [
+     0.088,
+     -0.016,
+     -0.052
+    ],
+    "radius": 0.01637
+   },
+   {
+    "center": [
+     0.06,
+     -0.244,
+     -0.032
+    ],
+    "radius": 0.04356
+   },
+   {
+    "center": [
+     -0.028,
+     0.008,
+     0.004
+    ],
+    "radius": 0.01786
+   },
+   {
+    "center": [
+     0.032,
+     -0.028,
+     -0.068
+    ],
+    "radius": 0.01854
+   },
+   {
+    "center": [
+     -0.024,
+     -0.024,
+     -0.072
+    ],
+    "radius": 0.01829
+   },
+   {
+    "center": [
+     0.016,
+     0.012,
+     0.004
+    ],
+    "radius": 0.01923
+   },
+   {
+    "center": [
+     0.044,
+     -0.028,
+     0.004
+    ],
+    "radius": 0.01917
+   },
+   {
+    "center": [
+     0.072,
+     -0.012,
+     -0.076
+    ],
+    "radius": 0.01936
+   },
+   {
+    "center": [
+     -0.024,
+     0.012,
+     -0.076
+    ],
+    "radius": 0.01957
    }
   ],
   "link4": [
@@ -1181,6 +1309,10 @@
  "gripper_note": "tip_left/tip_right ride prismatic joints joint7/joint8 (0..0.0475 m, 0 = closed) on link_6; planners without finger joints attach both tips' spheres to link_6 at the open stroke via spheres_link6_fingers_open, or at closed via spheres_link6_fingers_closed",
  "fit": {
   "margin_m": 0.015,
+  "max_spheres": 16,
+  "link_max": {
+   "link3": 32
+  },
   "target_coverage": 0.995,
   "pitch_m": 0.004,
   "links": {
@@ -1203,9 +1335,9 @@
     "n_vertices": 4000
    },
    "link3": {
-    "n_spheres": 16,
-    "vertex_coverage": 0.8988,
-    "max_protrusion_m": 0.0163,
+    "n_spheres": 32,
+    "vertex_coverage": 0.9963,
+    "max_protrusion_m": 0.0208,
     "n_vertices": 4002
    },
    "link4": {
@@ -1791,8 +1923,8 @@
  "validation_arm_arm": {
   "n": 20,
   "configs_with_mesh_dist_under_8cm": 14,
-  "gap_mean_m": 0.0227,
-  "gap_min_m": 0.0057,
+  "gap_mean_m": 0.0236,
+  "gap_min_m": 0.0113,
   "gap_max_m": 0.0562,
   "sphere_dist_never_exceeds_mesh_dist": true,
   "note": "uniform in joint limits, rejected unless the arms come within 25 cm (half within 8 cm); mesh distance from dense surface samples (~2 mm spacing, penetration reads as ~0)",
@@ -1844,8 +1976,8 @@
    },
    {
     "d_mesh_m": 0.0308,
-    "d_spheres_m": 0.015,
-    "gap_m": 0.0158
+    "d_spheres_m": 0.0144,
+    "gap_m": 0.0163
    },
    {
     "d_mesh_m": 0.0474,
@@ -1859,8 +1991,8 @@
    },
    {
     "d_mesh_m": 0.12,
-    "d_spheres_m": 0.1142,
-    "gap_m": 0.0057
+    "d_spheres_m": 0.1054,
+    "gap_m": 0.0145
    },
    {
     "d_mesh_m": 0.0024,
@@ -1879,8 +2011,8 @@
    },
    {
     "d_mesh_m": 0.1523,
-    "d_spheres_m": 0.1274,
-    "gap_m": 0.0249
+    "d_spheres_m": 0.126,
+    "gap_m": 0.0263
    },
    {
     "d_mesh_m": 0.1151,
@@ -1889,8 +2021,8 @@
    },
    {
     "d_mesh_m": 0.2488,
-    "d_spheres_m": 0.2341,
-    "gap_m": 0.0147
+    "d_spheres_m": 0.2274,
+    "gap_m": 0.0214
    },
    {
     "d_mesh_m": 0.0014,

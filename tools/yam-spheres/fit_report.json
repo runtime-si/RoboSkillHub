@@ -1,5 +1,9 @@
 {
  "margin_m": 0.015,
+ "max_spheres": 16,
+ "link_max": {
+  "link3": 32
+ },
  "target_coverage": 0.995,
  "pitch_m": 0.004,
  "links": {
@@ -22,9 +26,9 @@
    "n_vertices": 4000
   },
   "link3": {
-   "n_spheres": 16,
-   "vertex_coverage": 0.8988,
-   "max_protrusion_m": 0.0163,
+   "n_spheres": 32,
+   "vertex_coverage": 0.9963,
+   "max_protrusion_m": 0.0208,
    "n_vertices": 4002
   },
   "link4": {
