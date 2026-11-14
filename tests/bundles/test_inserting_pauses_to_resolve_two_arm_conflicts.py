@@ -61,7 +61,7 @@ def test_a_clash_is_resolved_by_delaying_the_shorter_arm(ip, clash):
         "times": a["times"],
         "joints": [list(map(float, j)) for j in a["joints"]],
     }
-    jb = np.asarray(out["trajectory_b"]["joints"])
+    np.asarray(out["trajectory_b"]["joints"])
 
     # Path unchanged: the same distinct waypoints in order (the holds only repeat one).
     def dedup(js):
