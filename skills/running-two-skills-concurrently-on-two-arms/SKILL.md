@@ -1,7 +1,9 @@
 ---
 name: running-two-skills-concurrently-on-two-arms
-description: Runs two hub skills at the same time, one per arm and one thread
-  each, with each skill's robot.* calls bound to its arm (arm_id injected), and
+description: Runs two hub skills at the same time, one per arm (threaded on a
+  connector that moves both arms at once; on a server that moves one arm at a
+  time, their moves cut into server steps and interleaved A1, B1, A2, B2 from
+  one dispatcher; or one after the other on request), with each skill's robot.* calls bound to its arm (arm_id injected), and
   every move of either arm passed through a shared arbiter that predicts the
   arms' capsule clearance for it (checking-dual-arm-clearance, against the
   other arm standing or on its move in flight) and makes the arm wait while the
@@ -27,6 +29,7 @@ gap:
   requires: {connector: [robot.get_observation, robot.describe_arm]}
   allowed_tools:
     - robot.get_observation
+    - robot.describe_robot
     - robot.describe_arm
     - robot.forward_kinematics
     - robot.solve_ik
@@ -47,16 +50,18 @@ gap:
     arm_b: int
     route_a: string
     route_b: string
+    mode: string
     outputs_a: string
     outputs_b: string
     paused_arms: string
     waits: int
     min_predicted_clearance_m: float
   exit_conditions:
-    both_done: Both skills returned one of their success exits (any exit when the skill's canonical subgraph lists none), each move having been predicted at least min_clearance_m clear of the other arm; route_a / route_b are the skills' exits and outputs_a / outputs_b their outputs (JSON text).
-    one_failed: A skill raised or ended on a non-success exit; the other skill was stopped at its next move and its arm moved back to the joints it started from when that was predicted clear (paused_arms names it), otherwise left where it stood.
+    both_succeeded: Both skills returned one of their success exits (any exit when the skill's canonical subgraph lists none), every move (interleaved - every segment) having been predicted at least min_clearance_m clear of the other arm; route_a / route_b are the skills' exits and outputs_a / outputs_b their outputs (JSON text).
+    one_failed: One skill raised or ended on a non-success exit; the other was stopped at its next move and its arm moved back to the joints it started from when that was predicted clear (paused_arms names it), otherwise left where it stood; in sequential mode a second skill not yet started is not run (route not_run).
+    both_failed: Both skills raised or ended on non-success exits.
     deadlock_timeout: An arm waited wait_timeout_s for clearance (the other arm stood or stayed in its way); that arm was paused at its start pose if clear, and the other stopped at its next move; detail names the move and the predicted clearance.
-    unsafe_refused: The clearance could not be predicted (a move the model cannot follow, an unreadable or non-YAM arm), the arms already stood under min_clearance_m, no arm assignment reaches both targets, or the skills cannot be loaded; when this happens mid-run neither arm is moved further.
+    refused: The clearance could not be predicted (a move the model cannot follow, an unreadable or non-YAM arm), the arms already stood under min_clearance_m or min_tcp_separation_m, no arm assignment reaches both targets, or the skills cannot be loaded; when this happens mid-run neither arm is moved further.
   canonical_scripts:
     - run_concurrent: scripts/run_concurrent.py
   examples:
@@ -69,7 +74,30 @@ gap:
 Two one-arm skills, two threads. Each skill gets the node's ctx wrapped for
 its arm; the arms share one arbiter that sees every move before it is sent.
 
-## How it runs
+## Modes
+
+`mode` (`auto`):
+
+- **`threaded`**: one thread per skill, each move sent as the skill sends it,
+  for a connector that moves both arms at once (the RoboSimStudio twin).
+- **`interleaved`**: for a server that runs one move at a time across both
+  arms (the real `dual_motion_server`: one `busy` lock, so a second thread's
+  move queues behind the first in no set order). The skills still run in
+  their own threads, but their moves go to one dispatcher thread, which cuts
+  each into the server's own steps (0.05 m / 0.30 rad) and sends them A1, B1,
+  A2, B2, ..., each waited to arrival. A move starts only if all of it clears
+  the other arm where it stands and the rest of the other's move in progress;
+  each segment is checked again against the other arm's current pose, by the
+  capsules and by `min_tcp_separation_m` (0.10 m) between tool centres. A
+  blocked arm passes its turn; a segment that does not arrive ends that move
+  with the server's reply. Wall time is about the sum of the two skills'.
+- **`sequential`**: skill a, then skill b, every move checked as above; for
+  recipes that ask for it, or when the interleaved run was refused.
+- **`auto`**: `robot.describe_robot`; `concurrent_arms: true` or an op
+  `move_dual` / `stream_joints` is `threaded`, everything else (including
+  `serializes_moves: true` or no answer) is `interleaved`, the safe default.
+
+## How it runs (threaded)
 
 1. **Load** each skill by name: its canonical script's `run` from this hub's
    `skills/` or `GAP_SKILLS_PATH`, and the success exits of its
@@ -78,7 +106,7 @@ its arm; the arms share one arbiter that sees every move before it is sent.
    `arm_a = -1` by IK reach: `robot.solve_ik` at `target_a` / `target_b` for
    both arms with each arm's current tool rotation; the pairing that reaches
    both, then the smaller sum of horizontal distances from the tool centres.
-   No pairing reaching both: `unsafe_refused`, nothing moved.
+   No pairing reaching both: `refused`, nothing moved.
 3. **Check the start.** The arms' clearance standing now must be at least
    `min_clearance_m`, and predictable.
 4. **Bind each ctx to its arm.** Every `robot.*` call gets `arm_id` set to the
@@ -95,7 +123,7 @@ its arm; the arms share one arbiter that sees every move before it is sent.
    move at once, `priority_arm` is checked first; the other arm goes ahead
    only once the priority arm moved or was found blocked, so the order is
    deterministic. A move the model cannot follow (`go_home`, contact moves)
-   or an `unknown` clearance stops the run: `unsafe_refused`.
+   or an `unknown` clearance stops the run: `refused`.
 6. **Stop on failure.** A skill that raises or ends off its success exits
    stops the run; the other skill's next move (or its wait) is replaced by a
    move back to its start joints, if predicted clear, and the skill is ended
@@ -107,6 +135,9 @@ its arm; the arms share one arbiter that sees every move before it is sent.
 - `skill_a`, `skill_b`: hub skill names; `inputs_a`, `inputs_b`: their inputs.
 - `arm_a` (0), `arm_b` (1); -1 for auto with `target_a`, `target_b` (Vec3).
 - `priority_arm` (0), `min_clearance_m` (0.03), `wait_timeout_s` (15).
+- `mode` (`auto` | `threaded` | `interleaved` | `sequential`),
+  `min_tcp_separation_m` (0.10; interleaved and sequential), `segment_m`
+  (0.05), `segment_rad` (0.30).
 
 ## The constants, and why
 
@@ -114,12 +145,23 @@ its arm; the arms share one arbiter that sees every move before it is sent.
   YAM's meshes (checking-dual-arm-clearance's own `too_close` is 5 mm); add the
   real YAM station's 12 mm arrival error and the D405 bracket, which is not in
   the model (about 15 mm off the hand housing).
+- **`MIN_TCP_SEPARATION = 0.10` m**: the real dual_motion_server's live
+  `min_tool_separation_m` is 0.05 m (nomad-dual-workspace.json, set
+  2026-11-08), checked every 20 Hz tick on measured and commanded tool
+  centres; a violation powers both arms off. Twice that.
+- **`SEGMENT_M = 0.05` m, `SEGMENT_RAD = 0.30` rad**: the motion server's
+  `BASE_STEP`, so one segment is one server step (4 s budget, replied after
+  arrival within 12 mm / 0.04 rad).
 - **`WAIT_TIMEOUT = 15` s**: two of the twin's longest single moves (a 0.4 m
   carry takes about 6 s at the servo's speed).
 
 ## Limits
 
-The arbiter predicts on the YAM capsule model, so on another arm every move is
+Interleaved is turn-taking, not simultaneous motion; true simultaneity on the
+real station needs the server's joint stream (`stream_joints`, both arms in
+one request), which this skill does not drive yet. The tool-centre check is
+against the other arm standing, not its committed path. The arbiter predicts
+on the YAM capsule model, so on another arm every move is
 `unknown` and the run refuses. A move is checked when it starts, not tracked
 while it runs: a skill that streams many small moves is checked once per move.
 Unit tested on a fake two-arm robot (FakeContext); the twin harness is in

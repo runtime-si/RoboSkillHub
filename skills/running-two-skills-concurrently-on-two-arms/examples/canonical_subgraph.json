@@ -45,8 +45,8 @@
   "exit": {
     "router_field": "route",
     "success_values": [
-      "both_done"
+      "both_succeeded"
     ]
   },
-  "on_error": "unsafe_refused"
+  "on_error": "refused"
 }

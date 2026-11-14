@@ -13,6 +13,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, TypedDict
 
+import numpy as np
+
 try:
     from gap import NodeContext
 except ImportError:  # annotation only
@@ -30,6 +32,16 @@ MIN_CLEARANCE = 0.03
 WAIT_TIMEOUT = 15.0
 #: Re-check period while waiting [s]; a finished move wakes the waiter at once.
 POLL = 0.05
+#: Tool-centre separation every interleaved / sequential segment keeps from the other
+#: arm's current tool centre [m]. The real dual_motion_server's live limit is 0.05 m
+#: (min_tool_separation_m in nomad-dual-workspace.json, 2026-11-08), and a violation
+#: powers both arms off, so twice that.
+MIN_TCP_SEPARATION = 0.10
+#: Interleaved segment length: the real motion server's BASE_STEP (0.05 m, 0.30 rad,
+#: motion_server.py), one server step per segment, each waited to arrival (12 mm).
+SEGMENT_M = 0.05
+SEGMENT_RAD = 0.30
+MODES = ("auto", "threaded", "interleaved", "sequential")
 
 #: Robot tools that move an arm; every one goes through the arbiter.
 MOVES = {
@@ -54,6 +66,7 @@ class Output(TypedDict):
     arm_b: int
     route_a: str
     route_b: str
+    mode: str
     outputs_a: str
     outputs_b: str
     paused_arms: str
@@ -187,6 +200,76 @@ def predict(ctx, arm: int, plan, other: int, other_plan) -> tuple[str, float, st
     return "ok", float(worst["min_clearance_m"]), worst["detail"]
 
 
+def _tcp_world(ctx, arm: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """This arm's tool pose (observation frame), joints, and the map from its command
+    frame (robot.get_ee_pose) to the observation frame."""
+    cl = _clearance_module()
+    reading = (ctx.tool("robot.get_observation") or {}).get("arms")[arm]
+    t_obs = cl._pose_matrix(reading["ee_pose"])
+    q = cl._positions(reading["joint_state"])
+    try:
+        t_cmd = cl._pose_matrix(ctx.tool("robot.get_ee_pose", arm_id=arm))
+        to_obs = t_obs @ np.linalg.inv(t_cmd)
+    except Exception:  # no separate command frame: take them as the same
+        to_obs = np.eye(4)
+    return t_obs, q, to_obs
+
+
+def _point_segment(p: np.ndarray, a: np.ndarray, b: np.ndarray) -> float:
+    d = b - a
+    u = 0.0 if float(d @ d) == 0 else float(np.clip((p - a) @ d / (d @ d), 0.0, 1.0))
+    return float(np.linalg.norm(p - (a + u * d)))
+
+
+def tcp_gap(ctx, arm: int, plan, other: int) -> float:
+    """Least distance from the other arm's current tool centre to this arm's tool centre
+    along the planned segment (straight line for poses, connector FK for joints)."""
+    cl = _clearance_module()
+    t_now, q_now, to_obs = _tcp_world(ctx, arm)
+    p_other = _tcp_world(ctx, other)[0][:3, 3]
+    points = [t_now[:3, 3]]
+    kind, value = plan if plan else ("static", None)
+    if kind == "poses":
+        for wp in value.get("waypoints", []):
+            points.append((to_obs @ cl._pose_matrix(wp["pose"] if "pose" in wp else wp))[:3, 3])
+    elif kind == "trajectory":
+        qs = cl._densify([q_now, *(cl._positions(w)[:6] for w in value.get("waypoints", []))], 0.05)
+        fk = ctx.tool(
+            "robot.forward_kinematics", joint_configs=[q.tolist() for q in qs], arm_id=arm
+        )
+        poses = [cl._pose_matrix(p) for p in fk["poses"]]
+        rel = t_now @ np.linalg.inv(poses[0])
+        points += [(rel @ t)[:3, 3] for t in poses[1:]]
+    if len(points) == 1:
+        return float(np.linalg.norm(points[0] - p_other))
+    return min(_point_segment(p_other, a, b) for a, b in zip(points, points[1:], strict=False))
+
+
+def with_tcp_separation(min_tcp: float, base=None):
+    """predict, plus the tool-centre separation from the other arm standing where it is."""
+    base = base or predict
+
+    def predictor(ctx, arm, plan, other, other_plan):
+        verdict, gap, detail = base(ctx, arm, plan, other, other_plan)
+        if verdict != "ok" or min_tcp <= 0:
+            return verdict, gap, detail
+        try:
+            sep = tcp_gap(ctx, arm, plan, other)
+        except Exception as exc:
+            return "unknown", math.nan, f"tool-centre separation unknown ({exc})"
+        if sep < min_tcp:
+            return (
+                "ok",
+                -1.0,
+                (
+                    f"tool centres would come {sep * 1e3:.0f} mm apart, under {min_tcp * 1e3:.0f} mm; {detail}"
+                ),
+            )
+        return verdict, gap, detail
+
+    return predictor
+
+
 class Arbiter:
     """Grants one move at a time per arm; a move whose predicted clearance against the
     other arm (standing, or on its move in flight) is under ``min_clearance`` waits."""
@@ -208,6 +291,7 @@ class Arbiter:
         self.min_seen = math.inf
         self.log: list[tuple[int, str, float]] = []
         self.seen: set[int] = set()  # arms that have asked for a move or finished
+        self.motion = threading.Lock()  # held by a retreat
 
     def stop(self, kind: str, why: str) -> None:
         with self.cond:
@@ -272,6 +356,13 @@ class Arbiter:
             self.seen.add(arm)
             self.cond.notify_all()
 
+    def execute(self, arm: int, name: str, kwargs: dict):
+        self.acquire(arm, _plan(name, kwargs))
+        try:
+            return self.ctx.tool(name, **kwargs)
+        finally:
+            self.release(arm)
+
     def release(self, arm: int) -> None:
         with self.cond:
             self.inflight[arm] = None
@@ -279,6 +370,197 @@ class Arbiter:
             for a in self.arms:
                 self.blocked[a] = False
             self.cond.notify_all()
+
+
+def _segments(ctx, arm: int, name: str, kw: dict, seg_m: float, seg_rad: float):
+    """A move cut into server-step segments: [(tool, kwargs, plan)]."""
+    cl = _clearance_module()
+    if name in ("robot.move_to_joints", "robot.execute_trajectory"):
+        plan = _plan(name, kw)
+        if plan is None:
+            return [(name, kw, None)]
+        reading = (ctx.tool("robot.get_observation") or {}).get("arms")[arm]
+        prev = cl._positions(reading["joint_state"])
+        extra = {
+            k: v
+            for k, v in kw.items()
+            if k not in ("joint_config", "joints", "positions", "trajectory")
+        }
+        out = []
+        for w in plan[1]["waypoints"]:
+            target = cl._positions(w)
+            n = max(1, math.ceil(float(np.max(np.abs(target - prev))) / seg_rad))
+            for i in range(1, n + 1):
+                q = prev + (target - prev) * i / n
+                jc = {"positions": [float(v) for v in q]}
+                out.append(
+                    (
+                        "robot.move_to_joints",
+                        {**extra, "joint_config": jc},
+                        ("trajectory", {"waypoints": [jc]}),
+                    )
+                )
+            prev = target
+        return out
+    if name in ("robot.go_to_pose", "robot.go_to_pose_cartesian") and kw.get("pose"):
+        start = cl._pose_matrix(ctx.tool("robot.get_ee_pose", arm_id=arm))
+        target = cl._pose_matrix(kw["pose"])
+        n = max(
+            1,
+            math.ceil(float(np.linalg.norm(target[:3, 3] - start[:3, 3])) / seg_m),
+            math.ceil(cl._angle(start, target) / seg_rad),
+        )
+        out = []
+        for i in range(1, n + 1):
+            pose = kw["pose"] if i == n else cl._pose_dict(cl._slerp_pose(start, target, i / n))
+            seg = {**kw, "pose": pose}
+            out.append((name, seg, _plan(name, seg)))
+        return out
+    return [(name, kw, _plan(name, kw))]
+
+
+def _whole(segs) -> Any:
+    """The remaining segments of a move as one clearance plan (None if any is unmodelled)."""
+    plans = [p for _, _, p in segs]
+    if not plans or any(p is None for p in plans):
+        return None
+    kinds = {p[0] for p in plans}
+    if len(plans) == 1 or len(kinds) > 1 or kinds & {"grip", "static"}:
+        return plans[0]
+    kind = plans[0][0]
+    return (kind, {"waypoints": [w for p in plans for w in p[1]["waypoints"]]})
+
+
+def _arrived(reply) -> bool:
+    if not isinstance(reply, dict):
+        return True
+    return reply.get("reached", True) is not False and reply.get("success", True) is not False
+
+
+class Dispatcher:
+    """For a server that moves one arm at a time: the two skills' moves are cut into
+    server steps and sent from one thread, A1, B1, A2, B2, ..., each waited to arrival
+    and checked against the other arm standing where it is now."""
+
+    def __init__(self, ctx, arms, priority, min_clearance, timeout, predictor, seg_m, seg_rad):
+        self.ctx = ctx
+        self.arms = list(arms)
+        self.turn = priority if priority in self.arms else self.arms[0]
+        self.min_clearance = float(min_clearance)
+        self.timeout = float(timeout)
+        self.predictor = predictor
+        self.seg = (float(seg_m), float(seg_rad))
+        self.cond = threading.Condition()
+        self.queue: dict[int, dict | None] = {a: None for a in self.arms}
+        self.inflight: dict[int, Any] = {a: None for a in self.arms}
+        self.done: set[int] = set()
+        self.halt = ""
+        self.why = ""
+        self.waits = 0
+        self.min_seen = math.inf
+        self.log: list[tuple[int, str, float]] = []
+        self.motion = threading.Lock()
+
+    def _other(self, arm: int) -> int:
+        return self.arms[1] if arm == self.arms[0] else self.arms[0]
+
+    def stop(self, kind: str, why: str) -> None:
+        with self.cond:
+            if not self.halt:
+                self.halt, self.why = kind, why
+            self.cond.notify_all()
+
+    def finished(self, arm: int) -> None:
+        with self.cond:
+            self.done.add(arm)
+            self.cond.notify_all()
+
+    def execute(self, arm: int, name: str, kwargs: dict):
+        """Called from a skill's thread: queue the move, block until all its segments ran."""
+        segs = _segments(self.ctx, arm, name, kwargs, *self.seg)
+        job = {"segs": segs, "i": 0, "reply": None, "error": None, "end": False, "since": None}
+        with self.cond:
+            if self.halt:
+                raise _Halted(self.halt)
+            self.queue[arm] = job
+            self.cond.notify_all()
+            while not job["end"] and not self.halt:
+                self.cond.wait(POLL)
+            self.queue[arm] = None
+        if job["error"] is not None:
+            raise job["error"]
+        if not job["end"]:
+            raise _Halted(self.halt)
+        return job["reply"]
+
+    def loop(self) -> None:
+        while True:
+            with self.cond:
+                if self.halt or all(a in self.done for a in self.arms):
+                    self.cond.notify_all()
+                    return
+                arm = self.turn
+                other = self._other(arm)
+                job = self.queue[arm]
+                if job is None or job["end"]:
+                    nxt = self.queue[other]
+                    if arm in self.done and nxt is not None and not nxt["end"]:
+                        self.turn = other
+                    else:
+                        self.cond.wait(POLL)  # strict turns: wait for this arm's next move
+                    continue
+                tool, kw, plan = job["segs"][job["i"]]
+                committed = None
+                if job["i"] == 0:
+                    # a move starts only if all of it clears the other arm's committed rest
+                    plan = _whole(job["segs"])
+                    nxt = self.queue[other]
+                    if nxt is not None and not nxt["end"] and nxt["i"] > 0:
+                        committed = _whole(nxt["segs"][nxt["i"] :])
+                verdict, gap, detail = self.predictor(self.ctx, arm, plan, other, committed)
+                if verdict == "unknown":
+                    self.halt, self.why = "unsafe", f"arm {arm}: clearance unknown ({detail})"
+                    self.cond.notify_all()
+                    return
+                if gap < self.min_clearance:
+                    now = time.monotonic()
+                    if job["since"] is None:
+                        job["since"] = now
+                        self.waits += 1
+                        self.log.append((arm, "wait", now))
+                    if now - job["since"] >= self.timeout:
+                        self.halt = "deadlock"
+                        self.why = (
+                            f"arm {arm} waited {self.timeout:.1f} s for clearance; "
+                            f"its next segment would come {gap * 1e3:.1f} mm from arm {other} ({detail})"
+                        )
+                        self.cond.notify_all()
+                        return
+                    nxt = self.queue[other]
+                    if nxt is not None and not nxt["end"]:
+                        self.turn = other  # let the other arm take its step
+                    else:
+                        self.cond.wait(POLL)
+                    continue
+                job["since"] = None
+                self.min_seen = min(self.min_seen, gap)
+                self.log.append((arm, "go", time.monotonic()))
+            try:
+                with self.motion:
+                    reply, error = self.ctx.tool(tool, **kw), None
+            except Exception as exc:
+                reply, error = None, exc
+            with self.cond:
+                self.log.append((arm, "done", time.monotonic()))
+                job["i"] += 1
+                job["reply"] = reply
+                if error is not None:
+                    job["error"] = error
+                    job["end"] = True
+                elif not _arrived(reply) or job["i"] >= len(job["segs"]):
+                    job["end"] = True  # a segment that did not arrive ends the move with its reply
+                self.turn = other
+                self.cond.notify_all()
 
 
 class ArmContext:
@@ -303,11 +585,17 @@ class ArmContext:
             return
         self.paused = True
         plan = ("trajectory", {"waypoints": [{"positions": list(self._safe)}]})
-        with arb.cond:
-            verdict, gap, _ = arb.predictor(
-                self._ctx, self.arm, plan, arb._other(self.arm), arb.inflight[arb._other(self.arm)]
-            )
-        if verdict == "ok" and gap >= arb.min_clearance:
+        with arb.motion:
+            with arb.cond:
+                verdict, gap, _ = arb.predictor(
+                    self._ctx,
+                    self.arm,
+                    plan,
+                    arb._other(self.arm),
+                    arb.inflight[arb._other(self.arm)],
+                )
+            if verdict != "ok" or gap < arb.min_clearance:
+                return
             try:
                 self._ctx.tool(
                     "robot.move_to_joints",
@@ -328,15 +616,11 @@ class ArmContext:
                 self._retreat()
             raise _Halted(self._arbiter.halt)
         try:
-            self._arbiter.acquire(self.arm, _plan(name, kwargs))
+            return self._arbiter.execute(self.arm, name, kwargs)
         except _Halted:
             if self._arbiter.halt != "unsafe":
                 self._retreat()
             raise
-        try:
-            return self._ctx.tool(name, **kwargs)
-        finally:
-            self._arbiter.release(self.arm)
 
 
 # ---------------------------------------------------------------- assignment
@@ -385,6 +669,24 @@ def _assign(ctx, arms, target_a, target_b, obs) -> tuple[int, int, str]:
 
 
 # ---------------------------------------------------------------- the skill
+def detect_mode(ctx) -> tuple[str, str]:
+    """threaded when robot.describe_robot says both arms move at once (concurrent_arms:
+    true, or a move_dual / stream_joints op), otherwise interleaved: the real
+    dual_motion_server runs one move at a time behind one lock."""
+    try:
+        info = ctx.tool("robot.describe_robot") or {}
+    except Exception as exc:
+        return "interleaved", f"mode interleaved (no robot.describe_robot: {exc})"
+    if not isinstance(info, dict):
+        return "interleaved", "mode interleaved (robot.describe_robot gave no mapping)"
+    ops = set(info.get("ops") or [])
+    if info.get("serializes_moves") is True:
+        return "interleaved", "mode interleaved (the connector moves one arm at a time)"
+    if info.get("concurrent_arms") is True or ops & {"move_dual", "stream_joints"}:
+        return "threaded", "mode threaded (the connector moves both arms at once)"
+    return "interleaved", "mode interleaved (the connector does not say it moves both arms at once)"
+
+
 def run(
     ctx: NodeContext,
     skill_a: str,
@@ -398,9 +700,14 @@ def run(
     priority_arm: int = 0,
     min_clearance_m: float = MIN_CLEARANCE,
     wait_timeout_s: float = WAIT_TIMEOUT,
+    mode: str = "auto",
+    min_tcp_separation_m: float = MIN_TCP_SEPARATION,
+    segment_m: float = SEGMENT_M,
+    segment_rad: float = SEGMENT_RAD,
 ) -> Output:
     out: Output = {
-        "route": "unsafe_refused",
+        "route": "refused",
+        "mode": str(mode),
         "detail": "",
         "arm_a": int(arm_a),
         "arm_b": int(arm_b),
@@ -443,7 +750,36 @@ def run(
     if arm_a == arm_b or max(arm_a, arm_b) >= len(obs):
         return refuse(f"arms {arm_a} and {arm_b} are not two arms of this connector")
 
-    arbiter = Arbiter(ctx, [arm_a, arm_b], int(priority_arm), min_clearance_m, wait_timeout_s)
+    if mode not in MODES:
+        return refuse(f"mode must be one of {', '.join(MODES)}, not {mode!r}")
+    if mode == "auto":
+        mode, why = detect_mode(ctx)
+        notes.append(why)
+    out["mode"] = mode
+    arms = [arm_a, arm_b]
+    if mode == "threaded":
+        arbiter = Arbiter(ctx, arms, int(priority_arm), min_clearance_m, wait_timeout_s)
+    elif mode == "interleaved":
+        arbiter = Dispatcher(
+            ctx,
+            arms,
+            int(priority_arm),
+            min_clearance_m,
+            wait_timeout_s,
+            with_tcp_separation(float(min_tcp_separation_m)),
+            segment_m,
+            segment_rad,
+        )
+    else:
+        arbiter = Arbiter(
+            ctx,
+            arms,
+            int(priority_arm),
+            min_clearance_m,
+            wait_timeout_s,
+            predictor=with_tcp_separation(float(min_tcp_separation_m)),
+        )
+        arbiter.seen = set(arms)  # one skill after the other: nobody to yield to
     verdict, gap, detail = arbiter.predictor(ctx, arm_a, ("static", None), arm_b, None)
     if verdict == "unknown":
         return refuse(f"clearance unknown before starting ({detail}); nothing moved")
@@ -463,6 +799,7 @@ def run(
         "b": (run_b, ok_b, ArmContext(ctx, arm_b, arbiter, safe(arm_b)), inputs_b or {}),
     }
     result: dict[str, tuple[str, Any]] = {}
+    failed: list[str] = []
 
     def work(key: str) -> None:
         fn, success, actx, kw = jobs[key]
@@ -479,18 +816,30 @@ def run(
             return
         except Exception as exc:
             result[key] = ("raised", {"error": f"{type(exc).__name__}: {exc}"})
+            failed.append(key)
             arbiter.stop("failed", f"skill {key} on arm {actx.arm} raised {exc}")
             return
         route = str((reply or {}).get("route", "")) if isinstance(reply, dict) else ""
         result[key] = (route or "done", reply if isinstance(reply, dict) else {"value": reply})
         if success is not None and route not in success:
+            failed.append(key)
             arbiter.stop("failed", f"skill {key} on arm {actx.arm} ended {route!r}")
 
-    threads = [threading.Thread(target=work, args=(k,), name=f"arm-{k}") for k in jobs]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+    if mode == "sequential":
+        for key in jobs:
+            if arbiter.halt:
+                result[key] = ("not_run", {})
+                arbiter.finished(jobs[key][2].arm)
+                continue
+            work(key)
+    else:
+        threads = [threading.Thread(target=work, args=(k,), name=f"arm-{k}") for k in jobs]
+        if mode == "interleaved":
+            threads.append(threading.Thread(target=arbiter.loop, name="dispatcher"))
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
 
     import json
 
@@ -502,10 +851,10 @@ def run(
     out["waits"] = arbiter.waits
     out["min_predicted_clearance_m"] = arbiter.min_seen
     out["route"] = {
-        "unsafe": "unsafe_refused",
+        "unsafe": "refused",
         "deadlock": "deadlock_timeout",
-        "failed": "one_failed",
-    }.get(arbiter.halt, "both_done")
+        "failed": "both_failed" if len(failed) == 2 else "one_failed",
+    }.get(arbiter.halt, "both_succeeded")
     parts = [
         f"skill a ({skill_a}) on arm {arm_a}: {out['route_a']}",
         f"skill b ({skill_b}) on arm {arm_b}: {out['route_b']}",
