@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 173 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 174 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -187,6 +187,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`straightening-a-cable-toward-a-target-curve`](#straightening-a-cable-toward-a-target-curve) | execute | Pulls a cable lying flat on a table toward a target curve, one correction at a time. | any |
 | [`threading-a-cable-tip-through-a-ring`](#threading-a-cable-tip-through-a-ring) | execute | Threads the free tip of a held cable through a standing ring. | any |
 | [`tipping-over-a-surface-edge`](#tipping-over-a-surface-edge) | execute | Turn a body over on the surface it rests on instead of carrying it. | any, *tuned on* yam_i2rt, 2 arms, **sim only** |
+| [`tossing-an-object-into-a-receptacle`](#tossing-an-object-into-a-receptacle) | execute | Put a held object into a receptacle by dropping it from above the opening when the arm reaches it, or by tossing it… | any |
 | [`transporting-objects`](#transporting-objects) | execute | Move the currently-held object to a destination and release. | any, *tuned on* panda |
 | [`triggering-a-domino-chain-by-push`](#triggering-a-domino-chain-by-push) | execute | Topples the first domino of a standing line so the chain runs. | any |
 | [`turning-by-wrist-ratchet`](#turning-by-wrist-ratchet) | execute | Tightens or loosens a screw lid or cap by wrist ratchet. | any |
@@ -2748,6 +2749,23 @@ Turn a body over on the surface it rests on instead of carrying it — pinch two
   - `inverted`: The body came to rest turned over on the surface after the release.
   - `standing`: The body stands on its edge or wall; it rocked back at the release. Re-grasp through the mouth and pull again, a few degrees further.
   - `other`: The body is neither turned over nor standing — it slipped out of the pads during the lift, or the release threw it.
+
+### tossing-an-object-into-a-receptacle
+
+execute · robots: any · tasks: pick-place · MIT · v0.1.0 · [`SKILL.md`](skills/tossing-an-object-into-a-receptacle/SKILL.md) · [upstream](https://github.com/jimmyyhwu/tidybot/blob/c060278de506699b46ff7361357109cf9dcd5654/robot/kinova.py)
+
+Put a held object into a receptacle by dropping it from above the opening when the arm reaches it, or by tossing it when the opening is beyond reach - an analytic ballistic plan picks the launch angle and release speed, a straight IK run-up through the release point delivers it, and the joint speed that plan needs is checked against the arm's limit before anything moves (refusing with the speed it would need). Use when a bin or box sits past the arm's reach, or when dropping into it is faster than placing.
+
+- **In**: `opening_center` Vec3, `opening_radius_m` float
+- **Out**: `mode` string, `launch_deg` float, `release_speed_mps` float, `required_joint_speed` float, `detail` string
+- **Calls**: connector `robot.describe_gripper`, `robot.execute_trajectory`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.go_to_pose_cartesian`, `robot.move_to_joints`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`toss_object`](skills/tossing-an-object-into-a-receptacle/scripts/toss_object.py)
+- **Exits**:
+  - `landed`: The locate tool found the object within opening_radius_m of the opening's centre and below its rim.
+  - `missed`: The object was found elsewhere, or not found, after the release.
+  - `not_feasible`: No plan within the limits - the opening is out of reach for a drop and the toss needs more joint speed than joint_speed_limit (detail says how much), or no IK through the release point or run-up. Nothing moved.
+  - `dropped_early`: The jaws were on the closed stop before the release - the object was already gone.
+  - `released`: The object was let go but no locate_tool was given to read where it landed.
 
 ### transporting-objects
 
