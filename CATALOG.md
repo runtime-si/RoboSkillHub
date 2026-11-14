@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 173 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 173 skills, 4 policies, 2 recipes and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -3488,6 +3488,7 @@ Run the openpi π0.5 LIBERO checkpoint (pi05_libero) as a closed-loop VLA policy
 ## Recipes
 
 - [`pick-place-camera-only`](recipes/pick-place-camera-only/RECIPE.md): Put one named rigid object into a named container from the cameras alone. Uses [`grasping-short-axis`](#grasping-short-axis), [`grasping-with-planner`](#grasping-with-planner), [`perceiving-objects`](#perceiving-objects), [`transporting-objects`](#transporting-objects), [`verifying-grasps`](#verifying-grasps).
+- [`running-two-arm-tasks-at-once`](recipes/running-two-arm-tasks-at-once/RECIPE.md): Let each arm of a two-arm YAM station do its own job at the same time. Uses [`checking-dual-arm-clearance`](#checking-dual-arm-clearance), [`picking-and-placing-two-objects`](#picking-and-placing-two-objects), [`running-two-skills-concurrently-on-two-arms`](#running-two-skills-concurrently-on-two-arms).
 
 ## Papers
 
