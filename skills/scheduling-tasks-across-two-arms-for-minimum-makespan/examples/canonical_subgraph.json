@@ -1,0 +1,12 @@
+{
+  "skill": "scheduling-tasks-across-two-arms-for-minimum-makespan",
+  "inputs": {},
+  "outputs": {"makespan": {"$ref": "plan.makespan"}, "method": {"$ref": "plan.method"}},
+  "nodes": {"plan": {"type": "script", "script": "scripts/schedule_tasks.py", "inputs": {"tasks": [
+    {"id": "pick0", "duration": {"0": 5, "1": 6}, "region": {"points": [[0, 0.2, 0.05]]}},
+    {"id": "place0", "duration": {"0": 6, "1": 5}, "region": {"points": [[0, -0.2, 0.05]]}, "after": ["pick0"], "same_arm_as": "pick0"}
+  ]}}},
+  "edges": [["START", "plan"], ["plan", "END"]],
+  "exit": {"router_field": "route", "success_values": ["scheduled", "infeasible", "timeout"]},
+  "on_error": "infeasible"
+}

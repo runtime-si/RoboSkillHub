@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 173 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 174 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -112,6 +112,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`planning-held-object-motion`](#planning-held-object-motion) | plan | Plans the carry and engagement phases for an already-held rigid object. | any |
 | [`rebuilding-a-fallen-domino-segment`](#rebuilding-a-fallen-domino-segment) | plan | Plans the rebuild of a fallen segment in a domino line, one tile at a time. | any |
 | [`routing-parts-to-sort-bins-by-id-and-colour`](#routing-parts-to-sort-bins-by-id-and-colour) | plan | Sorts parts dropped one at a time on a staging pad into bins. | any |
+| [`scheduling-tasks-across-two-arms-for-minimum-makespan`](#scheduling-tasks-across-two-arms-for-minimum-makespan) | plan | Assigns a list of tasks to two arms and times them for the shortest total time (makespan). | any, 2 arms |
 | [`following-a-visual-plan`](#following-a-visual-plan) | propose | Follows a visual plan from robobrain.trace or molmo-motion.forecast (the shared visual-plan schema) the way those… | any |
 | [`grasping-concave-contour`](#grasping-concave-contour) | propose | Grasp an awkward rigid part by the waists in its own silhouette. | any |
 | [`limiting-in-hand-twist-by-grip-placement-and-force`](#limiting-in-hand-twist-by-grip-placement-and-force) | propose | Ranks candidate grips on a part by the grip force each needs so the part neither slides nor twists about the jaws'… | any |
@@ -1553,6 +1554,20 @@ Sorts parts dropped one at a time on a staging pad into bins - watches the pad a
   - `staging_not_clear`: Something landed but the capture was rejected 4 times (two parts in the zone), or it never settled (zone motion over motion_threshold) within max_wait_s; nothing moved - clear or singulate the pad.
   - `grasp_failed`: The pick did not hold the part (every close read empty, too wide or too narrow, it slipped in the lift, or no grasp could be tried), there was no part box (no depth), or a perceived place found the hand empty; the hand is open, the part is on the pad or near it.
   - `drop_failed`: The part was held but no drop point over the bin was reached (IK preview, a refused or short move), it does not fit the bin's opening, the jaws did not open, or a perceived place routed no_room / unreachable / container_not_found / not_released; still holding unless not_released.
+
+### scheduling-tasks-across-two-arms-for-minimum-makespan
+
+plan · robots: any, 2 arms · tasks: pick-place, sorting, bimanual · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/scheduling-tasks-across-two-arms-for-minimum-makespan/SKILL.md)
+
+Assigns a list of tasks to two arms and times them for the shortest total time (makespan) - each task with the arms that reach it, a duration per arm, predecessors, an optional same-arm link (a pick and its place) and a workspace region - so that the two arms are never working in regions closer than two YAM hand envelopes (tools/yam-spheres) at the same time. Exact MILP on scipy's HiGHS for up to 30 tasks, list scheduling otherwise, the better of the two when the MILP hits its time limit; per-arm queues and paired steps for running-two-skills-concurrently-on-two-arms. Use when a bimanual job (moving many pens between holders, sorting parts to bins, a build) should finish as fast as both arms allow.
+
+- **In**: -
+- **Out**: `makespan` float, `lower_bound` float, `method` string, `optimal` bool, `solve_s` float
+- **Scripts**: [`schedule_tasks`](skills/scheduling-tasks-across-two-arms-for-minimum-makespan/scripts/schedule_tasks.py)
+- **Exits**:
+  - `scheduled`: Every task has an arm and a start time; makespan is the last end; optimal says whether the MILP proved it (else the time-limited MILP's or list scheduling's better schedule).
+  - `infeasible`: A task no arm can do, a same-arm link no shared arm can do, cyclic precedence, or the MILP proved no schedule exists.
+  - `timeout`: The MILP found no schedule within time_limit; the greedy schedule is returned.
 
 ### following-a-visual-plan
 
