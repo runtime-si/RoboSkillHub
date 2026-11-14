@@ -907,3 +907,8 @@ skills/replanning-with-an-execution-critic/LICENSE.clea.
 tools/llmdet/tools.py runs LLMDet (https://github.com/iSEE-Laboratory/LLMDet, Apache-2.0; weights
 iSEE-Laboratory/llmdet_{large,base,tiny} on Hugging Face, Apache-2.0) through transformers, adapted from this
 repository's tools/mm-grounding-dino/tools.py.
+
+skills/trying-arms-in-fallback-order/scripts/try_arms.py follows the two-arm
+pickup pattern of geodude (https://github.com/personalrobotics/geodude,
+src/geodude/robot.py Robot.pickup), MIT License, Copyright (c) 2025
+Siddhartha Srinivasa; no code is copied.
