@@ -48,6 +48,14 @@ FOLLOW_DECEL_RATIO = 2.0
 DROP_CLEARANCE = 0.08
 """Height of the tool over the opening's rim for a drop from above [m]."""
 
+IK_POS_TOL = 0.005
+"""An IK answer whose own position error is under this counts even when the connector
+calls it outside its servo tolerance [m]."""
+
+RELEASE_ADVANCES = (0.10, 0.06, 0.03, 0.0, -0.04, -0.08)
+"""Release points tried along the swing, from the hand toward the opening [m]; the
+first whose release and run-up both solve wins."""
+
 DROPPED_MARGIN = 0.003
 """A jaw gap within this of the closed stop before release means the object is already gone [m]."""
 
@@ -89,9 +97,14 @@ def _xyz(reply: Any) -> np.ndarray:
 def _joints(reply: Any) -> np.ndarray | None:
     if not isinstance(reply, dict):
         return None if reply is None else np.asarray(reply, dtype=float)
-    if reply.get("success") is False or reply.get("within_servo_tolerance") is False:
+    if reply.get("success") is False:
         return None
-    for key in ("joint_positions", "positions", "joints", "solution", "q"):
+    if (
+        reply.get("within_servo_tolerance") is False
+        and float(reply.get("position_error_m") or 1.0) > IK_POS_TOL
+    ):
+        return None
+    for key in ("joint_config", "joint_positions", "positions", "joints", "solution", "q"):
         v = reply.get(key)
         if v is not None:
             v = v.get("positions", v) if isinstance(v, dict) else v
@@ -154,7 +167,9 @@ def run(
 
     def ik(p: np.ndarray) -> np.ndarray | None:
         try:
-            return _joints(ctx.tool("robot.solve_ik", pose=pose(p), **arm))
+            reply = ctx.tool("robot.solve_ik", pose=pose(p), **arm)
+            logger.debug("toss: solve_ik %s -> %s", np.round(p, 3).tolist(), str(reply)[:300])
+            return _joints(reply)
         except Exception as exc:
             logger.info("toss: no IK at %s (%s)", np.round(p, 3).tolist(), exc)
             return None
@@ -217,10 +232,15 @@ def run(
         out["detail"] = "the opening is straight below the hand but out of IK reach"
         return out
     u = np.array([flat[0] / dist, flat[1] / dist, 0.0])
-    release = here + u * release_advance_m
-    q_rel = ik(release)
+    advances = [release_advance_m] + [a for a in RELEASE_ADVANCES if a != release_advance_m]
+    release, q_rel = here, None
+    for adv in advances:
+        release = here + u * adv
+        q_rel = ik(release)
+        if q_rel is not None:
+            break
     if q_rel is None:
-        out["detail"] = "no IK at the release point"
+        out["detail"] = f"no IK at any release point {advances} m along the swing"
         return out
     caps = np.array([1.0, 1.0, 1.0] + [float(wrist_speed_ratio)] * max(0, len(q_rel) - 3))
     d = float(np.linalg.norm(target[:2] - release[:2]))

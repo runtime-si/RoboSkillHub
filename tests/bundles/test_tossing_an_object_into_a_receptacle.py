@@ -123,3 +123,27 @@ def test_no_locate_tool_reports_released(toss):
     st = Station(land=(0.4, 0.0, 0.0))
     out = toss.run(FakeContext(st.tools()), opening_center=[0.4, 0.0, 0.05], opening_radius_m=0.1)
     assert out["route"] == "released"
+
+
+def test_twin_ik_reply_format(toss):
+    reply = {
+        "joint_config": {"positions": [0.1, 0.2]},
+        "success": True,
+        "within_servo_tolerance": False,
+        "position_error_m": 0.002,
+    }
+    assert list(toss._joints(reply)) == [0.1, 0.2]
+    assert toss._joints({**reply, "position_error_m": 0.02}) is None
+    assert toss._joints({"success": False}) is None
+
+
+def test_release_point_searched_inside_reach(toss):
+    st = Station(reach=0.36)
+    out = toss.run(
+        FakeContext(st.tools()),
+        opening_center=[0.75, 0.0, 0.05],
+        opening_radius_m=0.1,
+        locate_tool="sim.locate",
+        joint_speed_limit=10.0,
+    )
+    assert out["mode"] == "toss" and out["release_position"][0] <= 0.36
