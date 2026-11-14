@@ -1,0 +1,5 @@
+[project]
+name = "roboskillhub-tool-kinoweave"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["numpy", "kinoweave @ git+https://github.com/botrail/kinoweave@2da9034697f150c3e0b8a1a69c807d13fca69126"]
