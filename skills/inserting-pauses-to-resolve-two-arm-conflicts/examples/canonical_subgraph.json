@@ -1,0 +1,18 @@
+{
+  "skill": "inserting-pauses-to-resolve-two-arm-conflicts",
+  "inputs": {},
+  "outputs": {"added_time": {"$ref": "pause.added_time"}, "min_clearance_after": {"$ref": "pause.min_clearance_after"}},
+  "nodes": {
+    "pause": {
+      "type": "script",
+      "script": "scripts/insert_pauses.py",
+      "inputs": {
+        "trajectory_a": {"times": [0.0, 2.0], "joints": [[0, 0, 0, 0, 0, 0], [0.3, 1.2, 1.0, 0, 0, 0]]},
+        "trajectory_b": {"times": [0.0, 2.0], "joints": [[0, 0, 0, 0, 0, 0], [-0.3, 1.2, 1.0, 0, 0, 0]]}
+      }
+    }
+  },
+  "edges": [["START", "pause"], ["pause", "END"]],
+  "exit": {"router_field": "route", "success_values": ["no_conflict", "pauses_inserted", "unresolved"]},
+  "on_error": "unresolved"
+}

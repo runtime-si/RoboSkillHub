@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 173 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 174 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -102,6 +102,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`computing-stable-placements`](#computing-stable-placements) | plan | Enumerates the stable resting faces of a rigid object. | any |
 | [`executing-keypoint-motion`](#executing-keypoint-motion) | plan | Plans and executes a one-step manipulation from a language instruction with MOKA's mark-based visual prompting. | any |
 | [`finding-the-longest-domino-chain`](#finding-the-longest-domino-chain) | plan | Finds the longest chain of matching dominoes a hand can lay from a start value. | any |
+| [`inserting-pauses-to-resolve-two-arm-conflicts`](#inserting-pauses-to-resolve-two-arm-conflicts) | plan | Makes two timed arm trajectories safe to run together without changing either path. | yam, 2 arms |
 | [`parsing-ldraw-build-instructions`](#parsing-ldraw-build-instructions) | plan | Reads an LDraw .ldr / .mpd build file. | any |
 | [`placing-on-receptacle-top-surface`](#placing-on-receptacle-top-surface) | plan | Finds where to set a held object down on a receptacle's top surface (a box lid, a tray, a block, a shelf). | any |
 | [`planning-a-brick-mosaic-from-an-image`](#planning-a-brick-mosaic-from-an-image) | plan | Turns an image into a one-layer LEGO mosaic on a baseplate of a given stud size. | any |
@@ -1390,6 +1391,20 @@ Finds the longest chain of matching dominoes a hand can lay from a start value -
   - `no_chain`: The hand is empty or no tile holds the start value; `leftover` is the hand.
   - `no_room`: The chain was found but tile `placed_count` has no placement inside the table (less `edge_margin`) and clear of `footprints` and the tiles before it, straight or round a corner; the first `placed_count` tiles are placed and `new_end` is the end they leave.
   - `invalid_input`: A tile outside 0..max_pip or with not two values, a tile twice, an unknown objective, a start value outside 0..max_pip, a start direction with no length in the table plane, or a footprint without an axis (also the route of a raised error).
+
+### inserting-pauses-to-resolve-two-arm-conflicts
+
+plan · robots: yam, 2 arms · tasks: bimanual · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/inserting-pauses-to-resolve-two-arm-conflicts/SKILL.md)
+
+Makes two timed arm trajectories safe to run together without changing either path - the two arms' collision spheres (the YAM sphere model of tools/yam-spheres, bundled) are checked every 50 ms, and where they come within 10 mm the shorter trajectory holds at its last waypoint before the conflict, in 0.25 s steps, until the other arm has passed (the other arm waits instead when the shorter cannot wait clear). Use when two arms run independently planned joint trajectories in a shared workspace (both reaching into the middle of the station) and a re-plan is not wanted.
+
+- **In**: -
+- **Out**: `delayed` string, `min_clearance_before` float, `min_clearance_after` float, `added_time` float
+- **Scripts**: [`insert_pauses`](skills/inserting-pauses-to-resolve-two-arm-conflicts/scripts/insert_pauses.py)
+- **Exits**:
+  - `no_conflict`: The arms never came within margin (10 mm between sphere surfaces); the trajectories are returned unchanged.
+  - `pauses_inserted`: One trajectory was given holds (pauses lists after which waypoint, when, how long) and the pair now stays over margin at every check; the paths are unchanged, only the timing.
+  - `unresolved`: Even max_pause (6 s) of holding on either arm leaves a conflict (the two arms' goals overlap, or one arm's resting pose is in the other's way); the last attempt's numbers are filled in.
 
 ### parsing-ldraw-build-instructions
 
