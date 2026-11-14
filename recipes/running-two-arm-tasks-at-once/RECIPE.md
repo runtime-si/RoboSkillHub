@@ -19,8 +19,8 @@ metadata:
     tier: camera_only
 recipe:
   inputs:
-    left_task: string
-    right_task: string
+    skill_a: string
+    skill_b: string
     object_a_obb: OrientedBoundingBox
     object_b_obb: OrientedBoundingBox
     place_a: Vec3
@@ -32,10 +32,10 @@ recipe:
       note: Over both arms' planned motions (each skill's plan or preview); with no plan, the current configuration.
     concurrent:
       skill: running-two-skills-concurrently-on-two-arms
-      note: The left skill on arm 0 and the right skill on arm 1, started together; each keeps its own exits.
+      note: skill_a on arm 0 (left) and skill_b on arm 1 (right), one thread each, every move through the shared clearance arbiter; route_a / route_b carry each skill's own exit.
     sequential:
       skill: running-two-skills-concurrently-on-two-arms
-      note: Same two skills in sequential mode - the left task to its end, then the right one - so neither arm moves while the other works.
+      note: The same runner in its sequential mode (skill_a to its end, then skill_b; the mode is being added on the skill's branch) - neither arm moves while the other works, so a deadlock cannot recur.
     pick_place_two:
       skill: picking-and-placing-two-objects
       note: Only when both tasks are pick-and-place of one object each (object boxes and place points known); it assigns objects to arms and staggers the motions itself.
@@ -48,8 +48,8 @@ recipe:
       recovery: [robot.open_gripper]
   routes:
     clearance: {clear: concurrent, too_close: sequential, unknown: sequential}
-    concurrent: {both_succeeded: done, one_failed: partial, both_failed: abort, refused: sequential}
-    sequential: {both_succeeded: done, one_failed: partial, both_failed: abort, refused: pick_place_two}
+    concurrent: {both_done: done, one_failed: partial, deadlock_timeout: sequential, unsafe_refused: pick_place_two}
+    sequential: {both_done: done, one_failed: partial, deadlock_timeout: abort, unsafe_refused: pick_place_two}
     pick_place_two: {both_placed: done, one_placed: partial, none_placed: abort, unreachable: abort}
 ---
 
@@ -76,32 +76,35 @@ coordinated two-object skill as a last resort.
    - `too_close`: run sequentially; never concurrently.
    - `unknown` (no second arm reading, FK mismatch, no IK for a waypoint): also
      sequentially, because an unverified clearance is not a clearance.
-2. **The concurrent runner can still refuse.** It may find something the
-   capsule check cannot see, such as a shared camera, a shared tool or a lease
-   conflict. `refused` then goes to the sequential run, which needs no
-   clearance between the arms.
-3. **Sequential refused means the pair cannot run as given.** Only a
-   pick-and-place pair has a further fallback, `picking-and-placing-two-objects`.
-   It re-plans the assignment of objects to arms and staggers the two motions
-   itself. For other pairs, its `unreachable` exit ends in `abort`.
-4. **No retries inside the recipe.** `one_failed` ends in `partial`: one task
-   is done and the other is not. Re-running the pair would redo the finished
-   task. The planner should re-plan only the failed task, named in the
-   runner's outputs. `both_failed` and `none_placed` end in `abort`. Both
-   failure ends open the grippers.
+2. **The runner arbitrates every move.** `running-two-skills-concurrently-on-two-arms`
+   predicts each move's clearance against the other arm and makes an arm wait
+   while it would come too close.
+   - `deadlock_timeout` (the arms kept blocking each other): the sequential
+     mode, where one arm stands still while the other works.
+   - `unsafe_refused` (clearance not predictable, the arms already too close, no
+     arm assignment reaches both targets, a skill does not load): sequential
+     would hit the same wall, so a pick-and-place pair goes to
+     `picking-and-placing-two-objects`, which re-plans the assignment of objects
+     to arms and staggers the motions itself. For other pairs that node's
+     `unreachable` ends in `abort`.
+3. **No retries inside the recipe.** `one_failed` ends in `partial`: the runner
+   has paused the other arm at its start pose, and the finished task must not
+   be redone. The planner re-plans the failed skill only (`route_a` / `route_b`
+   name it). A `deadlock_timeout` in sequential mode would be a fault, so it
+   aborts. Both failure ends open the grippers.
 
 ## Inputs
 
-`left_task`, `right_task`: the two single-arm jobs (skill and its inputs, as
-the planner chose them). `object_a_obb` / `object_b_obb` / `place_a` / `place_b`
+`skill_a`, `skill_b`: the two single-arm hub skills (with their inputs, as the
+planner chose them), `skill_a` for the left arm and `skill_b` for the right. `object_a_obb` / `object_b_obb` / `place_a` / `place_b`
 are read only by the pick-and-place fallback; pass them when both jobs are
 pick-and-place, otherwise that branch ends in `abort` (`unreachable`).
 
-## Exits of the concurrent runner (assumed)
+## The concurrent runner
 
-This recipe routes `running-two-skills-concurrently-on-two-arms` by the exits
-`both_succeeded`, `one_failed`, `both_failed` and `refused`. The skill was
-still being built when this recipe was written (branch
-`skills-running-two-skills-concurrently-on-two-arms`, not yet on the remote).
-`roboskillhub check` fails this recipe, naming any exit that does not match,
-until those names match the merged skill's `exit_conditions`.
+Exits as on branch `skills-running-two-skills-concurrently-on-two-arms`
+(PR #246): `both_done`, `one_failed`, `deadlock_timeout`, `unsafe_refused`.
+Its sequential / interleaved mode is still being added there. The
+`sequential` node uses it through its note, because recipe nodes carry no
+parameters. If the mode lands under other exit names, `roboskillhub check`
+names them.
