@@ -95,11 +95,15 @@ With about 0.5 m from the shoulder to the hand, these speeds work out to roughly
 
 ## Limits
 
-- **Release timing in streamed connectors.** The gripper opens after
-  `robot.execute_trajectory` returns. With `tolerance=0.5` the stream does not settle
-  first, but the arm is already decelerating toward its last waypoint while the jaws
-  open, so the actual release speed is lower than planned. A connector with a timed
-  gripper event inside the trajectory (as TidyBot's `gripper_release_ms`) would remove
-  that.
+- **Timed release.** The run-up, a 0.1 s follow-through at the release velocity and a
+  braking segment are sent as one `robot.execute_trajectory` with `waypoint_dt_s` and
+  `gripper_release_s` (TidyBot's `gripper_release_ms`): the connector opens the jaws at
+  that time inside the stream and reports `max_tracking_error_rad`. A connector without
+  those arguments ignores them and the jaws open only after the swing.
+- **Real gripper.** The YAM linear_4310 takes about 3.3 s to open, far longer than a
+  toss's flight; the real station cannot release mid-swing today.
+- Per-joint caps: `joint_speed_limit` applies to joints 1-3 and `wrist_speed_ratio`
+  times it to joints 4-6 (the high-speed draft: 6 and 18 rad/s); `joint_accel_limit`
+  (0 = unchecked) to the swing's finite-difference acceleration.
 - No spin or drag model; the object is a point.
 - Not yet measured in the twin (see the PR).
