@@ -1,0 +1,15 @@
+{
+  "skill": "trying-arms-in-fallback-order",
+  "inputs": {"target_position": "Vec3"},
+  "outputs": {"arm_used": {"$ref": "pick.arm_used"}},
+  "nodes": {
+    "pick": {
+      "type": "script",
+      "script": "scripts/try_arms.py",
+      "inputs": {"target_position": {"$ref": "in.target_position"}, "arms": [0, 1], "order": "nearest"}
+    }
+  },
+  "edges": [["START", "pick"], ["pick", "END"]],
+  "exit": {"router_field": "route", "success_values": ["picked_by_first", "picked_by_second", "both_failed"]},
+  "on_error": "both_failed"
+}

@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 173 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 174 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -189,6 +189,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`tipping-over-a-surface-edge`](#tipping-over-a-surface-edge) | execute | Turn a body over on the surface it rests on instead of carrying it. | any, *tuned on* yam_i2rt, 2 arms, **sim only** |
 | [`transporting-objects`](#transporting-objects) | execute | Move the currently-held object to a destination and release. | any, *tuned on* panda |
 | [`triggering-a-domino-chain-by-push`](#triggering-a-domino-chain-by-push) | execute | Topples the first domino of a standing line so the chain runs. | any |
+| [`trying-arms-in-fallback-order`](#trying-arms-in-fallback-order) | execute | Picks an object with whichever of two arms can. | any, 2 arms |
 | [`turning-by-wrist-ratchet`](#turning-by-wrist-ratchet) | execute | Tightens or loosens a screw lid or cap by wrist ratchet. | any |
 | [`wiping-a-region`](#wiping-a-region) | execute | Wipes a flat region of a surface with back-and-forth strokes. | any |
 | [`auditing-a-domino-line-for-fallen-or-tilted-tiles`](#auditing-a-domino-line-for-fallen-or-tilted-tiles) | verify | Checks a standing domino line or curve from one overhead depth frame, with no reference image, against its planned slots. | any |
@@ -2779,6 +2780,21 @@ Topples the first domino of a standing line so the chain runs - closes the hand 
   - `blocked`: The descent behind the tile stopped high (something stands where the hand comes down; lifted back), or the stroke was held - it timed out or ended more than 5 mm short of its end - before the blade reached the tipping travel (a tile that does not give, or the arm at a limit); the hand backed off and rose.
   - `unverified`: The stroke ran, but no camera saw the slot whole and unoccluded after the push; `pushed` says whether the blade reached the tipping travel.
   - `unreachable`: Nothing was pushed - the contact height is outside its band, the stroke would reach the next tile (the line is too tight to push the first tile alone) or the hand would come down on the tile behind, the stroke's start or end failed the IK preview for both wrist solutions, or a move before the stroke was refused.
+
+### trying-arms-in-fallback-order
+
+execute · robots: any, 2 arms · tasks: pick-place, bimanual · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/trying-arms-in-fallback-order/SKILL.md) · [upstream](https://github.com/personalrobotics/geodude/blob/80edf9d/src/geodude/robot.py)
+
+Picks an object with whichever of two arms can - the arm whose hand is nearer the object first, the other if the first cannot reach it (IK preview, a refused move) or closes on nothing - each attempt an IK preview, a top-down approach, descent, close, lift and a jaw-opening check; every attempt's failure reason is kept. Use when a two-arm station picks objects anywhere on a shared table and either hand may be the one that can, instead of routing a failed pick back into the graph by hand.
+
+- **In**: `target_position` Vec3
+- **Out**: `arm_used` int
+- **Calls**: connector `robot.close_gripper`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.go_to_pose`, `robot.grasp_frame`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`try_arms`](skills/trying-arms-in-fallback-order/scripts/try_arms.py)
+- **Exits**:
+  - `picked_by_first`: The first arm in order (the nearer one, or arms[0] with order 'given') holds the object, lifted lift_height over the grasp.
+  - `picked_by_second`: The first arm could not reach (IK preview or a refused move) or closed on nothing, and the second arm holds the object; attempts says why the first failed.
+  - `both_failed`: Neither arm picked it; attempts lists each arm's reason (unreachable / missed); both hands are open.
 
 ### turning-by-wrist-ratchet
 
