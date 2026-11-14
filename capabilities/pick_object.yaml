@@ -44,6 +44,9 @@ implementations:
   - id: policy:pi05-yam
     kind: policy
     bundle: pi05-yam
+  - id: policy:gr00t-n17-base
+    kind: policy
+    bundle: gr00t-n17-base
 
 # Per setting. Judged from the newest eval record of an implementation for the asked
 # embodiment and setting; the record's own `passed` is not trusted.
