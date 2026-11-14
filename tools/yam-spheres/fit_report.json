@@ -1,0 +1,65 @@
+{
+ "margin_m": 0.015,
+ "max_spheres": 16,
+ "link_max": {
+  "link3": 32
+ },
+ "target_coverage": 0.995,
+ "pitch_m": 0.004,
+ "links": {
+  "base": {
+   "n_spheres": 16,
+   "vertex_coverage": 0.9884,
+   "max_protrusion_m": 0.0161,
+   "n_vertices": 3982
+  },
+  "link1": {
+   "n_spheres": 13,
+   "vertex_coverage": 0.9998,
+   "max_protrusion_m": 0.0203,
+   "n_vertices": 4002
+  },
+  "link2": {
+   "n_spheres": 12,
+   "vertex_coverage": 0.9985,
+   "max_protrusion_m": 0.0153,
+   "n_vertices": 4000
+  },
+  "link3": {
+   "n_spheres": 32,
+   "vertex_coverage": 0.9963,
+   "max_protrusion_m": 0.0208,
+   "n_vertices": 4002
+  },
+  "link4": {
+   "n_spheres": 16,
+   "vertex_coverage": 0.9935,
+   "max_protrusion_m": 0.0162,
+   "n_vertices": 2322
+  },
+  "link5": {
+   "n_spheres": 5,
+   "vertex_coverage": 0.9943,
+   "max_protrusion_m": 0.0171,
+   "n_vertices": 706
+  },
+  "link6": {
+   "n_spheres": 16,
+   "vertex_coverage": 0.9998,
+   "max_protrusion_m": 0.0193,
+   "n_vertices": 4002
+  },
+  "tip_left": {
+   "n_spheres": 9,
+   "vertex_coverage": 0.9998,
+   "max_protrusion_m": 0.015,
+   "n_vertices": 4000
+  },
+  "tip_right": {
+   "n_spheres": 9,
+   "vertex_coverage": 0.9998,
+   "max_protrusion_m": 0.0173,
+   "n_vertices": 4000
+  }
+ }
+}
