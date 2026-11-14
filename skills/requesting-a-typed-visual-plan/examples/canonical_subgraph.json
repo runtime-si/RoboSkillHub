@@ -1,0 +1,54 @@
+{
+  "skill": "requesting-a-typed-visual-plan",
+  "inputs": {
+    "instruction": "str"
+  },
+  "outputs": {
+    "plan": {
+      "$ref": "request.plan"
+    },
+    "subtask": {
+      "$ref": "request.subtask"
+    },
+    "planner": {
+      "$ref": "request.planner"
+    },
+    "min_arm_separation_m": {
+      "$ref": "request.min_arm_separation_m"
+    },
+    "endpoint_pixels": {
+      "$ref": "request.endpoint_pixels"
+    }
+  },
+  "nodes": {
+    "request": {
+      "type": "script",
+      "script": "scripts/request_typed_plan.py",
+      "inputs": {
+        "instruction": {
+          "$ref": "in.instruction"
+        },
+        "arms": [0, 1],
+        "waypoints": 10
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "request"
+    ],
+    [
+      "request",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "planned",
+      "plan_rejected"
+    ]
+  },
+  "on_error": "no_plan"
+}
