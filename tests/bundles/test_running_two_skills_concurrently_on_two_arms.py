@@ -5,6 +5,7 @@ Threaded mode first, then the interleaved and sequential modes for a server that
 
 from __future__ import annotations
 
+import math
 import threading
 import time
 
@@ -513,22 +514,98 @@ def test_the_lift_poses_deadlock_for_real(clearance):
     assert clearance.run(robot.ctx())["min_clearance_m"] < 0.03
 
 
+MID = {0: [-0.25, 1.25, 1.0, 0.0, 0.0, 0.0], 1: [0.25, 1.25, 1.0, 0.0, 0.0, 0.0]}
+
+
+class CartesianRobot(Robot):
+    """Adds the Cartesian side: robot.get_ee_pose, robot.solve_ik (numeric, seeded from the
+    arm's joints) and robot.go_to_pose_cartesian (lands on that solution); grippers logged."""
+
+    def __init__(self, model, **kw):
+        super().__init__(model, **kw)
+        self.grip_calls: list = []
+        self.cartesian: list[tuple[int, list]] = []
+
+    def _ik(self, arm, pose):
+        from scipy.optimize import least_squares
+
+        goal = self.m._pose_matrix(pose)
+
+        def err(q):
+            t = self.m._pose_matrix(self._pose(arm, q))
+            return np.concatenate(
+                [t[:3, 3] - goal[:3, 3], 0.1 * (t[:3, :3] - goal[:3, :3]).ravel()]
+            )
+
+        sol = least_squares(err, self.q[arm], xtol=1e-10, ftol=1e-10)
+        ok = float(np.linalg.norm(err(sol.x)[:3])) < 0.002
+        return sol.x, ok
+
+    def ctx(self):
+        ctx = super().ctx()
+
+        def ee(arm_id=0):
+            with self.lock:
+                return {"pose": self._pose(arm_id, self.q[arm_id])}
+
+        def ik(pose, arm_id=0):
+            q, ok = self._ik(arm_id, pose)
+            return {
+                "success": ok,
+                "within_servo_tolerance": ok,
+                "joint_config": {"positions": q.tolist()},
+            }
+
+        def cart(pose, arm_id=0):
+            q, ok = self._ik(arm_id, pose)
+            if not ok:
+                return {"reached": False}
+            time.sleep(self.move_s)
+            with self.lock:
+                self.q[arm_id] = q
+            self.cartesian.append((arm_id, q.tolist()))
+            self.moves.append((arm_id, 0.0, 0.0, q.tolist()))
+            return {"reached": True}
+
+        ctx._responses.update(
+            {
+                "robot.get_ee_pose": ee,
+                "robot.solve_ik": ik,
+                "robot.go_to_pose_cartesian": cart,
+                "robot.open_gripper": lambda arm_id=0: self.grip_calls.append(("open", arm_id)),
+                "robot.close_gripper": lambda arm_id=0: self.grip_calls.append(("close", arm_id)),
+            }
+        )
+        return ctx
+
+
 @pytest.mark.parametrize("serial", [False, True])
-def test_a_deadlock_falls_back_to_sequential(script, clearance, serial):
-    robot = serial_robot(clearance) if serial else Robot(clearance)
-    job = joints_skill(LIFT, CROSS, {0: HOME, 1: HOME})
+def test_a_deadlock_backs_the_yielding_arm_off_along_its_path(script, clearance, serial):
+    describe = SERIAL if serial else {"concurrent_arms": True}
+    robot = CartesianRobot(clearance, describe=describe, move_s=0.01 if serial else MOVE_S)
+    job = joints_skill(MID, LIFT, CROSS, {0: HOME, 1: HOME})
     register(script, job, job)
     out = script.run(robot.ctx(), skill_a="skill-a", skill_b="skill-b", wait_timeout_s=0.3)
     assert out["route"] == "both_succeeded", out["detail"]
     assert out["sequential_fallback"] is True
-    assert "went sequential: arm 1 back to its start" in out["detail"]
-    # arm 1 (not priority) went back home before arm 0 crossed, and crossed only after arm 0 finished
+    assert "arm 1 backed off along its path" in out["detail"]
+    # arm 1 backed off one recorded waypoint (LIFT -> MID), Cartesian, orientation held, no
+    # gripper call: just far enough for arm 0's crossing move to clear
+    assert len(robot.cartesian) == 1 and robot.cartesian[0][0] == 1
+    assert robot.grip_calls == []
+    q_back = np.array(robot.cartesian[0][1])
+    mid_tcp = robot._pose(1, MID[1])["position"]
+    back_tcp = robot._pose(1, q_back)
+    assert math.dist([mid_tcp[k] for k in "xyz"], [back_tcp["position"][k] for k in "xyz"]) < 0.003
+    lift_rot = robot.m._pose_matrix(robot._pose(1, LIFT[1]))[:3, :3]
+    assert np.allclose(robot.m._pose_matrix(back_tcp)[:3, :3], lift_rot, atol=1e-2)
     ends = [(a, q) for a, _, _, q in robot.moves]
-    cross0 = next(i for i, (a, q) in enumerate(ends) if a == 0 and q == CROSS[0])
-    home1 = next(i for i, (a, q) in enumerate(ends) if a == 1 and np.allclose(q, HOME))
-    cross1 = next(i for i, (a, q) in enumerate(ends) if a == 1 and q == CROSS[1])
-    back0 = max(i for i, (a, _) in enumerate(ends) if a == 0)
-    assert home1 < cross0 < back0 < cross1
+    back1 = next(i for i, (a, q) in enumerate(ends) if a == 1 and np.allclose(q, q_back))
+    cross0 = next(i for i, (a, q) in enumerate(ends) if a == 0 and np.allclose(q, CROSS[0]))
+    done0 = max(i for i, (a, _) in enumerate(ends) if a == 0)
+    cross1 = next(i for i, (a, q) in enumerate(ends) if a == 1 and np.allclose(q, CROSS[1]))
+    assert back1 < cross0 < done0 < cross1
+    assert not any(a == 1 and np.allclose(q, HOME) for a, q in ends[:done0])
     np.testing.assert_allclose(robot.q[0], HOME)
     np.testing.assert_allclose(robot.q[1], HOME)
 

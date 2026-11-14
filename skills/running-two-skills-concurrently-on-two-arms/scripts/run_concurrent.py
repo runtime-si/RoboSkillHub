@@ -41,6 +41,8 @@ MIN_TCP_SEPARATION = 0.10
 #: motion_server.py), one server step per segment, each waited to arrival (12 mm).
 SEGMENT_M = 0.05
 SEGMENT_RAD = 0.30
+#: Back-off waypoints are recorded at least this far apart [m] (the server's 12 mm arrival).
+BACKOFF_MIN_STEP = 0.012
 MODES = ("auto", "threaded", "interleaved", "sequential")
 
 #: Robot tools that move an arm; every one goes through the arbiter.
@@ -273,17 +275,18 @@ def with_tcp_separation(min_tcp: float, base=None):
 
 class _Fallback:
     """On a deadlock, either stop (``pause``) or go sequential for the rest (``sequential``):
-    the arm that is not priority_arm moves back to the joints it started from (if that is
-    predicted clear) and waits there until the other skill has finished, then goes on."""
+    the arm that is not priority_arm backs off along its own path until the other arm's
+    pending move clears, waits there until the other skill has finished, then goes on."""
 
     on_deadlock = "sequential"
-    safe: dict[int, Any] = {}
 
     def _init_fallback(self) -> None:
         self.yield_arm: int | None = None
         self.yield_retreated = False
         self.fallback_at = 0.0
         self.finished_arms: set[int] = set()
+        self.path: dict[int, list[dict]] = {}
+        self.backoff_steps = 0
 
     def _try_fallback(self, arm: int, other: int, gap: float, detail: str) -> bool:
         """Called under the lock when ``arm`` timed out; True when the run goes sequential."""
@@ -296,7 +299,7 @@ class _Fallback:
         self.log.append((self.yield_arm, "yield", self.fallback_at))
         self.fallback_why = (
             f"deadlock after {self.timeout:.1f} s (arm {arm}'s next move {gap * 1e3:.1f} mm from arm {other}; {detail}); "
-            f"went sequential: arm {self.yield_arm} back to its start, then on after arm {self._other(self.yield_arm)} finished"
+            f"went sequential: arm {self.yield_arm} backed off along its path, then on after arm {self._other(self.yield_arm)} finished"
         )
         self.cond.notify_all()
         return True
@@ -304,28 +307,76 @@ class _Fallback:
     def _yielding(self, arm: int) -> bool:
         return self.yield_arm == arm and self._other(arm) not in self.finished_arms
 
-    def _retreat_yield(self, arm: int) -> None:
-        """Under the lock: the yielding arm back to its start joints, if predicted clear."""
-        self.yield_retreated = True
-        q = self.safe.get(arm)
-        if q is None:
+    def _record(self, arm: int) -> None:
+        """The arm's tool position after a move (command frame), for backing off along it."""
+        try:
+            pose = self.ctx.tool("robot.get_ee_pose", arm_id=arm)
+        except Exception as exc:
+            logger.info("arm %d: no tool pose to record (%s)", arm, exc)
             return
-        plan = ("trajectory", {"waypoints": [{"positions": list(q)}]})
-        verdict, gap, detail = self.predictor(self.ctx, arm, plan, self._other(arm), None)
-        if verdict != "ok" or gap < self.min_clearance:
-            self.halt = "deadlock"
-            self.why = f"deadlock; arm {arm} cannot go back to its start either ({gap * 1e3:.1f} mm, {detail})"
+        pose = pose.get("pose", pose)
+        p = {k: float(pose["position"][k]) for k in "xyz"}
+        path = self.path.setdefault(arm, [])
+        if (
+            path
+            and math.dist([path[-1][k] for k in "xyz"], [p[k] for k in "xyz"]) < BACKOFF_MIN_STEP
+        ):
+            return
+        path.append(p)
+
+    def _clear_for(self, other: int, pending, arm: int) -> bool:
+        verdict, gap, _ = self.predictor(self.ctx, other, pending, arm, None)
+        return verdict == "ok" and gap >= self.min_clearance
+
+    def _retreat_yield(self, arm: int) -> None:
+        """Under the lock: back the yielding arm off along its own recorded path (reverse
+        order, straight Cartesian legs, its tool orientation held, so a grasp is kept)
+        only until the other arm's pending move is predicted clear."""
+        self.yield_retreated = True
+        other = self._other(arm)
+        pending = self._pending_of(other)
+        if pending is None or self._clear_for(other, pending, arm):
+            return
+        try:
+            now = self.ctx.tool("robot.get_ee_pose", arm_id=arm)
+            rotation = now.get("pose", now)["rotation"]
+        except Exception as exc:
+            self.halt, self.why = (
+                "deadlock",
+                f"deadlock; arm {arm} has no tool pose to back off from ({exc})",
+            )
             self.cond.notify_all()
             return
-        with self.motion:
-            try:
-                self.ctx.tool(
-                    "robot.move_to_joints", joint_config={"positions": list(q)}, arm_id=arm
-                )
-            except Exception as exc:
+        path = self.path.setdefault(arm, [])
+        while len(path) > 1:
+            path.pop()  # where it stands
+            pose = {"position": dict(path[-1]), "rotation": rotation}
+            plan = ("poses", {"waypoints": [{"pose": pose, "cartesian": True}]})
+            verdict, gap, detail = self.predictor(self.ctx, arm, plan, other, None)
+            if verdict != "ok" or gap < self.min_clearance:
                 self.halt = "deadlock"
-                self.why = f"deadlock; arm {arm}'s move back to its start was refused ({exc})"
-        self.log.append((arm, "yielded", time.monotonic()))
+                self.why = (
+                    f"deadlock; arm {arm} cannot back off further ({gap * 1e3:.1f} mm, {detail})"
+                )
+                self.cond.notify_all()
+                return
+            with self.motion:
+                try:
+                    reply = self.ctx.tool("robot.go_to_pose_cartesian", pose=pose, arm_id=arm)
+                except Exception as exc:
+                    reply = {"reached": False, "reason": str(exc)}
+            if not _arrived(reply):
+                self.halt = "deadlock"
+                self.why = f"deadlock; arm {arm}'s back-off move was refused ({reply})"
+                self.cond.notify_all()
+                return
+            self.backoff_steps += 1
+            self.log.append((arm, "backed_off", time.monotonic()))
+            if self._clear_for(other, pending, arm):
+                self.cond.notify_all()
+                return
+        self.halt = "deadlock"
+        self.why = f"deadlock; arm {arm} backed off its whole path and arm {other}'s move is still not clear"
         self.cond.notify_all()
 
 
@@ -376,7 +427,7 @@ class Arbiter(_Fallback):
                     if self.halt:
                         raise _Halted(self.halt)
                     if self._yielding(arm):
-                        if not self.yield_retreated:
+                        if not self.yield_retreated or self.blocked[other]:
                             self._retreat_yield(arm)
                         self.blocked[arm] = True
                         self.cond.notify_all()
@@ -438,7 +489,11 @@ class Arbiter(_Fallback):
         finally:
             self.release(arm)
 
+    def _pending_of(self, other: int):
+        return self.pending.get(other)
+
     def release(self, arm: int) -> None:
+        self._record(arm)
         with self.cond:
             self.inflight[arm] = None
             self.log.append((arm, "done", time.monotonic()))
@@ -553,6 +608,10 @@ class Dispatcher(_Fallback):
             self.finished_arms.add(arm)
             self.cond.notify_all()
 
+    def _pending_of(self, other: int):
+        job = self.queue[other]
+        return None if job is None or job["end"] else _whole(job["segs"][job["i"] :])
+
     def execute(self, arm: int, name: str, kwargs: dict):
         """Called from a skill's thread: queue the move, block until all its segments ran."""
         segs = _segments(self.ctx, arm, name, kwargs, *self.seg)
@@ -588,7 +647,10 @@ class Dispatcher(_Fallback):
                 arm = self.turn
                 other = self._other(arm)
                 if self._yielding(arm):
-                    if not self.yield_retreated:
+                    theirs = self.queue[other]
+                    if not self.yield_retreated or (
+                        theirs is not None and theirs["since"] is not None
+                    ):
                         self._retreat_yield(arm)
                         for j in self.queue.values():
                             if j is not None:
@@ -657,6 +719,7 @@ class Dispatcher(_Fallback):
                     reply, error = self.ctx.tool(tool, **kw), None
             except Exception as exc:
                 reply, error = None, exc
+            self._record(arm)
             with self.cond:
                 self.log.append((arm, "done", time.monotonic()))
                 job["i"] += 1
@@ -940,7 +1003,8 @@ def run(
         return [float(v) for v in js] if js is not None else None
 
     arbiter.on_deadlock = on_deadlock if mode != "sequential" else "pause"
-    arbiter.safe = {arm_a: safe(arm_a), arm_b: safe(arm_b)}
+    for arm in arms:
+        arbiter._record(arm)
 
     jobs = {
         "a": (run_a, ok_a, ArmContext(ctx, arm_a, arbiter, safe(arm_a)), inputs_a or {}),

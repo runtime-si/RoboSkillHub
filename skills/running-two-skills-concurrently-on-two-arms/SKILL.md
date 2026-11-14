@@ -61,7 +61,7 @@ gap:
     both_succeeded: Both skills returned one of their success exits (any exit when the skill's canonical subgraph lists none), every move (interleaved - every segment) having been predicted at least min_clearance_m clear of the other arm; route_a / route_b are the skills' exits and outputs_a / outputs_b their outputs (JSON text).
     one_failed: One skill raised or ended on a non-success exit; the other was stopped at its next move and its arm moved back to the joints it started from when that was predicted clear (paused_arms names it), otherwise left where it stood; in sequential mode a second skill not yet started is not run (route not_run).
     both_failed: Both skills raised or ended on non-success exits.
-    deadlock_timeout: An arm waited wait_timeout_s for clearance and no sequential fallback was possible (on_deadlock pause, the other skill already finished in its way, the fallback itself deadlocked, or the yielding arm cannot go back to its start); the arm was paused at its start pose if clear, the other stopped at its next move; detail names the move and the predicted clearance.
+    deadlock_timeout: An arm waited wait_timeout_s for clearance and no sequential fallback was possible (on_deadlock pause, the other skill already finished in its way, the fallback itself deadlocked, or backing the yielding arm off its whole path does not clear the other); the arm was paused at its start pose if clear, the other stopped at its next move; detail names the move and the predicted clearance.
     refused: The clearance could not be predicted (a move the model cannot follow, an unreadable or non-YAM arm), the arms already stood under min_clearance_m or min_tcp_separation_m, no arm assignment reaches both targets, or the skills cannot be loaded; when this happens mid-run neither arm is moved further.
   canonical_scripts:
     - run_concurrent: scripts/run_concurrent.py
@@ -138,9 +138,13 @@ its arm; the arms share one arbiter that sees every move before it is sent.
 - `priority_arm` (0), `min_clearance_m` (0.03), `wait_timeout_s` (15).
 - `on_deadlock` (`sequential` | `pause`): what a wait longer than
   `wait_timeout_s` does. `sequential`: the arm that is not `priority_arm`
-  goes back to the joints it started from (predicted clear first) and waits
-  there until the other skill finishes, then carries on (`sequential_fallback`
-  true, the run can still end `both_succeeded`). `pause`: `deadlock_timeout`.
+  backs off along its own recorded path (tool positions after each move, at
+  least 12 mm apart, in reverse; straight Cartesian legs with its tool
+  orientation held, so a grasp is kept; each leg predicted clear first) only
+  until the other arm's pending move is predicted clear, waits there until
+  the other skill finishes, then carries on (`sequential_fallback` true; the
+  run can still end `both_succeeded`). If backing off its whole path does not
+  clear the other arm: `deadlock_timeout`. `pause`: `deadlock_timeout` at once.
 - `mode` (`auto` | `threaded` | `interleaved` | `sequential`),
   `min_tcp_separation_m` (0.10; interleaved and sequential), `segment_m`
   (0.05), `segment_rad` (0.30).
