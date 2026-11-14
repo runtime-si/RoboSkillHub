@@ -70,6 +70,7 @@ class Output(TypedDict):
     outputs_a: str
     outputs_b: str
     paused_arms: str
+    sequential_fallback: bool
     waits: int
     min_predicted_clearance_m: float
 
@@ -270,7 +271,65 @@ def with_tcp_separation(min_tcp: float, base=None):
     return predictor
 
 
-class Arbiter:
+class _Fallback:
+    """On a deadlock, either stop (``pause``) or go sequential for the rest (``sequential``):
+    the arm that is not priority_arm moves back to the joints it started from (if that is
+    predicted clear) and waits there until the other skill has finished, then goes on."""
+
+    on_deadlock = "sequential"
+    safe: dict[int, Any] = {}
+
+    def _init_fallback(self) -> None:
+        self.yield_arm: int | None = None
+        self.yield_retreated = False
+        self.fallback_at = 0.0
+        self.finished_arms: set[int] = set()
+
+    def _try_fallback(self, arm: int, other: int, gap: float, detail: str) -> bool:
+        """Called under the lock when ``arm`` timed out; True when the run goes sequential."""
+        if self.on_deadlock != "sequential" or self.yield_arm is not None:
+            return False
+        if other in self.finished_arms:
+            return False  # nothing left to wait for: the other skill is done and stays in the way
+        self.yield_arm = other if arm == self.priority_arm else arm
+        self.fallback_at = time.monotonic()
+        self.log.append((self.yield_arm, "yield", self.fallback_at))
+        self.fallback_why = (
+            f"deadlock after {self.timeout:.1f} s (arm {arm}'s next move {gap * 1e3:.1f} mm from arm {other}; {detail}); "
+            f"went sequential: arm {self.yield_arm} back to its start, then on after arm {self._other(self.yield_arm)} finished"
+        )
+        self.cond.notify_all()
+        return True
+
+    def _yielding(self, arm: int) -> bool:
+        return self.yield_arm == arm and self._other(arm) not in self.finished_arms
+
+    def _retreat_yield(self, arm: int) -> None:
+        """Under the lock: the yielding arm back to its start joints, if predicted clear."""
+        self.yield_retreated = True
+        q = self.safe.get(arm)
+        if q is None:
+            return
+        plan = ("trajectory", {"waypoints": [{"positions": list(q)}]})
+        verdict, gap, detail = self.predictor(self.ctx, arm, plan, self._other(arm), None)
+        if verdict != "ok" or gap < self.min_clearance:
+            self.halt = "deadlock"
+            self.why = f"deadlock; arm {arm} cannot go back to its start either ({gap * 1e3:.1f} mm, {detail})"
+            self.cond.notify_all()
+            return
+        with self.motion:
+            try:
+                self.ctx.tool(
+                    "robot.move_to_joints", joint_config={"positions": list(q)}, arm_id=arm
+                )
+            except Exception as exc:
+                self.halt = "deadlock"
+                self.why = f"deadlock; arm {arm}'s move back to its start was refused ({exc})"
+        self.log.append((arm, "yielded", time.monotonic()))
+        self.cond.notify_all()
+
+
+class Arbiter(_Fallback):
     """Grants one move at a time per arm; a move whose predicted clearance against the
     other arm (standing, or on its move in flight) is under ``min_clearance`` waits."""
 
@@ -292,6 +351,8 @@ class Arbiter:
         self.log: list[tuple[int, str, float]] = []
         self.seen: set[int] = set()  # arms that have asked for a move or finished
         self.motion = threading.Lock()  # held by a retreat
+        self.priority_arm = priority
+        self._init_fallback()
 
     def stop(self, kind: str, why: str) -> None:
         with self.cond:
@@ -304,7 +365,7 @@ class Arbiter:
 
     def acquire(self, arm: int, plan) -> None:
         other = self._other(arm)
-        deadline = time.monotonic() + self.timeout
+        started = time.monotonic()
         counted = False
         with self.cond:
             self.pending[arm] = plan
@@ -314,9 +375,20 @@ class Arbiter:
                 while True:
                     if self.halt:
                         raise _Halted(self.halt)
-                    if other == self.priority and (
-                        other not in self.seen
-                        or (other in self.pending and not self.blocked[other])
+                    if self._yielding(arm):
+                        if not self.yield_retreated:
+                            self._retreat_yield(arm)
+                        self.blocked[arm] = True
+                        self.cond.notify_all()
+                        self.cond.wait(POLL)
+                        continue
+                    if (
+                        other == self.priority
+                        and not self._yielding(other)
+                        and (
+                            other not in self.seen
+                            or (other in self.pending and not self.blocked[other])
+                        )
                     ):
                         self.cond.wait(POLL)  # the priority arm decides first
                         continue
@@ -339,7 +411,9 @@ class Arbiter:
                         self.log.append((arm, "wait", time.monotonic()))
                     self.blocked[arm] = True
                     self.cond.notify_all()
-                    if time.monotonic() >= deadline:
+                    if time.monotonic() >= max(started, self.fallback_at) + self.timeout:
+                        if self._try_fallback(arm, other, gap, detail):
+                            continue
                         self.halt = "deadlock"
                         self.why = (
                             f"arm {arm} waited {self.timeout:.1f} s for clearance; "
@@ -354,6 +428,7 @@ class Arbiter:
     def finished(self, arm: int) -> None:
         with self.cond:
             self.seen.add(arm)
+            self.finished_arms.add(arm)
             self.cond.notify_all()
 
     def execute(self, arm: int, name: str, kwargs: dict):
@@ -437,7 +512,7 @@ def _arrived(reply) -> bool:
     return reply.get("reached", True) is not False and reply.get("success", True) is not False
 
 
-class Dispatcher:
+class Dispatcher(_Fallback):
     """For a server that moves one arm at a time: the two skills' moves are cut into
     server steps and sent from one thread, A1, B1, A2, B2, ..., each waited to arrival
     and checked against the other arm standing where it is now."""
@@ -460,6 +535,8 @@ class Dispatcher:
         self.min_seen = math.inf
         self.log: list[tuple[int, str, float]] = []
         self.motion = threading.Lock()
+        self.priority_arm = self.turn
+        self._init_fallback()
 
     def _other(self, arm: int) -> int:
         return self.arms[1] if arm == self.arms[0] else self.arms[0]
@@ -473,12 +550,21 @@ class Dispatcher:
     def finished(self, arm: int) -> None:
         with self.cond:
             self.done.add(arm)
+            self.finished_arms.add(arm)
             self.cond.notify_all()
 
     def execute(self, arm: int, name: str, kwargs: dict):
         """Called from a skill's thread: queue the move, block until all its segments ran."""
         segs = _segments(self.ctx, arm, name, kwargs, *self.seg)
-        job = {"segs": segs, "i": 0, "reply": None, "error": None, "end": False, "since": None}
+        job = {
+            "segs": segs,
+            "i": 0,
+            "reply": None,
+            "error": None,
+            "end": False,
+            "since": None,
+            "call": (name, kwargs),
+        }
         with self.cond:
             if self.halt:
                 raise _Halted(self.halt)
@@ -501,6 +587,20 @@ class Dispatcher:
                     return
                 arm = self.turn
                 other = self._other(arm)
+                if self._yielding(arm):
+                    if not self.yield_retreated:
+                        self._retreat_yield(arm)
+                        for j in self.queue.values():
+                            if j is not None:
+                                j["since"] = None
+                        mine = self.queue[arm]
+                        if mine is not None and not mine["end"]:
+                            # its pending move was cut from where it stood before going back
+                            mine["segs"] = _segments(self.ctx, arm, *mine["call"], *self.seg)
+                            mine["i"] = 0
+                    self.turn = other
+                    self.cond.wait(POLL)
+                    continue
                 job = self.queue[arm]
                 if job is None or job["end"]:
                     nxt = self.queue[other]
@@ -515,7 +615,12 @@ class Dispatcher:
                     # a move starts only if all of it clears the other arm's committed rest
                     plan = _whole(job["segs"])
                     nxt = self.queue[other]
-                    if nxt is not None and not nxt["end"] and nxt["i"] > 0:
+                    if (
+                        nxt is not None
+                        and not nxt["end"]
+                        and nxt["i"] > 0
+                        and not self._yielding(other)
+                    ):
                         committed = _whole(nxt["segs"][nxt["i"] :])
                 verdict, gap, detail = self.predictor(self.ctx, arm, plan, other, committed)
                 if verdict == "unknown":
@@ -528,7 +633,9 @@ class Dispatcher:
                         job["since"] = now
                         self.waits += 1
                         self.log.append((arm, "wait", now))
-                    if now - job["since"] >= self.timeout:
+                    if now - max(job["since"], self.fallback_at) >= self.timeout:
+                        if self._try_fallback(arm, other, gap, detail):
+                            continue
                         self.halt = "deadlock"
                         self.why = (
                             f"arm {arm} waited {self.timeout:.1f} s for clearance; "
@@ -738,6 +845,7 @@ def run(
     min_tcp_separation_m: float = MIN_TCP_SEPARATION,
     segment_m: float = SEGMENT_M,
     segment_rad: float = SEGMENT_RAD,
+    on_deadlock: str = "sequential",
 ) -> Output:
     out: Output = {
         "route": "refused",
@@ -750,6 +858,7 @@ def run(
         "outputs_a": "{}",
         "outputs_b": "{}",
         "paused_arms": "",
+        "sequential_fallback": False,
         "waits": 0,
         "min_predicted_clearance_m": math.nan,
     }
@@ -784,6 +893,8 @@ def run(
     if arm_a == arm_b or max(arm_a, arm_b) >= len(obs):
         return refuse(f"arms {arm_a} and {arm_b} are not two arms of this connector")
 
+    if on_deadlock not in ("sequential", "pause"):
+        return refuse(f"on_deadlock must be sequential or pause, not {on_deadlock!r}")
     if mode not in MODES:
         return refuse(f"mode must be one of {', '.join(MODES)}, not {mode!r}")
     if mode == "auto":
@@ -827,6 +938,9 @@ def run(
         js = obs[arm].get("joint_state")
         js = js.get("positions", js) if isinstance(js, dict) else js
         return [float(v) for v in js] if js is not None else None
+
+    arbiter.on_deadlock = on_deadlock if mode != "sequential" else "pause"
+    arbiter.safe = {arm_a: safe(arm_a), arm_b: safe(arm_b)}
 
     jobs = {
         "a": (run_a, ok_a, ArmContext(ctx, arm_a, arbiter, safe(arm_a)), inputs_a or {}),
@@ -890,6 +1004,7 @@ def run(
         out[f"outputs_{key}"] = json.dumps(reply, default=str)
     out["paused_arms"] = ",".join(str(j[2].arm) for j in jobs.values() if j[2].paused)
     out["waits"] = arbiter.waits
+    out["sequential_fallback"] = arbiter.yield_arm is not None
     out["min_predicted_clearance_m"] = arbiter.min_seen
     out["route"] = {
         "unsafe": "refused",
@@ -900,6 +1015,8 @@ def run(
         f"skill a ({skill_a}) on arm {arm_a}: {out['route_a']}",
         f"skill b ({skill_b}) on arm {arm_b}: {out['route_b']}",
     ]
+    if arbiter.yield_arm is not None:
+        parts.append(arbiter.fallback_why)
     if arbiter.why:
         parts.append(arbiter.why)
     if out["paused_arms"]:

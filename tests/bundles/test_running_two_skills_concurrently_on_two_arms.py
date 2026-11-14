@@ -497,3 +497,105 @@ def test_the_guard_stays_quiet_on_an_honest_connector(script, clearance):
     out = script.run(robot.ctx(), skill_a="skill-a", skill_b="skill-b")
     assert out["route"] == "both_succeeded", out["detail"]
     assert "guard" not in out["detail"]
+
+
+# ---------------------------------------------------------------- deadlock -> sequential
+#: Scene b of the twin in miniature: both arms lift toward the middle (still 55 mm clear of each
+#: other), then each one's crossing move would end in the other's way (-2 mm): a true deadlock.
+LIFT = {0: [-0.5, 1.5, 1.0, 0.0, 0.0, 0.0], 1: [0.5, 1.5, 1.0, 0.0, 0.0, 0.0]}
+
+
+def test_the_lift_poses_deadlock_for_real(clearance):
+    robot = Robot(clearance)
+    robot.q = {0: np.array(LIFT[0]), 1: np.array(LIFT[1])}
+    assert clearance.run(robot.ctx())["min_clearance_m"] > 0.03
+    robot.q = {0: np.array(CROSS[0]), 1: np.array(LIFT[1])}
+    assert clearance.run(robot.ctx())["min_clearance_m"] < 0.03
+
+
+@pytest.mark.parametrize("serial", [False, True])
+def test_a_deadlock_falls_back_to_sequential(script, clearance, serial):
+    robot = serial_robot(clearance) if serial else Robot(clearance)
+    job = joints_skill(LIFT, CROSS, {0: HOME, 1: HOME})
+    register(script, job, job)
+    out = script.run(robot.ctx(), skill_a="skill-a", skill_b="skill-b", wait_timeout_s=0.3)
+    assert out["route"] == "both_succeeded", out["detail"]
+    assert out["sequential_fallback"] is True
+    assert "went sequential: arm 1 back to its start" in out["detail"]
+    # arm 1 (not priority) went back home before arm 0 crossed, and crossed only after arm 0 finished
+    ends = [(a, q) for a, _, _, q in robot.moves]
+    cross0 = next(i for i, (a, q) in enumerate(ends) if a == 0 and q == CROSS[0])
+    home1 = next(i for i, (a, q) in enumerate(ends) if a == 1 and np.allclose(q, HOME))
+    cross1 = next(i for i, (a, q) in enumerate(ends) if a == 1 and q == CROSS[1])
+    back0 = max(i for i, (a, _) in enumerate(ends) if a == 0)
+    assert home1 < cross0 < back0 < cross1
+    np.testing.assert_allclose(robot.q[0], HOME)
+    np.testing.assert_allclose(robot.q[1], HOME)
+
+
+def test_on_deadlock_pause_keeps_the_old_stop(script, clearance):
+    robot = Robot(clearance)
+    job = joints_skill(LIFT, CROSS, {0: HOME, 1: HOME})
+    register(script, job, job)
+    out = script.run(
+        robot.ctx(), skill_a="skill-a", skill_b="skill-b", wait_timeout_s=0.3, on_deadlock="pause"
+    )
+    assert out["route"] == "deadlock_timeout", out["detail"]
+    assert out["sequential_fallback"] is False
+
+
+# ---------------------------------------------------------------- twin scene b, recorded
+#: b_cint_s0_r3 (YAM station twin, 2026-11-13): both arms holding their cubes over their picks,
+#: joints as robot.get_observation returned them (MuJoCo / model convention: the twin's grasp
+#: sites at these joints are where its ee_pose said, (0.570, +-0.180)), and arm 0's place
+#: pose solved by robot.solve_ik. MuJoCo mesh gap (yam_i2rt_bimanual.xml, mj_geomDistance over
+#: link1-5 and fingertips): 245.0 mm now, 14.3 mm with arm 0 at its place and arm 1 standing.
+TWIN_NOW = {
+    0: [-0.386, 1.841, 1.498, -1.228, 0.0, 0.001],
+    1: [0.365, 1.841, 1.498, -1.228, 0.0, -0.001],
+}
+TWIN_ARM0_PLACE = [-0.97, 2.229, 2.067, -1.409, 0.0, 0.001]
+MESH_NOW, MESH_ARM0_PLACE = 0.2450, 0.0143
+
+
+def test_twin_scene_b_prediction_is_the_place_pose_not_a_wrong_input(clearance):
+    robot = Robot(clearance)
+    robot.q = {a: np.array(q) for a, q in TWIN_NOW.items()}
+    for arm, y in ((0, 0.180), (1, -0.180)):
+        p = robot._pose(arm, robot.q[arm])["position"]
+        assert abs(p["y"] - y) < 0.01  # same joints, same tool point as the twin reported
+    now = clearance.run(robot.ctx())["min_clearance_m"]
+    there = clearance.run(robot.ctx(), trajectory_a={"waypoints": [{"positions": TWIN_ARM0_PLACE}]})
+    # capsules bound the meshes from below by tens of millimetres, never hundreds
+    assert MESH_NOW - 0.06 < now <= MESH_NOW
+    assert MESH_ARM0_PLACE - 0.06 < there["min_clearance_m"] <= MESH_ARM0_PLACE
+    assert there["at_fraction"] == pytest.approx(1.0)
+
+
+def test_a_hardware_joint1_offset_does_not_change_the_clearance(clearance):
+    """#247: model joint1 = hardware joint1 - pi/2. A connector reporting hardware joints (with
+    its own FK and tool poses consistent with them) gives the same answer: each base is located
+    from the tool pose, and joint1 turns about the base's z through its origin, so the offset
+    only turns the located base."""
+    off = np.array([np.pi / 2, 0, 0, 0, 0, 0])
+    robot = Robot(clearance)
+    robot.q = {a: np.array(q) for a, q in TWIN_NOW.items()}
+    model = clearance.run(robot.ctx(), trajectory_a={"waypoints": [{"positions": TWIN_ARM0_PLACE}]})
+    ctx = robot.ctx()
+    obs = ctx._responses["robot.get_observation"]
+
+    def hw_obs():
+        o = obs()
+        for a, arm in enumerate(o["arms"]):
+            arm["joint_state"]["positions"] = (robot.q[a] + off).tolist()
+        return o
+
+    ctx._responses["robot.get_observation"] = hw_obs
+    ctx._responses["robot.forward_kinematics"] = lambda joint_configs, arm_id=0: {
+        "poses": [robot._pose(arm_id, np.asarray(q) - off) for q in joint_configs]
+    }
+    hw = clearance.run(
+        ctx, trajectory_a={"waypoints": [{"positions": list(np.array(TWIN_ARM0_PLACE) + off)}]}
+    )
+    assert hw["route"] == model["route"]
+    assert hw["min_clearance_m"] == pytest.approx(model["min_clearance_m"], abs=1e-6)

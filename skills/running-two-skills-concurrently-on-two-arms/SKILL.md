@@ -54,13 +54,14 @@ gap:
     outputs_a: string
     outputs_b: string
     paused_arms: string
+    sequential_fallback: bool
     waits: int
     min_predicted_clearance_m: float
   exit_conditions:
     both_succeeded: Both skills returned one of their success exits (any exit when the skill's canonical subgraph lists none), every move (interleaved - every segment) having been predicted at least min_clearance_m clear of the other arm; route_a / route_b are the skills' exits and outputs_a / outputs_b their outputs (JSON text).
     one_failed: One skill raised or ended on a non-success exit; the other was stopped at its next move and its arm moved back to the joints it started from when that was predicted clear (paused_arms names it), otherwise left where it stood; in sequential mode a second skill not yet started is not run (route not_run).
     both_failed: Both skills raised or ended on non-success exits.
-    deadlock_timeout: An arm waited wait_timeout_s for clearance (the other arm stood or stayed in its way); that arm was paused at its start pose if clear, and the other stopped at its next move; detail names the move and the predicted clearance.
+    deadlock_timeout: An arm waited wait_timeout_s for clearance and no sequential fallback was possible (on_deadlock pause, the other skill already finished in its way, the fallback itself deadlocked, or the yielding arm cannot go back to its start); the arm was paused at its start pose if clear, the other stopped at its next move; detail names the move and the predicted clearance.
     refused: The clearance could not be predicted (a move the model cannot follow, an unreadable or non-YAM arm), the arms already stood under min_clearance_m or min_tcp_separation_m, no arm assignment reaches both targets, or the skills cannot be loaded; when this happens mid-run neither arm is moved further.
   canonical_scripts:
     - run_concurrent: scripts/run_concurrent.py
@@ -135,6 +136,11 @@ its arm; the arms share one arbiter that sees every move before it is sent.
 - `skill_a`, `skill_b`: hub skill names; `inputs_a`, `inputs_b`: their inputs.
 - `arm_a` (0), `arm_b` (1); -1 for auto with `target_a`, `target_b` (Vec3).
 - `priority_arm` (0), `min_clearance_m` (0.03), `wait_timeout_s` (15).
+- `on_deadlock` (`sequential` | `pause`): what a wait longer than
+  `wait_timeout_s` does. `sequential`: the arm that is not `priority_arm`
+  goes back to the joints it started from (predicted clear first) and waits
+  there until the other skill finishes, then carries on (`sequential_fallback`
+  true, the run can still end `both_succeeded`). `pause`: `deadlock_timeout`.
 - `mode` (`auto` | `threaded` | `interleaved` | `sequential`),
   `min_tcp_separation_m` (0.10; interleaved and sequential), `segment_m`
   (0.05), `segment_rad` (0.30).
@@ -157,7 +163,16 @@ its arm; the arms share one arbiter that sees every move before it is sent.
 
 ## Limits
 
-Interleaved is turn-taking, not simultaneous motion; true simultaneity on the
+Threaded mode is unsafe on the RoboSimStudio twin as of 2026-11-13: its
+Cartesian servo keeps one setpoint for both arms, so a move started while the
+other arm's is in flight re-aims that arm (link4-link4 contact in scene a).
+Use interleaved there until the servo keeps one setpoint per arm. In the
+twin's scene b (each arm's place past the middle) the prediction that
+blocked the arms was right: with arm 0 at its place and arm 1 over its pick,
+MuJoCo's meshes are 14.3 mm apart and the capsules said -13.2 mm; the 206 mm
+measured was the arms waiting, not that pose. A hardware joint1 offset (model
+joint1 = hardware joint1 - pi/2) does not change the answer, since each base
+is located from the tool pose. Interleaved is turn-taking, not simultaneous motion; true simultaneity on the
 real station needs the server's joint stream (`stream_joints`, both arms in
 one request), which this skill does not drive yet. The tool-centre check is
 against the other arm standing, not its committed path. The arbiter predicts
