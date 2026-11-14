@@ -17,7 +17,7 @@ BASE_Y = {0: 0.305, 1: -0.305}
 HOME = [0.0, 1.0, 1.0, 0.0, 0.0, 0.0]
 OUTWARD = {0: [0.5, 1.5, 1.0, 0.0, 0.0, 0.0], 1: [-0.5, 1.5, 1.0, 0.0, 0.0, 0.0]}
 CROSS = {0: [-1.0, 1.5, 1.0, 0.0, 0.0, 0.0], 1: [1.0, 1.5, 1.0, 0.0, 0.0, 0.0]}
-MOVE_S = 0.3
+MOVE_S = 0.6
 
 
 @pytest.fixture(scope="module")
@@ -436,3 +436,64 @@ def test_both_failing_is_both_failed(script, clearance):
     register(script, lambda ctx: {"route": "missed"}, lambda ctx: {"route": "missed"})
     out = script.run(robot.ctx(), skill_a="skill-a", skill_b="skill-b")
     assert out["route"] == "both_failed", out["detail"]
+
+
+class SharedSetpointRobot(Robot):
+    """The twin's failure (a_concurrent_s0_r2): one Cartesian-servo setpoint shared by both
+    arms, re-seeded by every move, so a move started while the other arm's is in flight sends
+    that arm toward somewhere it was never asked to go (here: across the middle). Moves step
+    every 10 ms and honour robot.stop."""
+
+    def __init__(self, model):
+        super().__init__(model)
+        self.moving: set[int] = set()
+        self.hijack: dict[int, list] = {}
+        self.stopped: set[int] = set()
+
+    def ctx(self):
+        ctx = super().ctx()
+
+        def move(joint_config, arm_id=0):
+            for other in self.moving:
+                self.hijack[other] = CROSS[other]  # the other arm's setpoint is overwritten
+            self.moving.add(arm_id)
+            try:
+                start = self.q[arm_id].copy()
+                for k in range(1, 31):
+                    if arm_id in self.stopped:
+                        return {"reached": False, "outcome": "stopped"}
+                    goal = np.array(self.hijack.get(arm_id, joint_config["positions"]), float)
+                    with self.lock:
+                        self.q[arm_id] = start + (goal - start) * k / 30
+                    time.sleep(0.03)
+                self.moves.append((arm_id, 0.0, 0.0, list(joint_config["positions"])))
+                return {"reached": True}
+            finally:
+                self.moving.discard(arm_id)
+
+        ctx._responses["robot.move_to_joints"] = move
+        ctx._responses["robot.stop"] = lambda arm_id=0: self.stopped.add(arm_id)
+        return ctx
+
+
+def test_regression_a_connector_moving_a_different_path_is_stopped_by_the_guard(script, clearance):
+    robot = SharedSetpointRobot(clearance)
+    out_and_back = joints_skill(OUTWARD, {0: HOME, 1: HOME}, OUTWARD, {0: HOME, 1: HOME})
+    register(script, out_and_back, out_and_back)
+    out = script.run(robot.ctx(), skill_a="skill-a", skill_b="skill-b", mode="threaded")
+    assert out["route"] == "refused", out["detail"]
+    assert "guard: measured clearance" in out["detail"]
+    assert robot.stopped == {0, 1}
+    # predicted every grant clear; what stopped it was the measurement
+    assert out["min_predicted_clearance_m"] >= 0.03
+    gap = clearance.run(robot.ctx())["min_clearance_m"]
+    assert gap > -0.05  # stopped on the way in, not driven through
+
+
+def test_the_guard_stays_quiet_on_an_honest_connector(script, clearance):
+    robot = Robot(clearance)
+    there_and_back = joints_skill(CROSS, {0: HOME, 1: HOME})
+    register(script, there_and_back, there_and_back)
+    out = script.run(robot.ctx(), skill_a="skill-a", skill_b="skill-b")
+    assert out["route"] == "both_succeeded", out["detail"]
+    assert "guard" not in out["detail"]

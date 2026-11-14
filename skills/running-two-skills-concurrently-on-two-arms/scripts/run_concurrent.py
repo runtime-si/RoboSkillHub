@@ -187,7 +187,7 @@ def predict(ctx, arm: int, plan, other: int, other_plan) -> tuple[str, float, st
         okind, ovalue = other_plan
         if okind in ("trajectory", "poses"):
             kw[f"{okind}_b"] = ovalue
-            orders.append("b_then_a")
+            orders += ["b_then_a", "together"]
         elif okind == "grip":
             kw["grip_b"] = ovalue
     worst = None
@@ -563,6 +563,40 @@ class Dispatcher:
                 self.cond.notify_all()
 
 
+#: Guard poll period [s] and the stop tools tried on a breach (first one the connector has).
+GUARD_PERIOD = 0.05
+STOP_TOOLS = ("robot.stop", "robot.halt")
+
+
+def guard(ctx, arbiter, arms, min_clearance: float, stop: threading.Event) -> None:
+    """Measured, not predicted: the arms' capsule clearance as they stand, every
+    GUARD_PERIOD while the skills run. Under min_clearance both arms are stopped
+    (no further move is granted, and robot.stop is sent to both if the connector has it)."""
+    check = _clearance_module().run
+    while not stop.wait(GUARD_PERIOD):
+        try:
+            now = check(ctx, arm_a=arms[0], arm_b=arms[1])
+        except Exception as exc:
+            logger.warning("guard: no reading (%s)", exc)
+            continue
+        gap = now.get("min_clearance_m", math.nan)
+        if now.get("route") == "unknown" or not (gap >= min_clearance):
+            arbiter.stop(
+                "unsafe",
+                f"guard: measured clearance {gap * 1e3:.1f} mm under {min_clearance * 1e3:.0f} mm "
+                f"({now.get('detail', '')}); both arms stopped",
+            )
+            for arm in arms:
+                for tool in STOP_TOOLS:
+                    try:
+                        ctx.tool(tool, arm_id=arm)
+                        break
+                    except Exception:
+                        continue
+            arbiter.guard_tripped = True
+            return
+
+
 class ArmContext:
     """The run's ctx bound to one arm: robot.* calls get its arm_id, moves go
     through the arbiter, and a halted run pauses the arm at its safe pose."""
@@ -836,10 +870,17 @@ def run(
         threads = [threading.Thread(target=work, args=(k,), name=f"arm-{k}") for k in jobs]
         if mode == "interleaved":
             threads.append(threading.Thread(target=arbiter.loop, name="dispatcher"))
+        halt_guard = threading.Event()
+        watcher = threading.Thread(
+            target=guard, args=(ctx, arbiter, arms, float(min_clearance_m), halt_guard), daemon=True
+        )
+        watcher.start()
         for t in threads:
             t.start()
         for t in threads:
             t.join()
+        halt_guard.set()
+        watcher.join(timeout=5)
 
     import json
 
