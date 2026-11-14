@@ -205,11 +205,17 @@ def collisions(model: dict, q12) -> list[str]:
 # ---------------------------------------------------------------- time-optimal timing
 
 
-def retime(
-    path: np.ndarray, vmax=VMAX, amax=AMAX, jmax=JMAX, ds: float | None = None
+def _retime(
+    path: np.ndarray,
+    vmax=VMAX,
+    amax=AMAX,
+    jmax=JMAX,
+    ds: float | None = None,
+    jerk_hz: float = HZ,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Fastest timing of ``path`` (N, dof), at rest at both ends, under per-joint |v|, |a| (forward/backward
-    pass on the path parameter) and |jerk| (uniform slow-down). Returns times (M,) and positions (M, dof)."""
+    pass on the path parameter) and |jerk| of the rows sampled at ``jerk_hz`` (the commands a
+    joint stream sends; uniform slow-down). Returns times (M,) and positions (M, dof)."""
     path = np.asarray(path, float)
     seg = np.linalg.norm(np.diff(path, axis=0), axis=1)
     s_knots = np.r_[0.0, np.cumsum(seg)]
@@ -228,15 +234,16 @@ def retime(
         sd_c = np.min(np.where(np.abs(ddq) > 1e-9, np.sqrt(amax_ / np.abs(ddq)), np.inf), 1)
     cap = np.minimum(sd_v, sd_c)
 
+    nz = np.abs(dq) > 1e-9
+    dq_safe = np.where(nz, dq, 1.0)
+
     def acc_bounds(i, sd):
-        lo, hi = -np.inf, np.inf
-        for j in range(dq.shape[1]):
-            if abs(dq[i, j]) < 1e-9:
-                continue
-            a1 = (amax_[j] - ddq[i, j] * sd * sd) / dq[i, j]
-            a2 = (-amax_[j] - ddq[i, j] * sd * sd) / dq[i, j]
-            lo, hi = max(lo, min(a1, a2)), min(hi, max(a1, a2))
-        return lo, hi
+        a1 = (amax_ - ddq[i] * sd * sd) / dq_safe[i]
+        a2 = (-amax_ - ddq[i] * sd * sd) / dq_safe[i]
+        m = nz[i]
+        if not m.any():
+            return -np.inf, np.inf
+        return float(np.minimum(a1, a2)[m].max()), float(np.maximum(a1, a2)[m].min())
 
     sd = cap.copy()
     sd[0] = sd[-1] = 0.0
@@ -250,11 +257,33 @@ def retime(
     dt = np.where(mid > 1e-9, h / np.maximum(mid, 1e-9), 0.0)
     dt[mid <= 1e-9] = np.sqrt(2 * h / np.max(amax_)) * 2
     t = np.r_[0.0, np.cumsum(dt)]
-    tt = np.arange(0.0, t[-1] + 1e-9, 1.0 / 240)
-    qt = np.stack([np.interp(tt, t, q[:, j]) for j in range(q.shape[1])], 1)
-    jerk = np.abs(np.diff(qt, 3, axis=0)).max() * 240**3 if len(qt) > 3 else 0.0
-    k = max(1.0, (jerk / jmax) ** (1 / 3))
+    jmax_ = np.broadcast_to(jmax, dq.shape[1:])
+    k = 1.0
+    for _ in range(20):
+        rows = sample(t * k, q, jerk_hz)
+        if len(rows) < 4:
+            break
+        jerk = np.abs(np.diff(rows, 3, axis=0)).max(0) * jerk_hz**3
+        r = float((jerk / jmax_).max())
+        if r <= 1.0:
+            break
+        k *= max(1.01, r ** (1 / 3))
     return t * k, q
+
+
+def retime(
+    path: np.ndarray, vmax=VMAX, amax=AMAX, jmax=JMAX, jerk_hz: float = HZ
+) -> tuple[np.ndarray, np.ndarray]:
+    """Fastest timing of ``path`` (N, dof), at rest at both ends, within per-joint |v|, |a| and |jerk| limits.
+
+    The jerk slow-down is uniform, so a sharper (faster) velocity profile can end slower; the timing is
+    therefore also tried with the velocity limits scaled down, keeping the quickest."""
+    best = None
+    for f in (1.0, 0.75, 0.5, 0.35, 0.25):
+        t, q = _retime(path, np.asarray(vmax, float) * f, amax, jmax, jerk_hz=jerk_hz)
+        if best is None or t[-1] < best[0][-1]:
+            best = (t, q)
+    return best
 
 
 def sample(t: np.ndarray, q: np.ndarray, hz: float = HZ) -> np.ndarray:
@@ -293,7 +322,9 @@ def waypoints(t: np.ndarray, q: np.ndarray, n: int = 8) -> list[dict[str, Any]]:
 class DualArmPlanner:
     """One cuRobo MotionPlanner over both arms (GPU)."""
 
-    def __init__(self, model: dict | None = None, num_trajopt_seeds: int = 4):
+    def __init__(
+        self, model: dict | None = None, num_trajopt_seeds: int = 4, num_ik_seeds: int = 32
+    ):
         from curobo._src.state.state_joint import JointState
         from curobo._src.types.device_cfg import DeviceCfg
         from curobo.motion_planner import MotionPlanner, MotionPlannerCfg
@@ -309,6 +340,7 @@ class DualArmPlanner:
             self_collision_check=True,
             device_cfg=self.device,
             num_trajopt_seeds=num_trajopt_seeds,
+            num_ik_seeds=num_ik_seeds,
             use_cuda_graph=False,
         )
         self.planner = MotionPlanner(cfg)
@@ -320,9 +352,14 @@ class DualArmPlanner:
         pos = self.device.to_device(torch.tensor(np.asarray(q, float)[None], dtype=torch.float32))
         return self.JointState.from_position(pos, joint_names=self.joint_names)
 
-    def path(self, q_start, q_goal, max_attempts: int = 5) -> tuple[np.ndarray | None, str]:
+    def path(
+        self, q_start, q_goal, max_attempts: int = 5, enable_graph_attempt: int = 1
+    ) -> tuple[np.ndarray | None, str]:
         res = self.planner.plan_cspace(
-            self._js(q_goal), self._js(q_start), max_attempts=max_attempts
+            self._js(q_goal),
+            self._js(q_start),
+            max_attempts=max_attempts,
+            enable_graph_attempt=enable_graph_attempt,
         )
         if res is None or not bool(res.success.any()):
             return None, str(getattr(res, "status", None) or "no feasible trajectory")
