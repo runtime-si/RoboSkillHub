@@ -39,7 +39,7 @@
   "link3": "link_3",
   "link4": "link_4",
   "link5": "link_5",
-  "gripper": "link_6",
+  "link6": "link_6",
   "tip_left": "tip_left",
   "tip_right": "tip_right"
  },
@@ -66,10 +66,10 @@
     0.067
    ],
    "quat_wxyz": [
-    0.7071053,
-    0.0,
-    0.0,
-    -0.7071083
+    -0.7071053,
+    -0.0,
+    -0.0,
+    0.7071083
    ],
    "joint": {
     "name": "joint1",
@@ -93,10 +93,10 @@
     0.0455
    ],
    "quat_wxyz": [
-    0.499998,
-    0.5,
-    -0.500002,
-    -0.5
+    -0.499998,
+    -0.5,
+    0.500002,
+    0.5
    ],
    "joint": {
     "name": "joint2",
@@ -120,10 +120,10 @@
     -0.06375
    ],
    "quat_wxyz": [
-    9e-07,
-    -0.7071053,
-    -0.7071083,
-    9e-07
+    -9e-07,
+    0.7071053,
+    0.7071083,
+    -9e-07
    ],
    "joint": {
     "name": "joint3",
@@ -147,10 +147,10 @@
     -0.00205
    ],
    "quat_wxyz": [
-    1.3e-06,
+    -1.3e-06,
     0.0,
     0.0,
-    -1.0
+    1.0
    ],
    "joint": {
     "name": "joint4",
@@ -174,10 +174,10 @@
     -0.0323887
    ],
    "quat_wxyz": [
-    9e-07,
-    -0.7071053,
     -9e-07,
-    -0.7071083
+    0.7071053,
+    9e-07,
+    0.7071083
    ],
    "joint": {
     "name": "joint5",
@@ -193,32 +193,45 @@
     ]
    }
   },
-  "gripper": {
-   "parent": "link6",
+  "link6": {
+   "parent": "link5",
    "pos": [
-    0.0,
-    0.0,
-    0.0
+    2e-07,
+    -0.0419481,
+    0.0404996
    ],
    "quat_wxyz": [
-    1.0,
-    0.0,
-    0.0,
-    0.0
-   ]
+    -0.499998,
+    0.5,
+    0.5,
+    0.500002
+   ],
+   "joint": {
+    "name": "joint6",
+    "type": "revolute",
+    "axis": [
+     0.0,
+     0.0,
+     -1.0
+    ],
+    "range": [
+     -2.0944,
+     2.0944
+    ]
+   }
   },
   "tip_left": {
-   "parent": "gripper",
+   "parent": "link6",
    "pos": [
     -0.0238981,
     0.0450619,
     -0.0545599
    ],
    "quat_wxyz": [
-    0.499998,
-    -0.5,
-    -0.5,
-    -0.500002
+    -0.499998,
+    0.5,
+    0.5,
+    0.500002
    ],
    "joint": {
     "name": "joint7",
@@ -235,7 +248,7 @@
    }
   },
   "tip_right": {
-   "parent": "gripper",
+   "parent": "link6",
    "pos": [
     0.0238981,
     -0.0450619,
@@ -261,6 +274,20 @@
     ]
    }
   }
+ },
+ "tcp": {
+  "parent": "link6",
+  "pos": [
+   0.0,
+   0.0,
+   -0.1347
+  ],
+  "quat_wxyz": [
+   0.0,
+   1.0,
+   0.0,
+   0.0
+  ]
  },
  "spheres": {
   "base": [
@@ -1027,7 +1054,7 @@
     "radius": 0.01607
    }
   ],
-  "gripper": [
+  "link6": [
    {
     "center": [
      0.0,
@@ -1352,7 +1379,7 @@
     "max_protrusion_m": 0.0171,
     "n_vertices": 706
    },
-   "gripper": {
+   "link6": {
     "n_spheres": 16,
     "vertex_coverage": 0.9998,
     "max_protrusion_m": 0.0193,
@@ -2030,5 +2057,11 @@
     "gap_m": 0.0207
    }
   ]
+ },
+ "validation_fk_tcp": {
+  "n": 400,
+  "max_pos_err_m": 1.25e-07,
+  "max_rot_err_rad": 0.0,
+  "note": "chain + tcp of this file vs MuJoCo left/right_grasp_site, random joints in limits"
  }
 }

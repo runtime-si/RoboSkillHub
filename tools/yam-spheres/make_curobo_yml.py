@@ -17,13 +17,12 @@ import yaml
 HERE = Path(__file__).resolve().parent
 OUT = HERE.parent / "curobo" / "robots" / "yam" / "yam.yml"
 LINKS = ["base_link", "link_1", "link_2", "link_3", "link_4", "link_5", "link_6"]
-TCP = [0.0, 0.0, -0.1347, 0.0, 1.0, 0.0, 0.0]
-"""link_6 -> fingertip centre, xyz + quat wxyz (the i2rt linear_4310 tool frame used by the earlier cuRobo port)."""
 
 
 def main():
     doc = json.loads((HERE / "yam_spheres.json").read_text())
     body_of = {v: k for k, v in doc["link_names_urdf"].items()}
+    tcp = [float(x) for x in doc["tcp"]["pos"] + doc["tcp"]["quat_wxyz"]]
     spheres = {}
     for link in LINKS:
         src = (
@@ -50,14 +49,14 @@ def main():
                         "link_name": "tcp",
                         "joint_name": "tcp_joint",
                         "joint_type": "FIXED",
-                        "fixed_transform": TCP,
+                        "fixed_transform": tcp,
                     },
                     "attached_object": {
                         "parent_link_name": "link_6",
                         "link_name": "attached_object",
                         "joint_name": "attach_joint",
                         "joint_type": "FIXED",
-                        "fixed_transform": TCP,
+                        "fixed_transform": tcp,
                     },
                 },
                 "collision_link_names": LINKS + ["attached_object"],

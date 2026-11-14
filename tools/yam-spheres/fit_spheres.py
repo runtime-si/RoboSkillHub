@@ -21,7 +21,8 @@ import trimesh
 from scipy.spatial import cKDTree
 
 HERE = Path(__file__).resolve().parent
-BODIES = ["base", "link1", "link2", "link3", "link4", "link5", "gripper", "tip_left", "tip_right"]
+BODIES = ["base", "link1", "link2", "link3", "link4", "link5", "link6", "tip_left", "tip_right"]
+"""One per moving frame; the jointless ``gripper`` body is fixed on ``link6`` and folded into it."""
 URDF_LINK = {
     "base": "base_link",
     "link1": "link_1",
@@ -29,20 +30,38 @@ URDF_LINK = {
     "link3": "link_3",
     "link4": "link_4",
     "link5": "link_5",
-    "gripper": "link_6",
+    "link6": "link_6",
     "tip_left": "tip_left",
     "tip_right": "tip_right",
 }
 
 
+def fixed_pose(model: mujoco.MjModel, top: int, bid: int) -> np.ndarray | None:
+    """``bid``'s pose in ``top``'s frame (4x4) if no joint lies between them, else None."""
+    T = np.eye(4)
+    while bid != top:
+        if model.body_jntnum[bid] or bid == 0:
+            return None
+        A = np.eye(4)
+        R = np.zeros(9)
+        mujoco.mju_quat2Mat(R, model.body_quat[bid])
+        A[:3, :3], A[:3, 3] = R.reshape(3, 3), model.body_pos[bid]
+        T = A @ T
+        bid = model.body_parentid[bid]
+    return T
+
+
 def body_meshes(model: mujoco.MjModel, prefix: str) -> dict[str, trimesh.Trimesh]:
-    """Each ``prefix``-body's mesh geoms as one trimesh in that body's frame."""
+    """Each ``prefix``-body's mesh geoms, with those of bodies fixed to it, as one trimesh in that body's frame."""
     out = {}
     for b in BODIES:
         bid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, prefix + b)
         parts = []
         for g in range(model.ngeom):
-            if model.geom_bodyid[g] != bid or model.geom_type[g] != mujoco.mjtGeom.mjGEOM_MESH:
+            if model.geom_type[g] != mujoco.mjtGeom.mjGEOM_MESH:
+                continue
+            T = fixed_pose(model, bid, model.geom_bodyid[g])
+            if T is None:
                 continue
             m = model.geom_dataid[g]
             v = model.mesh_vert[
@@ -53,9 +72,8 @@ def body_meshes(model: mujoco.MjModel, prefix: str) -> dict[str, trimesh.Trimesh
             ]
             R = np.zeros(9)
             mujoco.mju_quat2Mat(R, model.geom_quat[g])
-            parts.append(
-                trimesh.Trimesh(v @ R.reshape(3, 3).T + model.geom_pos[g], f, process=True)
-            )
+            v = v @ R.reshape(3, 3).T + model.geom_pos[g]
+            parts.append(trimesh.Trimesh(v @ T[:3, :3].T + T[:3, 3], f, process=True))
         out[b] = trimesh.util.concatenate(parts)
     return out
 

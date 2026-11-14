@@ -21,17 +21,33 @@ STATION_ROOT = [-0.3475, 0.0, 0.023]
 """rss.robot(..., at=(-0.3475, 0, BASE_RAISE)) in the twin's scene.py; world z=0 is the bench top."""
 
 
+def _pose(model, bid) -> np.ndarray:
+    T = np.eye(4)
+    R = np.zeros(9)
+    mujoco.mju_quat2Mat(R, model.body_quat[bid])
+    T[:3, :3], T[:3, 3] = R.reshape(3, 3), model.body_pos[bid]
+    return T
+
+
+def _quat(T: np.ndarray) -> list[float]:
+    q = np.zeros(4)
+    mujoco.mju_mat2Quat(q, T[:3, :3].flatten())
+    return (q * np.sign(q[np.argmax(np.abs(q))])).round(7).tolist()
+
+
 def chain(model: mujoco.MjModel, prefix: str) -> dict:
+    """Each body's pose in its parent chain body (jointless bodies between them folded in) and its joint."""
+    ids = {mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, prefix + b): b for b in BODIES}
     out = {}
-    for b in BODIES:
-        bid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, prefix + b)
-        parent = model.body_parentid[bid]
+    for bid, b in ids.items():
+        T, parent = _pose(model, bid), model.body_parentid[bid]
+        while parent not in ids and parent != 0:
+            T = _pose(model, parent) @ T
+            parent = model.body_parentid[parent]
         e = {
-            "parent": mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, parent).removeprefix(
-                prefix
-            ),
-            "pos": model.body_pos[bid].round(7).tolist(),
-            "quat_wxyz": model.body_quat[bid].round(7).tolist(),
+            "parent": ids.get(parent, "world"),
+            "pos": T[:3, 3].round(7).tolist(),
+            "quat_wxyz": _quat(T),
         }
         if model.body_jntnum[bid]:
             j = model.body_jntadr[bid]
@@ -45,6 +61,42 @@ def chain(model: mujoco.MjModel, prefix: str) -> dict:
             }
         out[b] = e
     return out
+
+
+def tcp(model: mujoco.MjModel, prefix: str) -> dict:
+    """The grasp site (fingertip centre) in link6's frame."""
+    sid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, prefix + "grasp_site")
+    T = np.eye(4)
+    R = np.zeros(9)
+    mujoco.mju_quat2Mat(R, model.site_quat[sid])
+    T[:3, :3], T[:3, 3] = R.reshape(3, 3), model.site_pos[sid]
+    bid = model.site_bodyid[sid]
+    link6 = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, prefix + "link6")
+    while bid != link6:
+        T = _pose(model, bid) @ T
+        bid = model.body_parentid[bid]
+    return {"parent": "link6", "pos": T[:3, 3].round(7).tolist(), "quat_wxyz": _quat(T)}
+
+
+def chain_fk(ch: dict, tcp_: dict, q) -> np.ndarray:
+    """TCP pose in the base frame from ``chain`` alone (6 revolute joints), for checking it against MuJoCo."""
+    T = np.eye(4)
+    for i, b in enumerate(["link1", "link2", "link3", "link4", "link5", "link6"]):
+        e = ch[b]
+        A = np.eye(4)
+        R = np.zeros(9)
+        mujoco.mju_quat2Mat(R, np.array(e["quat_wxyz"], float))
+        A[:3, :3], A[:3, 3] = R.reshape(3, 3), e["pos"]
+        J = np.eye(4)
+        mujoco.mju_axisAngle2Quat(qj := np.zeros(4), np.array(e["joint"]["axis"], float), q[i])
+        mujoco.mju_quat2Mat(R, qj)
+        J[:3, :3] = R.reshape(3, 3)
+        T = T @ A @ J
+    A = np.eye(4)
+    R = np.zeros(9)
+    mujoco.mju_quat2Mat(R, np.array(tcp_["quat_wxyz"], float))
+    A[:3, :3], A[:3, 3] = R.reshape(3, 3), tcp_["pos"]
+    return T @ A
 
 
 def world_points(model, data, prefix, local):
@@ -81,6 +133,7 @@ def main():
         "arm_bases": bases,
         "link_names_urdf": URDF_LINK,
         "chain": chain(model, "left_"),
+        "tcp": tcp(model, "left_"),
         "spheres": spheres,
         "gripper_note": (
             "tip_left/tip_right ride prismatic joints joint7/joint8 (0..0.0475 m, 0 = closed) on link_6; "
@@ -90,7 +143,7 @@ def main():
         "fit": report,
     }
     for name, q in (("open", 0.0475), ("closed", 0.0)):
-        merged = list(spheres["gripper"])
+        merged = list(spheres["link6"])
         for tip in ("tip_left", "tip_right"):
             c = doc["chain"][tip]
             R = np.zeros(9)
@@ -168,6 +221,31 @@ def main():
         "rows": rows,
     }
     doc["validation_arm_arm"] = summary
+
+    # single-arm FK: chain + tcp alone vs MuJoCo's grasp site, both arms, in each arm's base frame
+    pos_err, rot_err = [], []
+    for _ in range(200):
+        for adr, rg in qadr.values():
+            data.qpos[adr] = rng.uniform(*rg)
+        mujoco.mj_kinematics(model, data)
+        for arm in ("left", "right"):
+            q = [data.qpos[qadr[(arm, k)][0]] for k in range(1, 7)]
+            T = chain_fk(doc["chain"], doc["tcp"], q)
+            b = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, f"{arm}_base")
+            sid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, f"{arm}_grasp_site")
+            Rb = data.xmat[b].reshape(3, 3)
+            p_ref = Rb.T @ (data.site_xpos[sid] - data.xpos[b])
+            R_ref = Rb.T @ data.site_xmat[sid].reshape(3, 3)
+            pos_err.append(np.linalg.norm(T[:3, 3] - p_ref))
+            c = (np.trace(R_ref.T @ T[:3, :3]) - 1) / 2
+            rot_err.append(np.arccos(np.clip(c, -1, 1)))
+    doc["validation_fk_tcp"] = {
+        "n": len(pos_err),
+        "max_pos_err_m": float(f"{max(pos_err):.2e}"),
+        "max_rot_err_rad": float(f"{max(rot_err):.2e}"),
+        "note": "chain + tcp of this file vs MuJoCo left/right_grasp_site, random joints in limits",
+    }
+    print(doc["validation_fk_tcp"])
     print({k: v for k, v in summary.items() if k != "rows"})
     (HERE / "yam_spheres.json").write_text(json.dumps(doc, indent=1))
     try:

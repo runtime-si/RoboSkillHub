@@ -43,7 +43,7 @@
    "max_protrusion_m": 0.0171,
    "n_vertices": 706
   },
-  "gripper": {
+  "link6": {
    "n_spheres": 16,
    "vertex_coverage": 0.9998,
    "max_protrusion_m": 0.0193,
