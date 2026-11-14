@@ -1,0 +1,23 @@
+{
+  "skill": "tossing-an-object-into-a-receptacle",
+  "inputs": {"opening_center": "Vec3", "opening_radius_m": "float"},
+  "outputs": {
+    "mode": {"$ref": "toss.mode"},
+    "required_joint_speed": {"$ref": "toss.required_joint_speed"},
+    "release_speed_mps": {"$ref": "toss.release_speed_mps"}
+  },
+  "nodes": {
+    "toss": {
+      "type": "script",
+      "script": "scripts/toss_object.py",
+      "inputs": {
+        "opening_center": {"$ref": "in.opening_center"},
+        "opening_radius_m": {"$ref": "in.opening_radius_m"},
+        "joint_speed_limit": 0.25
+      }
+    }
+  },
+  "edges": [["START", "toss"], ["toss", "END"]],
+  "exit": {"router_field": "route", "success_values": ["landed", "missed", "not_feasible", "dropped_early", "released"]},
+  "on_error": "not_feasible"
+}
