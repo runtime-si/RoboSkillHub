@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 173 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 174 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -95,6 +95,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`training-a-part-detector-from-auto-labels`](#training-a-part-detector-from-auto-labels) | perceive | Gets a fast station-specific detector for a fixed set of parts (bricks, dominoes, jigsaw pieces) without hand labelling. | any, *tuned on* yam-station-orbbec-overhead, yam-left-wrist-d405 |
 | [`aligning-parts-by-connector-constraints`](#aligning-parts-by-connector-constraints) | plan | Turns connector statements about a LEGO or DUPLO build. | any |
 | [`assigning-bricks-to-two-arms`](#assigning-bricks-to-two-arms) | plan | Assigns every brick of a LEGO or DUPLO build sequence to an arm. | any |
+| [`assigning-motion-segments-to-arms-with-handovers`](#assigning-motion-segments-to-arms-with-handovers) | plan | Chooses which arm carries an object along each part of its path and where to hand it over. | any, 2 arms |
 | [`checking-design-connectivity-and-collisions`](#checking-design-connectivity-and-collisions) | plan | Checks a brick design on a stud grid before the arms build it. | any |
 | [`choosing-a-domino-move-by-end-matching`](#choosing-a-domino-move-by-end-matching) | plan | Chooses the robot's move in a game of dominoes and where the tile goes on the table. | any |
 | [`computing-brick-pose-from-stud-grid`](#computing-brick-pose-from-stud-grid) | plan | Converts between a cell on a LEGO or DUPLO baseplate's stud grid (x, y, layer, brick size such as 2x4, rotation… | any |
@@ -1272,6 +1273,21 @@ Assigns every brick of a LEGO or DUPLO build sequence to an arm - which arm plac
   - `assignment_ready`: Every task has an arm, a stock brick (when stock is given) and a grasp, and every task that needs support has a second arm; assignment_json lists them in task order.
   - `infeasible`: Some task has no feasible choice (out of every arm's reach, no stock brick of its size, the jaws too narrow or placed neighbours blocking the fingers on both grasp sides), more arms than tasks, or the MILP has no solution; detail names the tasks.
   - `needs_support_arm`: The bricks can all be placed, but a task that needs support has no second arm that reaches its support point (or the support duties cannot be fitted with the rest); detail names the tasks.
+
+### assigning-motion-segments-to-arms-with-handovers
+
+plan · robots: any, 2 arms · tasks: pick-place, bimanual · MIT · v0.1.0 · [`SKILL.md`](skills/assigning-motion-segments-to-arms-with-handovers/SKILL.md) · [upstream](https://github.com/Sukhvansh2004/Bimanual-Manipulation/blob/d7940e7e2819/src/bimanual_manipulation/planning/assignment/solver.py)
+
+Chooses which arm carries an object along each part of its path and where to hand it over - a Viterbi DP over the path's waypoints whose state is the carrying arm, with robot.solve_ik for each arm at each waypoint (unreachable = impossible), the joint motion between waypoints as the cost and a handover (only where both arms reach) as a fixed penalty. Use when an object must travel across a two-arm workcell farther than one arm reaches (left side to right side), before executing the carry with handing-over-between-arms at the returned handover poses.
+
+- **In**: -
+- **Out**: `n_handovers` int, `total_cost` float
+- **Calls**: connector `robot.solve_ik`
+- **Scripts**: [`assign_arms`](skills/assigning-motion-segments-to-arms-with-handovers/scripts/assign_arms.py)
+- **Exits**:
+  - `assignment_found`: One arm carries the whole path (cheapest with no handover); assignment lists it per waypoint.
+  - `handover_required`: The cheapest path switches arms; handovers lists each (waypoint index, from_arm, to_arm, position), every one at a waypoint both arms reach.
+  - `infeasible`: No arm sequence covers every waypoint - a waypoint no arm reaches (unreachable_waypoints), or reachable ones with no shared waypoint to hand over at.
 
 ### checking-design-connectivity-and-collisions
 
