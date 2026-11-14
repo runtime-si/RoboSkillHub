@@ -1,0 +1,15 @@
+{
+  "skill": "assigning-motion-segments-to-arms-with-handovers",
+  "inputs": {},
+  "outputs": {"n_handovers": {"$ref": "assign.n_handovers"}, "total_cost": {"$ref": "assign.total_cost"}},
+  "nodes": {
+    "assign": {
+      "type": "script",
+      "script": "scripts/assign_arms.py",
+      "inputs": {"waypoints": [[0.3, 0.3, 0.1], [0.3, 0.0, 0.1], [0.3, -0.3, 0.1]], "arms": [0, 1]}
+    }
+  },
+  "edges": [["START", "assign"], ["assign", "END"]],
+  "exit": {"router_field": "route", "success_values": ["assignment_found", "handover_required", "infeasible"]},
+  "on_error": "infeasible"
+}
