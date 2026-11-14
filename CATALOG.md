@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 173 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 174 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -174,6 +174,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`refilling-a-domino-loading-rack`](#refilling-a-domino-loading-rack) | execute | Puts a standing domino back into an empty slot of a slotted loading rack, so… | any |
 | [`regrasping-a-brick-to-turn-studs-up`](#regrasping-a-brick-to-turn-studs-up) | execute | Tips a loose LEGO or DUPLO brick a quarter turn toward studs-up with a hand that only serves top-down poses. | any |
 | [`rotating-a-held-piece-within-wrist-limits`](#rotating-a-held-piece-within-wrist-limits) | execute | Turns a held flat part (a jigsaw piece) about the vertical by the angle its slot needs while the wrist's last joint… | any |
+| [`running-two-skills-concurrently-on-two-arms`](#running-two-skills-concurrently-on-two-arms) | execute | Runs two hub skills at the same time, one per arm (threaded on a connector that moves both arms at once; on a server… | any, 2 arms |
 | [`searching-insertion-spiral`](#searching-insertion-spiral) | execute | Finds an opening the held part or the closed fingertips can enter by probing straight down over a hexagonal grid… | any |
 | [`searching-insertion-with-yaw-oscillation`](#searching-insertion-with-yaw-oscillation) | execute | Finds the rotation at which a held keyed or polygonal part drops into its socket. | any |
 | [`seating-a-cable-crossing`](#seating-a-cable-crossing) | execute | Streams one planned crossing leg of a cable onto a routing station, lets the rod settle, then LOOKS. | any |
@@ -2539,6 +2540,23 @@ Turns a held flat part (a jigsaw piece) about the vertical by the angle its slot
   - `dropped`: After a held turn the gripper reads under 0.78 of its reading with the piece in the jaws (closed on nothing), so the piece fell during the turn; turned_deg says how far the hand had turned.
   - `piece_lost`: After a regrasp the jaws closed past half the given grip width (nothing in them).
   - `unreachable`: No plan fits the range, a regrasp was needed without grasp_z, the joints could not be read, joint 6 did not move the hand, or a move was refused.
+
+### running-two-skills-concurrently-on-two-arms
+
+execute · robots: any, 2 arms · tasks: bimanual, pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/running-two-skills-concurrently-on-two-arms/SKILL.md)
+
+Runs two hub skills at the same time, one per arm (threaded on a connector that moves both arms at once; on a server that moves one arm at a time, their moves cut into server steps and interleaved A1, B1, A2, B2 from one dispatcher; or one after the other on request), with each skill's robot.* calls bound to its arm (arm_id injected), and every move of either arm passed through a shared arbiter that predicts the arms' capsule clearance for it (checking-dual-arm-clearance, against the other arm standing or on its move in flight) and makes the arm wait while the move would come under min_clearance_m; a failure of one skill pauses the other at its start pose. Arms are given or assigned by IK reach. Use when two independent one-arm steps (two picks, a pick and a wipe) should overlap in time on a bimanual station whose arms share workspace, and both skills are in the hub.
+
+- **In**: `skill_a` string, `skill_b` string
+- **Out**: `arm_a` int, `arm_b` int, `route_a` string, `route_b` string, `mode` string, `outputs_a` string, `outputs_b` string, `paused_arms` string, `sequential_fallback` bool, `waits` int, `min_predicted_clearance_m` float
+- **Calls**: connector `robot.close_gripper`, `robot.describe_arm`, `robot.describe_robot`, `robot.execute_trajectory`, `robot.forward_kinematics`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`run_concurrent`](skills/running-two-skills-concurrently-on-two-arms/scripts/run_concurrent.py)
+- **Exits**:
+  - `both_succeeded`: Both skills returned one of their success exits (any exit when the skill's canonical subgraph lists none), every move (interleaved - every segment) having been predicted at least min_clearance_m clear of the other arm; route_a / route_b are the skills' exits and outputs_a / outputs_b their outputs (JSON text).
+  - `one_failed`: One skill raised or ended on a non-success exit; the other was stopped at its next move and its arm moved back to the joints it started from when that was predicted clear (paused_arms names it), otherwise left where it stood; in sequential mode a second skill not yet started is not run (route not_run).
+  - `both_failed`: Both skills raised or ended on non-success exits.
+  - `deadlock_timeout`: An arm waited wait_timeout_s for clearance and no sequential fallback was possible (on_deadlock pause, the other skill already finished in its way, the fallback itself deadlocked, or backing the yielding arm off its whole path does not clear the other); the arm was paused at its start pose if clear, the other stopped at its next move; detail names the move and the predicted clearance.
+  - `refused`: The clearance could not be predicted (a move the model cannot follow, an unreadable or non-YAM arm), the arms already stood under min_clearance_m or min_tcp_separation_m, no arm assignment reaches both targets, or the skills cannot be loaded; when this happens mid-run neither arm is moved further.
 
 ### searching-insertion-spiral
 
