@@ -1,0 +1,1040 @@
+{
+ "about": "Raw text answers of four models to requesting-a-typed-visual-plan's request (10 waypoints per arm) through the hub's vlm.query on two real YAM station frames, recorded 2026-11-13: cube_box (g_sota 20261103-0511 frame_02) and cable (threading 20261103-1421), the frames of robobrain_traces_station.json. hands_px: each arm's ring (read off the frame between its fingertips; the tool centre was given as the point on that pixel's ray hand_over_table_m over the table). targets_px: hand-read pixels of what each arm's path should end on (null: that arm was told not to move). robobrain_live: what the hub's robobrain.trace (RoboBrain2.5-4B, in process on an RTX PRO 6000) answered the skill's own script on the cube_box frame, 2026-11-14: one reply per declared arm, asked from the hand's ring with the depth image the tests render (seconds: the first call loaded the model).",
+ "hand_over_table_m": 0.08,
+ "hands_px": {
+  "cube_box": {
+   "0": [
+    134.0,
+    366.0
+   ],
+   "1": [
+    499.0,
+    362.0
+   ]
+  },
+  "cable": {
+   "0": [
+    125.0,
+    368.0
+   ],
+   "1": [
+    534.0,
+    362.0
+   ]
+  }
+ },
+ "box_px": [
+  303.3,
+  330.6
+ ],
+ "answers": [
+  {
+   "label": "azure/cube_pick",
+   "model": "an Azure OpenAI reasoning deployment (vlm.query, provider azure)",
+   "frame": "cube_box",
+   "arms": [
+    0
+   ],
+   "instruction": "pick up the small dark cube",
+   "start_pixels": null,
+   "targets_px": {
+    "0": [
+     183.7,
+     339.5
+    ]
+   },
+   "live_route": "planned",
+   "seconds": 6.1,
+   "text": "{\"subtask\":\"Move gripper to the small dark cube\",\"red\":[[210,763],[218,758],[225,752],[233,747],[240,742],[248,737],[256,731],[263,726],[271,721],[278,715],[286,710]]}"
+  },
+  {
+   "label": "azure/box_reach",
+   "model": "an Azure OpenAI reasoning deployment (vlm.query, provider azure)",
+   "frame": "cube_box",
+   "arms": [
+    1
+   ],
+   "instruction": "move the gripper over the open box",
+   "start_pixels": null,
+   "targets_px": {
+    "1": [
+     303.3,
+     330.6
+    ]
+   },
+   "live_route": "planned",
+   "seconds": 6.8,
+   "text": "{\"subtask\":\"Move the gripper over the open box\",\"red\":[[780,754],[749,747],[719,739],[688,732],[657,724],[627,717],[596,710],[565,702],[534,695],[504,687],[473,680]]}"
+  },
+  {
+   "label": "er2/box_reach",
+   "model": "gemini-robotics-er-2-preview",
+   "frame": "cube_box",
+   "arms": [
+    1
+   ],
+   "instruction": "move the gripper over the open box",
+   "start_pixels": null,
+   "targets_px": {
+    "1": [
+     303.3,
+     330.6
+    ]
+   },
+   "live_route": "planned",
+   "seconds": 6.1,
+   "text": "```json\n{\"subtask\": \"move the gripper over the open box\", \"red\": [[780, 755], [749, 748], [718, 742], [688, 735], [657, 728], [626, 722], [595, 715], [564, 708], [534, 701], [503, 695], [472, 688]]}\n```"
+  },
+  {
+   "label": "g3flash/cube_to_box",
+   "model": "gemini-3-flash-preview",
+   "frame": "cube_box",
+   "arms": [
+    0
+   ],
+   "instruction": "pick up the small dark cube and place it in the open box",
+   "start_pixels": null,
+   "targets_px": {
+    "0": [
+     183.7,
+     339.5
+    ]
+   },
+   "live_route": "planned",
+   "seconds": 15.0,
+   "text": "```json\n{\"subtask\": \"pick up the cube\", \"red\": [[209, 763], [217, 758], [224, 752], [232, 747], [240, 741], [248, 736], [255, 730], [263, 725], [271, 719], [278, 714], [286, 708]]}\n```"
+  },
+  {
+   "label": "azure/around_box",
+   "model": "an Azure OpenAI reasoning deployment (vlm.query, provider azure)",
+   "frame": "cube_box",
+   "arms": [
+    1
+   ],
+   "instruction": "move the gripper to the small dark cube, going around the open box and not over it",
+   "start_pixels": null,
+   "targets_px": {
+    "1": [
+     183.7,
+     339.5
+    ]
+   },
+   "live_route": "planned",
+   "seconds": 10.3,
+   "text": "{\"subtask\":\"Move gripper around the box to the dark cube\",\"red\":[[780,754],[731,777],[680,798],[628,813],[575,819],[522,821],[469,821],[416,813],[366,798],[320,763],[286,710]]}"
+  },
+  {
+   "label": "er2/around_box",
+   "model": "gemini-robotics-er-2-preview",
+   "frame": "cube_box",
+   "arms": [
+    1
+   ],
+   "instruction": "move the gripper to the small dark cube, going around the open box and not over it",
+   "start_pixels": null,
+   "targets_px": {
+    "1": [
+     183.7,
+     339.5
+    ]
+   },
+   "live_route": "planned",
+   "seconds": 8.2,
+   "text": "```json\n{\"subtask\": \"move the gripper to the small dark cube, going around the open box and not over it\", \"red\": [[780, 755], [730, 725], [680, 695], [630, 665], [570, 635], [500, 615], [430, 615], [365, 635], [325, 665], [300, 690], [286, 710]]}\n```"
+  },
+  {
+   "label": "er2/cable_thread",
+   "model": "gemini-robotics-er-2-preview",
+   "frame": "cable",
+   "arms": [
+    0
+   ],
+   "instruction": "move the white cable's free end through the leftmost black ring, the one standing at the left edge of the board",
+   "start_pixels": [
+    [
+     132.0,
+     335.0
+    ]
+   ],
+   "targets_px": {
+    "0": [
+     235.0,
+     365.0
+    ]
+   },
+   "live_route": "planned",
+   "seconds": 9.1,
+   "text": "```json\n{\"subtask\": \"move the white cable's free end through the leftmost black ring\", \"red\": [[206, 698], [220, 695], [240, 694], [260, 696], [280, 701], [300, 709], [320, 718], [340, 729], [355, 740], [370, 751], [385, 762]]}\n```"
+  },
+  {
+   "label": "azure/dual_cube_box",
+   "model": "an Azure OpenAI reasoning deployment (vlm.query, provider azure)",
+   "frame": "cube_box",
+   "arms": [
+    0,
+    1
+   ],
+   "instruction": "the gripper nearer the small dark cube picks it up while the other gripper moves over the open box",
+   "start_pixels": null,
+   "targets_px": {
+    "0": [
+     183.7,
+     339.5
+    ],
+    "1": [
+     303.3,
+     330.6
+    ]
+   },
+   "live_route": "planned",
+   "seconds": 8.1,
+   "text": "{\"subtask\":\"Red picks up the cube; blue moves over the open box\",\"red\":[[210,764],[218,759],[225,753],[233,748],[240,742],[248,737],[256,732],[263,726],[271,721],[278,715],[286,710]],\"blue\":[[780,754],[749,747],[719,740],[688,733],[657,726],[627,720],[596,713],[565,706],[534,699],[504,692],[473,685]]}"
+  },
+  {
+   "label": "er2/dual_cube_box",
+   "model": "gemini-robotics-er-2-preview",
+   "frame": "cube_box",
+   "arms": [
+    0,
+    1
+   ],
+   "instruction": "the gripper nearer the small dark cube picks it up while the other gripper moves over the open box",
+   "start_pixels": null,
+   "targets_px": {
+    "0": [
+     183.7,
+     339.5
+    ],
+    "1": [
+     303.3,
+     330.6
+    ]
+   },
+   "live_route": "planned",
+   "seconds": 6.8,
+   "text": "```json\n{\"subtask\": \"gripper 0 moves to the small dark cube while gripper 1 moves over the open box\", \"red\": [[209, 762], [217, 757], [224, 751], [232, 746], [240, 740], [248, 735], [255, 730], [263, 724], [271, 719], [278, 713], [286, 708]], \"blue\": [[780, 755], [749, 748], [718, 741], [687, 734], [656, 727], [626, 720], [595, 712], [564, 705], [533, 698], [502, 691], [471, 684]]}\n```"
+  },
+  {
+   "label": "azure/dual_one_stays",
+   "model": "an Azure OpenAI reasoning deployment (vlm.query, provider azure)",
+   "frame": "cube_box",
+   "arms": [
+    0,
+    1
+   ],
+   "instruction": "pick up the small dark cube with the nearer gripper; the other gripper does not move",
+   "start_pixels": null,
+   "targets_px": {
+    "0": [
+     183.7,
+     339.5
+    ],
+    "1": null
+   },
+   "live_route": "planned",
+   "seconds": 7.4,
+   "text": "{\"subtask\":\"Move red gripper to the cube; keep blue stationary\",\"red\":[[209,763],[217,758],[224,752],[232,747],[240,742],[248,737],[255,731],[263,726],[271,721],[278,715],[286,710]],\"blue\":[[780,754],[780,754],[780,754],[780,754],[780,754],[780,754],[780,754],[780,754],[780,754],[780,754],[780,754]]}"
+  },
+  {
+   "label": "er2/dual_cable",
+   "model": "gemini-robotics-er-2-preview",
+   "frame": "cable",
+   "arms": [
+    0,
+    1
+   ],
+   "instruction": "the left gripper grasps the white cable's free end; the right gripper goes to the white plug at the top edge of the black board",
+   "start_pixels": null,
+   "targets_px": {
+    "0": [
+     132.0,
+     335.0
+    ],
+    "1": [
+     351.0,
+     305.0
+    ]
+   },
+   "live_route": "planned",
+   "seconds": 6.5,
+   "text": "```json\n{\"subtask\": \"left gripper grasps white cable's free end, right gripper moves to white plug on board\", \"red\": [[196, 765], [197, 759], [199, 753], [200, 747], [201, 741], [203, 735], [204, 729], [205, 723], [207, 717], [208, 711], [209, 705]], \"blue\": [[836, 755], [807, 743], [778, 731], [749, 719], [720, 707], [691, 695], [662, 683], [633, 671], [604, 659], [575, 647], [545, 635]]}\n```"
+  },
+  {
+   "label": "g3flash/dual_one_stays",
+   "model": "gemini-3-flash-preview",
+   "frame": "cube_box",
+   "arms": [
+    0,
+    1
+   ],
+   "instruction": "pick up the small dark cube with the nearer gripper; the other gripper does not move",
+   "start_pixels": null,
+   "targets_px": {
+    "0": [
+     183.7,
+     339.5
+    ],
+    "1": null
+   },
+   "live_route": "plan_rejected",
+   "seconds": 15.3,
+   "text": "```json\n{\"subtask\": \"move arm 0 to the small dark cube\", \"red\": [[209, 763], [217, 758], [224, 752], [232, 747], [240, 741], [248, 736], [255, 730], [263, 725], [271, 719], [278, 714], [286, 708]], \"blue\": [[780, 754], [780, 754], [780, 754],"
+  },
+  {
+   "label": "g3flash/cable_thread",
+   "model": "gemini-3-flash-preview",
+   "frame": "cable",
+   "arms": [
+    0
+   ],
+   "instruction": "move the white cable's free end through the leftmost black ring, the one standing at the left edge of the board",
+   "start_pixels": [
+    [
+     132.0,
+     335.0
+    ]
+   ],
+   "targets_px": {
+    "0": [
+     235.0,
+     365.0
+    ]
+   },
+   "live_route": "plan_rejected",
+   "seconds": 16.5,
+   "text": "```json\n{\"subtask\": \"move cable end through leftmost ring\", \"red\": [[322, 698], [326, 702], [331, 706], [335, 711], [340, 715], [344, 719], [349, 723], [353, 727], [358, 732], [362, 736], [367, 740]]}\n```"
+  },
+  {
+   "label": "flash-lite/cube_pick",
+   "model": "gemini-3.1-flash-lite-preview",
+   "frame": "cube_box",
+   "arms": [
+    0
+   ],
+   "instruction": "pick up the small dark cube",
+   "start_pixels": null,
+   "targets_px": {
+    "0": [
+     183.7,
+     339.5
+    ]
+   },
+   "live_route": "plan_rejected",
+   "seconds": 2.0,
+   "text": "{\"subtask\": \"move gripper to pick up the small dark cube\", \"red\": [[336, 760], [336, 745], [336, 730], [336, 715], [336, 700], [336, 685], [336, 670], [336, 655], [336, 640], [336, 625], [336, 610]]}"
+  },
+  {
+   "label": "flash-lite/box_reach",
+   "model": "gemini-3.1-flash-lite-preview",
+   "frame": "cube_box",
+   "arms": [
+    1
+   ],
+   "instruction": "move the gripper over the open box",
+   "start_pixels": null,
+   "targets_px": {
+    "1": [
+     303.3,
+     330.6
+    ]
+   },
+   "live_route": "planned",
+   "seconds": 1.9,
+   "text": "{\"subtask\": \"move the gripper to the open box\", \"red\": [[780, 753], [765, 725], [750, 697], [735, 669], [720, 641], [705, 613], [690, 585], [675, 557], [660, 529], [645, 501], [630, 473]]}"
+  },
+  {
+   "label": "flash-lite/dual_cube_box",
+   "model": "gemini-3.1-flash-lite-preview",
+   "frame": "cube_box",
+   "arms": [
+    0,
+    1
+   ],
+   "instruction": "the gripper nearer the small dark cube picks it up while the other gripper moves over the open box",
+   "start_pixels": null,
+   "targets_px": {
+    "0": [
+     183.7,
+     339.5
+    ],
+    "1": [
+     303.3,
+     330.6
+    ]
+   },
+   "live_route": "planned",
+   "seconds": 2.5,
+   "text": "{\"subtask\": \"Red gripper moves to pick up the dark cube, blue gripper moves over the open box.\", \"red\": [[210, 760], [213, 745], [216, 730], [219, 715], [222, 700], [225, 685], [228, 670], [231, 655], [234, 640], [237, 625], [240, 610]], \"blue\": [[780, 780], [765, 765], [750, 750], [735, 735], [720, 720], [705, 705], [690, 690], [675, 675], [660, 660], [645, 645], [630, 630]]}"
+  }
+ ],
+ "robobrain_live": [
+  {
+   "label": "robobrain/cube_pick",
+   "frame": "cube_box",
+   "arms": [
+    0
+   ],
+   "instruction": "pick up the small dark cube",
+   "arm_instructions": null,
+   "start_pixels": null,
+   "args": {},
+   "targets_px": {
+    "0": [
+     183.7,
+     339.5
+    ]
+   },
+   "live_route": "planned",
+   "live_start_off_hand_mm": 79,
+   "live_min_arm_separation_m": -1.0,
+   "seconds": [
+    30.0
+   ],
+   "replies": [
+    {
+     "found": true,
+     "tracks": [
+      {
+       "query_pixel": [
+        134.00003428159653,
+        365.99991850573906
+       ],
+       "pixels": [
+        [
+         178.56,
+         331.68
+        ],
+        [
+         179.84,
+         333.6
+        ]
+       ],
+       "start_camera": [
+        -0.3751,
+        0.2539,
+        0.93
+       ],
+       "points_camera": [
+        [
+         -0.2825,
+         0.1829,
+         0.921
+        ],
+        [
+         -0.2285,
+         0.1525,
+         0.752
+        ]
+       ],
+       "start_world": [
+        -0.0703,
+        0.3144,
+        -0.0204
+       ],
+       "points_world": [
+        [
+         0.0252,
+         0.3656,
+         0.0237
+        ],
+        [
+         0.0757,
+         0.3025,
+         0.1845
+        ]
+       ],
+       "predicted": [
+        true,
+        true
+       ],
+       "start_depth_m": 0.93,
+       "depths_m": [
+        0.921,
+        0.752
+       ]
+      }
+     ],
+     "horizon": 2,
+     "dt_s": null,
+     "frame": "world",
+     "backend": "robobrain",
+     "model": "BAAI/RoboBrain2.5-4B@ec4b3bf5e969b48ad17df432b479c10402a0079b",
+     "raw": "[(209, 762, 0.93), (279, 691, 0.921), (281, 695, 0.752)]",
+     "mode": "end_effector",
+     "depth_source": "model, start from depth map",
+     "measured_start_depth_m": 0.9306
+    }
+   ]
+  },
+  {
+   "label": "robobrain/box_reach",
+   "frame": "cube_box",
+   "arms": [
+    1
+   ],
+   "instruction": "move the gripper over the open box",
+   "arm_instructions": null,
+   "start_pixels": null,
+   "args": {},
+   "targets_px": {
+    "1": [
+     303.3,
+     330.6
+    ]
+   },
+   "live_route": "planned",
+   "live_start_off_hand_mm": 76,
+   "live_min_arm_separation_m": -1.0,
+   "seconds": [
+    0.7
+   ],
+   "replies": [
+    {
+     "found": true,
+     "tracks": [
+      {
+       "query_pixel": [
+        499.0001930479225,
+        361.9999831912343
+       ],
+       "pixels": [
+        [
+         397.44,
+         291.36
+        ],
+        [
+         320.64,
+         293.28
+        ],
+        [
+         304.64,
+         316.8
+        ]
+       ],
+       "start_camera": [
+        0.3609,
+        0.2458,
+        0.93
+       ],
+       "points_camera": [
+        [
+         0.1353,
+         0.0897,
+         0.806
+        ],
+        [
+         0.001,
+         0.0832,
+         0.721
+        ],
+        [
+         -0.0236,
+         0.1181,
+         0.71
+        ]
+       ],
+       "start_world": [
+        0.665,
+        0.2815,
+        -0.0161
+       ],
+       "points_world": [
+        [
+         0.4435,
+         0.3643,
+         0.1703
+        ],
+        [
+         0.3073,
+         0.3336,
+         0.2466
+        ],
+        [
+         0.2807,
+         0.2994,
+         0.2382
+        ]
+       ],
+       "predicted": [
+        true,
+        true,
+        true
+       ],
+       "start_depth_m": 0.93,
+       "depths_m": [
+        0.806,
+        0.721,
+        0.71
+       ]
+      }
+     ],
+     "horizon": 3,
+     "dt_s": null,
+     "frame": "world",
+     "backend": "robobrain",
+     "model": "BAAI/RoboBrain2.5-4B@ec4b3bf5e969b48ad17df432b479c10402a0079b",
+     "raw": "[(780, 754, 0.93), (621, 607, 0.806), (501, 611, 0.721), (476, 660, 0.710)]",
+     "mode": "end_effector",
+     "depth_source": "model, start from depth map",
+     "measured_start_depth_m": 0.9349
+    }
+   ]
+  },
+  {
+   "label": "robobrain/cube_to_box",
+   "frame": "cube_box",
+   "arms": [
+    0
+   ],
+   "instruction": "pick up the small dark cube and place it in the open box",
+   "arm_instructions": null,
+   "start_pixels": null,
+   "args": {},
+   "targets_px": {
+    "0": [
+     303.3,
+     330.6
+    ]
+   },
+   "live_route": "planned",
+   "live_start_off_hand_mm": 79,
+   "live_min_arm_separation_m": -1.0,
+   "seconds": [
+    0.9
+   ],
+   "replies": [
+    {
+     "found": true,
+     "tracks": [
+      {
+       "query_pixel": [
+        134.00003428159653,
+        365.99991850573906
+       ],
+       "pixels": [
+        [
+         176.64,
+         330.72
+        ],
+        [
+         179.2,
+         333.6
+        ],
+        [
+         282.88,
+         293.28
+        ],
+        [
+         297.6,
+         312.0
+        ]
+       ],
+       "start_camera": [
+        -0.3751,
+        0.2539,
+        0.93
+       ],
+       "points_camera": [
+        [
+         -0.2801,
+         0.1771,
+         0.901
+        ],
+        [
+         -0.2235,
+         0.1484,
+         0.732
+        ],
+        [
+         -0.0571,
+         0.0819,
+         0.71
+        ],
+        [
+         -0.0355,
+         0.114,
+         0.731
+        ]
+       ],
+       "start_world": [
+        -0.0703,
+        0.3144,
+        -0.0204
+       ],
+       "points_world": [
+        [
+         0.0273,
+         0.3603,
+         0.0439
+        ],
+        [
+         0.0804,
+         0.2955,
+         0.2037
+        ],
+        [
+         0.249,
+         0.3322,
+         0.2567
+        ],
+        [
+         0.2697,
+         0.3143,
+         0.2222
+        ]
+       ],
+       "predicted": [
+        true,
+        true,
+        true,
+        true
+       ],
+       "start_depth_m": 0.93,
+       "depths_m": [
+        0.901,
+        0.732,
+        0.71,
+        0.731
+       ]
+      }
+     ],
+     "horizon": 4,
+     "dt_s": null,
+     "frame": "world",
+     "backend": "robobrain",
+     "model": "BAAI/RoboBrain2.5-4B@ec4b3bf5e969b48ad17df432b479c10402a0079b",
+     "raw": "[(209, 762, 0.93), (276, 689, 0.901), (280, 695, 0.732), (442, 611, 0.710), (465, 650, 0.731)]",
+     "mode": "end_effector",
+     "depth_source": "model, start from depth map",
+     "measured_start_depth_m": 0.9306
+    }
+   ]
+  },
+  {
+   "label": "robobrain/around_box",
+   "frame": "cube_box",
+   "arms": [
+    1
+   ],
+   "instruction": "move the gripper to the small dark cube, going around the open box and not over it",
+   "arm_instructions": null,
+   "start_pixels": null,
+   "args": {},
+   "targets_px": {
+    "1": [
+     183.7,
+     339.5
+    ]
+   },
+   "live_route": "planned",
+   "live_start_off_hand_mm": 76,
+   "live_min_arm_separation_m": -1.0,
+   "seconds": [
+    0.9
+   ],
+   "replies": [
+    {
+     "found": true,
+     "tracks": [
+      {
+       "query_pixel": [
+        499.0001930479225,
+        361.9999831912343
+       ],
+       "pixels": [
+        [
+         422.4,
+         302.88
+        ],
+        [
+         333.44,
+         288.0
+        ],
+        [
+         301.44,
+         307.68
+        ],
+        [
+         300.8,
+         324.0
+        ]
+       ],
+       "start_camera": [
+        0.3609,
+        0.2458,
+        0.93
+       ],
+       "points_camera": [
+        [
+         0.204,
+         0.1252,
+         0.919
+        ],
+        [
+         0.0248,
+         0.0885,
+         0.851
+        ],
+        [
+         -0.033,
+         0.1204,
+         0.821
+        ],
+        [
+         -0.0351,
+         0.1532,
+         0.842
+        ]
+       ],
+       "start_world": [
+        0.665,
+        0.2815,
+        -0.0161
+       ],
+       "points_world": [
+        [
+         0.5136,
+         0.3878,
+         0.0551
+        ],
+        [
+         0.3344,
+         0.3943,
+         0.1322
+        ],
+        [
+         0.2743,
+         0.3547,
+         0.1417
+        ],
+        [
+         0.2714,
+         0.3374,
+         0.1068
+        ]
+       ],
+       "predicted": [
+        true,
+        true,
+        true,
+        true
+       ],
+       "start_depth_m": 0.93,
+       "depths_m": [
+        0.919,
+        0.851,
+        0.821,
+        0.842
+       ]
+      }
+     ],
+     "horizon": 4,
+     "dt_s": null,
+     "frame": "world",
+     "backend": "robobrain",
+     "model": "BAAI/RoboBrain2.5-4B@ec4b3bf5e969b48ad17df432b479c10402a0079b",
+     "raw": "[(780, 754, 0.93), (660, 631, 0.919), (521, 600, 0.851), (471, 641, 0.821), (470, 675, 0.842)]",
+     "mode": "end_effector",
+     "depth_source": "model, start from depth map",
+     "measured_start_depth_m": 0.9349
+    }
+   ]
+  },
+  {
+   "label": "robobrain/dual_cube_box",
+   "frame": "cube_box",
+   "arms": [
+    0,
+    1
+   ],
+   "instruction": "one gripper picks up the small dark cube while the other moves over the open box",
+   "arm_instructions": [
+    "pick up the small dark cube",
+    "move the gripper over the open box"
+   ],
+   "start_pixels": null,
+   "args": {},
+   "targets_px": {
+    "0": [
+     183.7,
+     339.5
+    ],
+    "1": [
+     303.3,
+     330.6
+    ]
+   },
+   "live_route": "planned",
+   "live_start_off_hand_mm": 79,
+   "live_min_arm_separation_m": 0.2554,
+   "seconds": [
+    0.5,
+    0.7
+   ],
+   "replies": [
+    {
+     "found": true,
+     "tracks": [
+      {
+       "query_pixel": [
+        134.00003428159653,
+        365.99991850573906
+       ],
+       "pixels": [
+        [
+         178.56,
+         331.68
+        ],
+        [
+         179.84,
+         333.6
+        ]
+       ],
+       "start_camera": [
+        -0.3751,
+        0.2539,
+        0.93
+       ],
+       "points_camera": [
+        [
+         -0.2825,
+         0.1829,
+         0.921
+        ],
+        [
+         -0.2285,
+         0.1525,
+         0.752
+        ]
+       ],
+       "start_world": [
+        -0.0703,
+        0.3144,
+        -0.0204
+       ],
+       "points_world": [
+        [
+         0.0252,
+         0.3656,
+         0.0237
+        ],
+        [
+         0.0757,
+         0.3025,
+         0.1845
+        ]
+       ],
+       "predicted": [
+        true,
+        true
+       ],
+       "start_depth_m": 0.93,
+       "depths_m": [
+        0.921,
+        0.752
+       ]
+      }
+     ],
+     "horizon": 2,
+     "dt_s": null,
+     "frame": "world",
+     "backend": "robobrain",
+     "model": "BAAI/RoboBrain2.5-4B@ec4b3bf5e969b48ad17df432b479c10402a0079b",
+     "raw": "[(209, 762, 0.93), (279, 691, 0.921), (281, 695, 0.752)]",
+     "mode": "end_effector",
+     "depth_source": "model, start from depth map",
+     "measured_start_depth_m": 0.9306
+    },
+    {
+     "found": true,
+     "tracks": [
+      {
+       "query_pixel": [
+        499.0001930479225,
+        361.9999831912343
+       ],
+       "pixels": [
+        [
+         397.44,
+         291.36
+        ],
+        [
+         320.64,
+         293.28
+        ],
+        [
+         304.64,
+         316.8
+        ]
+       ],
+       "start_camera": [
+        0.3609,
+        0.2458,
+        0.93
+       ],
+       "points_camera": [
+        [
+         0.1353,
+         0.0897,
+         0.806
+        ],
+        [
+         0.001,
+         0.0832,
+         0.721
+        ],
+        [
+         -0.0236,
+         0.1181,
+         0.71
+        ]
+       ],
+       "start_world": [
+        0.665,
+        0.2815,
+        -0.0161
+       ],
+       "points_world": [
+        [
+         0.4435,
+         0.3643,
+         0.1703
+        ],
+        [
+         0.3073,
+         0.3336,
+         0.2466
+        ],
+        [
+         0.2807,
+         0.2994,
+         0.2382
+        ]
+       ],
+       "predicted": [
+        true,
+        true,
+        true
+       ],
+       "start_depth_m": 0.93,
+       "depths_m": [
+        0.806,
+        0.721,
+        0.71
+       ]
+      }
+     ],
+     "horizon": 3,
+     "dt_s": null,
+     "frame": "world",
+     "backend": "robobrain",
+     "model": "BAAI/RoboBrain2.5-4B@ec4b3bf5e969b48ad17df432b479c10402a0079b",
+     "raw": "[(780, 754, 0.93), (621, 607, 0.806), (501, 611, 0.721), (476, 660, 0.710)]",
+     "mode": "end_effector",
+     "depth_source": "model, start from depth map",
+     "measured_start_depth_m": 0.9349
+    }
+   ]
+  }
+ ]
+}

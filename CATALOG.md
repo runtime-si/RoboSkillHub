@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 173 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 174 skills, 4 policies, 1 recipe and 2 papers.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -117,6 +117,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`limiting-in-hand-twist-by-grip-placement-and-force`](#limiting-in-hand-twist-by-grip-placement-and-force) | propose | Ranks candidate grips on a part by the grip force each needs so the part neither slides nor twists about the jaws'… | any |
 | [`proposing-short-axis-grasps`](#proposing-short-axis-grasps) | propose | Propose top-down grasps whose jaws close ACROSS an elongated object's short axis, derived from its oriented box. | any, **sim only** |
 | [`proposing-side-grasps`](#proposing-side-grasps) | propose | Propose horizontal (side-entry) grasps swept around an object's oriented box — twelve azimuths ranked by jaw margin. | any, **sim only** |
+| [`requesting-a-typed-visual-plan`](#requesting-a-typed-visual-plan) | propose | Asks a ladder of planners (vlm.query in text, robobrain.trace or any tool returning the visual-plan schema) for a… | any |
 | [`choosing-next-piece-and-slot`](#choosing-next-piece-and-slot) | select | Chooses the next jigsaw placement (which loose piece, which grid cell, which turn) from the board as believed, the… | any |
 | [`matching-a-piece-to-placed-neighbours`](#matching-a-piece-to-placed-neighbours) | select | Picks which of several loose jigsaw pieces fits an empty slot, and how far to turn it, by the shape of its sides alone. | any |
 | [`proposing-parallel-grasps-in-tight-clusters`](#proposing-parallel-grasps-in-tight-clusters) | select | Proposes top-down parallel-jaw grasps on small flat parts packed close together (jigsaw pieces, LEGO bricks, dominoes… | any |
@@ -1626,6 +1627,21 @@ Propose horizontal (side-entry) grasps swept around an object's oriented box —
 - **Exits**:
   - `proposed`: One or more horizontal approaches, widest jaw margin first.
   - `declined`: No azimuth leaves a width the hand can span.
+
+### requesting-a-typed-visual-plan
+
+propose · robots: any · tasks: pick-place, cable-routing, bimanual · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/requesting-a-typed-visual-plan/SKILL.md)
+
+Asks a ladder of planners (vlm.query in text, robobrain.trace or any tool returning the visual-plan schema) for a visual plan in a shape declared before asking - which arms, how many waypoints each (10), every path starting at its arm's tool centre in the image, both arms of a bimanual plan in one request - and hands on only an answer that has that shape and agrees with what is measured (in the image, starting at the hand, depth under the endpoint, the two arms' distance along the plan). A refused answer is named and the next planner is asked; two planners can be required to agree; an earlier plan is reused only while it is young and the hands and the scene have not moved. Nothing moves. Use when a step needs a model's proposal of where one or two hands, or a point one of them carries, should go ("pick up the blue pen", "left hand to the cable end, right hand to the plug") as a checked plan for following-a-visual-plan.
+
+- **In**: `instruction` str
+- **Out**: `subtask` str, `planner` str, `planner_calls` int, `reused` bool, `metric` str, `min_arm_separation_m` float, `separation_at_fraction` float
+- **Calls**: [`molmo-motion`](#molmo-motion), [`robobrain`](#robobrain), [`vlm`](#vlm); connector `robot.describe_workspace`, `robot.get_ee_pose`, `robot.get_observation`
+- **Scripts**: [`request_typed_plan`](skills/requesting-a-typed-visual-plan/scripts/request_typed_plan.py)
+- **Exits**:
+  - `planned`: A planner's answer (or the earlier plan passed in, still valid) has the declared arms and waypoint count, every waypoint in the image, every path starting within start_tolerance of its arm's tool centre (or the given start pixel), a valid depth under every moving arm's endpoint and, for two arms, at least min_hand_gap between the tool centres along the plan; with agree=2, a second planner's endpoints within agree_tolerance. `plan` holds it in the visual-plan schema, one track per declared arm in the declared order. Nothing moved.
+  - `plan_rejected`: At least one planner answered and no answer passed - not the declared JSON shape, another waypoint count, a waypoint off the image, a start away from the hand, no depth under an endpoint, no metric part that agrees with the depth when require_metric, two arms too close, or fewer than `agree` planners agreeing; `attempts` names each planner's reason. Nothing moved.
+  - `no_plan`: No instruction, no usable camera, a declared arm's tool centre is not in the image, every planner raised or returned no track, or the only answers proposed no motion (every path ends within 12 px of its start). Nothing moved.
 
 ### choosing-next-piece-and-slot
 
@@ -3492,3 +3508,4 @@ Run the openpi π0.5 LIBERO checkpoint (pi05_libero) as a closed-loop VLA policy
 ## Papers
 
 - [`curobo-2023`](papers/curobo-2023/PAPER.md): cuRobo: Parallelized Collision-Free Minimum-Jerk Robot Motion Generation (2023)
+- [`vflash-2026`](papers/vflash-2026/PAPER.md): VFlash: Fast, Accurate Visual Planning via Flash Primitive Decoding (2026)
