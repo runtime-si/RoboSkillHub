@@ -1,0 +1,52 @@
+{
+  "skill": "running-two-skills-concurrently-on-two-arms",
+  "inputs": {
+    "skill_a": "string",
+    "skill_b": "string"
+  },
+  "outputs": {
+    "route_a": {
+      "$ref": "run.route_a"
+    },
+    "route_b": {
+      "$ref": "run.route_b"
+    },
+    "paused_arms": {
+      "$ref": "run.paused_arms"
+    },
+    "waits": {
+      "$ref": "run.waits"
+    }
+  },
+  "nodes": {
+    "run": {
+      "type": "script",
+      "script": "scripts/run_concurrent.py",
+      "inputs": {
+        "skill_a": {
+          "$ref": "in.skill_a"
+        },
+        "skill_b": {
+          "$ref": "in.skill_b"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "run"
+    ],
+    [
+      "run",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "both_done"
+    ]
+  },
+  "on_error": "unsafe_refused"
+}
