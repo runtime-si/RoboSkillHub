@@ -1,0 +1,13 @@
+{
+  "skill": "ordering-pick-and-place-tasks-for-shortest-travel",
+  "inputs": {},
+  "outputs": {"total_travel_s": {"$ref": "order.total_travel_s"}, "method": {"$ref": "order.method"}},
+  "nodes": {"order": {"type": "script", "script": "scripts/order_tasks.py", "inputs": {"tasks": [
+    {"id": "a", "pick": [0.0, 0.2, 0.05], "place": [0.0, -0.2, 0.05]},
+    {"id": "b", "pick": [0.05, 0.2, 0.05], "place": [0.05, -0.2, 0.05]},
+    {"id": "c", "pick": [0.1, 0.2, 0.05], "place": [0.1, -0.2, 0.05], "after": ["a"]}
+  ]}}},
+  "edges": [["START", "order"], ["order", "END"]],
+  "exit": {"router_field": "route", "success_values": ["ordered", "infeasible"]},
+  "on_error": "infeasible"
+}
