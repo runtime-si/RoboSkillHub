@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 173 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 174 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -200,6 +200,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`detecting-in-hand-slip-and-twist-from-the-wrist-camera`](#detecting-in-hand-slip-and-twist-from-the-wrist-camera) | verify | Watches the held part in the wrist camera, which rides rigid with the fingers, and says whether it slips, twists or… | any |
 | [`flagging-odd-one-out-parts-by-mutual-scoring`](#flagging-odd-one-out-parts-by-mutual-scoring) | verify | Finds the part that differs from its siblings in one frame. | any |
 | [`previewing-target-overlay`](#previewing-target-overlay) | verify | Checks a target gripper pose before the arm moves. | any |
+| [`profiling-a-skill-run-by-phase`](#profiling-a-skill-run-by-phase) | verify | Runs one hub skill with its ctx wrapped so every robot.* and tool call is timed (wall clock, and sim time when a sim… | any |
 | [`registering-assembled-board-to-reference`](#registering-assembled-board-to-reference) | verify | Aligns a top-down view of the part-built jigsaw (overhead frame, rectified view or wrist mosaic) to the box picture… | any |
 | [`simulating-a-domino-layout-before-building`](#simulating-a-domino-layout-before-building) | verify | Checks a planned domino line or curve in a rigid-body simulation before the arm builds it. | any |
 | [`tracking-gripper-opening-stall`](#tracking-gripper-opening-stall) | verify | Drives the jaws to a target gap (or fully closed) and watches the measured gap over a sliding window, reporting… | any |
@@ -2957,6 +2958,22 @@ Checks a target gripper pose before the arm moves - projects the pose into every
   - `approved`: The VLM answered yes - on the overlay the target fits the intent (right object or part, right side, right height); `answer` is its one-line justification.
   - `rejected`: The VLM answered no; `answer` says why (wrong object, approach, height ...). Nothing moved.
   - `no_view`: No camera with RGB, intrinsics and pose has the tool centre inside its image (or in front of it), or vlm.query_yes_no raised; nothing was judged and `reason` says which.
+
+### profiling-a-skill-run-by-phase
+
+verify · robots: any · tasks: diagnostics, pick-place · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/profiling-a-skill-run-by-phase/SKILL.md)
+
+Runs one hub skill with its ctx wrapped so every robot.* and tool call is timed (wall clock, and sim time when a sim clock is given), and splits the run into motion, settle/wait, gripper, perception, planning and other phases; writes a per-phase table and a timeline JSON. The same script profiles a recorded real run offline from the motion server's events.jsonl and the client's moves.json, per pen. Use when a skill or task is slower than expected and you need to know where the seconds go before optimising it.
+
+- **In**: `skill` string
+- **Out**: `child_route` string, `child_outputs` string, `phase_table` string, `timeline_json` string
+- **Calls**: connector `robot.close_gripper`, `robot.describe_arm`, `robot.describe_robot`, `robot.execute_trajectory`, `robot.forward_kinematics`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`profile_skill`](skills/profiling-a-skill-run-by-phase/scripts/profile_skill.py)
+- **Note**: Phase is by tool name; gaps after a motion count as settle, other gaps as client time (other).
+- **Exits**:
+  - `profiled`: The skill ran to its own exit (child_route) without raising; phase_table and timeline_json cover every call it made.
+  - `failed`: The skill raised; the table and timeline cover the calls up to the error, and child_outputs holds it.
+  - `refused`: The skill could not be loaded or inputs_json is not JSON; nothing was run.
 
 ### registering-assembled-board-to-reference
 
