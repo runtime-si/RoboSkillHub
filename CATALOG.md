@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 173 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 174 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -102,6 +102,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`computing-stable-placements`](#computing-stable-placements) | plan | Enumerates the stable resting faces of a rigid object. | any |
 | [`executing-keypoint-motion`](#executing-keypoint-motion) | plan | Plans and executes a one-step manipulation from a language instruction with MOKA's mark-based visual prompting. | any |
 | [`finding-the-longest-domino-chain`](#finding-the-longest-domino-chain) | plan | Finds the longest chain of matching dominoes a hand can lay from a start value. | any |
+| [`ordering-pick-and-place-tasks-for-shortest-travel`](#ordering-pick-and-place-tasks-for-shortest-travel) | plan | Orders pick-and-place pairs for the least total travel time (start -&gt; pick_1 -&gt; place_1 -&gt; pick_2 -&gt; ...). | any |
 | [`parsing-ldraw-build-instructions`](#parsing-ldraw-build-instructions) | plan | Reads an LDraw .ldr / .mpd build file. | any |
 | [`placing-on-receptacle-top-surface`](#placing-on-receptacle-top-surface) | plan | Finds where to set a held object down on a receptacle's top surface (a box lid, a tray, a block, a shelf). | any |
 | [`planning-a-brick-mosaic-from-an-image`](#planning-a-brick-mosaic-from-an-image) | plan | Turns an image into a one-layer LEGO mosaic on a baseplate of a given stud size. | any |
@@ -1390,6 +1391,19 @@ Finds the longest chain of matching dominoes a hand can lay from a start value -
   - `no_chain`: The hand is empty or no tile holds the start value; `leftover` is the hand.
   - `no_room`: The chain was found but tile `placed_count` has no placement inside the table (less `edge_margin`) and clear of `footprints` and the tiles before it, straight or round a corner; the first `placed_count` tiles are placed and `new_end` is the end they leave.
   - `invalid_input`: A tile outside 0..max_pip or with not two values, a tile twice, an unknown objective, a start value outside 0..max_pip, a start direction with no length in the table plane, or a footprint without an axis (also the route of a raised error).
+
+### ordering-pick-and-place-tasks-for-shortest-travel
+
+plan · robots: any · tasks: pick-place, sorting, bimanual · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/ordering-pick-and-place-tasks-for-shortest-travel/SKILL.md)
+
+Orders pick-and-place pairs for the least total travel time (start -&gt; pick_1 -&gt; place_1 -&gt; pick_2 -&gt; ...) - exactly (Held-Karp dynamic programming) up to 12 tasks per arm, nearest-neighbour then 2-opt / Or-opt above - with precedence (a slot must be emptied before a part is placed in it), per arm when given scheduling-tasks-across-two-arms-for-minimum-makespan's by_arm queues. Travel is a lift-move-lower Cartesian estimate. Use after deciding which arm does which task, to cut the empty moves between tasks (sorting, clearing a table, refilling a rack).
+
+- **In**: -
+- **Out**: `total_travel_s` float, `total_given_s` float, `method` string, `solve_s` float
+- **Scripts**: [`order_tasks`](skills/ordering-pick-and-place-tasks-for-shortest-travel/scripts/order_tasks.py)
+- **Exits**:
+  - `ordered`: Every queue was ordered; order lists each arm's task ids, travel_s the estimate (given_travel_s for the order as given, -1 if it broke precedence).
+  - `infeasible`: Precedence within a queue is cyclic.
 
 ### parsing-ldraw-build-instructions
 
