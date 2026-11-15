@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 174 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 175 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -157,6 +157,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`picking-and-placing-two-objects`](#picking-and-placing-two-objects) | execute | Picks two objects with two arms, one each, and places both. | any, 2 arms |
 | [`picking-flat-pieces-by-suction-cup`](#picking-flat-pieces-by-suction-cup) | execute | Picks a flat piece (jigsaw piece, tile, card, thin plate) by its top face with a small suction cup. | any |
 | [`picking-upright-dominoes-from-a-loading-rack`](#picking-upright-dominoes-from-a-loading-rack) | execute | Takes the next domino out of a slotted loading rack, where tiles stand one per slot at a known pitch, instead of… | any |
+| [`pipelining-perception-and-planning-ahead-of-motion`](#pipelining-perception-and-planning-ahead-of-motion) | execute | Runs a queue of pick-and-place tasks (one arm, or two arms each with its own queue) with task k+1 prepared while the… | any, 2 arms |
 | [`placing-an-upright-domino-beside-neighbours`](#placing-an-upright-domino-beside-neighbours) | execute | Picks a standing domino top-down and sets it upright at a slot in a row without touching the tiles already standing… | any |
 | [`placing-held-feature`](#placing-held-feature) | execute | Move a held object so one of its declared features lands on a target point. | any, **sim only** |
 | [`placing-into-container-held-by-other-arm`](#placing-into-container-held-by-other-arm) | execute | Puts the object one arm holds into an open container the other arm holds. | any, 2 arms |
@@ -2260,6 +2261,21 @@ Takes the next domino out of a slotted loading rack, where tiles stand one per s
   - `not_seen`: No full slot was seen and some slots were not (no camera saw them whole and unoccluded, also after `look_pose`), and no `occupied` list covers them.
   - `unreachable`: Nothing was picked - every full slot has a standing neighbour where an open finger goes (a rack pitch under 19.8 mm for a 7.5 mm tile), no grasp height clears the walls and keeps 10 mm of tile above the fingertips, the grasp failed the IK preview for both wrist solutions, a move was refused, or the jaws stayed turned off the tile; also a refused rise after the pick (still holding).
   - `invalid_input`: A rack without slots, a pitch or slot count that is not positive, a wall as high as the tile, an unknown order, an `occupied` list of the wrong length or a `slot_index` past the rack.
+
+### pipelining-perception-and-planning-ahead-of-motion
+
+execute · robots: any, 2 arms · tasks: pick-place, bimanual · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/pipelining-perception-and-planning-ahead-of-motion/SKILL.md)
+
+Runs a queue of pick-and-place tasks (one arm, or two arms each with its own queue) with task k+1 prepared while the arm executes task k - a background thread perceives task k+1's object (fixed camera, or an idle arm's wrist camera, never a moving wrist) and runs the child pick-and-place skill up to its first move from task k's expected end state, keeping its planning replies (IK, grasp frames) - so task k+1 starts the moment task k ends; at the hand-over the plan is checked (arm where expected? object where it was perceived?) and re-planned live if stale. Use when a station works through several pick-and-places with a hub child skill and perception or planning is slow next to the motion.
+
+- **In**: `tasks` string, `pick_place_skill` string
+- **Out**: `done` int, `failed` int, `stale` int, `makespan_s` float, `idle_s` float, `cache_hits` int, `cache_misses` int, `tasks` string
+- **Calls**: connector `robot.close_gripper`, `robot.describe_arm`, `robot.describe_robot`, `robot.execute_trajectory`, `robot.forward_kinematics`, `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.move_to_joints`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`pipeline_tasks`](skills/pipelining-perception-and-planning-ahead-of-motion/scripts/pipeline_tasks.py)
+- **Exits**:
+  - `all_done`: Every task's child skill ended on one of its success exits; tasks (JSON) has each task's arm, route, start / end time and idle time before its first move.
+  - `one_failed`: At least one task's child skill raised or ended off its success exits (with a fresh or a still-valid plan); the other tasks were still run; tasks names which.
+  - `stale_replan_failed`: A task whose prepared plan was stale (the arm did not end where task k was expected to leave it, the object moved, or the look-ahead itself failed) failed after being re-planned live.
 
 ### placing-an-upright-domino-beside-neighbours
 

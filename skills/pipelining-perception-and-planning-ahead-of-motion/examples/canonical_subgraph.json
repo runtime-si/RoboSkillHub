@@ -1,0 +1,15 @@
+{
+  "skill": "pipelining-perception-and-planning-ahead-of-motion",
+  "inputs": {"tasks": "string", "pick_place_skill": "string"},
+  "outputs": {"makespan_s": {"$ref": "run.makespan_s"}, "idle_s": {"$ref": "run.idle_s"}, "tasks": {"$ref": "run.tasks"}},
+  "nodes": {
+    "run": {
+      "type": "script",
+      "script": "scripts/pipeline_tasks.py",
+      "inputs": {"tasks": {"$ref": "in.tasks"}, "pick_place_skill": {"$ref": "in.pick_place_skill"}}
+    }
+  },
+  "edges": [["START", "run"], ["run", "END"]],
+  "exit": {"router_field": "route", "success_values": ["all_done"]},
+  "on_error": "one_failed"
+}
