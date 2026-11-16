@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 175 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 176 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -54,6 +54,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 
 | Skill | Stage | What it does | Robots |
 | --- | --- | --- | --- |
+| [`anchoring-a-bin-to-its-walls-from-the-wrist-camera`](#anchoring-a-bin-to-its-walls-from-the-wrist-camera) | perceive | Re-anchors a tall open bin (a parts box picked from) to where the wrist depth camera sees its walls. | any, *tuned on* yam_i2rt |
 | [`augmenting-sim-depth-with-a-fitted-d405-noise-model`](#augmenting-sim-depth-with-a-fitted-d405-noise-model) | perceive | Replaces each simulated depth image of an observation with the same image under Intel RealSense D405 noise fitted to… | any |
 | [`calibrating-arm-to-arm-base-transform`](#calibrating-arm-to-arm-base-transform) | perceive | Measures where one arm's base sits in the other arm's base frame. | any |
 | [`calibrating-baseplate-stud-grid`](#calibrating-baseplate-stud-grid) | perceive | Estimates a LEGO or DUPLO baseplate's pose (the plate frame computing-brick-pose-from-stud-grid takes, and APEX-MR's… | any |
@@ -659,6 +660,22 @@ RynnValue value model (RynnBrain / Qwen3-VL, 8B or 4B, Apache-2.0) run locally o
   - `rynnvalue.remaining_time`: Remaining seconds to completion for each frame of a clip (oldest first, at most 8 used) plus Match / Success from the model's analysis.
 
 ## Skill details
+
+### anchoring-a-bin-to-its-walls-from-the-wrist-camera
+
+perceive · robots: any, *tuned on* yam_i2rt · tasks: pick-place, sorting, bin-picking · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/anchoring-a-bin-to-its-walls-from-the-wrist-camera/SKILL.md)
+
+Re-anchors a tall open bin (a parts box picked from) to where the wrist depth camera sees its walls - in each look taken from over the bin, every wall in view is found as the densest thin sheet of wall-coloured depth points across it, the offsets of the walls read give the bin's shift from where a fixed camera had it, and the bin is moved by the median of the looks so far, leaving out a look that reads more than 3 cm from that median. Grasps found and made in the anchored bin then share the arm's own pose error instead of the overhead calibration's. Use when grasps are proposed from wrist-camera looks into a bin whose box came from an overhead camera, the arm is only accurate to a few centimetres, and the walls show in the wrist view; call it on every look with the same overhead box and the shifts it returned last time. CPU only; nothing moves.
+
+- **In**: `bin_obb` OrientedBoundingBox
+- **Out**: `anchored_obb` OrientedBoundingBox, `shift` Vec3, `used_shift` Vec3, `looks` int
+- **Calls**: connector `robot.get_observation`
+- **Scripts**: [`anchor_bin`](skills/anchoring-a-bin-to-its-walls-from-the-wrist-camera/scripts/anchor_bin.py)
+- **Note**: Its built-in wall colour rule is for brown cardboard; pass wall_mask or wall_colour "any" for other bins. One station, one box; point-count thresholds scale with camera resolution.
+- **Exits**:
+  - `anchored`: At least one wall was read in this look, and the reading lies within max_shift (10 cm) of bin_obb and, once two readings are held, within outlier (3 cm) of their median; it is added to `shifts`, and anchored_obb is bin_obb moved by the median of all of them.
+  - `outlier`: A wall was read but the reading was not counted (too far from bin_obb, or from the median of the looks so far); `shift` carries it, `shifts` is unchanged, and anchored_obb is bin_obb moved by the median of the earlier looks (bin_obb itself when there are none).
+  - `walls_not_seen`: No wall could be read - no posed wrist depth camera, fewer than 800 wall-coloured points in the wall's height band, or no wall with a dense enough sheet; anchored_obb as for outlier.
 
 ### augmenting-sim-depth-with-a-fitted-d405-noise-model
 
