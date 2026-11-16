@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-34 tools, 178 skills, 4 policies, 1 recipe and 1 paper.
+34 tools, 179 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -227,6 +227,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`replanning-with-an-execution-critic`](#replanning-with-an-execution-critic) | recover | CLEA's critic - before the graph executes its next action, a VLM reads the task, the subgoal, what was done so far and… | any |
 | [`returning-to-a-recorded-pose`](#returning-to-a-recorded-pose) | recover | Opens the gripper and drives the arm back to a joint configuration recorded earlier in the episode, then checks from a… | any |
 | [`classifying-failure-type-vlm`](#classifying-failure-type-vlm) | judge | Classifies why a manipulation step failed from camera frames taken before, during (optional, a short video as frames)… | any |
+| [`cross-checking-a-placed-count-from-overhead`](#cross-checking-a-placed-count-from-overhead) | judge | Cross-checks a count of parts said to have been placed into an open container (the hand's own tally of releases, an… | any, *tuned on* yam_i2rt |
 | [`detecting-subtask-success`](#detecting-subtask-success) | judge | Checks whether a subtask is done from the latest frame of every camera at one moment. | any |
 | [`judging-assembly-steps-by-fused-checks`](#judging-assembly-steps-by-fused-checks) | judge | Turns the routes and numbers of the hub's per-step checks into one verdict for an assembly step. | any |
 | [`judging-attempt-success-from-frames-robojev`](#judging-attempt-success-from-frames-robojev) | judge | Decides whether a step succeeded from cameras alone with one calibrated number. | any |
@@ -3412,6 +3413,22 @@ Classifies why a manipulation step failed from camera frames taken before, durin
   - `collision_or_stuck`: The hand or the object ran into something (a wall, a fixture, another object, the table) and stopped or jammed.
   - `incomplete`: The step stopped short or part of it was never done, with no collision and no wrong object.
   - `no_verdict`: No camera has RGB in both BEFORE and AFTER, vlm.query raised, the reply had no JSON, no success verdict, or a failure with neither a class nor a RoboFAC type that maps to one.
+
+### cross-checking-a-placed-count-from-overhead
+
+judge · robots: any, *tuned on* yam_i2rt · tasks: sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/cross-checking-a-placed-count-from-overhead/SKILL.md)
+
+Cross-checks a count of parts said to have been placed into an open container (the hand's own tally of releases, an operator's number) against a rough estimate from one overhead RGB-D frame - what stands over the container's floor in the plan view, as blobs and as occupied area over one part's area - and routes contradicted when the camera sees under half of what is claimed, or anything where nothing is claimed. It is NOT a count verifier - on the real station it came from the estimate was off by one or two of four parts whenever parts were in the box (touching parts read high, stacked parts low, shadows as parts), so it only catches gross disagreement such as every part having landed outside the container. Use when a placing loop keeps its own count and needs a second, independent signal that the parts are in the container at all, with the hand out of the overhead view and one part's plan-view area measured on that camera; never use the estimate as the success criterion.
+
+- **In**: `container_obb` OrientedBoundingBox, `part_area` float
+- **Out**: `estimate` int, `blobs` int, `by_area` int, `area_m2` float, `claimed_count` int, `seen_fraction` float
+- **Calls**: connector `robot.get_observation`
+- **Scripts**: [`cross_check_count`](skills/cross-checking-a-placed-count-from-overhead/scripts/cross_check_count.py)
+- **Note**: A caution more than a capability. The estimate matched the true count in 1 of the 4 real runs where the truth is known (the one where it was 0). Routes only gross disagreement; needs an independent count to say anything.
+- **Exits**:
+  - `supported`: At least half of the container's inside was in view and the camera's rough estimate is not under half of claimed_count (or both are 0). The claim is not contradicted; it is not confirmed either - the estimate was wrong by 1-2 of 4 in the real runs.
+  - `contradicted`: The camera's estimate is under half of claimed_count (including 0 seen), or something is seen where 0 is claimed. On the source station this pattern meant every release had missed the container. Someone, or another sensor, must look.
+  - `uncertain`: No judgement - no claimed_count was given (the estimate alone decides nothing), under half of the container's inside is in view (a hand over it, a wrong box), or there is no posed overhead RGB-D camera; `detail` says which. Route as not verified.
 
 ### detecting-subtask-success
 
