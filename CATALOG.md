@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 176 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 177 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -122,6 +122,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`proposing-side-grasps`](#proposing-side-grasps) | propose | Propose horizontal (side-entry) grasps swept around an object's oriented box — twelve azimuths ranked by jaw margin. | any, **sim only** |
 | [`choosing-next-piece-and-slot`](#choosing-next-piece-and-slot) | select | Chooses the next jigsaw placement (which loose piece, which grid cell, which turn) from the board as believed, the… | any |
 | [`matching-a-piece-to-placed-neighbours`](#matching-a-piece-to-placed-neighbours) | select | Picks which of several loose jigsaw pieces fits an empty slot, and how far to turn it, by the shape of its sides alone. | any |
+| [`proposing-open-hand-grasps-in-a-dense-pile`](#proposing-open-hand-grasps-in-a-dense-pile) | select | Proposes top-down parallel-jaw grasps in a dense heap of centimetre-scale parts inside a bin, for a hand that comes… | any, *tuned on* yam_i2rt |
 | [`proposing-parallel-grasps-in-tight-clusters`](#proposing-parallel-grasps-in-tight-clusters) | select | Proposes top-down parallel-jaw grasps on small flat parts packed close together (jigsaw pieces, LEGO bricks, dominoes… | any |
 | [`sampling-labeled-points-in-mask`](#sampling-labeled-points-in-mask) | select | Picks the point on (or in) an object that a language instruction asks for. | any, *tuned on* yam-station-overhead-rgbd |
 | [`selecting-a-grip-clear-of-placed-neighbours`](#selecting-a-grip-clear-of-placed-neighbours) | select | Chooses where a two-finger gripper should hold a jigsaw piece, and along which direction it should close, so that at… | any |
@@ -1707,6 +1708,22 @@ Picks which of several loose jigsaw pieces fits an empty slot, and how far to tu
   - `fits`: One candidate fits clearly - its side types agree with the slot, its score is under max_fit (0.06) and the next candidate scores at least min_margin times worse (1.25; 1.6 with a single neighbour). best_id, best_rotation_deg and grip_point_board are the answer. With no neighbour, the only candidate whose side types fit the border sides.
   - `ambiguous`: The best fit does not stand out from the next candidate (or, with no neighbour, several candidates' side types fit); `ranked` lists them best first for another cue (the box picture, a test placement).
   - `no_fit`: No candidate's side types agree with the slot, the best score is over max_fit, or no candidate mask could be split into 4 sides (`pieces` says why per candidate); bad slot sides also land here.
+
+### proposing-open-hand-grasps-in-a-dense-pile
+
+select · robots: any, *tuned on* yam_i2rt · tasks: pick-place, sorting, bin-picking · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/proposing-open-hand-grasps-in-a-dense-pile/SKILL.md)
+
+Proposes top-down parallel-jaw grasps in a dense heap of centimetre-scale parts inside a bin, for a hand that comes down fully open - builds a 2 mm heightmap of the bin's inside from one or more posed depth frames, and for every cell and jaw direction lets the two open fingertips' footprints sink to the highest thing under either and takes what stands between them over that level as the grip, with the part's top read from what is between the fingers for that jaw direction, lone depth spikes ignored, both fingers inside the bin's walls, and optional masks for what may be taken and what must be kept clear of. Returns world grasp points, closing heading, fingertip and tool heights, ranked by grip depth and height in the pile. Use when parts lie heaped and touching in a box so that no single part can be segmented or stands clear on a support, before a top-down grasp skill, with the bin's box in the reading camera's frame; expect about one proposal in two to hold on real printed parts. CPU only; nothing moves.
+
+- **In**: `bin_obb` OrientedBoundingBox
+- **Out**: `grasp_pose` Se3Pose, `position` Vec3, `close_heading_deg` float, `jaw_width_m` float, `top_z` float, `tip_z` float, `tool_z` float, `grip_depth_m` float, `score` float, `n_grasps` int, `seen_fraction` float
+- **Calls**: connector `robot.describe_gripper`, `robot.get_observation`, `robot.grasp_frame`
+- **Scripts**: [`propose_pile_grasps`](skills/proposing-open-hand-grasps-in-a-dense-pile/scripts/propose_pile_grasps.py)
+- **Note**: About 1 grasp in 2 held on real 5-9 cm printed brackets and tube sockets (one station), about 1 in 5 in a box-primitive simulation of the same pile. The ranking is geometry, not a learned success score.
+- **Exits**:
+  - `proposed`: At least one place and jaw direction has something standing min_grip (15 mm) or more over the highest thing under both open fingertips, both fingers inside the walls and mostly seen; `grasps` are best first, at least 3 cm apart, and the best one's position (the tool centre), close_heading_deg, top_z, tip_z, tool_z and grasp_pose are flattened. Nothing moved. A proposal is where the hand fits, not a promise it will hold.
+  - `nothing_fits`: At least 10 % of the bin's inside was seen and no place passes - a level pile, parts wider than the open hand, everything against a wall, or only what the masks rule out. Look again from another side, or stir or spread the pile.
+  - `not_seen`: No posed depth camera, or under 10 % of the bin's inside has depth (the view misses the bin, the hand hides it, or bin_obb is in another camera's frame); `detail` says which.
 
 ### proposing-parallel-grasps-in-tight-clusters
 

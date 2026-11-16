@@ -1,0 +1,26 @@
+{
+  "skill": "proposing-open-hand-grasps-in-a-dense-pile",
+  "inputs": {
+    "bin_obb": "OrientedBoundingBox"
+  },
+  "outputs": {
+    "grasp_pose": {"$ref": "propose.grasp_pose"},
+    "position": {"$ref": "propose.position"},
+    "close_heading_deg": {"$ref": "propose.close_heading_deg"},
+    "jaw_width_m": {"$ref": "propose.jaw_width_m"},
+    "tip_z": {"$ref": "propose.tip_z"},
+    "top_z": {"$ref": "propose.top_z"}
+  },
+  "nodes": {
+    "propose": {
+      "type": "script",
+      "script": "scripts/propose_pile_grasps.py",
+      "inputs": {
+        "bin_obb": {"$ref": "in.bin_obb"}
+      }
+    }
+  },
+  "edges": [["START", "propose"], ["propose", "END"]],
+  "exit": {"router_field": "route", "success_values": ["proposed", "nothing_fits"]},
+  "on_error": "not_seen"
+}
