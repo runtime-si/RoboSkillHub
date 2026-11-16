@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-34 tools, 177 skills, 4 policies, 1 recipe and 1 paper.
+34 tools, 178 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -132,6 +132,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`selecting-safe-cable-grasp-segments`](#selecting-safe-cable-grasp-segments) | select | Ranks top-down grasp points along a cable's fitted centreline that keep the fingers off its ends (a larger margin at… | any, *tuned on* yam-station-overhead-rgbd |
 | [`anchoring-a-free-end`](#anchoring-a-free-end) | execute | Pins one end of a cable with the support hand before any crossing is attempted. | any, 2 arms |
 | [`approaching-above-a-target`](#approaching-above-a-target) | execute | Moves the hand to hover a set clearance above a target's oriented box, rising in place first and keeping the hand's… | any |
+| [`carrying-over-an-obstacle-with-a-leaning-hand`](#carrying-over-an-obstacle-with-a-leaning-hand) | execute | Carries the part the hand holds from one open container over the rims into another and releases it, with the hand… | any, *tuned on* yam_i2rt |
 | [`checking-reachability`](#checking-reachability) | execute | Asks a station whether TCP poses (optionally as a chained path from the current configuration) are reachable, using… | yam_i2rt |
 | [`correcting-brick-offset-from-stud-circles`](#correcting-brick-offset-from-stud-circles) | execute | Closes the last millimetre over a LEGO or DUPLO brick before a pick or a press. | any |
 | [`correcting-in-plane-offset-by-discrete-moves`](#correcting-in-plane-offset-by-discrete-moves) | execute | Final x, y and yaw alignment of a held part (or the hand) over its target from the wrist camera, by a small classifier… | any |
@@ -1853,6 +1854,25 @@ Moves the hand to hover a set clearance above a target's oriented box, rising in
 - **Exits**:
   - `above`: The tool centre stands within reach_tolerance (default 10 mm) of the point clearance (default 0.12 m) above the target's top, its rotation within rot_tolerance_deg (default 4 deg) of the one asked for.
   - `unreachable`: A move raised or reported that it did not arrive, or the hand ended further off in position or rotation; `detail` says which.
+
+### carrying-over-an-obstacle-with-a-leaning-hand
+
+execute · robots: any, *tuned on* yam_i2rt · tasks: pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/carrying-over-an-obstacle-with-a-leaning-hand/SKILL.md)
+
+Carries the part the hand holds from one open container over the rims into another and releases it, with the hand leaning sideways so the arm holds it higher than it can pointing straight down - searches the leans, jaw turns and heights for one that reaches up clear of the rims where the hand stands (or pulled back from under something overhead) and, separately, for one that reaches a drop point inside the target, rises, crosses at that height, lowers, opens and retreats. A carry that ends short lets go only if the hand is inside the container's walls by its own pose reading; otherwise the hand goes back, still holding. Use when a part hanging from the fingers must clear a tall bin wall on a small arm whose straight-down reach is too low, after a grasp that holds, with the target container located in the hand's own frame; give an arm model to search reach and clearance locally.
+
+- **In**: `container_obb` OrientedBoundingBox
+- **Out**: `release_position` Vec3, `drop_point` Vec3, `carried_z` float, `clear_z` float, `inside_m` float, `options` int, `ik_queries` int, `clearance_checked` bool
+- **Calls**: [`arm-clearance`](#arm-clearance); connector `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`carry_and_release`](skills/carrying-over-an-obstacle-with-a-leaning-hand/scripts/carry_and_release.py)
+- **Note**: The lean angles and heights are one YAM station's. This script is a port through the connector tools and has only run against a fake connector in unit tests; the method it ports placed parts in seven real runs.
+- **Exits**:
+  - `placed`: The hand crossed at or over clear_z, read as still holding, and opened either within arrive_tolerance (4 cm) of a drop point inside the container or, short of it, at least drop_inside (3 cm) inside the container's walls by its own pose reading; then it went back up. What the hand did - not a sighting of the part in the container.
+  - `returned`: Every carry tried ended more than arrive_tolerance from its drop point and not over the container; the hand went back to where it rose and still holds the part. fell_short_at lists the drop points to avoid next time.
+  - `blocked`: On the way across the hand ended lower than clear_z (it is pushing or resting on something); it stopped there and still holds the part.
+  - `rise_short`: After the rise the hand was under clear_z; it did not cross and still holds the part where the rise ended.
+  - `unreachable`: No lean, jaw turn and height at or over clear_z was found to rise with, or none over any drop point (within max_ik_queries previews, or by the arm model); nothing moved and the hand still holds the part.
+  - `lost`: The jaws read empty before the start, after the rise, or after the carry across; where the part is, is not known. Nothing was released on purpose.
 
 ### checking-reachability
 

@@ -1,0 +1,24 @@
+{
+  "skill": "carrying-over-an-obstacle-with-a-leaning-hand",
+  "inputs": {
+    "container_obb": "OrientedBoundingBox"
+  },
+  "outputs": {
+    "release_position": {"$ref": "carry.release_position"},
+    "drop_point": {"$ref": "carry.drop_point"},
+    "carried_z": {"$ref": "carry.carried_z"},
+    "inside_m": {"$ref": "carry.inside_m"}
+  },
+  "nodes": {
+    "carry": {
+      "type": "script",
+      "script": "scripts/carry_and_release.py",
+      "inputs": {
+        "container_obb": {"$ref": "in.container_obb"}
+      }
+    }
+  },
+  "edges": [["START", "carry"], ["carry", "END"]],
+  "exit": {"router_field": "route", "success_values": ["placed"]},
+  "on_error": "blocked"
+}
