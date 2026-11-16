@@ -1,0 +1,27 @@
+{
+  "skill": "finding-boxes-of-known-size-from-overhead-depth",
+  "inputs": {
+    "size_long": "float",
+    "size_short": "float",
+    "rim_z": "float"
+  },
+  "outputs": {
+    "container_obb": {"$ref": "find.container_obb"},
+    "coverage": {"$ref": "find.coverage"},
+    "yaw_ambiguous": {"$ref": "find.yaw_ambiguous"}
+  },
+  "nodes": {
+    "find": {
+      "type": "script",
+      "script": "scripts/find_known_box.py",
+      "inputs": {
+        "size_long": {"$ref": "in.size_long"},
+        "size_short": {"$ref": "in.size_short"},
+        "rim_z": {"$ref": "in.rim_z"}
+      }
+    }
+  },
+  "edges": [["START", "find"], ["find", "END"]],
+  "exit": {"router_field": "route", "success_values": ["found"]},
+  "on_error": "not_found"
+}

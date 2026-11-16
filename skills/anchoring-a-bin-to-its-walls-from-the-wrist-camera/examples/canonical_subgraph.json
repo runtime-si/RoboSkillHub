@@ -1,0 +1,23 @@
+{
+  "skill": "anchoring-a-bin-to-its-walls-from-the-wrist-camera",
+  "inputs": {
+    "bin_obb": "OrientedBoundingBox"
+  },
+  "outputs": {
+    "anchored_obb": {"$ref": "anchor.anchored_obb"},
+    "used_shift": {"$ref": "anchor.used_shift"},
+    "looks": {"$ref": "anchor.looks"}
+  },
+  "nodes": {
+    "anchor": {
+      "type": "script",
+      "script": "scripts/anchor_bin.py",
+      "inputs": {
+        "bin_obb": {"$ref": "in.bin_obb"}
+      }
+    }
+  },
+  "edges": [["START", "anchor"], ["anchor", "END"]],
+  "exit": {"router_field": "route", "success_values": ["anchored", "outlier", "walls_not_seen"]},
+  "on_error": "walls_not_seen"
+}

@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 173 skills, 4 policies, 1 recipe and 1 paper.
+34 tools, 179 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -39,6 +39,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`sam3`](#sam3) | perceive | Segment Anything 3 — text-, point-, and box-prompted instance segmentation, plus a stateful streaming video tracker… | any |
 | [`track`](#track) | perceive | Google DeepMind TAPNext++ run locally on a GPU. | any |
 | [`vlm`](#vlm) | perceive | Free-form and yes/no visual question answering against a hosted vision-language model (OpenRouter API by default… | any |
+| [`arm-clearance`](#arm-clearance) | plan | Checks a planned tool pose or joint step of a serial arm against a scene twin made of boxes, without asking the robot. | any, *tuned on* yam_i2rt |
 | [`curobo`](#curobo) | plan | NVIDIA cuRobo motion planning. | any, *tuned on* panda |
 | [`grconvnet`](#grconvnet) | propose | Proposes ranked top-down parallel-jaw grasps from one RGB-D frame with GR-ConvNet (skumra/robotic-grasping), on CPU… | any |
 | [`molmo-motion`](#molmo-motion) | propose | AllenAI MolmoMotion-4B run locally on a GPU. | any |
@@ -54,6 +55,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 
 | Skill | Stage | What it does | Robots |
 | --- | --- | --- | --- |
+| [`anchoring-a-bin-to-its-walls-from-the-wrist-camera`](#anchoring-a-bin-to-its-walls-from-the-wrist-camera) | perceive | Re-anchors a tall open bin (a parts box picked from) to where the wrist depth camera sees its walls. | any, *tuned on* yam_i2rt |
 | [`augmenting-sim-depth-with-a-fitted-d405-noise-model`](#augmenting-sim-depth-with-a-fitted-d405-noise-model) | perceive | Replaces each simulated depth image of an observation with the same image under Intel RealSense D405 noise fitted to… | any |
 | [`calibrating-arm-to-arm-base-transform`](#calibrating-arm-to-arm-base-transform) | perceive | Measures where one arm's base sits in the other arm's base frame. | any |
 | [`calibrating-baseplate-stud-grid`](#calibrating-baseplate-stud-grid) | perceive | Estimates a LEGO or DUPLO baseplate's pose (the plate frame computing-brick-pose-from-stud-grid takes, and APEX-MR's… | any |
@@ -63,9 +65,11 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`detecting-contact-from-joint-effort`](#detecting-contact-from-joint-effort) | perceive | Feels for contact without a force sensor. | any |
 | [`estimating-cut-grid-from-pieces`](#estimating-cut-grid-from-pieces) | perceive | Estimates a jigsaw's real cut grid (cols x rows) and cell size from the piece count printed on the box, the board's… | any |
 | [`estimating-relative-rotation-and-symmetry`](#estimating-relative-rotation-and-symmetry) | perceive | How far a part is turned in the image plane between a reference view and the current view (both from the wrist camera… | any, *tuned on* yam-left-wrist-d405-renders |
+| [`finding-boxes-of-known-size-from-overhead-depth`](#finding-boxes-of-known-size-from-overhead-depth) | perceive | Finds an open box, bin or tray whose outer size and rim height are already known in one overhead depth frame. | any, *tuned on* yam_i2rt |
 | [`framing-a-target-by-mask-edge-steering`](#framing-a-target-by-mask-edge-steering) | perceive | Moves the wrist camera until a named target lies wholly inside its image with a margin. | any |
 | [`inspecting-a-held-object-with-the-other-wrist-camera`](#inspecting-a-held-object-with-the-other-wrist-camera) | perceive | Shows a face of an object one arm holds to the other arm's wrist camera. | any, 2 arms |
 | [`localizing-a-piece-in-a-reference-image`](#localizing-a-piece-in-a-reference-image) | perceive | Finds which grid cell of a jigsaw's box picture one piece belongs to, and how far the piece is turned, from a close-up… | any |
+| [`locating-a-container-from-the-wrist-camera`](#locating-a-container-from-the-wrist-camera) | perceive | Locates an open box, bin or tray of known size with the hand's own wrist depth camera before anything is placed into it. | any, *tuned on* yam_i2rt |
 | [`locating-a-hole-lattice-by-wide-search`](#locating-a-hole-lattice-by-wide-search) | perceive | Finds where a holder's lattice of round holes really is from one RGB-D frame (overhead or wrist), searching the… | any |
 | [`measuring-a-held-piece-from-the-wrist-camera`](#measuring-a-held-piece-from-the-wrist-camera) | perceive | Measures where a flat held part (a jigsaw piece) sits in the gripper. | any |
 | [`measuring-a-held-tip-offset-by-contact-descent`](#measuring-a-held-tip-offset-by-contact-descent) | perceive | Finds how far the tip of a held part (a pen, a peg, a tool, a brick) sticks out past the tool centre, with no force… | any |
@@ -119,6 +123,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`proposing-side-grasps`](#proposing-side-grasps) | propose | Propose horizontal (side-entry) grasps swept around an object's oriented box — twelve azimuths ranked by jaw margin. | any, **sim only** |
 | [`choosing-next-piece-and-slot`](#choosing-next-piece-and-slot) | select | Chooses the next jigsaw placement (which loose piece, which grid cell, which turn) from the board as believed, the… | any |
 | [`matching-a-piece-to-placed-neighbours`](#matching-a-piece-to-placed-neighbours) | select | Picks which of several loose jigsaw pieces fits an empty slot, and how far to turn it, by the shape of its sides alone. | any |
+| [`proposing-open-hand-grasps-in-a-dense-pile`](#proposing-open-hand-grasps-in-a-dense-pile) | select | Proposes top-down parallel-jaw grasps in a dense heap of centimetre-scale parts inside a bin, for a hand that comes… | any, *tuned on* yam_i2rt |
 | [`proposing-parallel-grasps-in-tight-clusters`](#proposing-parallel-grasps-in-tight-clusters) | select | Proposes top-down parallel-jaw grasps on small flat parts packed close together (jigsaw pieces, LEGO bricks, dominoes… | any |
 | [`sampling-labeled-points-in-mask`](#sampling-labeled-points-in-mask) | select | Picks the point on (or in) an object that a language instruction asks for. | any, *tuned on* yam-station-overhead-rgbd |
 | [`selecting-a-grip-clear-of-placed-neighbours`](#selecting-a-grip-clear-of-placed-neighbours) | select | Chooses where a two-finger gripper should hold a jigsaw piece, and along which direction it should close, so that at… | any |
@@ -127,6 +132,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`selecting-safe-cable-grasp-segments`](#selecting-safe-cable-grasp-segments) | select | Ranks top-down grasp points along a cable's fitted centreline that keep the fingers off its ends (a larger margin at… | any, *tuned on* yam-station-overhead-rgbd |
 | [`anchoring-a-free-end`](#anchoring-a-free-end) | execute | Pins one end of a cable with the support hand before any crossing is attempted. | any, 2 arms |
 | [`approaching-above-a-target`](#approaching-above-a-target) | execute | Moves the hand to hover a set clearance above a target's oriented box, rising in place first and keeping the hand's… | any |
+| [`carrying-over-an-obstacle-with-a-leaning-hand`](#carrying-over-an-obstacle-with-a-leaning-hand) | execute | Carries the part the hand holds from one open container over the rims into another and releases it, with the hand… | any, *tuned on* yam_i2rt |
 | [`checking-reachability`](#checking-reachability) | execute | Asks a station whether TCP poses (optionally as a chained path from the current configuration) are reachable, using… | yam_i2rt |
 | [`correcting-brick-offset-from-stud-circles`](#correcting-brick-offset-from-stud-circles) | execute | Closes the last millimetre over a LEGO or DUPLO brick before a pick or a press. | any |
 | [`correcting-in-plane-offset-by-discrete-moves`](#correcting-in-plane-offset-by-discrete-moves) | execute | Final x, y and yaw alignment of a held part (or the hand) over its target from the wrist camera, by a small classifier… | any |
@@ -221,6 +227,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`replanning-with-an-execution-critic`](#replanning-with-an-execution-critic) | recover | CLEA's critic - before the graph executes its next action, a VLM reads the task, the subgoal, what was done so far and… | any |
 | [`returning-to-a-recorded-pose`](#returning-to-a-recorded-pose) | recover | Opens the gripper and drives the arm back to a joint configuration recorded earlier in the episode, then checks from a… | any |
 | [`classifying-failure-type-vlm`](#classifying-failure-type-vlm) | judge | Classifies why a manipulation step failed from camera frames taken before, during (optional, a short video as frames)… | any |
+| [`cross-checking-a-placed-count-from-overhead`](#cross-checking-a-placed-count-from-overhead) | judge | Cross-checks a count of parts said to have been placed into an open container (the hand's own tally of releases, an… | any, *tuned on* yam_i2rt |
 | [`detecting-subtask-success`](#detecting-subtask-success) | judge | Checks whether a subtask is done from the latest frame of every camera at one moment. | any |
 | [`judging-assembly-steps-by-fused-checks`](#judging-assembly-steps-by-fused-checks) | judge | Turns the routes and numbers of the hub's per-step checks into one verdict for an assembly step. | any |
 | [`judging-attempt-success-from-frames-robojev`](#judging-attempt-success-from-frames-robojev) | judge | Decides whether a step succeeded from cameras alone with one calibrated number. | any |
@@ -532,6 +539,19 @@ Free-form and yes/no visual question answering against a hosted vision-language 
   - `vlm.query`: Free-form visual question answering via a hosted VLM.
   - `vlm.query_yes_no`: Yes/no visual question answering; coerces the model reply to a bool.
 
+### arm-clearance
+
+plan · robots: any, *tuned on* yam_i2rt · tasks: pick-place, sorting, motion · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/arm-clearance/SKILL.md)
+
+Checks a planned tool pose or joint step of a serial arm against a scene twin made of boxes, without asking the robot - a local damped-least-squares inverse kinematics inside the joint limits and the controller's workspace box, the smallest distance from the arm's link capsules to the scene's boxes, and a step test that refuses a move ending inside a margin of the scene unless the arm is moving away. The chain, the capsules and the boxes are arguments, so it runs for any serial arm on CPU with numpy. Use when a skill searches over many candidate poses (hand orientations, heights, drop points, view poses) and each must be reachable and clear of fixed things the motion server does not know (a cabinet over the counter, a wall, a shelf), with a kinematic model of the arm and the obstacles' boxes in hand; send only the chosen pose to the robot.
+
+- **Note**: A prediction from a model, not a guarantee - the source arm stood a few centimetres from where its joints said, so ask for a generous margin. Ships no arm model; the chain and capsules are arguments.
+- **Functions**:
+  - `arm-clearance.solve_ik`: Local IK for a serial chain passed as an argument; joints for a world tool pose, or why not. Asks no robot.
+  - `arm-clearance.clearance`: Smallest distance from the arm's link capsules at given joints to a scene of boxes, and which link and box.
+  - `arm-clearance.check_step`: Whether a joint step would end inside a margin of the scene (at its middle or end) and nearer than the arm is now.
+  - `arm-clearance.reachable`: Whether the arm can take a tool pose clear of the scene - local IK, then the step test from the current joints.
+
 ### curobo
 
 plan · robots: any, *tuned on* panda · tasks: motion-planning · MIT for this bundle's code (as open-robot-skills declared it); the NVIDIA cuRobo it installs and calls (NVlabs/curobo@4ea7736, nvidia-curobo) is Apache-2.0 · v0.2.0 · [`SKILL.md`](tools/curobo/SKILL.md) · [upstream](https://github.com/graph-robots/open-robot-skills/tree/752dfbd96968d4d08379f8111765efbf6457800b/tools/curobo)
@@ -657,6 +677,22 @@ RynnValue value model (RynnBrain / Qwen3-VL, 8B or 4B, Apache-2.0) run locally o
   - `rynnvalue.remaining_time`: Remaining seconds to completion for each frame of a clip (oldest first, at most 8 used) plus Match / Success from the model's analysis.
 
 ## Skill details
+
+### anchoring-a-bin-to-its-walls-from-the-wrist-camera
+
+perceive · robots: any, *tuned on* yam_i2rt · tasks: pick-place, sorting, bin-picking · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/anchoring-a-bin-to-its-walls-from-the-wrist-camera/SKILL.md)
+
+Re-anchors a tall open bin (a parts box picked from) to where the wrist depth camera sees its walls - in each look taken from over the bin, every wall in view is found as the densest thin sheet of wall-coloured depth points across it, the offsets of the walls read give the bin's shift from where a fixed camera had it, and the bin is moved by the median of the looks so far, leaving out a look that reads more than 3 cm from that median. Grasps found and made in the anchored bin then share the arm's own pose error instead of the overhead calibration's. Use when grasps are proposed from wrist-camera looks into a bin whose box came from an overhead camera, the arm is only accurate to a few centimetres, and the walls show in the wrist view; call it on every look with the same overhead box and the shifts it returned last time. CPU only; nothing moves.
+
+- **In**: `bin_obb` OrientedBoundingBox
+- **Out**: `anchored_obb` OrientedBoundingBox, `shift` Vec3, `used_shift` Vec3, `looks` int
+- **Calls**: connector `robot.get_observation`
+- **Scripts**: [`anchor_bin`](skills/anchoring-a-bin-to-its-walls-from-the-wrist-camera/scripts/anchor_bin.py)
+- **Note**: Its built-in wall colour rule is for brown cardboard; pass wall_mask or wall_colour "any" for other bins. One station, one box; point-count thresholds scale with camera resolution.
+- **Exits**:
+  - `anchored`: At least one wall was read in this look, and the reading lies within max_shift (10 cm) of bin_obb and, once two readings are held, within outlier (3 cm) of their median; it is added to `shifts`, and anchored_obb is bin_obb moved by the median of all of them.
+  - `outlier`: A wall was read but the reading was not counted (too far from bin_obb, or from the median of the looks so far); `shift` carries it, `shifts` is unchanged, and anchored_obb is bin_obb moved by the median of the earlier looks (bin_obb itself when there are none).
+  - `walls_not_seen`: No wall could be read - no posed wrist depth camera, fewer than 800 wall-coloured points in the wall's height band, or no wall with a dense enough sheet; anchored_obb as for outlier.
 
 ### augmenting-sim-depth-with-a-fitted-d405-noise-model
 
@@ -795,6 +831,21 @@ How far a part is turned in the image plane between a reference view and the cur
   - `symmetric_ambiguous`: The caller said the part is less symmetric than its outline, but its outline turns look alike in these pixels (within 0.05 correlation); the turn is reported modulo the outline's period only.
   - `low_confidence`: A mask has under 60 px, or the best appearance match is under 0.3 correlation (another part, occluded, relit); rotation_deg is the outline's turn, unconfirmed.
 
+### finding-boxes-of-known-size-from-overhead-depth
+
+perceive · robots: any, *tuned on* yam_i2rt · tasks: pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/finding-boxes-of-known-size-from-overhead-depth/SKILL.md)
+
+Finds an open box, bin or tray whose outer size and rim height are already known in one overhead depth frame - takes the depth points in a band round the rim height, and slides the box's own outline (every 2 degrees of turn) over them in the plan view to where most of the outline is covered, so a rim seen in pieces, a box touching another, or a box beside something as tall (an arm resting on the table) is still placed where a blob or minimum-area-rectangle fit merges or mistakes it. Returns the box as an upright OrientedBoundingBox of the stated size, the share of the outline seen, and a flag when a nearly square box's turn may be a quarter out. Use when a container of measured size must be located from a fixed overhead RGB-D camera before picking from it or placing into it, with its size and rim height in hand and the hand out of the camera's view; call it once per box, passing the boxes already found as exclude_obbs. CPU only.
+
+- **In**: `size_long` float, `size_short` float, `rim_z` float
+- **Out**: `container_obb` OrientedBoundingBox, `center` Vec3, `yaw_deg` float, `coverage` float, `rim_points` int, `yaw_ambiguous` bool
+- **Calls**: connector `robot.get_observation`
+- **Scripts**: [`find_known_box`](skills/finding-boxes-of-known-size-from-overhead-depth/scripts/find_known_box.py)
+- **Note**: Position accuracy was never measured against a ground truth; on the one station it ran on, drops aimed from it alone missed the box (see locating-a-container-from-the-wrist-camera).
+- **Exits**:
+  - `found`: A rectangle of the stated size lies along the rim points with at least min_coverage (0.35) of its outline on them; container_obb is that rectangle, upright, from support_z to rim_z, local x its long side. What the overhead camera sees, in its calibration's frame - not where a hand will find it.
+  - `not_found`: No posed depth camera, fewer than 150 depth points in the rim's height band (inside roi, outside exclude_obbs), or the best placement covers less than min_coverage of the outline; `detail` says which, `coverage` and `rim_points` what was seen.
+
 ### framing-a-target-by-mask-edge-steering
 
 perceive · robots: any · tasks: pick-place, insertion, cable-routing, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/framing-a-target-by-mask-edge-steering/SKILL.md) · [upstream](https://github.com/AMMistry18/aic/blob/fd27bbe875dbd656e381f72ae2b44efdfb243924/flowstate/aic_perception/aic_perception/board_visibility.py)
@@ -840,6 +891,22 @@ Finds which grid cell of a jigsaw's box picture one piece belongs to, and how fa
   - `located`: The best cell's score is at least min_score (0.45) and beats every other cell by min_margin (0.04; 0.10 when the scale was guessed from the mask area); col, row and angle_deg are the answer.
   - `ambiguous`: The best cell does not stand out (repetitive or flat art); `candidates` ranks the cells for a shape check. A low-texture piece always lands here, with the flat cells of its colour as candidates.
   - `not_found`: The best score is under min_score, a flat piece matches no flat cell, or the input could not be used (empty mask, no scale, no placement inside the picture).
+
+### locating-a-container-from-the-wrist-camera
+
+perceive · robots: any, *tuned on* yam_i2rt · tasks: pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/locating-a-container-from-the-wrist-camera/SKILL.md)
+
+Locates an open box, bin or tray of known size with the hand's own wrist depth camera before anything is placed into it - moves the empty hand to a view short of the container (as it will be turned when it lets go, or pointing down from over the container's near half), slides the container's outline over the rim points that camera sees near the expected place, and returns the container in that camera's frame plus the shift from where another camera had it. Because the wrist camera rides on the arm, the arm's own pose error cancels - a drop aimed at the located box lands where the hand sees it, not where an overhead calibration says it is. Use when a held part will be released into a container whose box came from an overhead or other fixed camera and the arm is only accurate to a few centimetres, with the hand still empty (a held part hides the view) and the container's OrientedBoundingBox in hand; add the returned shift to every drop point.
+
+- **In**: `container_obb` OrientedBoundingBox
+- **Out**: `located_obb` OrientedBoundingBox, `aim_point` Vec3, `shift` Vec3, `shift_m` float, `yaw_deg` float, `coverage` float, `views_tried` int, `ik_queries` int, `view_pose` Se3Pose
+- **Calls**: connector `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.solve_ik`
+- **Scripts**: [`locate_container`](skills/locating-a-container-from-the-wrist-camera/scripts/locate_container.py)
+- **Note**: Measured on one YAM station in eight real runs; no simulator suite, no second robot. The view search asks robot.solve_ik at most max_ik_queries times.
+- **Exits**:
+  - `located`: From a view the hand reached, at least min_coverage (0.30) of the container's outline lay on rim points the wrist camera saw, within max_shift (10 cm) of the expected place; located_obb is the container in the wrist camera's frame, shift what to add to anything aimed from container_obb, aim_point the located centre on the rim plane. The hand stays at the view, empty.
+  - `not_seen`: At least one view was looked from (or the given frame was read) and none showed enough of the rim near the expected place, or the only fit lay further than max_shift from it, or the observation has no posed wrist depth camera; `detail` says which. The hand stays where it last looked. Placing may go on uncorrected only at the caller's risk - see Evidence.
+  - `unreachable`: No view pose passed robot.solve_ik within max_ik_queries previews (nothing moved), or every view move was refused; `detail` says which.
 
 ### locating-a-hole-lattice-by-wide-search
 
@@ -1658,6 +1725,22 @@ Picks which of several loose jigsaw pieces fits an empty slot, and how far to tu
   - `ambiguous`: The best fit does not stand out from the next candidate (or, with no neighbour, several candidates' side types fit); `ranked` lists them best first for another cue (the box picture, a test placement).
   - `no_fit`: No candidate's side types agree with the slot, the best score is over max_fit, or no candidate mask could be split into 4 sides (`pieces` says why per candidate); bad slot sides also land here.
 
+### proposing-open-hand-grasps-in-a-dense-pile
+
+select · robots: any, *tuned on* yam_i2rt · tasks: pick-place, sorting, bin-picking · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/proposing-open-hand-grasps-in-a-dense-pile/SKILL.md)
+
+Proposes top-down parallel-jaw grasps in a dense heap of centimetre-scale parts inside a bin, for a hand that comes down fully open - builds a 2 mm heightmap of the bin's inside from one or more posed depth frames, and for every cell and jaw direction lets the two open fingertips' footprints sink to the highest thing under either and takes what stands between them over that level as the grip, with the part's top read from what is between the fingers for that jaw direction, lone depth spikes ignored, both fingers inside the bin's walls, and optional masks for what may be taken and what must be kept clear of. Returns world grasp points, closing heading, fingertip and tool heights, ranked by grip depth and height in the pile. Use when parts lie heaped and touching in a box so that no single part can be segmented or stands clear on a support, before a top-down grasp skill, with the bin's box in the reading camera's frame; expect about one proposal in two to hold on real printed parts. CPU only; nothing moves.
+
+- **In**: `bin_obb` OrientedBoundingBox
+- **Out**: `grasp_pose` Se3Pose, `position` Vec3, `close_heading_deg` float, `jaw_width_m` float, `top_z` float, `tip_z` float, `tool_z` float, `grip_depth_m` float, `score` float, `n_grasps` int, `seen_fraction` float
+- **Calls**: connector `robot.describe_gripper`, `robot.get_observation`, `robot.grasp_frame`
+- **Scripts**: [`propose_pile_grasps`](skills/proposing-open-hand-grasps-in-a-dense-pile/scripts/propose_pile_grasps.py)
+- **Note**: About 1 grasp in 2 held on real 5-9 cm printed brackets and tube sockets (one station), about 1 in 5 in a box-primitive simulation of the same pile. The ranking is geometry, not a learned success score.
+- **Exits**:
+  - `proposed`: At least one place and jaw direction has something standing min_grip (15 mm) or more over the highest thing under both open fingertips, both fingers inside the walls and mostly seen; `grasps` are best first, at least 3 cm apart, and the best one's position (the tool centre), close_heading_deg, top_z, tip_z, tool_z and grasp_pose are flattened. Nothing moved. A proposal is where the hand fits, not a promise it will hold.
+  - `nothing_fits`: At least 10 % of the bin's inside was seen and no place passes - a level pile, parts wider than the open hand, everything against a wall, or only what the masks rule out. Look again from another side, or stir or spread the pile.
+  - `not_seen`: No posed depth camera, or under 10 % of the bin's inside has depth (the view misses the bin, the hand hides it, or bin_obb is in another camera's frame); `detail` says which.
+
 ### proposing-parallel-grasps-in-tight-clusters
 
 select · robots: any · tasks: jigsaw, pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/proposing-parallel-grasps-in-tight-clusters/SKILL.md) · [upstream](https://github.com/andyzeng/arc-robot-vision/blob/728139e9ad0e003106c71a7c0d0a2fc9d8430644/parallel-jaw-grasping/baseline/predict.m)
@@ -1772,6 +1855,25 @@ Moves the hand to hover a set clearance above a target's oriented box, rising in
 - **Exits**:
   - `above`: The tool centre stands within reach_tolerance (default 10 mm) of the point clearance (default 0.12 m) above the target's top, its rotation within rot_tolerance_deg (default 4 deg) of the one asked for.
   - `unreachable`: A move raised or reported that it did not arrive, or the hand ended further off in position or rotation; `detail` says which.
+
+### carrying-over-an-obstacle-with-a-leaning-hand
+
+execute · robots: any, *tuned on* yam_i2rt · tasks: pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/carrying-over-an-obstacle-with-a-leaning-hand/SKILL.md)
+
+Carries the part the hand holds from one open container over the rims into another and releases it, with the hand leaning sideways so the arm holds it higher than it can pointing straight down - searches the leans, jaw turns and heights for one that reaches up clear of the rims where the hand stands (or pulled back from under something overhead) and, separately, for one that reaches a drop point inside the target, rises, crosses at that height, lowers, opens and retreats. A carry that ends short lets go only if the hand is inside the container's walls by its own pose reading; otherwise the hand goes back, still holding. Use when a part hanging from the fingers must clear a tall bin wall on a small arm whose straight-down reach is too low, after a grasp that holds, with the target container located in the hand's own frame; give an arm model to search reach and clearance locally.
+
+- **In**: `container_obb` OrientedBoundingBox
+- **Out**: `release_position` Vec3, `drop_point` Vec3, `carried_z` float, `clear_z` float, `inside_m` float, `options` int, `ik_queries` int, `clearance_checked` bool
+- **Calls**: [`arm-clearance`](#arm-clearance); connector `robot.get_ee_pose`, `robot.get_gripper`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`carry_and_release`](skills/carrying-over-an-obstacle-with-a-leaning-hand/scripts/carry_and_release.py)
+- **Note**: The lean angles and heights are one YAM station's. This script is a port through the connector tools and has only run against a fake connector in unit tests; the method it ports placed parts in seven real runs.
+- **Exits**:
+  - `placed`: The hand crossed at or over clear_z, read as still holding, and opened either within arrive_tolerance (4 cm) of a drop point inside the container or, short of it, at least drop_inside (3 cm) inside the container's walls by its own pose reading; then it went back up. What the hand did - not a sighting of the part in the container.
+  - `returned`: Every carry tried ended more than arrive_tolerance from its drop point and not over the container; the hand went back to where it rose and still holds the part. fell_short_at lists the drop points to avoid next time.
+  - `blocked`: On the way across the hand ended lower than clear_z (it is pushing or resting on something); it stopped there and still holds the part.
+  - `rise_short`: After the rise the hand was under clear_z; it did not cross and still holds the part where the rise ended.
+  - `unreachable`: No lean, jaw turn and height at or over clear_z was found to rise with, or none over any drop point (within max_ik_queries previews, or by the arm model); nothing moved and the hand still holds the part.
+  - `lost`: The jaws read empty before the start, after the rise, or after the carry across; where the part is, is not known. Nothing was released on purpose.
 
 ### checking-reachability
 
@@ -3311,6 +3413,22 @@ Classifies why a manipulation step failed from camera frames taken before, durin
   - `collision_or_stuck`: The hand or the object ran into something (a wall, a fixture, another object, the table) and stopped or jammed.
   - `incomplete`: The step stopped short or part of it was never done, with no collision and no wrong object.
   - `no_verdict`: No camera has RGB in both BEFORE and AFTER, vlm.query raised, the reply had no JSON, no success verdict, or a failure with neither a class nor a RoboFAC type that maps to one.
+
+### cross-checking-a-placed-count-from-overhead
+
+judge · robots: any, *tuned on* yam_i2rt · tasks: sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/cross-checking-a-placed-count-from-overhead/SKILL.md)
+
+Cross-checks a count of parts said to have been placed into an open container (the hand's own tally of releases, an operator's number) against a rough estimate from one overhead RGB-D frame - what stands over the container's floor in the plan view, as blobs and as occupied area over one part's area - and routes contradicted when the camera sees under half of what is claimed, or anything where nothing is claimed. It is NOT a count verifier - on the real station it came from the estimate was off by one or two of four parts whenever parts were in the box (touching parts read high, stacked parts low, shadows as parts), so it only catches gross disagreement such as every part having landed outside the container. Use when a placing loop keeps its own count and needs a second, independent signal that the parts are in the container at all, with the hand out of the overhead view and one part's plan-view area measured on that camera; never use the estimate as the success criterion.
+
+- **In**: `container_obb` OrientedBoundingBox, `part_area` float
+- **Out**: `estimate` int, `blobs` int, `by_area` int, `area_m2` float, `claimed_count` int, `seen_fraction` float
+- **Calls**: connector `robot.get_observation`
+- **Scripts**: [`cross_check_count`](skills/cross-checking-a-placed-count-from-overhead/scripts/cross_check_count.py)
+- **Note**: A caution more than a capability. The estimate matched the true count in 1 of the 4 real runs where the truth is known (the one where it was 0). Routes only gross disagreement; needs an independent count to say anything.
+- **Exits**:
+  - `supported`: At least half of the container's inside was in view and the camera's rough estimate is not under half of claimed_count (or both are 0). The claim is not contradicted; it is not confirmed either - the estimate was wrong by 1-2 of 4 in the real runs.
+  - `contradicted`: The camera's estimate is under half of claimed_count (including 0 seen), or something is seen where 0 is claimed. On the source station this pattern meant every release had missed the container. Someone, or another sensor, must look.
+  - `uncertain`: No judgement - no claimed_count was given (the estimate alone decides nothing), under half of the container's inside is in view (a hand over it, a wrong box), or there is no posed overhead RGB-D camera; `detail` says which. Route as not verified.
 
 ### detecting-subtask-success
 

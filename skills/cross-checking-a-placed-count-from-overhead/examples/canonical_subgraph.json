@@ -1,0 +1,27 @@
+{
+  "skill": "cross-checking-a-placed-count-from-overhead",
+  "inputs": {
+    "container_obb": "OrientedBoundingBox",
+    "part_area": "float",
+    "claimed_count": "int"
+  },
+  "outputs": {
+    "estimate": {"$ref": "check.estimate"},
+    "area_m2": {"$ref": "check.area_m2"},
+    "seen_fraction": {"$ref": "check.seen_fraction"}
+  },
+  "nodes": {
+    "check": {
+      "type": "script",
+      "script": "scripts/cross_check_count.py",
+      "inputs": {
+        "container_obb": {"$ref": "in.container_obb"},
+        "part_area": {"$ref": "in.part_area"},
+        "claimed_count": {"$ref": "in.claimed_count"}
+      }
+    }
+  },
+  "edges": [["START", "check"], ["check", "END"]],
+  "exit": {"router_field": "route", "success_values": ["supported"]},
+  "on_error": "uncertain"
+}
