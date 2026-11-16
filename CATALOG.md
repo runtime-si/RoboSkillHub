@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 174 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 175 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -67,6 +67,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`framing-a-target-by-mask-edge-steering`](#framing-a-target-by-mask-edge-steering) | perceive | Moves the wrist camera until a named target lies wholly inside its image with a margin. | any |
 | [`inspecting-a-held-object-with-the-other-wrist-camera`](#inspecting-a-held-object-with-the-other-wrist-camera) | perceive | Shows a face of an object one arm holds to the other arm's wrist camera. | any, 2 arms |
 | [`localizing-a-piece-in-a-reference-image`](#localizing-a-piece-in-a-reference-image) | perceive | Finds which grid cell of a jigsaw's box picture one piece belongs to, and how far the piece is turned, from a close-up… | any |
+| [`locating-a-container-from-the-wrist-camera`](#locating-a-container-from-the-wrist-camera) | perceive | Locates an open box, bin or tray of known size with the hand's own wrist depth camera before anything is placed into it. | any, *tuned on* yam_i2rt |
 | [`locating-a-hole-lattice-by-wide-search`](#locating-a-hole-lattice-by-wide-search) | perceive | Finds where a holder's lattice of round holes really is from one RGB-D frame (overhead or wrist), searching the… | any |
 | [`measuring-a-held-piece-from-the-wrist-camera`](#measuring-a-held-piece-from-the-wrist-camera) | perceive | Measures where a flat held part (a jigsaw piece) sits in the gripper. | any |
 | [`measuring-a-held-tip-offset-by-contact-descent`](#measuring-a-held-tip-offset-by-contact-descent) | perceive | Finds how far the tip of a held part (a pen, a peg, a tool, a brick) sticks out past the tool centre, with no force… | any |
@@ -856,6 +857,22 @@ Finds which grid cell of a jigsaw's box picture one piece belongs to, and how fa
   - `located`: The best cell's score is at least min_score (0.45) and beats every other cell by min_margin (0.04; 0.10 when the scale was guessed from the mask area); col, row and angle_deg are the answer.
   - `ambiguous`: The best cell does not stand out (repetitive or flat art); `candidates` ranks the cells for a shape check. A low-texture piece always lands here, with the flat cells of its colour as candidates.
   - `not_found`: The best score is under min_score, a flat piece matches no flat cell, or the input could not be used (empty mask, no scale, no placement inside the picture).
+
+### locating-a-container-from-the-wrist-camera
+
+perceive · robots: any, *tuned on* yam_i2rt · tasks: pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/locating-a-container-from-the-wrist-camera/SKILL.md)
+
+Locates an open box, bin or tray of known size with the hand's own wrist depth camera before anything is placed into it - moves the empty hand to a view short of the container (as it will be turned when it lets go, or pointing down from over the container's near half), slides the container's outline over the rim points that camera sees near the expected place, and returns the container in that camera's frame plus the shift from where another camera had it. Because the wrist camera rides on the arm, the arm's own pose error cancels - a drop aimed at the located box lands where the hand sees it, not where an overhead calibration says it is. Use when a held part will be released into a container whose box came from an overhead or other fixed camera and the arm is only accurate to a few centimetres, with the hand still empty (a held part hides the view) and the container's OrientedBoundingBox in hand; add the returned shift to every drop point.
+
+- **In**: `container_obb` OrientedBoundingBox
+- **Out**: `located_obb` OrientedBoundingBox, `aim_point` Vec3, `shift` Vec3, `shift_m` float, `yaw_deg` float, `coverage` float, `views_tried` int, `ik_queries` int, `view_pose` Se3Pose
+- **Calls**: connector `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.grasp_frame`, `robot.solve_ik`
+- **Scripts**: [`locate_container`](skills/locating-a-container-from-the-wrist-camera/scripts/locate_container.py)
+- **Note**: Measured on one YAM station in eight real runs; no simulator suite, no second robot. The view search asks robot.solve_ik at most max_ik_queries times.
+- **Exits**:
+  - `located`: From a view the hand reached, at least min_coverage (0.30) of the container's outline lay on rim points the wrist camera saw, within max_shift (10 cm) of the expected place; located_obb is the container in the wrist camera's frame, shift what to add to anything aimed from container_obb, aim_point the located centre on the rim plane. The hand stays at the view, empty.
+  - `not_seen`: At least one view was looked from (or the given frame was read) and none showed enough of the rim near the expected place, or the only fit lay further than max_shift from it, or the observation has no posed wrist depth camera; `detail` says which. The hand stays where it last looked. Placing may go on uncorrected only at the caller's risk - see Evidence.
+  - `unreachable`: No view pose passed robot.solve_ik within max_ik_queries previews (nothing moved), or every view move was refused; `detail` says which.
 
 ### locating-a-hole-lattice-by-wide-search
 
