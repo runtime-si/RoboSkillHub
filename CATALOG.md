@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 177 skills, 4 policies, 1 recipe and 1 paper.
+34 tools, 177 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -39,6 +39,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`sam3`](#sam3) | perceive | Segment Anything 3 — text-, point-, and box-prompted instance segmentation, plus a stateful streaming video tracker… | any |
 | [`track`](#track) | perceive | Google DeepMind TAPNext++ run locally on a GPU. | any |
 | [`vlm`](#vlm) | perceive | Free-form and yes/no visual question answering against a hosted vision-language model (OpenRouter API by default… | any |
+| [`arm-clearance`](#arm-clearance) | plan | Checks a planned tool pose or joint step of a serial arm against a scene twin made of boxes, without asking the robot. | any, *tuned on* yam_i2rt |
 | [`curobo`](#curobo) | plan | NVIDIA cuRobo motion planning. | any, *tuned on* panda |
 | [`grconvnet`](#grconvnet) | propose | Proposes ranked top-down parallel-jaw grasps from one RGB-D frame with GR-ConvNet (skumra/robotic-grasping), on CPU… | any |
 | [`molmo-motion`](#molmo-motion) | propose | AllenAI MolmoMotion-4B run locally on a GPU. | any |
@@ -535,6 +536,19 @@ Free-form and yes/no visual question answering against a hosted vision-language 
 - **Functions**:
   - `vlm.query`: Free-form visual question answering via a hosted VLM.
   - `vlm.query_yes_no`: Yes/no visual question answering; coerces the model reply to a bool.
+
+### arm-clearance
+
+plan · robots: any, *tuned on* yam_i2rt · tasks: pick-place, sorting, motion · Apache-2.0 · v0.1.0 · [`SKILL.md`](tools/arm-clearance/SKILL.md)
+
+Checks a planned tool pose or joint step of a serial arm against a scene twin made of boxes, without asking the robot - a local damped-least-squares inverse kinematics inside the joint limits and the controller's workspace box, the smallest distance from the arm's link capsules to the scene's boxes, and a step test that refuses a move ending inside a margin of the scene unless the arm is moving away. The chain, the capsules and the boxes are arguments, so it runs for any serial arm on CPU with numpy. Use when a skill searches over many candidate poses (hand orientations, heights, drop points, view poses) and each must be reachable and clear of fixed things the motion server does not know (a cabinet over the counter, a wall, a shelf), with a kinematic model of the arm and the obstacles' boxes in hand; send only the chosen pose to the robot.
+
+- **Note**: A prediction from a model, not a guarantee - the source arm stood a few centimetres from where its joints said, so ask for a generous margin. Ships no arm model; the chain and capsules are arguments.
+- **Functions**:
+  - `arm-clearance.solve_ik`: Local IK for a serial chain passed as an argument; joints for a world tool pose, or why not. Asks no robot.
+  - `arm-clearance.clearance`: Smallest distance from the arm's link capsules at given joints to a scene of boxes, and which link and box.
+  - `arm-clearance.check_step`: Whether a joint step would end inside a margin of the scene (at its middle or end) and nearer than the arm is now.
+  - `arm-clearance.reachable`: Whether the arm can take a tool pose clear of the scene - local IK, then the step test from the current joints.
 
 ### curobo
 
