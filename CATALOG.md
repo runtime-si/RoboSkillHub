@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-33 tools, 173 skills, 4 policies, 1 recipe and 1 paper.
+33 tools, 174 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -63,6 +63,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`detecting-contact-from-joint-effort`](#detecting-contact-from-joint-effort) | perceive | Feels for contact without a force sensor. | any |
 | [`estimating-cut-grid-from-pieces`](#estimating-cut-grid-from-pieces) | perceive | Estimates a jigsaw's real cut grid (cols x rows) and cell size from the piece count printed on the box, the board's… | any |
 | [`estimating-relative-rotation-and-symmetry`](#estimating-relative-rotation-and-symmetry) | perceive | How far a part is turned in the image plane between a reference view and the current view (both from the wrist camera… | any, *tuned on* yam-left-wrist-d405-renders |
+| [`finding-boxes-of-known-size-from-overhead-depth`](#finding-boxes-of-known-size-from-overhead-depth) | perceive | Finds an open box, bin or tray whose outer size and rim height are already known in one overhead depth frame. | any, *tuned on* yam_i2rt |
 | [`framing-a-target-by-mask-edge-steering`](#framing-a-target-by-mask-edge-steering) | perceive | Moves the wrist camera until a named target lies wholly inside its image with a margin. | any |
 | [`inspecting-a-held-object-with-the-other-wrist-camera`](#inspecting-a-held-object-with-the-other-wrist-camera) | perceive | Shows a face of an object one arm holds to the other arm's wrist camera. | any, 2 arms |
 | [`localizing-a-piece-in-a-reference-image`](#localizing-a-piece-in-a-reference-image) | perceive | Finds which grid cell of a jigsaw's box picture one piece belongs to, and how far the piece is turned, from a close-up… | any |
@@ -794,6 +795,21 @@ How far a part is turned in the image plane between a reference view and the cur
   - `rotation_found`: The turn from the reference to the current view, in (-period/2, period/2], known modulo period_deg (360 when the part's look resolved every turn; 180 / 90 for a part that looks the same after a half / quarter turn).
   - `symmetric_ambiguous`: The caller said the part is less symmetric than its outline, but its outline turns look alike in these pixels (within 0.05 correlation); the turn is reported modulo the outline's period only.
   - `low_confidence`: A mask has under 60 px, or the best appearance match is under 0.3 correlation (another part, occluded, relit); rotation_deg is the outline's turn, unconfirmed.
+
+### finding-boxes-of-known-size-from-overhead-depth
+
+perceive · robots: any, *tuned on* yam_i2rt · tasks: pick-place, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/finding-boxes-of-known-size-from-overhead-depth/SKILL.md)
+
+Finds an open box, bin or tray whose outer size and rim height are already known in one overhead depth frame - takes the depth points in a band round the rim height, and slides the box's own outline (every 2 degrees of turn) over them in the plan view to where most of the outline is covered, so a rim seen in pieces, a box touching another, or a box beside something as tall (an arm resting on the table) is still placed where a blob or minimum-area-rectangle fit merges or mistakes it. Returns the box as an upright OrientedBoundingBox of the stated size, the share of the outline seen, and a flag when a nearly square box's turn may be a quarter out. Use when a container of measured size must be located from a fixed overhead RGB-D camera before picking from it or placing into it, with its size and rim height in hand and the hand out of the camera's view; call it once per box, passing the boxes already found as exclude_obbs. CPU only.
+
+- **In**: `size_long` float, `size_short` float, `rim_z` float
+- **Out**: `container_obb` OrientedBoundingBox, `center` Vec3, `yaw_deg` float, `coverage` float, `rim_points` int, `yaw_ambiguous` bool
+- **Calls**: connector `robot.get_observation`
+- **Scripts**: [`find_known_box`](skills/finding-boxes-of-known-size-from-overhead-depth/scripts/find_known_box.py)
+- **Note**: Position accuracy was never measured against a ground truth; on the one station it ran on, drops aimed from it alone missed the box (see locating-a-container-from-the-wrist-camera).
+- **Exits**:
+  - `found`: A rectangle of the stated size lies along the rim points with at least min_coverage (0.35) of its outline on them; container_obb is that rectangle, upright, from support_z to rim_z, local x its long side. What the overhead camera sees, in its calibration's frame - not where a hand will find it.
+  - `not_found`: No posed depth camera, fewer than 150 depth points in the rim's height band (inside roi, outside exclude_obbs), or the best placement covers less than min_coverage of the outline; `detail` says which, `coverage` and `rim_points` what was seen.
 
 ### framing-a-target-by-mask-edge-steering
 
