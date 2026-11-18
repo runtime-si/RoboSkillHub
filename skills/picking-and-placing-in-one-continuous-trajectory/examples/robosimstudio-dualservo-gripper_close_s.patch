@@ -1,0 +1,87 @@
+diff --git a/robosimstudio_policy_agent/connector.py b/robosimstudio_policy_agent/connector.py
+index 3e2511f..2ec71d5 100644
+--- a/robosimstudio_policy_agent/connector.py
++++ b/robosimstudio_policy_agent/connector.py
+@@ -775,13 +775,16 @@ def make_connector(
+             arm_id=0,
+             waypoint_dt_s=0.0,
+             gripper_release_s=-1.0,
++            gripper_close_s=-1.0,
+         ):
+             if not trajectory or not trajectory.get("waypoints"):
+                 from gap_core.errors import ToolError
+ 
+                 raise ToolError("robot.execute_trajectory", "trajectory required")
+-            if waypoint_dt_s > 0 or gripper_release_s >= 0:
+-                return self._timed_trajectory(trajectory, float(waypoint_dt_s), float(gripper_release_s), tolerance, int(arm_id))
++            if waypoint_dt_s > 0 or gripper_release_s >= 0 or gripper_close_s >= 0:
++                return self._timed_trajectory(
++                    trajectory, float(waypoint_dt_s), float(gripper_release_s), tolerance, int(arm_id), float(gripper_close_s)
++                )
+             self._execute_trajectory(
+                 trajectory,
+                 subsample if subsample > 0 else 1,
+@@ -829,9 +832,9 @@ def make_connector(
+                     return 1.0 / float(hz)
+             return 0.02
+ 
+-        def _timed_trajectory(self, trajectory, waypoint_dt_s, gripper_release_s, tolerance, arm_id):
+-            """Stream waypoints spaced ``waypoint_dt_s`` apart in time, resampled to the control rate,
+-            and open the gripper ``gripper_release_s`` after the first one, mid-motion."""
++        def _timed_trajectory(self, trajectory, waypoint_dt_s, gripper_release_s, tolerance, arm_id, gripper_close_s=-1.0):
++            """Stream waypoints spaced ``waypoint_dt_s`` apart in time, resampled to the control rate, close the
++            gripper ``gripper_close_s`` and open it ``gripper_release_s`` after the first one, mid-motion."""
+             from gap.connector.core import _as_positions
+ 
+             wps = np.asarray([_as_positions(w) for w in trajectory["waypoints"]], dtype=np.float64)
+@@ -841,12 +844,14 @@ def make_connector(
+                 t_dst = np.arange(0.0, t_src[-1] + 1e-9, dt)
+                 wps = np.stack([np.interp(t_dst, t_src, wps[:, j]) for j in range(wps.shape[1])], axis=1)
+             release = int(round(gripper_release_s / dt)) if gripper_release_s >= 0 else None
++            close = int(round(gripper_close_s / dt)) if gripper_close_s >= 0 else None
+             self.env.stream_joint_trajectory(
+                 [list(w) for w in wps],
+                 settle_tolerance=tolerance if tolerance > 0 else 0.01,
+                 settle_max_steps=60,
+                 arm_id=arm_id,
+                 release_at_step=release,
++                close_at_step=close,
+             )
+             stats = dict(getattr(self.env, "last_stream_stats", {}) or {})
+             return {"status": "ok", "control_dt_s": dt, "steps": len(wps), **stats}
+diff --git a/robosimstudio_policy_agent/facade.py b/robosimstudio_policy_agent/facade.py
+index 22dfdaa..a6c701c 100644
+--- a/robosimstudio_policy_agent/facade.py
++++ b/robosimstudio_policy_agent/facade.py
+@@ -308,9 +308,12 @@ class GapEnvFacade:
+         settle_max_steps: int = 60,
+         arm_id: int = 0,
+         release_at_step: int | None = None,
++        close_at_step: int | None = None,
+     ) -> bool:
+         """Feed a dense joint trajectory one waypoint per control step.
+ 
++        ``close_at_step`` closes the arm's gripper just before that waypoint, as ``release_at_step`` opens it.
++
+         ``release_at_step`` opens the arm's gripper just before that waypoint is
+         commanded, while the arm is still moving (a timed release, as TidyBot's
+         ``gripper_release_ms``). The largest joint lag behind the commanded
+@@ -348,13 +351,16 @@ class GapEnvFacade:
+         """
+         name = self._arm(arm_id)
+         lag = 0.0
+-        released = None
++        released = closed = None
+         for k, positions in enumerate(waypoints):
++            if close_at_step is not None and k == int(close_at_step):
++                self._set_gripper(0.0, arm_id)
++                closed = k
+             if release_at_step is not None and k == int(release_at_step):
+                 self._set_gripper(1.0, arm_id)
+                 released = k
+             lag = max(lag, self.bus.call(self._step_toward, np.asarray(positions, dtype=np.float64), arm_id, name))
+-        self.last_stream_stats = {"max_tracking_error_rad": round(lag, 4), "released_at_step": released}
++        self.last_stream_stats = {"max_tracking_error_rad": round(lag, 4), "released_at_step": released, "closed_at_step": closed}
+         if not waypoints:
+             return True
+         return self.move_to_joints_blocking(
