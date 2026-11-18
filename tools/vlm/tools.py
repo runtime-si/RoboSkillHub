@@ -34,6 +34,14 @@ a different provider/model than the agent.
   it). Config: ``AZURE_OPENAI_ENDPOINT`` (``https://<res>.../openai/v1``),
   ``AZURE_OPENAI_API_KEY``, ``AZURE_OPENAI_DEPLOYMENT`` (the model name), each
   overridable with ``GAP_VLM_BASE_URL`` / ``GAP_VLM_API_KEY`` / ``GAP_VLM_MODEL``.
+- ``astra`` — a Responses API endpoint behind a gateway (Microsoft's Astra,
+  an Azure API Management front), configured only from the env file.
+- ``gemini`` — Gemini through Google's OpenAI-compatible chat endpoint.
+
+``astra`` and ``gemini`` read what the environment does not carry from an env
+file on the host the bundle runs on (:data:`DEFAULT_ENV_FILE`, or
+``GAP_VLM_ENV_FILE``), so a key never travels with a job or sits in a
+repository, and no error message repeats one.
 
 Generation config: perception callers (the pairwise tournament, the
 yes/no verify gate) are binary judgments that depend on deterministic
@@ -50,7 +58,9 @@ import io
 import logging
 import os
 import re
+import shlex
 import time
+from pathlib import Path
 from typing import TypedDict
 
 import httpx
@@ -70,6 +80,11 @@ DEFAULT_MODEL = "gemini-3.1-flash-lite-preview"
 #: Provider used when neither ``provider=`` nor ``GAP_VLM_PROVIDER`` nor
 #: ``GAP_LLM_PROVIDER`` is set.
 DEFAULT_PROVIDER = "openrouter"
+
+#: ``NAME=value`` file the ``astra`` and ``gemini`` providers read on the host
+#: the bundle runs on; ``GAP_VLM_ENV_FILE`` names another, and
+#: ``GAP_VLM_ASTRA_ENV`` / ``GAP_VLM_GEMINI_ENV`` one per provider.
+DEFAULT_ENV_FILE = "~/.config/viper/vlm.env"
 
 
 def _envstr(name: str) -> str:
@@ -199,6 +214,10 @@ def _query_openrouter(prompt: str, images: list[np.ndarray], model: str | None) 
     base_url = _envstr("GAP_VLM_BASE_URL") or "https://openrouter.ai/api/v1"
     model = _resolve_model(model)
     api_key = _envstr("GAP_VLM_API_KEY") or _envstr("OPENROUTER_API_KEY")
+    return _chat(base_url, api_key, model, prompt, images)
+
+
+def _chat(base_url: str, api_key: str, model: str, prompt: str, images: list[np.ndarray]) -> str:
     chat_url = f"{base_url.rstrip('/')}/chat/completions"
 
     content: list[dict] = [{"type": "text", "text": prompt}]
@@ -279,6 +298,102 @@ def _query_azure(prompt: str, images: list[np.ndarray], model: str | None) -> st
             "AZURE_OPENAI_API_KEY and AZURE_OPENAI_DEPLOYMENT (or GAP_VLM_BASE_URL / "
             "GAP_VLM_API_KEY / GAP_VLM_MODEL)",
         )
+    return _responses(base_url, api_key, model, prompt, images, auth="azure")
+
+
+# ---------------------------------------------------------------------------
+# Providers: astra and gemini (keys from an env file on the host)
+# ---------------------------------------------------------------------------
+
+
+def _env_file(path: str, names: set[str]) -> dict[str, str]:
+    """``NAME=value`` lines of ``path`` (``export`` and quotes allowed), only ``names``.
+
+    Empty when the file is absent; a line that is not one shell word after the
+    ``=`` (unbalanced quotes, several words) is skipped, never echoed.
+    """
+    values: dict[str, str] = {}
+    file = Path(path).expanduser()
+    if not file.is_file():
+        return values
+    for line in file.read_text().splitlines():
+        line = line.strip().removeprefix("export ")
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        name, raw = line.split("=", 1)
+        if name.strip() not in names:
+            continue
+        try:
+            parts = shlex.split(raw, comments=True)
+        except ValueError:
+            continue
+        if len(parts) == 1:
+            values[name.strip()] = parts[0]
+    return values
+
+
+def _provider_env(file_var: str, names: set[str], *, from_environment: set[str]) -> dict[str, str]:
+    """``names`` from the provider's env file, then ``from_environment`` from the environment.
+
+    The file is ``file_var`` if set, else ``GAP_VLM_ENV_FILE``, else
+    :data:`DEFAULT_ENV_FILE`; a name set in the environment wins over the file.
+    """
+    path = _envstr(file_var) or _envstr("GAP_VLM_ENV_FILE") or DEFAULT_ENV_FILE
+    values = _env_file(path, names)
+    values.update({name: _envstr(name) for name in from_environment if _envstr(name)})
+    return values
+
+
+def _query_astra(prompt: str, images: list[np.ndarray], model: str | None) -> str:
+    """A Responses API endpoint behind a gateway (Microsoft's Astra, an Azure API Management front).
+
+    ``ASTRA_API_KEY`` (or the file's ``OPENAI_API_KEY``, as the gateway's own
+    env file names it), ``ASTRA_URL``, ``ASTRA_AUTH`` (``azure`` sends an
+    ``api-key`` header, ``bearer`` a bearer token) and ``ASTRA_MODEL``. An
+    ``OPENAI_API_KEY`` in the environment is never read here: it is usually a
+    key for api.openai.com, and would be sent to the gateway.
+    """
+    astra = {"ASTRA_API_KEY", "ASTRA_URL", "ASTRA_AUTH", "ASTRA_MODEL"}
+    values = _provider_env("GAP_VLM_ASTRA_ENV", astra | {"OPENAI_API_KEY"}, from_environment=astra)
+    key = values.get("ASTRA_API_KEY") or values.get("OPENAI_API_KEY", "")
+    url = values.get("ASTRA_URL", "")
+    auth = values.get("ASTRA_AUTH", "azure")
+    model = (model or "").strip() or values.get("ASTRA_MODEL", "")
+    if not (key and url.startswith("https://") and model) or auth not in ("azure", "bearer"):
+        raise ToolError(
+            "vlm",
+            "astra provider needs ASTRA_API_KEY (or OPENAI_API_KEY in its env file), an https "
+            "ASTRA_URL, ASTRA_AUTH (azure or bearer) and ASTRA_MODEL, in the environment or the "
+            f"file GAP_VLM_ASTRA_ENV or GAP_VLM_ENV_FILE names ({DEFAULT_ENV_FILE} by default)",
+        )
+    base_url = url.split("?", 1)[0].rstrip("/").removesuffix("/responses")
+    return _responses(base_url, key, model, prompt, images, auth=auth)
+
+
+def _query_gemini(prompt: str, images: list[np.ndarray], model: str | None) -> str:
+    """Gemini through Google's OpenAI-compatible endpoint.
+
+    The key is ``GEMINI_API_KEY``, or the first of ``GEMINI_API_KEYS``
+    (comma-separated), from the environment or the provider's env file.
+    """
+    names = {"GEMINI_API_KEY", "GEMINI_API_KEYS"}
+    values = _provider_env("GAP_VLM_GEMINI_ENV", names, from_environment=names)
+    key = values.get("GEMINI_API_KEY") or values.get("GEMINI_API_KEYS", "").split(",")[0].strip()
+    if not key:
+        raise ToolError(
+            "vlm",
+            "gemini provider needs GEMINI_API_KEY(S) in the environment or the file "
+            f"GAP_VLM_GEMINI_ENV or GAP_VLM_ENV_FILE names ({DEFAULT_ENV_FILE} by default)",
+        )
+    model = (model or "").strip() or DEFAULT_MODEL
+    return _chat(
+        "https://generativelanguage.googleapis.com/v1beta/openai", key, model, prompt, images
+    )
+
+
+def _responses(
+    base_url: str, api_key: str, model: str, prompt: str, images: list[np.ndarray], *, auth: str
+) -> str:
     url = f"{base_url.rstrip('/')}/responses"
     content: list[dict] = [{"type": "input_text", "text": prompt}]
     for arr in images:
@@ -291,7 +406,7 @@ def _query_azure(prompt: str, images: list[np.ndarray], model: str | None) -> st
         "input": [{"role": "user", "content": content}],
         "max_output_tokens": _max_tokens(),
     }
-    headers = {"api-key": api_key, "Authorization": f"Bearer {api_key}"}
+    headers = {"api-key": api_key} if auth == "azure" else {"Authorization": f"Bearer {api_key}"}
 
     last_exc: Exception | None = None
     with _http_client() as client:
@@ -303,7 +418,7 @@ def _query_azure(prompt: str, images: list[np.ndarray], model: str | None) -> st
             except Exception as exc:
                 last_exc = exc
                 logger.warning(
-                    "VLM azure request failed (attempt %d/%d, url=%s): %s",
+                    "VLM responses request failed (attempt %d/%d, url=%s): %s",
                     attempt + 1,
                     _MAX_RETRIES,
                     url,
@@ -313,7 +428,7 @@ def _query_azure(prompt: str, images: list[np.ndarray], model: str | None) -> st
                     time.sleep(_BACKOFF_S * (2**attempt))
     raise ToolError(
         "vlm",
-        f"azure backend unavailable after {_MAX_RETRIES} attempts: url={url}, error={last_exc}",
+        f"responses backend unavailable after {_MAX_RETRIES} attempts: url={url}, error={last_exc}",
     )
 
 
@@ -400,6 +515,8 @@ _PROVIDERS = {
     "openrouter": _query_openrouter,
     "vertex": _query_vertex,
     "azure": _query_azure,
+    "astra": _query_astra,
+    "gemini": _query_gemini,
 }
 
 
@@ -445,7 +562,8 @@ def query(
         prompt: Free-form question.
         image: Optional uint8 [H, W, 3] RGB context image.
         images: Optional additional context images (same dtype/shape).
-        provider: Per-call provider override (``openrouter``/``vertex``).
+        provider: Per-call provider override (``openrouter``, ``vertex``,
+            ``azure``, ``astra`` or ``gemini``).
         model: Per-call model override.
 
     Returns:

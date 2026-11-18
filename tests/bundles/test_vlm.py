@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import io
 import json
+import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -47,7 +48,9 @@ def image() -> np.ndarray:
 
 
 @pytest.fixture(autouse=True)
-def _clean_env(monkeypatch: pytest.MonkeyPatch):
+def _clean_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    # the default env file is under ~, so a developer's real keys are never read
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
     for var in (
         "GAP_VLM_PROVIDER",
         "GAP_VLM_MODEL",
@@ -61,6 +64,16 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch):
         "AZURE_OPENAI_ENDPOINT",
         "AZURE_OPENAI_API_KEY",
         "AZURE_OPENAI_DEPLOYMENT",
+        "GAP_VLM_ENV_FILE",
+        "GAP_VLM_ASTRA_ENV",
+        "GAP_VLM_GEMINI_ENV",
+        "ASTRA_API_KEY",
+        "ASTRA_URL",
+        "ASTRA_AUTH",
+        "ASTRA_MODEL",
+        "OPENAI_API_KEY",
+        "GEMINI_API_KEY",
+        "GEMINI_API_KEYS",
     ):
         monkeypatch.delenv(var, raising=False)
 
@@ -360,6 +373,7 @@ def _mock_azure(vlm, monkeypatch, reply: str):
     def handler(request: httpx.Request) -> httpx.Response:
         captured["url"] = str(request.url)
         captured["api_key"] = request.headers.get("api-key")
+        captured["auth"] = request.headers.get("Authorization")
         captured["payload"] = json.loads(request.content)
         return httpx.Response(
             200,
@@ -412,3 +426,182 @@ def test_azure_yes_no_and_missing_config(vlm, image, monkeypatch):
     monkeypatch.delenv("AZURE_OPENAI_DEPLOYMENT")
     with pytest.raises(ToolError, match="AZURE_OPENAI_DEPLOYMENT"):
         vlm.query(prompt="x", image=image, provider="azure")
+
+
+# ---------------------------------------------------------------------------
+# astra provider — the Responses API behind an Azure API Management gateway
+# ---------------------------------------------------------------------------
+
+
+def test_astra_reads_its_env_file_and_sends_the_key_its_way(vlm, image, monkeypatch, tmp_path):
+    env = tmp_path / "openai.env"
+    env.write_text(
+        "export OPENAI_API_KEY='astra-key'\n"
+        "ASTRA_URL=https://gw.example.net/astra/openai/v1/responses?api-version=x\n"
+        "ASTRA_AUTH=azure\n"
+        "ASTRA_MODEL=astra-large  # the gateway's model\n"
+    )
+    monkeypatch.setenv("GAP_VLM_ASTRA_ENV", str(env))
+    captured = _mock_azure(vlm, monkeypatch, reply="six rings")
+
+    out = vlm.query(prompt="how many rings?", image=image, provider="astra")
+
+    assert out == {"text": "six rings"}
+    assert captured["url"] == "https://gw.example.net/astra/openai/v1/responses"
+    assert captured["api_key"] == "astra-key"
+    assert captured["auth"] is None
+    assert captured["payload"]["model"] == "astra-large"
+
+
+def test_astra_bearer_auth_sends_only_a_bearer_token(vlm, image, monkeypatch, tmp_path):
+    env = tmp_path / "vlm.env"
+    env.write_text(
+        "ASTRA_API_KEY=astra-key\nASTRA_URL=https://gw.example.net/v1\nASTRA_AUTH=bearer\n"
+    )
+    monkeypatch.setenv("GAP_VLM_ENV_FILE", str(env))
+    captured = _mock_azure(vlm, monkeypatch, reply="ok")
+
+    vlm.query(prompt="x", image=image, provider="astra", model="m")
+
+    assert captured["url"] == "https://gw.example.net/v1/responses"
+    assert captured["auth"] == "Bearer astra-key"
+    assert captured["api_key"] is None
+
+
+def test_astra_prefers_astra_api_key_and_never_reads_openai_key_from_the_environment(
+    vlm, image, monkeypatch, tmp_path
+):
+    env = tmp_path / "vlm.env"
+    env.write_text("ASTRA_URL=https://gw.example.net/v1\nASTRA_MODEL=m\n")
+    monkeypatch.setenv("GAP_VLM_ENV_FILE", str(env))
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-for-api-openai-com")
+
+    with pytest.raises(ToolError, match="ASTRA_API_KEY") as raised:
+        vlm.query(prompt="x", image=image, provider="astra")
+    assert "sk-for-api-openai-com" not in str(raised.value)
+
+    env.write_text(env.read_text() + "OPENAI_API_KEY=file-key\n")
+    monkeypatch.setenv("ASTRA_API_KEY", "env-astra-key")
+    captured = _mock_azure(vlm, monkeypatch, reply="ok")
+    vlm.query(prompt="x", image=image, provider="astra")
+    assert captured["api_key"] == "env-astra-key"
+
+
+def test_astra_without_its_env_file_names_what_it_needs_and_no_secret(
+    vlm, image, monkeypatch, tmp_path
+):
+    env = tmp_path / "openai.env"
+    env.write_text("OPENAI_API_KEY=astra-key\nASTRA_URL=http://plain.example.net\nASTRA_MODEL=m\n")
+    monkeypatch.setenv("GAP_VLM_ASTRA_ENV", str(env))
+
+    with pytest.raises(ToolError, match="https ASTRA_URL") as raised:
+        vlm.query(prompt="x", image=image, provider="astra")
+    assert "astra-key" not in str(raised.value)
+
+
+def test_a_failing_gateway_error_carries_no_key(vlm, image, monkeypatch, tmp_path):
+    env = tmp_path / "vlm.env"
+    env.write_text("ASTRA_API_KEY=astra-secret\nASTRA_URL=https://gw.example.net/v1\n")
+    monkeypatch.setenv("GAP_VLM_ENV_FILE", str(env))
+    monkeypatch.setattr(vlm, "_BACKOFF_S", 0.0)
+    transport = httpx.MockTransport(lambda request: httpx.Response(401, json={"error": "no"}))
+    monkeypatch.setattr(vlm, "_http_client", lambda: httpx.Client(transport=transport))
+
+    with pytest.raises(ToolError, match="unavailable after 3 attempts") as raised:
+        vlm.query(prompt="x", image=image, provider="astra", model="m")
+    assert "astra-secret" not in str(raised.value)
+
+
+# ---------------------------------------------------------------------------
+# gemini provider — Google's OpenAI-compatible endpoint
+# ---------------------------------------------------------------------------
+
+
+def test_gemini_takes_the_first_key_of_its_env_file(vlm, image, monkeypatch, tmp_path):
+    env = tmp_path / ".env"
+    env.write_text('GEMINI_API_KEYS="g-first, g-second"\n')
+    monkeypatch.setenv("GAP_VLM_GEMINI_ENV", str(env))
+    captured = _mock_openrouter(vlm, monkeypatch, reply="a blue ring on top")
+
+    out = vlm.query(prompt="top ring?", image=image, provider="gemini", model="gemini-x")
+
+    assert out == {"text": "a blue ring on top"}
+    assert (
+        captured["url"]
+        == "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+    )
+    assert captured["auth"] == "Bearer g-first"
+    assert captured["payload"]["model"] == "gemini-x"
+
+
+def test_gemini_without_a_key_says_so(vlm, image, monkeypatch, tmp_path):
+    monkeypatch.setenv("GAP_VLM_GEMINI_ENV", str(tmp_path / "absent.env"))
+    with pytest.raises(ToolError, match="GEMINI_API_KEY"):
+        vlm.query(prompt="x", image=image, provider="gemini")
+
+
+def test_gemini_reads_the_default_env_file_under_home(vlm, image, monkeypatch, tmp_path):
+    default = tmp_path / "home" / ".config" / "viper" / "vlm.env"
+    default.parent.mkdir(parents=True)
+    default.write_text("export GEMINI_API_KEYS=home-key\n")
+    assert Path(vlm.DEFAULT_ENV_FILE).expanduser() == default
+    captured = _mock_openrouter(vlm, monkeypatch, reply="ok")
+
+    vlm.query(prompt="x", image=image, provider="gemini")
+
+    assert captured["auth"] == "Bearer home-key"
+    assert captured["payload"]["model"] == vlm.DEFAULT_MODEL
+
+
+def test_environment_key_wins_and_a_per_provider_file_wins_over_the_shared_one(
+    vlm, image, monkeypatch, tmp_path
+):
+    shared, own = tmp_path / "shared.env", tmp_path / "gemini.env"
+    shared.write_text("GEMINI_API_KEY=shared-key\n")
+    own.write_text("GEMINI_API_KEY=own-key\n")
+    monkeypatch.setenv("GAP_VLM_ENV_FILE", str(shared))
+    captured = _mock_openrouter(vlm, monkeypatch, reply="ok")
+
+    vlm.query(prompt="x", image=image, provider="gemini")
+    assert captured["auth"] == "Bearer shared-key"
+
+    monkeypatch.setenv("GAP_VLM_GEMINI_ENV", str(own))
+    vlm.query(prompt="x", image=image, provider="gemini")
+    assert captured["auth"] == "Bearer own-key"
+
+    monkeypatch.setenv("GEMINI_API_KEY", "env-key")
+    vlm.query(prompt="x", image=image, provider="gemini")
+    assert captured["auth"] == "Bearer env-key"
+
+
+# ---------------------------------------------------------------------------
+# env files, and nothing private in the bundle
+# ---------------------------------------------------------------------------
+
+
+def test_env_file_reads_only_the_named_single_word_values(vlm, tmp_path):
+    env = tmp_path / "vlm.env"
+    env.write_text(
+        "# a comment\n"
+        "\n"
+        "export A='quoted value'\n"
+        'B="x"  # trailing comment\n'
+        "C=two words\n"
+        "D='unbalanced\n"
+        "OTHER=not-asked-for\n"
+        "not a line\n"
+    )
+
+    assert vlm._env_file(str(env), {"A", "B", "C", "D"}) == {"A": "quoted value", "B": "x"}
+    assert vlm._env_file(str(tmp_path / "absent.env"), {"A"}) == {}
+    assert vlm._env_file(str(tmp_path), {"A"}) == {}
+
+
+def test_the_bundle_hard_codes_no_key_and_no_private_path():
+    bundle = ROOT / "tools" / "vlm"
+    private = re.compile(
+        r"/Users/|/home/|/root/|simgen|AIza[0-9A-Za-z_-]{20,}|sk-[A-Za-z0-9_-]{20,}"
+    )
+    for file in [*bundle.glob("*.py"), bundle / "SKILL.md"]:
+        found = private.findall(file.read_text())
+        assert not found, f"{file.name} holds {found}"
