@@ -1,0 +1,51 @@
+{
+  "skill": "centring-a-grasp-over-a-flat-part-from-the-grasp-pose",
+  "inputs": {
+    "target_obb": "OrientedBoundingBox",
+    "grasp_pose": "Se3Pose"
+  },
+  "outputs": {
+    "grasp_pose_centred": {
+      "$ref": "centre.grasp_pose_centred"
+    },
+    "pregrasp_pose": {
+      "$ref": "centre.pregrasp_pose"
+    },
+    "residual_mm": {
+      "$ref": "centre.residual_mm"
+    }
+  },
+  "nodes": {
+    "centre": {
+      "type": "script",
+      "script": "scripts/centre_grasp.py",
+      "inputs": {
+        "target_obb": {
+          "$ref": "in.target_obb"
+        },
+        "grasp_pose": {
+          "$ref": "in.grasp_pose"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "centre"
+    ],
+    [
+      "centre",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "centred",
+      "off_centre",
+      "not_seen"
+    ]
+  },
+  "on_error": "unreachable"
+}

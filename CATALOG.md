@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-34 tools, 179 skills, 4 policies, 1 recipe and 1 paper.
+34 tools, 182 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -57,6 +57,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | --- | --- | --- | --- |
 | [`anchoring-a-bin-to-its-walls-from-the-wrist-camera`](#anchoring-a-bin-to-its-walls-from-the-wrist-camera) | perceive | Re-anchors a tall open bin (a parts box picked from) to where the wrist depth camera sees its walls. | any, *tuned on* yam_i2rt |
 | [`augmenting-sim-depth-with-a-fitted-d405-noise-model`](#augmenting-sim-depth-with-a-fitted-d405-noise-model) | perceive | Replaces each simulated depth image of an observation with the same image under Intel RealSense D405 noise fitted to… | any |
+| [`calibrating-a-wrist-camera-on-one-fixed-part`](#calibrating-a-wrist-camera-on-one-fixed-part) | perceive | Calibrates a wrist RGB-D camera's pose in the hand (hand-eye) with no board and no second camera. | any, *tuned on* yam_i2rt |
 | [`calibrating-arm-to-arm-base-transform`](#calibrating-arm-to-arm-base-transform) | perceive | Measures where one arm's base sits in the other arm's base frame. | any |
 | [`calibrating-baseplate-stud-grid`](#calibrating-baseplate-stud-grid) | perceive | Estimates a LEGO or DUPLO baseplate's pose (the plate frame computing-brick-pose-from-stud-grid takes, and APEX-MR's… | any |
 | [`classifying-brick-resting-face-from-depth`](#classifying-brick-resting-face-from-depth) | perceive | Tells from depth whether a loose LEGO or DUPLO brick of known size lies studs up, upside down (resting on its stud… | any |
@@ -133,6 +134,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`anchoring-a-free-end`](#anchoring-a-free-end) | execute | Pins one end of a cable with the support hand before any crossing is attempted. | any, 2 arms |
 | [`approaching-above-a-target`](#approaching-above-a-target) | execute | Moves the hand to hover a set clearance above a target's oriented box, rising in place first and keeping the hand's… | any |
 | [`carrying-over-an-obstacle-with-a-leaning-hand`](#carrying-over-an-obstacle-with-a-leaning-hand) | execute | Carries the part the hand holds from one open container over the rims into another and releases it, with the hand… | any, *tuned on* yam_i2rt |
+| [`centring-a-grasp-over-a-flat-part-from-the-grasp-pose`](#centring-a-grasp-over-a-flat-part-from-the-grasp-pose) | execute | Corrects a planned grasp on a flat part of known size (a domino, a tile, a plate) by looking again with the wrist… | any, *tuned on* yam_i2rt |
 | [`checking-reachability`](#checking-reachability) | execute | Asks a station whether TCP poses (optionally as a chained path from the current configuration) are reachable, using… | yam_i2rt |
 | [`correcting-brick-offset-from-stud-circles`](#correcting-brick-offset-from-stud-circles) | execute | Closes the last millimetre over a LEGO or DUPLO brick before a pick or a press. | any |
 | [`correcting-in-plane-offset-by-discrete-moves`](#correcting-in-plane-offset-by-discrete-moves) | execute | Final x, y and yaw alignment of a held part (or the hand) over its target from the wrist camera, by a small classifier… | any |
@@ -184,6 +186,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`searching-insertion-with-yaw-oscillation`](#searching-insertion-with-yaw-oscillation) | execute | Finds the rotation at which a held keyed or polygonal part drops into its socket. | any |
 | [`seating-a-cable-crossing`](#seating-a-cable-crossing) | execute | Streams one planned crossing leg of a cable onto a routing station, lets the rod settle, then LOOKS. | any |
 | [`seating-a-piece-by-wiggle-search`](#seating-a-piece-by-wiggle-search) | execute | Seats a held jigsaw piece in its slot among already-placed neighbours when the arm is less accurate than the slot's… | any |
+| [`setting-down-a-held-part-by-measured-gap`](#setting-down-a-held-part-by-measured-gap) | execute | Sets a part held upright in the jaws (a domino on its end, a block on edge) down on a support by measuring, in each… | any, *tuned on* yam_i2rt |
 | [`setting-gripper-with-feedback`](#setting-gripper-with-feedback) | execute | Opens, closes or releases the gripper through the configured YAM or Isaac workcell adapter and checks measured holding… | yam_i2rt |
 | [`singulating-by-pushing`](#singulating-by-pushing) | execute | Pushes a target clear of the objects crowding it until a top-down grasp's open fingers fit around it. | any |
 | [`sliding-along-a-cable`](#sliding-along-a-cable) | execute | Slides the hand along a cable it holds toward one of the cable's ends. | any |
@@ -707,6 +710,22 @@ Replaces each simulated depth image of an observation with the same image under 
 - **Exits**:
   - `augmented`: At least one camera's depth was replaced by the noisy version (`observation` carries it; `cameras` names them).
   - `no_depth`: No camera of the observation carries depth; nothing changed.
+
+### calibrating-a-wrist-camera-on-one-fixed-part
+
+perceive · robots: any, *tuned on* yam_i2rt · tasks: pick-place, dominoes, bimanual · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/calibrating-a-wrist-camera-on-one-fixed-part/SKILL.md) · [upstream](yam_dominos real/calibrate_wrist.py, 2026-11-19)
+
+Calibrates a wrist RGB-D camera's pose in the hand (hand-eye) with no board and no second camera - the hand looks at one flat part of known size lying still on a level support from about twenty poses (turned about the vertical, raised, shifted, tilted), each look giving the middle of the part's top face and the support's plane in the camera's frame by depth, and one camera-in-tool pose is fitted so that through every look's tool pose the part is one point and the support one level plane; reports how far the looks disagreed before and after and a leave-one-look-out error. Use when things a hand's camera sees are not where the hand then goes - a part found in different places from different looks, a support read a centimetre off the arm's own contact with it - or after a camera mount was touched; needs the part's box to a couple of centimetres and the hand starting above it with the part in the wrist camera's view.
+
+- **In**: `target_obb` OrientedBoundingBox
+- **Out**: `camera_in_tool` Se3Pose, `point_spread_mm` float, `point_spread_before_mm` float, `left_out_mm` float, `moved_mm` float, `moved_deg` float, `reason` string
+- **Calls**: connector `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.solve_ik`
+- **Scripts**: [`calibrate_wrist_camera`](skills/calibrating-a-wrist-camera-on-one-fixed-part/scripts/calibrate_wrist_camera.py)
+- **Note**: Draft from yam_dominos. The method ran on the real right YAM (26.4 mm to 3.3 mm); this script has not been run through a hub connector.
+- **Exits**:
+  - `calibrated`: At least min_views (8) looks made the part out, and with the fitted camera_in_tool the part's middle is one point within max_point_mm (2.5 mm rms) over all looks, each look predicted by the others within max_left_out_mm (4 mm rms); the hand is back at its start pose.
+  - `inconsistent`: Fitted, but the looks do not agree on one camera pose within those limits (the arm's own error from pose to pose, or poor looks); camera_in_tool and the numbers are filled in, and point_spread_before_mm says whether it is still better than what was.
+  - `too_few_views`: Fewer than min_views looks made the part out (poses out of reach, moves refused, the part cut by the picture's edge or hidden); nothing is fitted and reason lists each miss.
 
 ### calibrating-arm-to-arm-base-transform
 
@@ -1875,6 +1894,23 @@ Carries the part the hand holds from one open container over the rims into anoth
   - `unreachable`: No lean, jaw turn and height at or over clear_z was found to rise with, or none over any drop point (within max_ik_queries previews, or by the arm model); nothing moved and the hand still holds the part.
   - `lost`: The jaws read empty before the start, after the rise, or after the carry across; where the part is, is not known. Nothing was released on purpose.
 
+### centring-a-grasp-over-a-flat-part-from-the-grasp-pose
+
+execute · robots: any, *tuned on* yam_i2rt · tasks: pick-place, dominoes, assembly · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/centring-a-grasp-over-a-flat-part-from-the-grasp-pose/SKILL.md) · [upstream](yam_dominos skills/skills.py (_centre_lean, _centre_flat) and skills/perception.py (lying_depth), 2026-11)
+
+Corrects a planned grasp on a flat part of known size (a domino, a tile, a plate) by looking again with the wrist RGB-D camera from the grasp's own pose, lifted a few centimetres - the hand already tilted and turned as it will close - finding the part by depth alone (what stands a part's thickness over a plane fitted to the support in that same frame), shifting the grasp onto the part's middle and turning it square to the part's long side, and looking once more. No model, no colour. Use when a grasp planned from another view (overhead, or a wrist look from a different arm pose) comes down a few millimetres to a centimetre and a half to one side, so that one jaw meets the part first and pushes it; needs the part's box and the planned grasp pose, and the arm free to stand over the part.
+
+- **In**: `target_obb` OrientedBoundingBox, `grasp_pose` Se3Pose
+- **Out**: `grasp_pose_centred` Se3Pose, `pregrasp_pose` Se3Pose, `offset` Vec3, `turn_deg` float, `residual_mm` float, `detail` string
+- **Calls**: connector `robot.get_observation`, `robot.go_to_pose`, `robot.solve_ik`
+- **Scripts**: [`centre_grasp`](skills/centring-a-grasp-over-a-flat-part-from-the-grasp-pose/scripts/centre_grasp.py)
+- **Note**: Draft from yam_dominos. Measured there on the real left YAM; this script has not been run through a hub connector.
+- **Exits**:
+  - `centred`: The last look from the pregrasp pose has the part's middle within tolerance (1.5 mm) of where the grasp is aimed and its long side within 2.5 deg of the way the grasp was planned for, or within accept (3 mm) after the last correction; the hand stands at pregrasp_pose, standoff (5 cm) above grasp_pose_centred.
+  - `off_centre`: After max_looks (3) looks the part's middle is still more than accept from the grasp; the hand stands at the last pregrasp pose and grasp_pose_centred carries the corrections made.
+  - `not_seen`: No wrist camera with depth, the support not in view, or no blob of the part's size within 3 cm of where the grasp is aimed (cut by the picture's edge, hidden by the fingers, another size); the poses are the plan's, plus any correction already made.
+  - `unreachable`: The pregrasp pose, or a corrected one, failed the IK preview or the move; nothing further was tried.
+
 ### checking-reachability
 
 execute · robots: yam_i2rt · tasks: motion · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/checking-reachability/SKILL.md)
@@ -2705,6 +2741,23 @@ Seats a held jigsaw piece in its slot among already-placed neighbours when the a
   - `piece_lost`: The jaws read at their stop before anything moved, a descent went a whole thickness under the mat without meeting anything, or after the release the wrist depth finds no piece top at the slot.
   - `unverified`: Released after a drop, but the flush check could not run (verify false, no wrist camera, no view reached).
   - `unreachable`: The seated hand pose fails the IK preview, the hover or a turn was not reached, or a move was refused.
+
+### setting-down-a-held-part-by-measured-gap
+
+execute · robots: any, *tuned on* yam_i2rt · tasks: pick-place, dominoes, stacking · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/setting-down-a-held-part-by-measured-gap/SKILL.md) · [upstream](yam_dominos skills/skills.py (_set_down, _measure_down) and skills/perception.py (held_tile), 2026-11)
+
+Sets a part held upright in the jaws (a domino on its end, a block on edge) down on a support by measuring, in each wrist RGB-D frame, how far the part's lower end still is from the support - the part's upper end and the support round its foot are read in the same depth frame, the lower end being the part's known height under the upper - lowering in shrinking steps and letting go a millimetre up, or when the hand comes down and the gap does not (the part stands and slides in the pads). A part that is not seen, or a hand that cannot go lower, keeps the part and says so. Use when a part taken on its side must be stood up or set down gently and neither the grasp's geometry nor the arm's height is good to a few millimetres, and a stall cannot be felt because the part slips in the pads before the arm stops; needs the place pose, the part's held height, and the wrist camera seeing the part's upper end past the fingers.
+
+- **In**: `place_pose` Se3Pose, `part_tall` float
+- **Out**: `release_pose` Se3Pose, `gap` float, `lowered` float, `detail` string
+- **Calls**: connector `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.go_to_pose_cartesian`, `robot.open_gripper`, `robot.solve_ik`
+- **Scripts**: [`set_down_by_gap`](skills/setting-down-a-held-part-by-measured-gap/scripts/set_down_by_gap.py)
+- **Note**: Draft from yam_dominos. Measured there on the real left YAM; this script has not been run through a hub connector.
+- **Exits**:
+  - `set_down`: The jaws are open and the part was let go with its lower end read within drop + 1.5 mm (default 2.5 mm) of the support, or after a step in which the hand came down more than 1.5 mm and the part's end less than a third of that (it stood on the support); the hand is where it let go.
+  - `cannot_lower`: The part is still held. Sent down twice, neither the hand nor the gap changed by more than 0.6 mm with more than 4 mm to go (a workspace floor), or eleven steps did not bring it down; gap is the last reading.
+  - `not_seen`: The part is still held. From above the place, or after a step, the held part's upper end and enough of the support round its foot were not made out in the wrist frame; nothing was lowered by the model.
+  - `unreachable`: The pose above the place failed the IK preview or the move; the part is still held.
 
 ### setting-gripper-with-feedback
 

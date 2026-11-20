@@ -1,0 +1,46 @@
+{
+  "skill": "calibrating-a-wrist-camera-on-one-fixed-part",
+  "inputs": {
+    "target_obb": "OrientedBoundingBox"
+  },
+  "outputs": {
+    "camera_in_tool": {
+      "$ref": "calibrate.camera_in_tool"
+    },
+    "point_spread_mm": {
+      "$ref": "calibrate.point_spread_mm"
+    },
+    "left_out_mm": {
+      "$ref": "calibrate.left_out_mm"
+    }
+  },
+  "nodes": {
+    "calibrate": {
+      "type": "script",
+      "script": "scripts/calibrate_wrist_camera.py",
+      "inputs": {
+        "target_obb": {
+          "$ref": "in.target_obb"
+        }
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "calibrate"
+    ],
+    [
+      "calibrate",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "calibrated",
+      "inconsistent"
+    ]
+  },
+  "on_error": "too_few_views"
+}

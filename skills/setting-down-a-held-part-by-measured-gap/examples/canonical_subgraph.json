@@ -1,0 +1,45 @@
+{
+  "skill": "setting-down-a-held-part-by-measured-gap",
+  "inputs": {
+    "place_pose": "Se3Pose"
+  },
+  "outputs": {
+    "release_pose": {
+      "$ref": "set_down.release_pose"
+    },
+    "gap": {
+      "$ref": "set_down.gap"
+    }
+  },
+  "nodes": {
+    "set_down": {
+      "type": "script",
+      "script": "scripts/set_down_by_gap.py",
+      "inputs": {
+        "place_pose": {
+          "$ref": "in.place_pose"
+        },
+        "part_tall": 0.049
+      }
+    }
+  },
+  "edges": [
+    [
+      "START",
+      "set_down"
+    ],
+    [
+      "set_down",
+      "END"
+    ]
+  ],
+  "exit": {
+    "router_field": "route",
+    "success_values": [
+      "set_down",
+      "cannot_lower",
+      "not_seen"
+    ]
+  },
+  "on_error": "unreachable"
+}
