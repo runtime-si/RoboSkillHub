@@ -596,6 +596,123 @@ class TrackBuild(_HubSkill):
         return ctx.result(self, "succeeded", phase="verify", evidence=evidence, outputs=outputs)
 
 
+TIP_REACH_M = 0.0102
+"""Closed fingertips below the TCP [m] (the LEGO station's hand; regrasping-a-brick-to-turn-studs-up)."""
+STUD_TOP_M = 0.0113
+"""A LEGO brick's stud tops over its bottom face [m] (9.6 mm body + 1.7 mm stud)."""
+TIP_OVERTRAVEL_M = 0.0015
+"""Push the fingertips this far under the seated stud tops: seats the brick whether they land on studs
+or between them (body top 1.7 mm lower)."""
+TIP_SEATED_M = 0.0006
+"""Seated after the push: bottom face at most this far over the seat (lego.guarded_seat's depth band)."""
+
+
+class FingertipPress(_HubSkill):
+    """Seat a brick the gripped press left on the stud tops: at a light grip the pads slide up the brick
+    instead of pushing it down. Open, lift, close the jaws and push the brick's top down with the closed
+    fingertips over its centre, then lift with the jaws open to ``retreat_height_m`` over the press end, the
+    pose ``lego.release`` retreats to (it then opens and finds itself retreated)."""
+
+    skill_id = "hub.fingertip_press"
+    requires = frozenset({"pose_feedback", "cartesian_motion", "gripper"})
+    input_schema = _schema(
+        ["object_id", "alignment", "press", "open_width_m", "retreat_height_m"],
+        object_id=_STR,
+        alignment=_OBJ,
+        press=_OBJ,
+        open_width_m={"type": "number"},
+        retreat_height_m={"type": "number"},
+        speed_m_s={"type": "number"},
+    )
+
+    def run(self, request: dict, ctx: SkillContext) -> dict:
+        oid = request["object_id"]
+        seat = request["alignment"]["evidence"]["plan"]["seat_pose"]
+        end = request["press"].get("press_end_tcp_pose")
+        if not end:
+            return ctx.result(
+                self, "rejected", phase="validate", failure_type="precondition_unmet",
+                evidence={"reason": "no press end pose from lego.guarded_seat"},
+            )  # fmt: skip
+        speed = float(request.get("speed_m_s", 0.005))
+        seat_z = float(seat["position_m"][2])
+        trace: list[dict] = []
+
+        def brick() -> dict | None:
+            r = ctx.observe([oid], require_orientation=True)
+            for o in (r.get("evidence") or {}).get("observations", []):
+                if o.get("object_id") == oid and o.get("position_m") is not None:
+                    return o
+            return None
+
+        def move(label: str, xyz: list[float]) -> dict:
+            r = ctx.invoke(
+                "move_pose", {"target_pose": {**end, "position_m": list(xyz)}, "speed_m_s": speed}
+            )
+            trace.append(
+                {"step": label, "status": r.get("status"), "failure": r.get("failure_type")}
+            )
+            return r
+
+        def grip(label: str, width: float) -> dict:
+            r = ctx.invoke(
+                "set_gripper", {"width_m": width, "purpose": "release", "target_id": oid}
+            )
+            trace.append(
+                {"step": label, "status": r.get("status"), "failure": r.get("failure_type")}
+            )
+            return r
+
+        before = brick()
+        if before is None:
+            return ctx.result(
+                self, "unverified", phase="validate", failure_type="evidence_missing",
+                evidence={"reason": f"{oid} not observed"},
+            )  # fmt: skip
+        dz0 = float(before["position_m"][2]) - seat_z
+        ex, ey, ez = end["position_m"]
+        bx, by = float(before["position_m"][0]), float(before["position_m"][1])
+        retreat_z = ez + float(request["retreat_height_m"])
+        tip_z = seat_z + STUD_TOP_M - TIP_OVERTRAVEL_M + TIP_REACH_M
+        hover_z = max(seat_z + dz0 + STUD_TOP_M + TIP_REACH_M + 0.005, retreat_z)
+        failed = None
+        if grip("open", float(request["open_width_m"])).get("status") != "succeeded":
+            failed = "could not open the jaws"
+        elif move("lift", [ex, ey, hover_z]).get("status") != "succeeded":
+            failed = "lift refused"
+        elif grip("close", 0.0).get("status") not in ("succeeded", "unverified"):
+            failed = "could not close the jaws"
+        elif move("over the brick", [bx, by, hover_z]).get("status") != "succeeded":
+            failed = "move over the brick refused"
+        else:
+            # The push ends on the brick: the hand may stop short of the commanded depth.
+            move("push", [bx, by, tip_z])
+            move("up", [bx, by, hover_z])
+            grip("open again", float(request["open_width_m"]))
+            move("to the retreat pose", [ex, ey, retreat_z])
+        after = brick()
+        dz1 = None if after is None else float(after["position_m"][2]) - seat_z
+        ok = failed is None and dz1 is not None and dz1 <= TIP_SEATED_M
+        return ctx.result(
+            self,
+            "succeeded" if ok else "failed",
+            phase="verify",
+            failure_type=None if ok else "lego.misaligned",
+            observations=[o for o in (before, after) if o],
+            evidence={
+                "postcondition": {
+                    "name": "hub.fingertip_press:seated",
+                    "passed": ok,
+                    "measured": {"dz_before_m": dz0, "dz_after_m": dz1, "tip_z_m": tip_z},
+                },
+                "reason": failed
+                or f"brick {dz0 * 1e3:+.2f} -> {(dz1 or 0) * 1e3:+.2f} mm over its seat",
+                "trace": trace,
+            },
+            outputs={"dz_before_m": dz0, "dz_after_m": dz1},
+        )
+
+
 SKILLS = (
     PullUpCheck(),
     VerifySeatDepth(),
@@ -603,4 +720,5 @@ SKILLS = (
     FlipStudsUp(),
     JudgePlace(),
     TrackBuild(),
+    FingertipPress(),
 )
