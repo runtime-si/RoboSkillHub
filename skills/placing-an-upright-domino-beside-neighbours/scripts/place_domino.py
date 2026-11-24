@@ -131,6 +131,12 @@ YAW_TOLERANCE_DEG = 4.0
 """How far the jaws may end from the tile's width axis before the rest is turned on
 the last joint [deg]: a servo's 3 deg arrival bound plus a degree."""
 
+HELD_TURN_STEP_DEG = 15.0
+"""Largest turn of the last joint in one move while the hand holds the tile [deg]. In a YAM
+station twin a held tile did not follow a single large turn (refilling-a-domino-loading-rack:
+the jaws ended across its thickness in 4 of 5 rounds at 90 deg; here, a 78 deg turn read
+9.8 mm jaws over the slot once and left the tile 9 mm off its slot twice)."""
+
 TURN_TRIES = 3
 """Last-joint turns tried, each read back (the first learns which way it turns)."""
 
@@ -682,13 +688,18 @@ def run(
         return ok
 
     def square_jaws(
-        target: dict[str, float], close: np.ndarray, at: np.ndarray, notes: list[str]
+        target: dict[str, float],
+        close: np.ndarray,
+        at: np.ndarray,
+        notes: list[str],
+        step_deg: float = 180.0,
     ) -> dict[str, Any]:
         """Read the jaws' heading back and, when the solver left the wrist roll free,
         finish the turn on the last joint and re-centre over ``at``."""
         now = here()
         gain = -1.0  # a top-down hand turns opposite to its last joint, until measured
-        for _ in range(TURN_TRIES):
+        # stepped, the turn may go the long way round (180 deg off is the same for the jaws)
+        for _ in range(TURN_TRIES + int(math.ceil(180.0 / max(float(step_deg), 1.0)))):
             err = _wrap_half(jaw_error_deg(now["rotation"], target, close))
             if abs(err) <= float(yaw_tolerance_deg):
                 break
@@ -707,7 +718,7 @@ def run(
             if not fits:
                 notes.append(f"the last joint has no room to turn {-err:+.0f} deg")
                 break
-            command = math.radians(fits[0]) / gain
+            command = math.radians(max(-float(step_deg), min(float(step_deg), fits[0]))) / gain
             goal = q.copy()
             goal[-1] += command
             try:
@@ -761,6 +772,7 @@ def run(
 
     # --- the pick (pick.py: MoveAbove, PreOpen, MoveToGrasp, Grasp, LiftSlightly)
     notes: list[str] = []
+    in_hand = np.zeros(3)
     if tile is not None:
         t_xy, t_facing = tile_pose(tile)
         grasp_point = np.array([*t_xy, table_z + float(grasp_height)])
@@ -819,6 +831,9 @@ def run(
             return finish("not_holding", f"grasp: {why}; the hand is open over the tile")
         hang = float(reached[2] - table_z)
         out["grasp_height"] = hang
+        # where the tile sits in the hand (its pose less where the hand closed), in the hand's
+        # frame: the pads hold it wherever they landed along its facing
+        in_hand = _matrix(pose["rotation"]).T @ np.array([*(t_xy - reached[:2]), 0.0])
         out["picked"] = True
         why = go(
             "robot.go_to_pose_cartesian", np.array([*reached[:2], transit_z]), pose["rotation"]
@@ -868,7 +883,7 @@ def run(
     if why:
         return finish("unreachable", f"transit to the lead-in: {why}; still holding")
     notes = []
-    pose = square_jaws(rot, close, lead, notes)
+    pose = square_jaws(rot, close, lead, notes, HELD_TURN_STEP_DEG)
     err = _wrap_half(jaw_error_deg(pose["rotation"], rot, close))
     out["jaw_error_deg"] = err
     if abs(err) > float(yaw_tolerance_deg):
@@ -879,6 +894,10 @@ def run(
             + "; still holding",
         )
     rot = pose["rotation"]
+    # put the tile, not the hand, over the slot
+    shift = (_matrix(rot) @ in_hand)[:2]
+    over = np.array([*(slot_xy - shift), transit_z])
+    release = np.array([*(slot_xy - shift), release[2]])
     why = go("robot.go_to_pose_cartesian", over, rot)
     if why:
         return finish("unreachable", f"along the row to over the slot: {why}; still holding")
