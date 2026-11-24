@@ -1,0 +1,16 @@
+{
+  "skill": "aligning-a-held-tip-over-a-hole-by-visual-servoing",
+  "inputs": {"hole_xy": "Vec3", "face_z": "float", "tip_offset_m": "float"},
+  "outputs": {"offset_x": {"$ref": "align.offset_x"}, "offset_y": {"$ref": "align.offset_y"}},
+  "nodes": {
+    "align": {
+      "type": "script",
+      "script": "scripts/align_tip.py",
+      "inputs": {"hole_xy": {"$ref": "in.hole_xy"}, "face_z": {"$ref": "in.face_z"}, "tip_offset_m": {"$ref": "in.tip_offset_m"},
+                 "part_diameter_m": 0.0165, "hole_diameter_m": 0.0182}
+    }
+  },
+  "edges": [["START", "align"], ["align", "END"]],
+  "exit": {"router_field": "route", "success_values": ["aligned"]},
+  "on_error": "not_converging"
+}
