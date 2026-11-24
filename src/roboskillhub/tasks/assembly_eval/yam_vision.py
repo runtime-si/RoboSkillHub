@@ -93,6 +93,11 @@ HELD_GATE_M = 0.03
 PARTIAL_KEEP_M = 0.010
 #: A remembered (unseen) tile is dropped once the reported TCP comes within this of it.
 MEMORY_HAND_GATE_M = 0.08
+#: The D405's minimum range is 7 cm: a wrist view whose centre is closer than this is not used (its
+#: depth is holes, not a measurement).
+WRIST_MIN_STANDOFF_M = 0.08
+#: A blob whose box holds less than this share of valid depth is dropped (missing, not a wrong pose).
+MIN_BLOB_DEPTH_FILL = 0.6
 
 
 def _rot_z(a: float) -> np.ndarray:
@@ -221,6 +226,9 @@ class YamVision:
         if self.depth_mode not in ("rendered", "fitted", "stereo"):
             raise ValueError(f"depth must be rendered, fitted or stereo, got {self.depth_mode!r}")
         self._rng = np.random.default_rng(0)
+        self._dropped_holey = 0
+        self._wrist_skipped = 0
+        self._released: dict[str, bool] = {}
         self.segmenter, self.detector = segmenter, detector
         self.calibration = calibration
         self.min_interval_s = min_interval_s
@@ -269,7 +277,17 @@ class YamVision:
                 x1, y1, x2, y2 = (int(round(c)) for c in b)
                 keep[max(0, y1) : min(h, y2), max(0, x1) : min(w, x2)] = True
             fg &= keep
-        return _blobs(fg, MIN_BLOB_PX)
+        blobs = _blobs(fg, MIN_BLOB_PX)
+        if self.depth_mode == "rendered":
+            return blobs
+        kept = []
+        for b in blobs:
+            ys, xs = np.nonzero(b)
+            box = depth[ys.min() : ys.max() + 1, xs.min() : xs.max() + 1]
+            if (box > 0).mean() >= MIN_BLOB_DEPTH_FILL:
+                kept.append(b)
+        self._dropped_holey += len(blobs) - len(kept)
+        return kept
 
     def _view(self, name: str) -> tuple[np.ndarray, np.ndarray]:
         """Point the renderer's camera at view ``name``; its ``T_world_camera`` and K."""
@@ -397,9 +415,11 @@ class YamVision:
             if tid in self._out or tid == held:
                 continue
             m = self._memory[tid]
-            if prev.get(tid, {}).get("source") == "grasp_kinematics" or (
-                np.linalg.norm(np.asarray(m["position_m"]) - tcp) < MEMORY_HAND_GATE_M
-            ):
+            near = np.linalg.norm(np.asarray(m["position_m"]) - tcp) < MEMORY_HAND_GATE_M
+            if self._released.get(tid):
+                if not near:
+                    self._released[tid] = False  # the hand has left it: the normal rule from now on
+            elif prev.get(tid, {}).get("source") == "grasp_kinematics" or near:
                 del self._memory[tid]
                 continue
             self._out[tid] = {
@@ -420,6 +440,21 @@ class YamVision:
         st = self.station
         closed = st.closes > st.releases
         if not closed:
+            if self._held is not None and self.depth_mode != "rendered":
+                tid = self._held[0]
+                last = self._out.get(tid)
+                if last is not None:
+                    self._memory[tid] = {
+                        **last,
+                        "reason": "released at the grasp-kinematics pose; not yet seen again",
+                        "_seen_s": getattr(self, "_sim_t", 0.0),
+                    }
+                    self._released[tid] = True
+                    self._out[tid] = {
+                        **{k: v for k, v in self._memory[tid].items() if k != "_seen_s"},
+                        "source": "vision_memory",
+                        "evidence": {"released_unseen": True},
+                    }
             self._held = None
             self._closes_seen = st.closes
             return
@@ -510,6 +545,7 @@ class YamVision:
         ``min_interval_s`` since the last image. The simulation does not advance while an image is
         processed (it catches up to wall time at the next read), so observations are stamped when
         the processing ends; the processing time is in ``log``."""
+        self._sim_t = sim_t
         if self._last_t is None or sim_t - self._last_t >= self.min_interval_s:
             self._image(stamp, sim_t)
             self._last_t = sim_t
@@ -543,6 +579,9 @@ class YamVision:
 
         return {
             "images": len(self.log),
+            "depth": self.depth_mode,
+            "wrist_frames_skipped_too_close": self._wrist_skipped,
+            "blobs_dropped_for_holes": self._dropped_holey,
             "observations": len(errs),
             "missing_rate": 1.0
             - (len(errs) + len(held) + len(mem)) / max(1, n_tiles * len(self.log)),
