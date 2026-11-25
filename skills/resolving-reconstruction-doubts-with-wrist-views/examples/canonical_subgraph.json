@@ -1,0 +1,54 @@
+{
+  "skill": "resolving-reconstruction-doubts-with-wrist-views",
+  "inputs": {
+    "twin_path": "string",
+    "out_dir": "string"
+  },
+  "outputs": {
+    "doubts": {"$ref": "resolve.doubts"},
+    "twin_updates": {"$ref": "resolve.twin_updates"},
+    "frames": {"$ref": "resolve.frames"},
+    "n_measured": {"$ref": "resolve.n_measured"},
+    "n_views": {"$ref": "resolve.n_views"}
+  },
+  "nodes": {
+    "resolve": {
+      "type": "script",
+      "script": "scripts/resolve_doubts.py",
+      "inputs": {
+        "doubts": [
+          {
+            "id": "green_cap",
+            "point": [0.416, 0.259, 0.080],
+            "what": ["profile", "height", "position"],
+            "radius": 0.012,
+            "colour": {"h": [45, 85], "s": [120, 255], "v": [90, 255]},
+            "prior": {"profile": [{"from_mm": 0, "to_mm": 24, "diameter_m": 0.016}]},
+            "write": {"profile": "pens.shape.profile_measured"}
+          },
+          {
+            "id": "black_holder",
+            "point": [0.3975, 0.2623, -0.013],
+            "what": ["height"],
+            "radius": 0.06,
+            "colour": {"v": [0, 60]},
+            "top": "edge",
+            "max_height": 0.06,
+            "prior": {"height_over_surface": 0.041},
+            "write": {"height_over_surface": "black_holder.size_measured_height_m"}
+          }
+        ],
+        "arm_ids": [1],
+        "surface_z": -0.033,
+        "twin_path": {"$ref": "in.twin_path"},
+        "out_dir": {"$ref": "in.out_dir"}
+      }
+    }
+  },
+  "edges": [["START", "resolve"], ["resolve", "END"]],
+  "exit": {
+    "router_field": "route",
+    "success_values": ["measured", "inconsistent", "no_view"]
+  },
+  "on_error": "not_reachable"
+}

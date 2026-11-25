@@ -6,7 +6,7 @@ overview has one line per bundle, and each name leads to its section: the
 full description a planner reads, what goes in and comes out, what each exit
 means, and what it calls.
 
-34 tools, 179 skills, 4 policies, 1 recipe and 1 paper.
+34 tools, 180 skills, 4 policies, 1 recipe and 1 paper.
 
 Under robots, `any` means the bundle reads the robot through `describe_*`
 tools; *tuned on* names the robot its constants were measured on; **sim only**
@@ -88,6 +88,7 @@ means it reads simulator ground truth (`sim.*`) and never runs on a real robot.
 | [`reconstructing-collision-worlds`](#reconstructing-collision-worlds) | perceive | Reconstructs a planner collision world from calibrated RGB-D views alone, excluding the grasp target, the robot, and a… | any |
 | [`refining-target-from-wrist-closeup`](#refining-target-from-wrist-closeup) | perceive | Refines a coarse world-frame target (an overhead perception's OBB or point) by aiming the wrist RGB-D camera at it… | any |
 | [`registering-held-objects`](#registering-held-objects) | perceive | Reobserves a grasped rigid object from the wrist cameras, estimates its functional feature in the TCP frame, and fits… | any |
+| [`resolving-reconstruction-doubts-with-wrist-views`](#resolving-reconstruction-doubts-with-wrist-views) | perceive | Settles what a scene reconstruction from a fixed head or overhead camera left in doubt (a size the far camera cannot… | any, *tuned on* yam_i2rt |
 | [`scanning-the-board-into-a-wrist-mosaic`](#scanning-the-board-into-a-wrist-mosaic) | perceive | Scans a table region (the jigsaw board, a staging area) with the wrist camera from straight above and blends the… | any |
 | [`segmenting-and-picking-pieces-classical`](#segmenting-and-picking-pieces-classical) | perceive | Finds the loose jigsaw pieces lying on a staging mat in one top-down RGB(-D) frame without a learned model. | any |
 | [`segmenting-small-parts-from-a-few-reference-photos`](#segmenting-small-parts-from-a-few-reference-photos) | perceive | Labels the parts in a frame. | any |
@@ -1177,6 +1178,23 @@ Reobserves a grasped rigid object from the wrist cameras, estimates its function
 - **Exits**:
   - `registered`: A feature-in-TCP transform and attachment were produced; registration_confidence is the accepted mask score, or 0.25 when the grasp-time or prior transform was retained.
   - `lost`: Registration raised — no cloud could be fitted into an attachment or a geometry fit failed, so the object is no longer localized.
+
+### resolving-reconstruction-doubts-with-wrist-views
+
+perceive · robots: any, *tuned on* yam_i2rt · tasks: real2sim, pick-place, insertion, sorting · Apache-2.0 · v0.1.0 · [`SKILL.md`](skills/resolving-reconstruction-doubts-with-wrist-views/SKILL.md)
+
+Settles what a scene reconstruction from a fixed head or overhead camera left in doubt (a size the far camera cannot resolve, a thin or dark object that vanished from its depth, a height, a hidden face, a shape profile, how an object leans, where it really stands) by carrying the arm's wrist RGB-D camera to each doubted point, looking from several tilts and ranges without touching anything, and measuring the object there - top height over the surface, diameter by depth band under the top, lean, a footprint rectangle, position - each value with the views it came from, their agreement, and the saved frames, ready to write into the simulator twin. Use when a reconstruction (Agent A) has doubts the head camera cannot settle and a list of 3D points to check is in hand, before trusting the twin for search or policy tuning, and whenever a real run fails in a way the twin cannot show; the arm carrying the wrist camera must be free.
+
+- **In**: -
+- **Out**: `n_doubts` int, `n_measured` int, `n_views` int
+- **Calls**: [`sam3`](#sam3); connector `robot.describe_gripper`, `robot.describe_workspace`, `robot.get_ee_pose`, `robot.get_observation`, `robot.go_to_pose`, `robot.solve_ik`
+- **Scripts**: [`resolve_doubts`](skills/resolving-reconstruction-doubts-with-wrist-views/scripts/resolve_doubts.py)
+- **Note**: Generalized from the YAM pen station's pen_shape_probe.py and the analysis of its capture pen_shape_20261109-001140 (not published); its constants are that run's.
+- **Exits**:
+  - `measured`: Every doubt got at least one view, and every asked quantity was read from the fused points with no quantity on which fewer than half of the views that read it alone agree with the fused value (top height within 5 mm, band diameter within 4 mm, footprint sides within 5 mm, top centre within 5 mm, lean within 3 deg); each value names its views and frames, and twin_path (if given) now holds it under measured.&lt;doubt&gt;. The hands are back at their start poses (unless return_to_start is false).
+  - `inconsistent`: Some doubt was seen, but for at least one quantity fewer than half of the views that read it on their own agree with the fused value (a neighbour inside the crop, a selection that catches two objects, an object that moved between views); that doubt's values are returned with every view's reading and are not written to the twin.
+  - `no_view`: Some doubt's view poses were reached and framed the target, but its points were too few (under 20 within its radius), or an asked quantity no view could read (no band seen round, no surface height for a height, fewer than 4 lean slices); `failures` and `points_per_view` say which.
+  - `not_reachable`: For some doubt no view pose on any given arm cleared the surface floor (tool 12 cm over it) and the standoff (finger reach + 30 mm from every doubted point), passed the IK preview, was reached within 15 mm and showed the target in the image; `failures` lists every attempt. Nothing was measured for it.
 
 ### scanning-the-board-into-a-wrist-mosaic
 
