@@ -44,7 +44,8 @@
     "success_values": [
       "grasped",
       "missed",
-      "lost_target"
+      "lost_target",
+      "unverified"
     ]
   },
   "on_error": "unreachable"

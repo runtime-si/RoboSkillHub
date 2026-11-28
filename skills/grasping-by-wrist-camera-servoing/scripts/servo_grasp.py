@@ -365,8 +365,13 @@ def run(
     at_open = float(fit.get("at_open_m") or (hand or {}).get("span_m") or 0.0)
     at_closed = float(fit.get("at_closed_m") or 0.0)
     finger = (hand or {}).get("finger") or {}
-    tip_reach = float(finger.get("reach_m") or 0.0) if finger.get("stated", True) else 0.0
-    tip_reach = tip_reach or TIP_REACH
+    # a stated reach is used as stated, 0 included (a station whose tool centre IS the fingertips, e.g. the
+    # Lambda2); only a hand that states none falls back to the linear_4310's
+    stated = finger.get("stated", True) and finger.get("reach_m") is not None
+    tip_reach = float(finger["reach_m"]) if stated else TIP_REACH
+    # the lowest tool centre over the support: the station's own figure when it states one (the Lambda2's tool centre
+    # is its fingertips: 1 mm), else the YAM station's
+    floor = float((hand or {}).get("min_tool_height_m") or MIN_TABLE_CLEARANCE)
 
     def width(reply: Any = None) -> float:
         """The jaw gap [m] (robot.get_gripper's 1.0 = open), or -1.0 when unreadable."""
@@ -413,6 +418,10 @@ def run(
         except Exception as exc:
             return str(exc) or type(exc).__name__
 
+    # how far over the grasp height the jaws may close: CLOSE_TOLERANCE, but never more than a quarter of the part's
+    # height (2 mm over on a 3.2 mm plate closes the fingertips beside nothing)
+    close_tolerance = min(CLOSE_TOLERANCE, 0.25 * height) if height > 0.0 else CLOSE_TOLERANCE
+
     def grasp_height(top_z: float) -> float:
         depth = (
             float(grasp_depth)
@@ -421,7 +430,7 @@ def run(
         )
         z = top_z - depth
         if height > 0.0:
-            z = max(z, top_z - height + MIN_TABLE_CLEARANCE)
+            z = max(z, top_z - height + floor)
         return z
 
     def close_and_lift(rotation: dict[str, float]) -> Output:
@@ -447,7 +456,13 @@ def run(
                 "missed",
                 f"{out['mode']}: closed at {out['grip_width'] * 1e3:.1f} mm but the part slipped out in the lift{note}",
             )
-        unread = " (the jaw gap could not be read)" if out["grip_width"] < 0.0 else ""
+        if out["grip_width"] < 0.0 or out["held_width"] < 0.0:
+            # no jaw gap to read (a gripper without position feedback): nothing says the part is in the hand
+            return finish(
+                "unverified",
+                f"{out['mode']}: closed and lifted{note}, but the jaw gap could not be read: the grasp is not verified",
+            )
+        unread = ""
         return finish(
             "grasped",
             f"{out['mode']}: closed at {out['grip_width'] * 1e3:.1f} mm, "
@@ -728,7 +743,7 @@ def run(
             f"pixel offset ({du:.0f}, {dv:.0f}), aligned={aligned}, centre_in_mask={center_in_mask}, "
             f"centre depth {cdepth:.3f} m"
         )
-        if fine and dz <= CLOSE_TOLERANCE and cdepth > 0.0:
+        if fine and dz <= close_tolerance and cdepth > 0.0:
             return close_and_lift(rotation)
 
         lateral = np.zeros(2)
@@ -747,7 +762,7 @@ def run(
         length = float(np.linalg.norm(target - tool_xyz))
         if length < 1.0e-4:
             # Aligned at the grasp height but the aim window is off the mask: nothing to move.
-            if fine and dz <= CLOSE_TOLERANCE:
+            if fine and dz <= close_tolerance:
                 return close_and_lift(rotation)
             stalls += 1
             if stalls >= MAX_STALLS:

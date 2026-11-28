@@ -20,7 +20,7 @@ metadata:
   hub:
     stage: execute
     embodiments: [any]
-    version: 0.1.0
+    version: 1.0.0
     tasks: [pick-place, sorting, jigsaw]
     provenance:
       authors: [runtime-si]
@@ -53,6 +53,7 @@ gap:
     held_width: float
   exit_conditions:
     grasped: The jaws closed on something (the gap stayed over fully closed + 3 mm) and still held it after a lift of lift_height; `mode` says whether the servo closed (`servo`), the open-loop fallback did (`open_loop_fallback`, `fallback_reason` says why) or the skill ran open-loop (`open_loop`, servo=false). The hand stays lifted with the part.
+    unverified: Closed and lifted, but the gripper reports no jaw gap (no position feedback), so nothing tells a held part from an empty hand; check by another sense before relying on it.
     missed: The jaws closed on nothing, or the part slipped out in the lift; the jaws are opened and the hand lifted clear.
     lost_target: There is no wrist camera, the segmenter never found the part near the coarse estimate in MAX_LOST frames from the pregrasp view, or (fallback=false) it lost the part mid-servo; the hand stays where it was, jaws open.
     unreachable: No top-down grasp rotation, no pregrasp view passed the IK preview and the clearance floor or arrived within 15 mm, or a move of the open-loop grasp was refused; `detail` lists each attempt.
