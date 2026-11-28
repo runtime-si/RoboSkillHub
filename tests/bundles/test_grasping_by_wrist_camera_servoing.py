@@ -525,3 +525,67 @@ def test_connector_knobs_pass_only_when_set(script):
 def test_needs_a_target(script):
     with pytest.raises(ValueError):
         script.run(Rig().ctx(), object_name="red cube")
+
+
+def test_a_hand_without_position_feedback_is_unverified_not_grasped(script):
+    # a gripper that reports no jaw gap (position None, e.g. the Lambda2's EG2): nothing tells a held part from an
+    # empty hand, so the skill must not say grasped
+    rig = Rig()
+    blind = {"position": None, "measured": False}
+    real_close = rig.close
+
+    def close(**kw):
+        real_close(**kw)
+        return dict(blind)
+
+    out = script.run(
+        rig.ctx(
+            extra={"robot.close_gripper": close, "robot.get_gripper": lambda **kw: dict(blind)}
+        ),
+        object_name="red cube",
+        target_obb=coarse_obb(0.003, 0.0),
+    )
+    assert out["route"] == "unverified", out["detail"]
+    assert out["grip_width"] < 0.0
+
+
+def _thin_part_rig(min_tool_height=None, reach=0.0):
+    side = 0.010
+    cube = np.array([0.40, 0.10, side / 2])
+    rig = Rig(cubes=[cube], side=side)
+    hand = {
+        "span_m": SPAN,
+        "width_fit": {"at_open_m": SPAN, "at_closed_m": CLOSED},
+        "finger": {"stated": True, "reach_m": reach, "clearance_m": 0.002},
+    }
+    if min_tool_height is not None:
+        hand["min_tool_height_m"] = min_tool_height
+    return rig, cube, side, {"robot.describe_gripper": hand}
+
+
+def test_a_stated_tool_floor_lets_a_thin_part_be_grasped_below_its_top(script):
+    # a station whose tool centre is its fingertips (reach 0) states a 1 mm floor: a 10 mm part is closed on
+    # half-way down its side, not 14 mm over the support (the YAM default: over its top)
+    rig, cube, side, extra = _thin_part_rig(min_tool_height=0.001, reach=0.0)
+    out = script.run(
+        rig.ctx(extra=extra),
+        object_name="red cube",
+        target_obb=coarse_obb(0.003, 0.0, side=side, centre=cube),
+        object_height=side,
+    )
+    assert out["route"] == "grasped", out["detail"]
+    closed_z = rig.tool[2, 3] - out["lifted"]
+    assert closed_z <= side - 0.003  # fingertips at least 3 mm down a 10 mm side
+    assert closed_z >= 0.001 - 1e-9  # never under the stated floor
+
+
+def test_without_a_stated_floor_the_yam_floor_still_holds(script):
+    rig, cube, side, extra = _thin_part_rig(min_tool_height=None, reach=0.0102)
+    out = script.run(
+        rig.ctx(extra=extra),
+        object_name="red cube",
+        target_obb=coarse_obb(0.003, 0.0, side=side, centre=cube),
+        object_height=side,
+    )
+    closed_z = rig.tool[2, 3] - out.get("lifted", 0.0)
+    assert closed_z >= 0.014 - 0.0021
